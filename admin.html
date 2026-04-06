@@ -15,7 +15,7 @@
         :root { --line-green: #06C755; --bg-body: #f5f6f8; --text-main: #111827; }
         body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg-body); color: var(--text-main); overflow: hidden; }
 
-        /* 側邊欄與版型還原 */
+        /* 側邊欄與樣板還原 */
         .sidebar { width: 240px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0; z-index: 50; }
         .menu-item { display: flex; align-items: center; width: 100%; height: 50px; padding: 0 24px; color: #4b5563; font-size: 14px; font-weight: 500; cursor: pointer; border-left: 4px solid transparent; transition: all 0.2s; }
         .menu-item.active { background-color: #f0fbf5; color: #06C755; border-left-color: #06C755; font-weight: 700; }
@@ -24,6 +24,7 @@
         .top-header { height: 64px; background: white; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; }
         .content-scroll { flex: 1; overflow-y: auto; padding: 32px; }
 
+        /* 卡片看板視覺 */
         .card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02); margin-bottom: 24px; overflow: hidden; }
         .stat-card { background: white; padding: 24px; border-radius: 16px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
         .stat-watermark { position: absolute; right: -10px; bottom: -10px; font-size: 60px; opacity: 0.1; pointer-events: none; }
@@ -32,17 +33,17 @@
         .data-table th { padding: 12px 16px; background: #f9fafb; color: #6b7280; font-size: 12px; font-weight: 700; border-bottom: 1px solid #e5e7eb; white-space: nowrap; text-align: left; }
         .data-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; overflow: hidden; }
 
-        /* 課程名稱欄位寬度縮減：從 150px 縮減三分之一至 100px */
+        /* 名稱欄位控制 */
         .col-name { width: 100px; max-width: 100px; }
         .name-wrapper { width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; color: #1e293b; }
-        .sub-name { font-size: 10px; color: #94a3b8; margin-top: 2px; }
 
-        /* 右滑側邊編輯 Drawer */
+        /* 右滑側邊 Drawer */
         .drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 1000; display: flex; justify-content: flex-end; backdrop-filter: blur(2px); }
         .drawer-pop { background: white; width: 100%; max-width: 480px; height: 100vh; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.1); }
         .slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }
         .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
 
+        /* 縮圖預覽樣式 */
         .thumb-box { width: 80px; height: 80px; border-radius: 8px; border: 2px dashed #e5e7eb; overflow: hidden; background: #f9fafb; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .thumb-box img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -57,8 +58,6 @@
             .menu-item { flex: 1; flex-direction: column; justify-content: center; padding: 0; font-size: 10px; border-left: none; border-top: 3px solid transparent; height: 60px; }
             .menu-item.active { border-top-color: #06C755; background: transparent; }
             .menu-item i { font-size: 18px; margin: 0 0 4px 0 !important; }
-            .col-name { width: 90px; max-width: 90px; }
-            .content-scroll { padding: 16px; }
         }
     </style>
 </head>
@@ -66,23 +65,17 @@
 <body>
 
     <div id="app" v-cloak class="flex h-screen w-full">
-        <!-- LOGIN 登入 -->
+        <!-- 登入頁面 -->
         <div v-if="!isLoggedIn" class="fixed inset-0 z-[2000] flex items-center justify-center bg-[#f0f2f5]">
             <div class="bg-white p-12 rounded-2xl shadow-2xl w-[90%] md:w-[400px] text-center border">
                 <div class="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl"><i class="fas fa-lock"></i></div>
                 <h1 class="text-2xl font-black text-gray-800 mb-10 text-center">宏學管理系統</h1>
                 <div class="space-y-4 text-left">
-                    <div>
-                        <label class="text-xs font-bold text-gray-400 block mb-1 ml-1">帳號</label>
-                        <input v-model="account" type="text" class="input-line h-12" placeholder="請輸入帳號 (action)">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-gray-400 block mb-1 ml-1">密碼</label>
-                        <input v-model="password" @keyup.enter="login" type="password" class="input-line h-12" placeholder="請輸入密碼 (@1234)">
-                    </div>
-                    <button @click="login" :disabled="isLoading" class="w-full btn-green justify-center py-4 text-base shadow-lg font-black mt-4">
-                        {{ isLoading ? '連線中...' : '登入系統' }}
-                    </button>
+                    <label class="text-xs font-bold text-gray-400 block ml-1">帳號</label>
+                    <input v-model="account" type="text" class="input-line h-12" placeholder="action">
+                    <label class="text-xs font-bold text-gray-400 block ml-1">密碼</label>
+                    <input v-model="password" @keyup.enter="login" type="password" class="input-line h-12" placeholder="@1234">
+                    <button @click="login" :disabled="isLoading" class="w-full btn-green justify-center py-4 text-base shadow-lg font-black mt-4">登入後台</button>
                 </div>
                 <p v-if="error" class="text-red-500 text-sm mt-6 font-bold flex items-center justify-center gap-1"><i class="fas fa-exclamation-circle"></i> {{ error }}</p>
             </div>
@@ -93,18 +86,10 @@
             <aside class="sidebar shadow-xl">
                 <div class="p-6 font-black text-xl border-b tracking-tight text-[#06C755] hidden md:block">宏學管理站</div>
                 <div class="flex-1 py-4 flex md:block">
-                    <div class="menu-item" :class="{active: currentTab==='dashboard'}" @click="currentTab='dashboard'">
-                        <i class="fas fa-chart-pie w-6 text-center mr-2"></i> <span>統計</span>
-                    </div>
-                    <div class="menu-item" :class="{active: currentTab==='courses'}" @click="currentTab='courses'">
-                        <i class="fas fa-book-open w-6 text-center mr-2"></i> <span>課程</span>
-                    </div>
-                    <div class="menu-item" :class="{active: currentTab==='orders'}" @click="currentTab='orders'">
-                        <i class="fas fa-receipt w-6 text-center mr-2"></i> <span>訂單</span>
-                    </div>
-                    <div class="menu-item text-gray-400 mt-auto" @click="logout">
-                        <i class="fas fa-power-off w-6 text-center mr-2"></i> <span>登出</span>
-                    </div>
+                    <div class="menu-item" :class="{active: currentTab==='dashboard'}" @click="currentTab='dashboard'"><i class="fas fa-chart-pie w-6 text-center mr-2"></i> <span>統計</span></div>
+                    <div class="menu-item" :class="{active: currentTab==='courses'}" @click="currentTab='courses'"><i class="fas fa-book-open w-6 text-center mr-2"></i> <span>課程</span></div>
+                    <div class="menu-item" :class="{active: currentTab==='orders'}" @click="currentTab='orders'"><i class="fas fa-receipt w-6 text-center mr-2"></i> <span>訂單</span></div>
+                    <div class="menu-item text-gray-400 mt-auto" @click="logout"><i class="fas fa-power-off w-6 text-center mr-2"></i> <span>登出</span></div>
                 </div>
             </aside>
 
@@ -112,122 +97,66 @@
                 <header class="top-header">
                     <h2 class="text-xl font-bold text-gray-800">{{ tabLabel }}</h2>
                     <div class="flex gap-2">
-                        <button v-if="currentTab==='courses'" @click="executeMacroImport" class="btn-white text-blue-600 border-blue-200">
-                            <i class="fas fa-cloud-download-alt"></i> 自動匯入
-                        </button>
+                        <button v-if="currentTab==='courses'" @click="executeMacroImport" class="btn-white text-blue-600 border-blue-100"><i class="fas fa-file-import"></i> 匯入宏學表單</button>
                         <button @click="fetchData" class="btn-white"><i class="fas fa-sync-alt" :class="{'fa-spin':isLoading}"></i> 資料同步</button>
                     </div>
                 </header>
 
                 <div class="content-scroll">
-                    <!-- 統計看板 -->
+                    <!-- 看板與統計表格 -->
                     <div v-if="currentTab==='dashboard'" class="animate-fade-in">
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
                             <div class="stat-card border-l-4 border-green-500">
-                                <p class="text-[10px] font-bold text-gray-400 mb-1">實收金額 (已完款)</p>
+                                <p class="text-[10px] font-bold text-gray-400 mb-1">實收金額</p>
                                 <h3 class="text-xl font-black text-green-600">${{ dashboardStats.totalRevenue.toLocaleString() }}</h3>
                                 <i class="fas fa-dollar-sign stat-watermark text-green-600"></i>
                             </div>
                             <div class="stat-card border-l-4 border-orange-500">
-                                <p class="text-[10px] font-bold text-gray-400 mb-1">待收金額 (待付款)</p>
+                                <p class="text-[10px] font-bold text-gray-400 mb-1">待收金額</p>
                                 <h3 class="text-xl font-black text-orange-500">${{ dashboardStats.pendingRevenue.toLocaleString() }}</h3>
                                 <i class="fas fa-hourglass-half stat-watermark text-orange-500"></i>
                             </div>
-                            <div class="stat-card border-l-4 border-red-500">
-                                <p class="text-[10px] font-bold text-gray-400 mb-1">總退款金額</p>
-                                <h3 class="text-xl font-black text-red-500">${{ dashboardStats.refundedRevenue.toLocaleString() }}</h3>
-                                <i class="fas fa-hand-holding-usd stat-watermark text-red-500"></i>
-                            </div>
                             <div class="stat-card border-l-4 border-blue-500">
-                                <p class="text-[10px] font-bold text-gray-400 mb-1">有效報名訂單</p>
-                                <h3 class="text-xl font-black text-blue-600">{{ dashboardStats.totalOrders }} <span class="text-xs">筆</span></h3>
-                                <i class="fas fa-file-signature stat-watermark text-blue-600"></i>
-                            </div>
-                            <div class="stat-card border-l-4 border-purple-500">
-                                <p class="text-[10px] font-bold text-gray-400 mb-1">系統總會員數</p>
-                                <h3 class="text-xl font-black text-purple-600">{{ users.length }} <span class="text-xs">人</span></h3>
-                                <i class="fas fa-users stat-watermark text-purple-600"></i>
+                                <p class="text-[10px] font-bold text-gray-400 mb-1">有效訂單</p>
+                                <h3 class="text-xl font-black text-blue-600">{{ dashboardStats.totalOrders }} 筆</h3>
+                                <i class="fas fa-file-invoice stat-watermark text-blue-600"></i>
                             </div>
                         </div>
-
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-l-4 border-[#06C755] pl-3">各課程營收明細統計</h3>
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-l-4 border-[#06C755] pl-3">課程營收狀態明細</h3>
                         <div class="card overflow-x-auto">
                             <table class="data-table min-w-max w-full">
                                 <thead>
-                                    <tr>
-                                        <th class="col-name">課程名稱</th>
-                                        <th class="text-center w-24">報名總數</th>
-                                        <th class="text-center w-32">應收總額</th>
-                                        <th class="text-center w-24 border-l">待付人數</th>
-                                        <th class="text-center w-32">待收金額</th>
-                                        <th class="text-center w-24 border-l">已付人數</th>
-                                        <th class="text-center w-32">實收金額</th>
-                                        <th class="text-center w-24 border-l">退款人數</th>
-                                    </tr>
+                                    <tr><th class="col-name">課程名稱</th><th class="text-center w-24">報名數</th><th class="text-right w-32">實收金額</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="stat in sortedCourseStats" :key="stat.id" class="hover:bg-gray-50 transition">
-                                        <td class="col-name">
-                                            <div class="name-wrapper" :title="stat.name">{{ stat.name }}</div>
-                                            <div class="sub-name">({{ stat.type || '宏學課程' }})</div>
-                                        </td>
-                                        <td class="text-center font-bold">{{ stat.totalCount }}</td>
-                                        <td class="text-center text-slate-500 font-medium">${{ stat.totalRevenue.toLocaleString() }}</td>
-                                        <td class="text-center text-orange-500 font-bold border-l">{{ stat.pendingCount }}</td>
-                                        <td class="text-center text-orange-600 font-black">${{ stat.pendingRevenue.toLocaleString() }}</td>
-                                        <td class="text-center text-green-600 font-bold border-l">{{ stat.paidCount }}</td>
-                                        <td class="text-center text-green-600 font-black text-base">${{ stat.paidRevenue.toLocaleString() }}</td>
-                                        <td class="text-center text-red-400 border-l">{{ stat.refundedCount }}</td>
+                                    <tr v-for="stat in sortedCourseStats" :key="stat.id">
+                                        <td class="col-name"><div class="name-wrapper">{{ stat.name }}</div></td>
+                                        <td class="text-center">{{ stat.paidCount }}</td>
+                                        <td class="text-right font-black text-green-600">${{ stat.paidRevenue.toLocaleString() }}</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- 課程管理列表 -->
+                    <!-- 課程列表 -->
                     <div v-if="currentTab==='courses'" class="animate-fade-in">
-                        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                            <input v-model="searchCourseTerm" class="input-line max-w-md h-10 shadow-sm" placeholder="搜尋課程名稱或編號...">
-                            <button @click="openAddCourse" class="btn-green h-10 shadow-sm"><i class="fas fa-plus"></i> 新增課程</button>
+                        <div class="flex justify-between items-center mb-6">
+                            <input v-model="searchCourseTerm" class="input-line max-w-md shadow-sm" placeholder="搜尋課程...">
+                            <button @click="openAddCourse" class="btn-green h-11"><i class="fas fa-plus"></i> 新增課程</button>
                         </div>
                         <div class="card overflow-x-auto">
                             <table class="data-table">
                                 <thead>
-                                    <tr>
-                                        <th class="w-16 text-center">預覽</th>
-                                        <th class="col-name">課程名稱 / 編號</th>
-                                        <th class="w-32">日期</th>
-                                        <th class="w-32">費用 / 名額</th>
-                                        <th class="text-center w-24">狀態</th>
-                                        <th class="text-right w-32">管理</th>
-                                    </tr>
+                                    <tr><th class="w-16">預覽</th><th class="col-name">名稱/編號</th><th class="w-32">日期</th><th class="w-32">費用/名額</th><th class="text-right w-24">管理</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="c in filteredCourses" :key="c.id" class="hover:bg-slate-50 transition border-b border-slate-50">
-                                        <td class="text-center">
-                                            <div class="w-10 h-10 bg-gray-100 rounded overflow-hidden flex items-center justify-center border shadow-inner">
-                                                <img v-if="c.image" :src="c.image" class="w-full h-full object-cover" @error="handleImgError">
-                                                <i v-else class="fas fa-image text-gray-200"></i>
-                                            </div>
-                                        </td>
-                                        <td class="col-name">
-                                            <div class="name-wrapper" :title="c.name">{{ c.name }}</div>
-                                            <div class="text-[10px] text-slate-400 font-mono mt-1">{{ c.id }}</div>
-                                        </td>
-                                        <td class="text-sm text-slate-500 font-medium">
-                                            <div class="flex items-center gap-1.5">{{ formatDate(c.startDate) }}</div>
-                                        </td>
-                                        <td>
-                                            <div class="font-black text-green-600 text-sm">${{ Number(c.price).toLocaleString() }}</div>
-                                            <div class="text-[10px] text-slate-400 font-bold uppercase">{{ c.enrolled }} / {{ c.capacity }}</div>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase" :class="c.status==='上架'?'bg-green-100 text-green-700':'bg-gray-100 text-gray-400'">{{ c.status }}</span>
-                                        </td>
-                                        <td class="text-right space-x-3">
-                                            <button @click="openAttendance(c)" class="text-blue-600 font-bold text-xs hover:underline">簽到</button>
-                                            <button @click="openEditCourse(c)" class="text-slate-400 font-bold text-xs hover:underline">編輯</button>
-                                        </td>
+                                    <tr v-for="c in filteredCourses" :key="c.id" class="hover:bg-slate-50 transition border-b">
+                                        <td><div class="w-10 h-10 bg-slate-50 rounded overflow-hidden flex items-center justify-center border"><img v-if="c.image" :src="c.image" class="w-full h-full object-cover" @error="handleImgError"><i v-else class="fas fa-image text-slate-200"></i></div></td>
+                                        <td class="col-name"><div class="name-wrapper">{{ c.name }}</div><div class="text-[10px] text-slate-400 font-mono">{{ c.id }}</div></td>
+                                        <td class="text-sm text-slate-500">{{ formatDate(c.startDate) }}</td>
+                                        <td><div class="font-black text-green-600">${{ Number(c.price).toLocaleString() }}</div><div class="text-[10px] text-slate-400">{{ c.enrolled }}/{{ c.capacity }}人</div></td>
+                                        <td class="text-right"><button @click="openEditCourse(c)" class="text-slate-400 font-bold text-xs hover:underline">編輯</button></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -242,74 +171,40 @@
             <div v-if="showCourseModal" class="drawer-mask" @click.self="showCourseModal=false">
                 <div class="drawer-pop">
                     <div class="h-16 border-b px-6 flex justify-between items-center bg-white shrink-0">
-                        <h3 class="font-black text-slate-800 tracking-tight">{{ isEditingCourse ? '修改課程資料' : '建立宏學新課程' }}</h3>
-                        <button @click="showCourseModal=false" class="w-10 h-10 rounded-full hover:bg-slate-50 text-slate-300 flex items-center justify-center"><i class="fas fa-times text-lg"></i></button>
+                        <h3 class="font-black text-gray-800 tracking-tight">{{ isEditingCourse ? '修改課程資料' : '建立宏學新課程' }}</h3>
+                        <button @click="showCourseModal=false" class="text-slate-300 hover:text-slate-500 flex items-center justify-center"><i class="fas fa-times text-lg"></i></button>
                     </div>
-                    
                     <div class="flex-1 overflow-y-auto p-8 space-y-8 bg-white">
                         <div class="flex gap-5 items-center pb-6 border-b border-slate-50 text-left">
-                            <div @click="$refs.fileInput.click()" class="thumb-box shadow-sm flex items-center justify-center border-2">
-                                <img v-if="courseForm.image" :src="courseForm.image" @error="handleImgError">
-                                <i v-else class="fas fa-camera text-2xl text-slate-200"></i>
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">封面縮圖 (800px 壓縮)</p>
-                                <button @click="$refs.fileInput.click()" class="btn-white text-xs py-2 px-4 shadow-sm font-bold">選擇照片</button>
-                                <input type="file" ref="fileInput" @change="processImage" accept="image/*" class="hidden">
-                            </div>
+                            <div @click="$refs.fileInput.click()" class="thumb-box shadow-sm border-2"><img v-if="courseForm.image" :src="courseForm.image" @error="handleImgError"><i v-else class="fas fa-camera text-2xl text-slate-200"></i></div>
+                            <div class="flex-1"><p class="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">封面縮圖 (800px 壓縮)</p><button @click="$refs.fileInput.click()" class="btn-white text-xs py-2 px-4 shadow-sm font-bold">更換照片</button><input type="file" ref="fileInput" @change="processImage" accept="image/*" class="hidden"></div>
                         </div>
-
                         <div class="space-y-5 text-left">
-                            <div>
-                                <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">課程名稱</label>
-                                <input v-model="courseForm.name" class="input-line font-bold" placeholder="輸入課程標題">
-                            </div>
-                            
+                            <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">課程名稱</label><input v-model="courseForm.name" class="input-line font-bold"></div>
                             <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">開始日期 (YYYY-MM-DD)</label>
-                                    <input v-model="courseForm.startDate" class="input-line" placeholder="2026-04-06">
-                                </div>
-                                <div>
-                                    <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">上架狀態</label>
-                                    <select v-model="courseForm.status" class="input-line">
-                                        <option value="下架">下架</option>
-                                        <option value="上架">上架</option>
-                                    </select>
-                                </div>
+                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">日期</label><input v-model="courseForm.startDate" class="input-line" placeholder="YYYY-MM-DD"></div>
+                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">狀態</label><select v-model="courseForm.status" class="input-line"><option value="下架">下架</option><option value="上架">上架</option></select></div>
                             </div>
-
+                            <!-- 預留時間欄位 -->
                             <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">單價</label>
-                                    <input v-model="courseForm.price" type="number" class="input-line font-black text-green-600">
-                                </div>
-                                <div>
-                                    <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">名額限制</label>
-                                    <input v-model="courseForm.capacity" type="number" class="input-line">
-                                </div>
+                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">開始時間 (預留)</label><input v-model="courseForm.startTime" class="input-line" placeholder="例：19:00"></div>
+                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">結束時間 (預留)</label><input v-model="courseForm.endTime" class="input-line" placeholder="例：21:00"></div>
                             </div>
-
-                            <div>
-                                <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">詳細課程介紹</label>
-                                <textarea v-model="courseForm.description" rows="6" class="input-line text-sm leading-relaxed" placeholder="輸入詳細介紹內容..."></textarea>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">單價</label><input v-model="courseForm.price" type="number" class="input-line font-black text-green-600"></div>
+                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">名額限制</label><input v-model="courseForm.capacity" type="number" class="input-line"></div>
                             </div>
+                            <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">課程簡介</label><textarea v-model="courseForm.description" rows="6" class="input-line text-sm"></textarea></div>
                         </div>
                     </div>
-
-                    <div class="p-6 border-t bg-slate-50 flex gap-3">
-                        <button @click="showCourseModal=false" class="flex-1 btn-white py-3 h-auto justify-center font-bold">取消</button>
-                        <button @click="saveCourse" :disabled="isLoading" class="flex-[2] btn-green py-3 h-auto justify-center shadow-lg text-base">
-                            {{ isLoading ? '正在儲存中...' : '確認儲存' }}
-                        </button>
-                    </div>
+                    <div class="p-6 border-t bg-slate-50 flex gap-3"><button @click="showCourseModal=false" class="flex-1 btn-white py-3 h-auto font-bold">取消</button><button @click="saveCourse" :disabled="isLoading" class="flex-[2] btn-green py-3 h-auto shadow-lg">確認儲存</button></div>
                 </div>
             </div>
         </transition>
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed } = Vue;
         const API_ENDPOINT = 'https://action.fangwl591021.workers.dev/';
         const MACRO_TOKEN = 'macro-import-2026';
 
@@ -318,36 +213,22 @@
                 const isLoggedIn = ref(false), account = ref(''), password = ref(''), isLoading = ref(false), error = ref('');
                 const currentTab = ref('dashboard'), courses = ref([]), orders = ref([]), users = ref([]);
                 const searchTerm = ref(''), searchCourseTerm = ref('');
-
                 const showCourseModal = ref(false), isEditingCourse = ref(false), courseForm = ref({});
-                const showAttendanceModal = ref(false), attendanceCourse = ref(null), attendanceDate = ref(''), attendanceList = ref([]);
 
-                const tabLabel = computed(() => ({ 'dashboard': '數據統計總覽', 'courses': '課程管理系統', 'orders': '報名訂單維護' }[currentTab.value]));
+                const tabLabel = computed(() => ({ 'dashboard': '營運看板', 'courses': '課程中心', 'orders': '報名清單' }[currentTab.value]));
 
                 const callApi = async (action, payload = {}) => {
-                    try {
-                        const res = await fetch(API_ENDPOINT, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${MACRO_TOKEN}` },
-                            body: JSON.stringify({ action, payload })
-                        });
-                        if (!res.ok) throw new Error(`連線失敗 (${res.status})`);
-                        const json = await res.json();
-                        // 兼容 success 與 status 兩種結構
-                        if (json.success || json.status === 'success') return json.data || json.message;
-                        throw new Error(json.message || '操作執行失敗');
-                    } catch (e) {
-                        console.error("API Error:", e);
-                        throw e;
-                    }
+                    const res = await fetch(API_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${MACRO_TOKEN}` }, body: JSON.stringify({ action, payload }) });
+                    const json = await res.json();
+                    if (!json.success) throw new Error(json.message);
+                    return json.data;
                 };
 
                 const login = async () => {
                     error.value = '';
-                    if (!account.value || !password.value) { error.value = '請輸入帳號密碼'; return; }
-                    if (account.value !== 'action' || password.value !== '@1234') { error.value = '帳號或密碼錯誤'; return; }
+                    if (account.value !== 'action' || password.value !== '@1234') { error.value = '登入失敗'; return; }
                     isLoading.value = true;
-                    try { isLoggedIn.value = true; fetchData(); } catch (e) { error.value = '登入失敗，請確認連線'; } finally { isLoading.value = false; }
+                    try { isLoggedIn.value = true; fetchData(); } catch (e) { error.value = '同步失敗'; } finally { isLoading.value = false; }
                 };
 
                 const fetchData = async () => {
@@ -357,76 +238,40 @@
                         courses.value = d.courses || [];
                         orders.value = (d.orders || []).reverse();
                         users.value = d.users || [];
-                    } catch (e) { console.error("Sync Failed:", e); } finally { isLoading.value = false; }
+                    } catch (e) { console.error(e); } finally { isLoading.value = false; }
                 };
 
-                const logout = () => { isLoggedIn.value = false; account.value = ''; password.value = ''; };
-
                 const executeMacroImport = async () => {
-                    if (!confirm('執行匯入？系統將過濾重複項。')) return;
+                    if (!confirm('執行表單匯入？')) return;
                     isLoading.value = true;
-                    try {
-                        const msg = await callApi('MACRO_IMPORT');
-                        alert(msg); fetchData();
-                    } catch (e) { alert('匯入失敗：' + e.message); } finally { isLoading.value = false; }
+                    try { alert(await callApi('MACRO_IMPORT')); fetchData(); } catch (e) { alert(e.message); } finally { isLoading.value = false; }
                 };
 
                 const filteredCourses = computed(() => {
                     const s = searchCourseTerm.value.toLowerCase();
-                    let res = courses.value.filter(c => !s || String(c.name).toLowerCase().includes(s) || String(c.id).toLowerCase().includes(s));
-                    return res.sort((a, b) => (b.startDate || '').localeCompare(a.startDate || '') || (b.id || '').localeCompare(a.id || ''));
+                    let res = courses.value.filter(c => !s || String(c.name).toLowerCase().includes(s));
+                    return res.sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
                 });
 
                 const sortedCourseStats = computed(() => {
-                    const stats = courses.value.map(c => {
+                    return courses.value.map(c => {
                         const cOrders = orders.value.filter(o => o.courseId === c.id);
-                        return {
-                            id: c.id, name: c.name, type: c.type || '宏學課程', startDate: c.startDate,
-                            totalCount: cOrders.length,
-                            totalRevenue: cOrders.reduce((a, b) => a + (Number(b.amount) || 0), 0),
-                            paidCount: cOrders.filter(o => o.status === 'PAID').length,
-                            paidRevenue: cOrders.filter(o => o.status === 'PAID').reduce((a, b) => a + (Number(b.amount) || 0), 0),
-                            pendingCount: cOrders.filter(o => o.status === 'PENDING').length,
-                            pendingRevenue: cOrders.filter(o => o.status === 'PENDING').reduce((a, b) => a + (Number(b.amount) || 0), 0),
-                            refundedCount: cOrders.filter(o => o.status === 'REFUNDED' || o.status === 'REFUND_REQUESTED').length
-                        };
-                    });
-                    return stats.sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+                        return { id: c.id, name: c.name, paidCount: cOrders.filter(o => o.status === 'PAID').length, paidRevenue: cOrders.filter(o => o.status === 'PAID').reduce((a, b) => a + (Number(b.amount) || 0), 0) };
+                    }).sort((a, b) => b.paidRevenue - a.paidRevenue);
                 });
 
                 const dashboardStats = computed(() => {
-                    let rev = 0, pending = 0, refund = 0;
-                    orders.value.forEach(o => {
-                        const amt = Number(o.amount) || 0;
-                        if (o.status === 'PAID') rev += amt;
-                        if (o.status === 'PENDING') pending += amt;
-                        if (o.status === 'REFUNDED' || o.status === 'REFUND_REQUESTED') refund += amt;
-                    });
-                    return { 
-                        totalRevenue: rev, 
-                        pendingRevenue: pending, 
-                        refundedRevenue: refund, 
-                        pendingCount: orders.value.filter(o => o.status === 'PENDING').length, 
-                        totalOrders: orders.value.filter(o => o.status !== 'CANCELLED').length 
-                    };
+                    let rev = 0, pending = 0;
+                    orders.value.forEach(o => { if (o.status === 'PAID') rev += (Number(o.amount) || 0); else if (o.status === 'PENDING') pending += (Number(o.amount) || 0); });
+                    return { totalRevenue: rev, pendingRevenue: pending, totalOrders: orders.length };
                 });
 
-                const openAddCourse = () => {
-                    isEditingCourse.value = false;
-                    courseForm.value = { id: '', name: '', startDate: '', price: 0, capacity: 20, status: '下架', image: '', description: '' };
-                    showCourseModal.value = true;
-                };
-
+                const openAddCourse = () => { isEditingCourse.value = false; courseForm.value = { id: '', name: '', startDate: '', price: 0, capacity: 20, status: '下架', image: '', startTime: '', endTime: '', description: '' }; showCourseModal.value = true; };
                 const openEditCourse = (c) => { isEditingCourse.value = true; courseForm.value = { ...c }; showCourseModal.value = true; };
-                
-                const saveCourse = async () => {
-                    isLoading.value = true;
-                    try {
-                        const action = isEditingCourse.value ? 'ADMIN_UPDATE_COURSE' : 'ADMIN_ADD_COURSE';
-                        await callApi(action, courseForm.value);
-                        alert('已儲存成功！'); showCourseModal.value = false; fetchData();
-                    } catch (e) { alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
-                };
+                const saveCourse = async () => { isLoading.value = true; try { await callApi(isEditingCourse.value ? 'ADMIN_UPDATE_COURSE' : 'ADMIN_ADD_COURSE', courseForm.value); showCourseModal.value = false; fetchData(); } catch (e) { alert(e.message); } finally { isLoading.value = false; } };
+                const logout = () => { isLoggedIn.value = false; account.value = ''; password.value = ''; };
+                const formatDate = (d) => (d && d !== '1970-01-01') ? d : '日期未定';
+                const handleImgError = (e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<i class="fas fa-image text-slate-200"></i>'; };
 
                 const processImage = (event) => {
                     const file = event.target.files[0];
@@ -436,8 +281,8 @@
                         const img = new Image();
                         img.onload = () => {
                             const canvas = document.createElement('canvas');
-                            let width = img.width, height = img.height, max = 800;
-                            if (width > max) { height *= max / width; width = max; }
+                            let width = img.width, height = img.height;
+                            if (width > 800) { height *= 800 / width; width = 800; }
                             canvas.width = width; canvas.height = height;
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, width, height);
@@ -448,19 +293,9 @@
                     reader.readAsDataURL(file);
                 };
 
-                const formatDate = (d) => (d && d !== '1970-01-01' && !d.startsWith('1899')) ? d : '日期未定';
-                const handleImgError = (e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<i class="fas fa-image text-slate-300 opacity-20"></i>'; };
-                const getCourseName = (id) => (courses.value.find(c => c.id === id) || { name: '未知' }).name;
-
-                return {
-                    isLoggedIn, account, password, isLoading, error, currentTab, tabLabel,
-                    courses, orders, users, searchTerm, searchCourseTerm, filteredCourses, dashboardStats, sortedCourseStats,
-                    showCourseModal, isEditingCourse, courseForm,
-                    login, logout, fetchData, executeMacroImport, openAddCourse, openEditCourse, saveCourse, processImage, getCourseName, formatDate, handleImgError
-                };
+                return { isLoggedIn, account, password, isLoading, error, currentTab, tabLabel, courses, orders, users, searchTerm, searchCourseTerm, filteredCourses, dashboardStats, sortedCourseStats, showCourseModal, isEditingCourse, courseForm, login, logout, fetchData, executeMacroImport, openAddCourse, openEditCourse, saveCourse, processImage, formatDate, handleImgError };
             }
         }).mount('#app');
     </script>
 </body>
-
 </html>
