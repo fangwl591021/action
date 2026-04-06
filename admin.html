@@ -1582,8 +1582,10 @@
 
     <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
-        // 對接宏學系統的新 Worker 網址
-        const API_ENDPOINT = 'https://action.fangwl591021.workers.dev/';
+        // 系統主 API (處理登入、讀取資料、訂單等核心功能)
+        const API_ENDPOINT = 'https://sport-island.fangwl591021.workers.dev/';
+        // 自動匯入專用 API (專門對接宏學表單的 action worker)
+        const IMPORT_API_ENDPOINT = 'https://action.fangwl591021.workers.dev/';
 
         createApp({
             setup() {
@@ -1659,14 +1661,10 @@
                 const attendanceOverviewList = ref([]);
                 const courseDatesList = ref([]);
 
-                // API Call Wrapper
+                // API Call Wrapper (對接主系統，不需要帶匯入專用的 Token)
                 const callApi = async (action, payload = {}) => {
                     const res = await fetch(API_ENDPOINT, { 
                         method: 'POST', 
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer macro-import-2026'
-                        },
                         body: JSON.stringify({ action, payload: { ...authPayload.value, ...payload } }) 
                     });
                     const json = await res.json();
@@ -1679,7 +1677,8 @@
                     if (!confirm('確定要從宏學表單執行自動匯入嗎？\n系統將自動比對並新增缺少的課程。')) return;
                     isLoading.value = true;
                     try {
-                        const response = await fetch(API_ENDPOINT, {
+                        // 這裡改用 IMPORT_API_ENDPOINT
+                        const response = await fetch(IMPORT_API_ENDPOINT, {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
