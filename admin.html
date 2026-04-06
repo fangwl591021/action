@@ -16,7 +16,7 @@
         body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg-body); color: var(--text-main); overflow: hidden; }
 
         .sidebar { width: 240px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0; z-index: 50; }
-        .menu-item { display: flex; align-items: center; width: 100%; height: 50px; padding: 0 24px; color: #4b5563; font-size: 14px; cursor: pointer; border-left: 4px solid transparent; transition: 0.2s; }
+        .menu-item { display: flex; align-items: center; width: 100%; height: 50px; padding: 0 24px; color: #4b5563; font-size: 14px; cursor: pointer; border-left: 4px solid transparent; transition: all 0.2s; }
         .menu-item.active { background-color: #f0fbf5; color: #06C755; border-left-color: #06C755; font-weight: 700; }
 
         .main-content { flex: 1; display: flex; flex-direction: column; background: #f0f2f5; overflow: hidden; }
@@ -31,9 +31,11 @@
         .data-table th { padding: 12px 16px; background: #f9fafb; color: #6b7280; font-size: 12px; font-weight: 700; border-bottom: 1px solid #e5e7eb; white-space: nowrap; text-align: left; }
         .data-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; overflow: hidden; vertical-align: middle; }
 
+        /* 課程名稱欄位縮減至 100px */
         .col-name { width: 100px; max-width: 100px; }
-        .name-wrapper { width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1e293b; }
+        .name-wrapper { width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1e293b; font-weight: 500; }
 
+        /* 右滑側邊編輯 Drawer */
         .drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 1000; display: flex; justify-content: flex-end; backdrop-filter: blur(2px); }
         .drawer-pop { background: white; width: 100%; max-width: 480px; height: 100vh; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.1); }
         .slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }
@@ -44,7 +46,7 @@
 
         .btn-green { background: var(--line-green); color: white; padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
         .btn-white { background: white; border: 1px solid #d1d5db; color: #374151; padding: 8px 16px; border-radius: 6px; font-weight: 500; font-size: 14px; }
-        .input-line { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; font-size: 14px; outline: none; }
+        .input-line { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; font-size: 14px; outline: none; transition: 0.2s; }
 
         @media (max-width: 768px) {
             .sidebar { width: 100%; height: 60px; position: fixed; bottom: 0; flex-direction: row; border-right: none; border-top: 1px solid #e5e7eb; }
@@ -52,6 +54,7 @@
             .menu-item { flex: 1; flex-direction: column; justify-content: center; padding: 0; font-size: 10px; border-left: none; border-top: 3px solid transparent; height: 60px; }
             .menu-item.active { border-top-color: #06C755; background: transparent; }
             .menu-item i { font-size: 18px; margin: 0 0 4px 0 !important; }
+            .col-name { width: 80px; max-width: 80px; }
         }
     </style>
 </head>
@@ -59,27 +62,27 @@
 <body>
 
     <div id="app" v-cloak class="flex h-screen w-full">
-        <!-- LOGIN -->
+        <!-- 登入頁面 -->
         <div v-if="!isLoggedIn" class="fixed inset-0 z-[2000] flex items-center justify-center bg-[#f0f2f5]">
             <div class="bg-white p-12 rounded-2xl shadow-2xl w-[90%] md:w-[400px] text-center border">
                 <h1 class="text-2xl font-black text-gray-800 mb-10">宏學管理系統</h1>
                 <div class="space-y-4 text-left">
                     <input v-model="account" type="text" class="input-line h-12" placeholder="帳號">
                     <input v-model="password" @keyup.enter="login" type="password" class="input-line h-12" placeholder="密碼">
-                    <button @click="login" :disabled="isLoading" class="w-full btn-green justify-center py-4 text-base font-black mt-2">登入系統</button>
+                    <button @click="login" :disabled="isLoading" class="w-full btn-green justify-center py-4 text-base font-black mt-2">登入後台</button>
                 </div>
                 <p v-if="error" class="text-red-500 text-sm mt-6 font-bold flex items-center justify-center gap-1"><i class="fas fa-exclamation-circle"></i> {{ error }}</p>
             </div>
         </div>
 
-        <!-- MAIN -->
+        <!-- 主管理介面 -->
         <template v-else>
             <aside class="sidebar shadow-xl">
                 <div class="p-6 font-black text-xl border-b tracking-tight text-[#06C755] hidden md:block text-center">宏學管理站</div>
                 <div class="flex-1 py-4 flex md:block">
                     <div class="menu-item" :class="{active: currentTab==='dashboard'}" @click="currentTab='dashboard'"><i class="fas fa-chart-pie w-6 text-center mr-2"></i> <span>統計</span></div>
-                    <div class="menu-item" :class="{active: currentTab==='courses'}" @click="currentTab='courses'"><i class="fas fa-book-open w-6 text-center mr-2"></i> <span>課程管理</span></div>
-                    <div class="menu-item" :class="{active: currentTab==='orders'}" @click="currentTab='orders'"><i class="fas fa-receipt w-6 text-center mr-2"></i> <span>訂單管理</span></div>
+                    <div class="menu-item" :class="{active: currentTab==='courses'}" @click="currentTab='courses'"><i class="fas fa-book-open w-6 text-center mr-2"></i> <span>課程</span></div>
+                    <div class="menu-item" :class="{active: currentTab==='orders'}" @click="currentTab='orders'"><i class="fas fa-receipt w-6 text-center mr-2"></i> <span>訂單</span></div>
                     <div class="menu-item text-gray-400 mt-auto" @click="logout"><i class="fas fa-power-off w-6 text-center mr-2"></i> <span>登出</span></div>
                 </div>
             </aside>
@@ -88,65 +91,48 @@
                 <header class="top-header">
                     <h2 class="text-xl font-bold text-gray-800">{{ tabLabel }}</h2>
                     <div class="flex gap-2">
-                        <button v-if="currentTab==='courses'" @click="executeMacroImport" class="btn-white text-blue-600 border-blue-100"><i class="fas fa-file-import"></i> 匯入宏學</button>
+                        <button v-if="currentTab==='courses'" @click="executeMacroImport" class="btn-white text-blue-600 border-blue-100"><i class="fas fa-file-import"></i> 匯入宏學表單</button>
                         <button @click="fetchData" class="btn-white"><i class="fas fa-sync-alt" :class="{'fa-spin':isLoading}"></i></button>
                     </div>
                 </header>
 
                 <div class="content-scroll">
-                    <!-- Dashboard -->
+                    <!-- 營運看板 -->
                     <div v-if="currentTab==='dashboard'" class="animate-fade-in">
-                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                             <div class="stat-card border-l-4 border-green-500">
                                 <p class="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">實收金額</p>
                                 <h3 class="text-xl font-black text-green-600">${{ (dashboardStats.totalRevenue || 0).toLocaleString() }}</h3>
-                                <i class="fas fa-dollar-sign stat-watermark text-green-600"></i>
                             </div>
                             <div class="stat-card border-l-4 border-orange-500">
                                 <p class="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">待付款項</p>
                                 <h3 class="text-xl font-black text-orange-500">${{ (dashboardStats.pendingRevenue || 0).toLocaleString() }}</h3>
-                                <i class="fas fa-hourglass-half stat-watermark text-orange-500"></i>
-                            </div>
-                            <div class="stat-card border-l-4 border-blue-500">
-                                <p class="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">有效訂單</p>
-                                <h3 class="text-xl font-black text-blue-600">{{ dashboardStats.totalOrders }} 筆</h3>
-                                <i class="fas fa-file-invoice stat-watermark text-blue-600"></i>
                             </div>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-l-4 border-[#06C755] pl-3">各課程營收狀態統計</h3>
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-l-4 border-[#06C755] pl-3">各課程營收狀態明細</h3>
                         <div class="card overflow-x-auto">
                             <table class="data-table min-w-max w-full">
                                 <thead>
-                                    <tr>
-                                        <th class="col-name">課程名稱</th>
-                                        <th class="text-center w-24">報名總數</th>
-                                        <th class="text-center w-24 border-l">待付人數</th>
-                                        <th class="text-center w-32">待收金額</th>
-                                        <th class="text-center w-24 border-l">已付人數</th>
-                                        <th class="text-center w-32">實收金額</th>
-                                    </tr>
+                                    <tr><th class="col-name">課程名稱</th><th class="text-center w-24">報名總數</th><th class="text-right w-32">實收金額</th></tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="stat in sortedCourseStats" :key="stat.id">
                                         <td class="col-name"><div class="name-wrapper">{{ stat.name }}</div></td>
                                         <td class="text-center font-bold">{{ stat.totalCount }}</td>
-                                        <td class="text-center text-orange-500 border-l">{{ stat.pendingCount }}</td>
-                                        <td class="text-center text-orange-600">${{ (stat.pendingRevenue || 0).toLocaleString() }}</td>
-                                        <td class="text-center text-green-600 border-l">{{ stat.paidCount }}</td>
-                                        <td class="text-center font-black text-green-600">${{ (stat.paidRevenue || 0).toLocaleString() }}</td>
+                                        <td class="text-right font-black text-green-600">${{ (stat.paidRevenue || 0).toLocaleString() }}</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- Course List -->
+                    <!-- 課程列表 -->
                     <div v-if="currentTab==='courses'" class="animate-fade-in">
                         <div class="flex justify-between items-center mb-6">
                             <input v-model="searchCourseTerm" class="input-line max-w-md shadow-sm" placeholder="搜尋課程...">
                             <button @click="openAddCourse" class="btn-green h-11"><i class="fas fa-plus"></i> 新增課程</button>
                         </div>
-                        <div class="card">
+                        <div class="card overflow-x-auto">
                             <table class="data-table">
                                 <thead>
                                     <tr><th class="w-16">預覽</th><th class="col-name">名稱</th><th class="w-32">日期</th><th class="w-32">費用/名額</th><th class="text-right w-24">管理</th></tr>
@@ -155,7 +141,7 @@
                                     <tr v-for="c in filteredCourses" :key="c.id" class="hover:bg-slate-50 transition border-b border-slate-50">
                                         <td><div class="w-10 h-10 bg-slate-50 rounded overflow-hidden flex items-center justify-center border shadow-inner"><img v-if="c.image" :src="c.image" class="w-full h-full object-cover" @error="handleImgError"><i v-else class="fas fa-image text-slate-200"></i></div></td>
                                         <td class="col-name"><div class="name-wrapper">{{ c.name }}</div><div class="text-[10px] text-slate-400 font-mono">{{ c.id }}</div></td>
-                                        <td class="text-sm text-slate-500">{{ formatDate(c.startDate) }}</td>
+                                        <td class="text-sm text-slate-500 font-medium">{{ formatDate(c.startDate) }}</td>
                                         <td><div class="font-black text-green-600">${{ (Number(c.price) || 0).toLocaleString() }}</div><div class="text-[10px] text-slate-400">{{ c.enrolled }}/{{ c.capacity }}人</div></td>
                                         <td class="text-right"><button @click="openEditCourse(c)" class="text-slate-400 font-bold text-xs hover:underline">編輯</button></td>
                                     </tr>
@@ -167,7 +153,7 @@
             </main>
         </template>
 
-        <!-- Side Drawer -->
+        <!-- 修改課程側滑頁面 -->
         <transition name="slide">
             <div v-if="showCourseModal" class="drawer-mask" @click.self="showCourseModal=false">
                 <div class="drawer-pop">
@@ -176,11 +162,12 @@
                         <button @click="showCourseModal=false" class="text-slate-300 hover:text-slate-500 flex items-center justify-center"><i class="fas fa-times text-lg"></i></button>
                     </div>
                     <div class="flex-1 overflow-y-auto p-8 space-y-8 bg-white text-left">
+                        <!-- 縮圖預覽 -->
                         <div class="flex gap-5 items-center pb-6 border-b border-slate-50">
                             <div @click="$refs.fileInput.click()" class="thumb-box shadow-sm border-2"><img v-if="courseForm.image" :src="courseForm.image" @error="handleImgError"><i v-else class="fas fa-camera text-2xl text-slate-200"></i></div>
                             <div class="flex-1">
-                                <p class="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">封面預覽 (800px)</p>
-                                <button @click="$refs.fileInput.click()" class="btn-white text-xs py-2 px-4 shadow-sm font-bold">選擇照片</button>
+                                <p class="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">課程封面圖 (800px)</p>
+                                <button @click="$refs.fileInput.click()" class="btn-white text-xs py-2 px-4 shadow-sm font-bold">更換照片</button>
                                 <input type="file" ref="fileInput" @change="processImage" accept="image/*" class="hidden">
                             </div>
                         </div>
@@ -191,14 +178,14 @@
                                 <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">狀態</label><select v-model="courseForm.status" class="input-line"><option value="下架">下架</option><option value="上架">上架</option></select></div>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
-                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">價格</label><input v-model="courseForm.price" type="number" class="input-line font-black text-green-600"></div>
-                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">名額限制</label><input v-model="courseForm.capacity" type="number" class="input-line"></div>
+                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">單價</label><input v-model="courseForm.price" type="number" class="input-line font-black text-green-600"></div>
+                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">名額</label><input v-model="courseForm.capacity" type="number" class="input-line"></div>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
-                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">日期 (YYYY-MM-DD)</label><input v-model="courseForm.startDate" class="input-line" placeholder="例：2026-04-06"></div>
+                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">日期</label><input v-model="courseForm.startDate" class="input-line" placeholder="YYYY-MM-DD"></div>
                                 <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">時間</label><input v-model="courseForm.startTime" class="input-line" placeholder="HH:mm"></div>
                             </div>
-                            <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">內容簡介</label><textarea v-model="courseForm.description" rows="6" class="input-line text-sm leading-relaxed"></textarea></div>
+                            <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">課程簡介</label><textarea v-model="courseForm.description" rows="6" class="input-line text-sm leading-relaxed"></textarea></div>
                         </div>
                     </div>
                     <div class="p-6 border-t bg-slate-50 flex gap-3"><button @click="showCourseModal=false" class="flex-1 btn-white py-4 h-auto font-bold">取消</button><button @click="saveCourse" :disabled="isLoading" class="flex-[2] btn-green py-4 h-auto justify-center shadow-lg">確認儲存</button></div>
@@ -219,13 +206,10 @@
                 const searchTerm = ref(''), searchCourseTerm = ref('');
                 const showCourseModal = ref(false), isEditingCourse = ref(false), courseForm = ref({});
 
-                const tabLabel = computed(() => ({ 'dashboard': '數據統計總覽', 'courses': '課程管理系統', 'orders': '報名訂單維護' }[currentTab.value]));
+                const tabLabel = computed(() => ({ 'dashboard': '數據中心', 'courses': '課程管理', 'orders': '報名訂單' }[currentTab.value]));
 
-                // 修正後的 logout 定義
                 const logout = () => {
-                    isLoggedIn.value = false;
-                    account.value = '';
-                    password.value = '';
+                    isLoggedIn.value = false; account.value = ''; password.value = '';
                     localStorage.removeItem('sportIsland_sso_uid');
                 };
 
@@ -240,7 +224,7 @@
                         if (json.success || json.status === 'success') return json.data;
                         throw new Error(json.message || '執行失敗');
                     } catch (e) {
-                        console.error("API Call Error:", e);
+                        console.error("API Error:", e);
                         throw e;
                     }
                 };
@@ -262,7 +246,7 @@
                 };
 
                 const executeMacroImport = async () => {
-                    if (!confirm('執行匯入？系統將對接最新欄位：A名稱, B價格, C類型。')) return;
+                    if (!confirm('執行匯入？系統將從「工作表 1」讀取 A(名稱), B(價格), C(類型)。')) return;
                     isLoading.value = true;
                     try { const msg = await callApi('MACRO_IMPORT'); alert(msg); fetchData(); } catch (e) { alert(e.message); } finally { isLoading.value = false; }
                 };
@@ -276,15 +260,7 @@
                 const sortedCourseStats = computed(() => {
                     return courses.value.map(c => {
                         const cOrders = orders.value.filter(o => o.courseId === c.id);
-                        return { 
-                            id: c.id, 
-                            name: c.name, 
-                            totalCount: cOrders.length,
-                            paidCount: cOrders.filter(o => o.status === 'PAID').length, 
-                            paidRevenue: cOrders.filter(o => o.status === 'PAID').reduce((a, b) => a + (Number(b.amount) || 0), 0),
-                            pendingCount: cOrders.filter(o => o.status === 'PENDING').length,
-                            pendingRevenue: cOrders.filter(o => o.status === 'PENDING').reduce((a, b) => a + (Number(b.amount) || 0), 0)
-                        };
+                        return { id: c.id, name: c.name, totalCount: cOrders.length, paidCount: cOrders.filter(o => o.status === 'PAID').length, paidRevenue: cOrders.filter(o => o.status === 'PAID').reduce((a, b) => a + (Number(b.amount) || 0), 0) };
                     }).sort((a, b) => (b.paidRevenue || 0) - (a.paidRevenue || 0));
                 });
 
@@ -312,8 +288,8 @@
                         const img = new Image();
                         img.onload = () => {
                             const canvas = document.createElement('canvas');
-                            let width = img.width, height = img.height, max = 800;
-                            if (width > max) { height *= max / width; width = max; }
+                            let width = img.width, height = img.height;
+                            if (width > 800) { height *= 800 / width; width = 800; }
                             canvas.width = width; canvas.height = height;
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, width, height);
@@ -329,5 +305,4 @@
         }).mount('#app');
     </script>
 </body>
-
 </html>
