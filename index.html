@@ -1,1 +1,131 @@
 
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>宏學資料匯入系統</title>
+  <!-- 引入 LIFF SDK -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <!-- 引入 Tailwind CSS 確保極簡排版 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* LINE OA 原生資訊流風格 */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #ffffff;
+      color: #111111;
+      -webkit-font-smoothing: antialiased;
+    }
+    .btn-line {
+      background-color: #06C755;
+      color: #ffffff;
+    }
+    .btn-line:active {
+      background-color: #05b04a;
+    }
+    .btn-disabled {
+      background-color: #e5e5e5;
+      color: #a3a3a3;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body class="p-4 text-[15px] leading-relaxed">
+
+  <div class="max-w-md mx-auto">
+    <div class="mb-4 text-gray-500 text-sm" id="userInfo">系統初始化與驗證中...</div>
+    
+    <button id="importBtn" onclick="executeImport()" class="w-full py-3 rounded btn-disabled text-center transition duration-150" disabled>
+      等待驗證...
+    </button>
+    
+    <div id="logArea" class="mt-4 text-sm text-gray-600 whitespace-pre-wrap break-all"></div>
+  </div>
+
+  <script>
+    // 您的專屬環境變數
+    const LIFF_ID = "2009130603-vTHZv1LW";
+    const WORKER_URL = "https://action.fangwl591021.workers.dev/";
+    const SECRET_TOKEN = "macro-import-2026"; // 請確保 Worker 內的 Token 與此一致
+
+    const btn = document.getElementById("importBtn");
+    const logArea = document.getElementById("logArea");
+    const userInfo = document.getElementById("userInfo");
+
+    // 初始化 LIFF
+    async function initLiff() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        
+        // 要求登入
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+        
+        // 取得使用者資訊顯示
+        const profile = await liff.getProfile();
+        userInfo.textContent = `操作人員：${profile.displayName}`;
+        
+        // 解除按鈕鎖定
+        btn.disabled = false;
+        btn.classList.remove("btn-disabled");
+        btn.classList.add("btn-line");
+        btn.textContent = "執行匯入資料";
+        
+      } catch (err) {
+        userInfo.textContent = "LIFF 初始化失敗";
+        logArea.textContent = err.message;
+        logArea.classList.add("text-red-500");
+      }
+    }
+
+    // 執行匯入
+    async function executeImport() {
+      btn.disabled = true;
+      btn.classList.add("btn-disabled");
+      btn.classList.remove("btn-line");
+      btn.textContent = "資料讀取與寫入中...";
+      logArea.textContent = "連線中，請勿關閉畫面...";
+      logArea.classList.remove("text-green-600", "text-red-500");
+      logArea.classList.add("text-gray-600");
+
+      try {
+        const response = await fetch(WORKER_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SECRET_TOKEN}`
+          }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          logArea.textContent = result.message;
+          logArea.classList.remove("text-gray-600");
+          logArea.classList.add("text-green-600");
+        } else {
+          logArea.textContent = "匯入失敗：\n" + result.message;
+          logArea.classList.remove("text-gray-600");
+          logArea.classList.add("text-red-500");
+        }
+      } catch (error) {
+        logArea.textContent = "系統連線錯誤：\n" + error.message;
+        logArea.classList.remove("text-gray-600");
+        logArea.classList.add("text-red-500");
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove("btn-disabled");
+        btn.classList.add("btn-line");
+        btn.textContent = "再次執行匯入";
+      }
+    }
+
+    // 啟動系統
+    initLiff();
+  </script>
+
+</body>
+</html>
