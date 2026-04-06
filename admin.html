@@ -322,6 +322,7 @@
         <div v-if="!isLoggedIn" class="fixed inset-0 z-[1000] flex items-center justify-center bg-[#f0f2f5]">
             <div class="bg-white p-8 md:p-12 rounded-xl shadow-2xl w-[90%] md:w-[400px] text-center border">
                 <h1 class="text-2xl font-bold text-gray-800 mb-6">宏學管理登入</h1>
+                <input v-model="account" type="text" class="input-line mb-4" placeholder="管理帳號">
                 <input v-model="password" @keyup.enter="login" type="password" class="input-line mb-6" placeholder="管理密碼">
                 <button @click="login" :disabled="isLoading"
                     class="w-full btn-green justify-center py-3 shadow-lg">登入系統</button>
@@ -1586,7 +1587,7 @@
 
         createApp({
             setup() {
-                const isLoggedIn = ref(false), password = ref(''), isLoading = ref(false), error = ref('');
+                const isLoggedIn = ref(false), account = ref(''), password = ref(''), isLoading = ref(false), error = ref('');
                 const authPayload = ref({}); 
                 const currentTab = ref('orders');
                 const courses = ref([]), orders = ref([]), users = ref([]);
@@ -1693,14 +1694,19 @@
                 };
 
                 const login = async () => { 
+                    error.value = '';
+                    if (account.value !== 'action' || password.value !== '@1234') {
+                        error.value = '帳號或密碼錯誤';
+                        return;
+                    }
                     isLoading.value = true; 
                     try { 
-                        authPayload.value = { password: password.value };
+                        authPayload.value = { account: account.value, password: password.value };
                         await callApi('ADMIN_LOGIN'); 
                         isLoggedIn.value = true; 
                         fetchData(); 
                     } catch (e) { 
-                        error.value = '密碼錯誤'; 
+                        error.value = '登入連線失敗'; 
                     } finally { 
                         isLoading.value = false; 
                     } 
@@ -1722,6 +1728,7 @@
 
                 const logout = () => { 
                     isLoggedIn.value = false; 
+                    account.value = '';
                     password.value = ''; 
                     localStorage.removeItem('sportIsland_sso_uid');
                 };
@@ -2214,7 +2221,7 @@
                 });
 
                 return {
-                    isLoggedIn, password, isLoading, error, currentTab, tabName, courses, orders, users,
+                    isLoggedIn, account, password, isLoading, error, currentTab, tabName, courses, orders, users,
                     searchTerm, searchMemberTerm, searchCourseTerm, filteredOrders, filteredUsers, normalCourses, groupedAdminCamps, filterStatus, filterCourse,
                     dashboardStats, courseStats, getCourseName, splitCourseName, parseCampName,
                     campTheme, campBatch, campItem, campBatches, createProgress,
