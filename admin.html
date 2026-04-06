@@ -539,12 +539,9 @@
                                         </div>
                                     </button>
                                 </div>
-                                
-                                <!-- ★ 新增：自動匯入按鈕 ★ -->
                                 <button @click="executeMacroImport" class="btn-white text-blue-600 border-blue-200 hover:bg-blue-50 shadow-sm shrink-0 whitespace-nowrap justify-center h-[40px]">
                                     <i class="fas fa-cloud-download-alt mr-1"></i> 自動匯入
                                 </button>
-                                <!-- 原本的新增課程按鈕 -->
                                 <button @click="openAddCourse" class="btn-green shadow-sm shrink-0 whitespace-nowrap justify-center h-[40px]"><i class="fas fa-plus"></i> 新增課程</button>
                             </div>
                         </div>
@@ -1582,14 +1579,11 @@
 
     <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
-        // 系統主 API (處理登入、讀取資料、訂單等核心功能)
         const API_ENDPOINT = 'https://sport-island.fangwl591021.workers.dev/';
-        // 自動匯入專用 API (專門對接宏學表單的 action worker)
-        const IMPORT_API_ENDPOINT = 'https://action.fangwl591021.workers.dev/';
 
         createApp({
             setup() {
-                const isLoggedIn = ref(false), account = ref(''), password = ref(''), isLoading = ref(false), error = ref('');
+                const isLoggedIn = ref(false), password = ref(''), isLoading = ref(false), error = ref('');
                 const authPayload = ref({}); 
                 const currentTab = ref('orders');
                 const courses = ref([]), orders = ref([]), users = ref([]);
@@ -1661,57 +1655,22 @@
                 const attendanceOverviewList = ref([]);
                 const courseDatesList = ref([]);
 
-                // API Call Wrapper (對接主系統，不帶 Content-Type 以避免 CORS preflight 錯誤)
                 const callApi = async (action, payload = {}) => {
-                    const res = await fetch(API_ENDPOINT, { 
-                        method: 'POST', 
-                        body: JSON.stringify({ action, payload: { ...authPayload.value, ...payload } }) 
-                    });
+                    const res = await fetch(API_ENDPOINT, { method: 'POST', body: JSON.stringify({ action, payload: { ...authPayload.value, ...payload } }) });
                     const json = await res.json();
                     if (json.status !== 'success') throw new Error(json.message);
                     return json.data;
                 };
 
-                // 自動匯入功能 (Triggered by the new button)
-                const executeMacroImport = async () => {
-                    if (!confirm('確定要從宏學表單執行自動匯入嗎？\n系統將自動比對並新增缺少的課程。')) return;
-                    isLoading.value = true;
-                    try {
-                        const response = await fetch(IMPORT_API_ENDPOINT, {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Authorization": `Bearer macro-import-2026`
-                            }
-                        });
-                        const result = await response.json();
-                        if (result.success) {
-                            alert(result.message);
-                            fetchData(); // 重新讀取課程列表
-                        } else {
-                            alert("匯入失敗：" + result.message);
-                        }
-                    } catch (error) {
-                        alert("系統連線錯誤：" + error.message);
-                    } finally {
-                        isLoading.value = false;
-                    }
-                };
-
                 const login = async () => { 
-                    error.value = '';
-                    if (account.value !== 'action' || password.value !== '@1234') {
-                        error.value = '帳號或密碼錯誤';
-                        return;
-                    }
                     isLoading.value = true; 
                     try { 
-                        authPayload.value = { account: account.value, password: password.value };
+                        authPayload.value = { password: password.value };
                         await callApi('ADMIN_LOGIN'); 
                         isLoggedIn.value = true; 
                         fetchData(); 
                     } catch (e) { 
-                        error.value = '登入連線失敗'; 
+                        error.value = '密碼錯誤'; 
                     } finally { 
                         isLoading.value = false; 
                     } 
@@ -1733,7 +1692,6 @@
 
                 const logout = () => { 
                     isLoggedIn.value = false; 
-                    account.value = '';
                     password.value = ''; 
                     localStorage.removeItem('sportIsland_sso_uid');
                 };
@@ -2065,7 +2023,7 @@
                     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                     const link = document.createElement("a");
                     link.href = URL.createObjectURL(blob);
-                    link.setAttribute("download", `宏學訂單_${new Date().toLocaleDateString()}.csv`);
+                    link.setAttribute("download", `運動島訂單_${new Date().toLocaleDateString()}.csv`);
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -2165,8 +2123,8 @@
                     else courseSortOrder.value = '';
                 };
 
-                const normalCourses = computed(() => { 
-                    const s = searchCourseTerm.value.toLowerCase(); 
+                const normalCourses = computed(() => { 
+                    const s = searchCourseTerm.value.toLowerCase(); 
                     let arr = courses.value.filter(c => (c.type !== '多日營隊' || parseCampName(c.name).theme === '其他營隊') && (String(c.name || '').toLowerCase().includes(s) || String(c.id || '').toLowerCase().includes(s)));
                     
                     if (courseSortOrder.value === 'asc') {
@@ -2185,13 +2143,13 @@
 
                 const groupedAdminCamps = computed(() => {
                     const groups = {};
-                    const s = searchCourseTerm.value.toLowerCase(); 
+                    const s = searchCourseTerm.value.toLowerCase(); 
                     courses.value.filter(c => c.type === '多日營隊' && parseCampName(c.name).theme !== '其他營隊' && (String(c.name || '').toLowerCase().includes(s) || String(c.id || '').toLowerCase().includes(s))).forEach(c => {
                         const parts = c.name.split(/\s*-\s*/);
                         if (parts.length >= 3) {
                             const theme = parts[0];
-                            const item = parts[parts.length - 1]; 
-                            const batch = parts.slice(1, parts.length - 1).join('-'); 
+                            const item = parts[parts.length - 1]; 
+                            const batch = parts.slice(1, parts.length - 1).join('-'); 
 
                             if (!groups[theme]) {
                                 groups[theme] = {};
@@ -2226,7 +2184,7 @@
                 });
 
                 return {
-                    isLoggedIn, account, password, isLoading, error, currentTab, tabName, courses, orders, users,
+                    isLoggedIn, password, isLoading, error, currentTab, tabName, courses, orders, users,
                     searchTerm, searchMemberTerm, searchCourseTerm, filteredOrders, filteredUsers, normalCourses, groupedAdminCamps, filterStatus, filterCourse,
                     dashboardStats, courseStats, getCourseName, splitCourseName, parseCampName,
                     campTheme, campBatch, campItem, campBatches, createProgress,
@@ -2234,14 +2192,14 @@
                     showMemberModal, editingMember, showOrderModal, editingOrder, showRelativeModal, editingRelative,
                     showEnrollmentModal, selectedCourseEnrollment, currentViewingCourseName,
                     expandedStatIds, toggleStatExpand, expandedCourseIds, toggleCourseExpand, expandedOrderIds, toggleOrderExpand, expandedMemberIds, toggleMemberExpand,
-                    expandedCampBatches, toggleCampBatch, 
+                    expandedCampBatches, toggleCampBatch, 
 
                     showAttendanceModal, showAttendanceOverview, attendanceCourse, attendanceDate, attendanceList, attendanceOverviewList, courseDatesList,
-                    openAttendance, loadAttendanceList, saveAttendance, getDayOfWeek, countAttendance, exportOrdersCSV, 
+                    openAttendance, loadAttendanceList, saveAttendance, getDayOfWeek, countAttendance, exportOrdersCSV, 
                     
                     courseSortOrder, toggleCourseSort, handleImageUpload,
 
-                    login, logout, fetchData, executeMacroImport, openAddCourse, openEditCourse, copyCourse, addEquipment, removeEquipment, saveCourse,
+                    login, logout, fetchData, openAddCourse, openEditCourse, copyCourse, addEquipment, removeEquipment, saveCourse,
                     openMember, saveMember, openOrder, saveOrder, openRelativeEdit, saveRelative,
                     getStatusLabel, getStatusClass, getPaidCount, getPendingCount, getRefundedCount, viewEnrollmentList, openOrderFromList,
                     formatTime: d => d ? new Date(d).toLocaleString('zh-TW', { hour12: false }) : '-'
