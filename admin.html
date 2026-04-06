@@ -31,8 +31,8 @@
         .data-table th { padding: 12px 16px; background: #f9fafb; color: #6b7280; font-size: 12px; font-weight: 700; border-bottom: 1px solid #e5e7eb; white-space: nowrap; text-align: left; }
         .data-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; overflow: hidden; }
 
-        /* 關鍵：解決課程名稱過長問題 */
-        .col-name { width: 220px; max-width: 220px; }
+        /* 縮減課程名稱欄位長度三分之一 */
+        .col-name { width: 150px; max-width: 150px; }
         .name-wrapper { width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; color: #1e293b; }
         .sub-name { font-size: 10px; color: #94a3b8; margin-top: 2px; }
 
@@ -55,7 +55,7 @@
             .menu-item { flex: 1; flex-direction: column; justify-content: center; padding: 0; font-size: 10px; border-left: none; border-top: 3px solid transparent; height: 60px; }
             .menu-item.active { border-top-color: #06C755; background: transparent; }
             .menu-item i { font-size: 18px; margin: 0 0 4px 0 !important; }
-            .col-name { width: 150px; max-width: 150px; }
+            .col-name { width: 100px; max-width: 100px; }
             .content-scroll { padding: 16px; }
         }
     </style>
@@ -348,7 +348,7 @@
                     try {
                         isLoggedIn.value = true;
                         fetchData();
-                    } catch (e) { error.value = '登入失敗 (401/CORS)'; } finally { isLoading.value = false; }
+                    } catch (e) { error.value = '連線失敗 (401/CORS)'; } finally { isLoading.value = false; }
                 };
 
                 const fetchData = async () => {
@@ -401,7 +401,7 @@
                     orders.value.forEach(o => {
                         if (o.status === 'PAID') rev += Number(o.amount);
                         if (o.status === 'PENDING') pending += Number(o.amount);
-                        if (o.status === 'REFUNDED') refund += Number(o.amount);
+                        if (o.status === 'REFUNDED' || o.status === 'REFUND_REQUESTED') refund += Number(o.amount);
                     });
                     return { totalRevenue: rev, pendingRevenue: pending, refundedRevenue: refund, pendingCount: orders.value.filter(o => o.status === 'PENDING').length, totalOrders: orders.value.filter(o => o.status !== 'CANCELLED').length };
                 });
