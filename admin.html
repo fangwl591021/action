@@ -176,7 +176,6 @@
             .menu-item { padding: 0; flex: 1; flex-direction: column; justify-content: center; font-size: 10px; border-left: 0; border-top: 3px solid transparent; }
             .menu-item.active { border-top-color: var(--line-green); background: transparent; }
             .menu-item i { font-size: 18px; margin-bottom: 4px; }
-            .hidden-mobile { display: none; }
         }
     </style>
 </head>
@@ -241,12 +240,12 @@
                     <div v-if="currentTab==='dashboard'" class="animate-fade-in">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             <div class="card p-6 border-l-4 border-l-green-500">
-                                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">累計收費</p>
+                                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">實收金額</p>
                                 <h3 class="text-2xl font-black text-slate-800">${{ dashboardStats.totalRevenue.toLocaleString() }}</h3>
                             </div>
                             <div class="card p-6 border-l-4 border-l-orange-400">
-                                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">待收筆數</p>
-                                <h3 class="text-2xl font-black text-slate-800">{{ dashboardStats.pendingCount }} 筆</h3>
+                                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">待付款項</p>
+                                <h3 class="text-2xl font-black text-slate-800">${{ dashboardStats.pendingRevenue.toLocaleString() }}</h3>
                             </div>
                             <div class="card p-6 border-l-4 border-l-blue-500">
                                 <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">課程總量</p>
@@ -258,7 +257,7 @@
                     <!-- 課程管理 -->
                     <div v-if="currentTab==='courses'">
                         <div class="flex justify-between items-center mb-6">
-                            <input v-model="searchCourseTerm" class="input-line max-w-xs h-10" placeholder="關鍵字搜尋...">
+                            <input v-model="searchCourseTerm" class="input-line max-w-xs h-10" placeholder="搜尋課程名稱或編號...">
                             <button @click="openAddCourse" class="btn-green h-10 shadow-sm"><i class="fas fa-plus"></i> 新增課程</button>
                         </div>
                         <div class="card overflow-hidden">
@@ -302,7 +301,7 @@
 
                     <!-- 訂單管理 -->
                     <div v-if="currentTab==='orders'">
-                        <div class="mb-6"><input v-model="searchTerm" class="input-line max-w-md" placeholder="搜尋姓名、電話、單號..."></div>
+                        <div class="mb-6"><input v-model="searchTerm" class="input-line max-w-md" placeholder="搜尋學員姓名、電話、訂單號..."></div>
                         <div class="card overflow-hidden">
                             <table class="data-table">
                                 <thead>
@@ -322,7 +321,7 @@
                                         <td class="text-sm text-slate-500">{{ getCourseName(o.courseId) }}</td>
                                         <td class="text-center">
                                             <div class="font-bold text-green-600 text-sm">${{ o.amount }}</div>
-                                            <span class="text-[10px] px-1.5 py-0.5 rounded" :class="o.status==='PAID'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'">{{ o.status }}</span>
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" :class="o.status==='PAID'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'">{{ o.status }}</span>
                                         </td>
                                         <td class="text-right"><button @click="openOrder(o)" class="text-blue-500 font-bold text-xs hover:underline">維護</button></td>
                                     </tr>
@@ -346,7 +345,7 @@
                 <div class="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-5 bg-slate-50/50">
                     <div class="md:col-span-2">
                         <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">課程名稱</label>
-                        <input v-model="courseForm.name" class="input-line" placeholder="輸入完整名稱">
+                        <input v-model="courseForm.name" class="input-line" placeholder="輸入名稱">
                     </div>
                     <div>
                         <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">課程類型</label>
@@ -365,23 +364,23 @@
                         </select>
                     </div>
                     <div>
-                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">開始日期</label>
+                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">日期</label>
                         <input v-model="courseForm.startDate" class="input-line" placeholder="YYYY-MM-DD">
                     </div>
                     <div>
-                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">上課地點</label>
-                        <input v-model="courseForm.location" class="input-line" placeholder="教室/地點">
+                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">地點</label>
+                        <input v-model="courseForm.location" class="input-line" placeholder="輸入地點">
                     </div>
                     <div>
-                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">費用 (TWD)</label>
-                        <input v-model="courseForm.price" type="number" class="input-line font-bold text-green-600">
+                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">單價</label>
+                        <input v-model="courseForm.price" type="number" class="input-line">
                     </div>
                     <div>
-                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">名額限制</label>
+                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">名額</label>
                         <input v-model="courseForm.capacity" type="number" class="input-line">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">課程說明</label>
+                        <label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">簡介</label>
                         <textarea v-model="courseForm.description" rows="3" class="input-line text-sm"></textarea>
                     </div>
                 </div>
@@ -406,7 +405,7 @@
                 <div class="flex-1 overflow-y-auto p-4 space-y-2">
                     <div v-for="p in attendanceList" :key="p.orderId" class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-lg shadow-sm">
                         <span class="font-bold text-slate-700 text-sm">{{ p.name }}</span>
-                        <select v-model="p.status" class="border rounded p-1 text-xs font-bold focus:border-green-500 outline-none">
+                        <select v-model="p.status" class="border rounded p-1 text-xs font-bold">
                             <option value="NONE">未點</option>
                             <option value="PRESENT" class="text-green-600">出席</option>
                             <option value="ABSENT" class="text-red-500">缺席</option>
@@ -435,7 +434,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="text-[11px] font-bold text-slate-400 block mb-1">實收金額</label>
+                        <label class="text-[11px] font-bold text-slate-400 block mb-1">金額</label>
                         <input v-model="editingOrder.amount" type="number" class="input-line font-bold text-green-600">
                     </div>
                     <div>
@@ -476,16 +475,6 @@
                     return json.data || json.message;
                 };
 
-                const login = async () => {
-                    error.value = '';
-                    if (account.value !== 'action' || password.value !== '@1234') { error.value = '帳號或密碼錯誤'; return; }
-                    isLoading.value = true;
-                    try {
-                        isLoggedIn.value = true;
-                        fetchData();
-                    } catch (e) { error.value = '登入失敗，請確認 Worker 連線'; } finally { isLoading.value = false; }
-                };
-
                 const fetchData = async () => {
                     isLoading.value = true;
                     try {
@@ -496,8 +485,25 @@
                     } catch (e) { console.error('同步失敗', e); } finally { isLoading.value = false; }
                 };
 
+                const login = async () => {
+                    error.value = '';
+                    if (account.value !== 'action' || password.value !== '@1234') { error.value = '帳號或密碼錯誤'; return; }
+                    isLoading.value = true;
+                    try {
+                        isLoggedIn.value = true;
+                        fetchData();
+                    } catch (e) { error.value = '登入失敗，請確認 Worker 連線'; } finally { isLoading.value = false; }
+                };
+
+                const logout = () => {
+                    isLoggedIn.value = false;
+                    account.value = '';
+                    password.value = '';
+                    localStorage.removeItem('sportIsland_sso_uid');
+                };
+
                 const executeMacroImport = async () => {
-                    if (!confirm('執行宏學表單匯入？系統將自動偵測新課程。')) return;
+                    if (!confirm('執行表單匯入？')) return;
                     isLoading.value = true;
                     try {
                         const msg = await callApi('MACRO_IMPORT');
@@ -505,22 +511,28 @@
                     } catch (e) { alert('匯入失敗：' + e.message); } finally { isLoading.value = false; }
                 };
 
-                const logout = () => { isLoggedIn.value = false; account.value = ''; password.value = ''; };
-
                 const filteredCourses = computed(() => {
                     const s = searchCourseTerm.value.toLowerCase();
-                    return courses.value.filter(c => !s || String(c.name).toLowerCase().includes(s) || String(c.id).toLowerCase().includes(s));
+                    let res = courses.value.filter(c => !s || String(c.name).toLowerCase().includes(s) || String(c.id).toLowerCase().includes(s));
+                    // 修正排序：依據 startDate 倒序，若同日期則依據 ID 倒序（最新的在上面）
+                    return res.sort((a, b) => {
+                        return (b.startDate || '').localeCompare(a.startDate || '') || (b.id || '').localeCompare(a.id || '');
+                    });
                 });
 
                 const filteredOrders = computed(() => {
                     const s = searchTerm.value.toLowerCase();
-                    return orders.value.filter(o => !s || String(o.name).includes(s) || String(o.phone).includes(s) || String(o.orderId).includes(s));
+                    let res = orders.value.filter(o => !s || String(o.name).includes(s) || String(o.phone).includes(s) || String(o.orderId).includes(s));
+                    return res.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
                 });
 
                 const dashboardStats = computed(() => {
-                    let rev = 0;
-                    orders.value.forEach(o => { if (o.status === 'PAID') rev += Number(o.amount); });
-                    return { totalRevenue: rev, pendingCount: orders.value.filter(o => o.status === 'PENDING').length, totalOrders: orders.value.length };
+                    let rev = 0, pRev = 0;
+                    orders.value.forEach(o => {
+                        if (o.status === 'PAID') rev += Number(o.amount);
+                        if (o.status === 'PENDING') pRev += Number(o.amount);
+                    });
+                    return { totalRevenue: rev, pendingRevenue: pRev, pendingCount: orders.value.filter(o => o.status === 'PENDING').length };
                 });
 
                 const openAddCourse = () => {
@@ -529,18 +541,13 @@
                     showCourseModal.value = true;
                 };
 
-                const openEditCourse = (c) => {
-                    isEditingCourse.value = true;
-                    courseForm.value = { ...c };
-                    showCourseModal.value = true;
-                };
-
+                const openEditCourse = (c) => { isEditingCourse.value = true; courseForm.value = { ...c }; showCourseModal.value = true; };
                 const saveCourse = async () => {
                     isLoading.value = true;
                     try {
                         const action = isEditingCourse.value ? 'ADMIN_UPDATE_COURSE' : 'ADMIN_ADD_COURSE';
                         await callApi(action, courseForm.value);
-                        alert('儲存成功！'); showCourseModal.value = false; fetchData();
+                        alert('已儲存！'); showCourseModal.value = false; fetchData();
                     } catch (e) { alert('儲存失敗'); } finally { isLoading.value = false; }
                 };
 
@@ -566,7 +573,7 @@
                             courseId: attendanceCourse.value.id, date: attendanceDate.value,
                             attendanceData: attendanceList.value.map(a => ({ orderId: a.orderId, status: a.status }))
                         });
-                        alert('簽到紀錄已更新！'); showAttendanceModal.value = false; fetchData();
+                        alert('點名紀錄已儲存！'); showAttendanceModal.value = false; fetchData();
                     } catch (e) { alert('儲存失敗'); } finally { isLoading.value = false; }
                 };
 
@@ -579,14 +586,14 @@
                     } catch (e) { alert('更新失敗'); } finally { isLoading.value = false; }
                 };
 
+                const getCourseName = (id) => (courses.value.find(c => c.id === id) || { name: '未知課程' }).name;
+
                 return {
                     isLoggedIn, account, password, isLoading, error, currentTab, tabName,
                     courses, orders, searchTerm, searchCourseTerm, filteredCourses, filteredOrders, dashboardStats,
                     showCourseModal, isEditingCourse, courseForm, showOrderModal, editingOrder, showAttendanceModal, attendanceCourse, attendanceDate, attendanceList,
                     login, logout, fetchData, executeMacroImport, openAddCourse, openEditCourse, saveCourse, openAttendance, loadAttendanceList, saveAttendance, openOrder, saveOrder,
-                    getCourseName: id => (courses.value.find(c => c.id === id) || { name: '未知' }).name,
-                    formatTime: d => d ? new Date(d).toLocaleDateString() : '-',
-                    createProgress: { isCreating: false }
+                    getCourseName
                 };
             }
         }).mount('#app');
