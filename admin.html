@@ -1661,13 +1661,10 @@
                 const attendanceOverviewList = ref([]);
                 const courseDatesList = ref([]);
 
-                // API Call Wrapper (對接主系統，不需要帶匯入專用的 Token)
+                // API Call Wrapper (對接主系統，不帶 Content-Type 以避免 CORS preflight 錯誤)
                 const callApi = async (action, payload = {}) => {
                     const res = await fetch(API_ENDPOINT, { 
                         method: 'POST', 
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
                         body: JSON.stringify({ action, payload: { ...authPayload.value, ...payload } }) 
                     });
                     const json = await res.json();
@@ -1680,7 +1677,6 @@
                     if (!confirm('確定要從宏學表單執行自動匯入嗎？\n系統將自動比對並新增缺少的課程。')) return;
                     isLoading.value = true;
                     try {
-                        // 這裡改用 IMPORT_API_ENDPOINT
                         const response = await fetch(IMPORT_API_ENDPOINT, {
                             method: "POST",
                             headers: {
