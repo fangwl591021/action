@@ -1715,7 +1715,7 @@
                         isLoggedIn.value = true; 
                         fetchData(); 
                     } catch (e) { 
-                        error.value = '帳號或密碼錯誤'; 
+                        error.value = '登入失敗: ' + (e.message || '帳號或密碼錯誤'); 
                     } finally { 
                         isLoading.value = false; 
                     } 
@@ -1746,9 +1746,9 @@
                     isLoading.value = true; 
                     try { 
                         const d = await callApi('ADMIN_GET_DATA'); 
-                        courses.value = d.courses; 
-                        orders.value = d.orders.reverse(); 
-                        users.value = d.users; 
+                        courses.value = d.courses || []; 
+                        orders.value = (d.orders || []).reverse(); 
+                        users.value = d.users || []; 
                     } catch (e) { 
                         alert('載入失敗'); 
                     } finally { 
