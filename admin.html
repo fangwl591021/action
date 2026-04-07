@@ -15,7 +15,7 @@
         body { background-color: #f3f4f6; color: #1f2937; }
         
         /* 側邊欄固定與美化 */
-        .sidebar { width: 240px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; position: fixed; h-screen: 100vh; height: 100vh; z-index: 50; }
+        .sidebar { width: 240px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 50; }
         .sidebar-brand { padding: 24px; font-size: 24px; font-weight: 900; color: #06C755; letter-spacing: -1px; }
         .nav-item { display: flex; align-items: center; gap: 12px; padding: 16px 24px; cursor: pointer; transition: 0.2s; color: #6b7280; font-weight: 700; font-size: 15px; }
         .nav-item:hover { background-color: #f9fafb; color: #06C755; }
@@ -25,14 +25,14 @@
         .main-content { margin-left: 240px; min-width: 0; flex: 1; }
         .page-header { background: white; border-bottom: 1px solid #e5e7eb; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
         
-        /* 數據卡片 (解決 image_5bea06 擠壓問題) */
+        /* 數據卡片 */
         .stats-grid { display: grid; grid-template-columns: repeat(5, minmax(180px, 1fr)); gap: 20px; padding: 32px; overflow-x: auto; }
         .stat-card { background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); position: relative; }
         .stat-label { font-size: 12px; font-weight: 700; color: #9ca3af; margin-bottom: 8px; display: block; }
         .stat-value { font-size: 28px; font-weight: 900; margin-bottom: 4px; display: block; letter-spacing: -1px; }
         .stat-icon { position: absolute; bottom: 15px; left: 20px; font-size: 18px; }
 
-        /* 表格優化 (解決寬度不足崩潰) */
+        /* 表格優化 */
         .table-container { background: white; border: 1px solid #e5e7eb; overflow-x: auto; margin: 0 32px 32px 32px; }
         .admin-table { width: 100%; border-collapse: collapse; min-width: 1000px; }
         .admin-table thead th { padding: 14px 16px; background: #f9fafb; font-size: 12px; font-weight: 700; color: #6b7280; text-align: left; border-bottom: 1px solid #e5e7eb; }
@@ -43,6 +43,11 @@
         
         .section-title { font-size: 18px; font-weight: 900; color: #111827; border-left: 4px solid #06C755; padding-left: 16px; margin: 0 32px 24px 32px; }
         
+        /* 彈窗樣式 */
+        .modal-mask { @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4; }
+        .modal-body { @apply bg-white w-full max-w-4xl rounded-[1.5rem] overflow-hidden flex flex-col shadow-2xl max-h-[90vh]; }
+        .input-field { @apply w-full border border-gray-200 rounded-lg p-2.5 text-sm outline-none focus:border-[#06C755]; }
+
         .text-green-line { color: #06C755; }
         .text-orange-line { color: #f97316; }
         .text-red-line { color: #ef4444; }
@@ -51,6 +56,8 @@
 
         .hide-scrollbar::-webkit-scrollbar { height: 4px; }
         .hide-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -88,10 +95,8 @@
                 </button>
             </header>
 
-            <!-- 1. 營運統計視圖 (復刻 image_51f89f.png) -->
+            <!-- 1. 營運統計 -->
             <div v-if="view === 'dashboard'" class="animate-fade-in">
-                
-                <!-- 五大核心卡片 -->
                 <div class="stats-grid hide-scrollbar">
                     <div class="stat-card">
                         <span class="stat-label">總實收金額 (已完款)</span>
@@ -121,7 +126,6 @@
                 </div>
 
                 <h3 class="section-title">各課程營收狀態統計</h3>
-                
                 <div class="table-container hide-scrollbar">
                     <table class="admin-table">
                         <thead>
@@ -130,11 +134,8 @@
                                 <th class="text-center">報名總數</th>
                                 <th>應收總額</th>
                                 <th class="text-orange-line">待付人數</th>
-                                <th class="text-orange-line">待收金額</th>
-                                <th class="text-green-line">已付人數</th>
-                                <th class="text-green-line">實收金額</th>
-                                <th class="text-red-line">退款人數</th>
-                                <th class="text-red-line">退款金額</th>
+                                <th class="text-[#06C755]">已付人數</th>
+                                <th class="text-[#06C755]">實收金額</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -143,21 +144,45 @@
                                 <td class="text-center font-bold text-gray-600">{{ c.totalOrders }}</td>
                                 <td class="font-bold text-gray-600">$ {{ c.totalExpected.toLocaleString() }}</td>
                                 <td class="text-orange-line font-bold">{{ c.pendingCount }}</td>
-                                <td class="text-orange-line font-bold">$ {{ c.pendingAmount.toLocaleString() }}</td>
                                 <td class="text-green-line font-bold">{{ c.paidCount }}</td>
                                 <td class="text-green-line font-black">$ {{ c.paidAmount.toLocaleString() }}</td>
-                                <td class="text-red-line font-bold">{{ c.refundCount }}</td>
-                                <td class="text-red-line font-bold">$ {{ c.refundAmount.toLocaleString() }}</td>
-                            </tr>
-                            <tr v-if="courseStats.length === 0">
-                                <td colspan="9" class="text-center py-20 text-gray-300 font-bold">目前資料庫尚無課程資料</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- 2. 訂單管理視圖 (對應 1FRGhjf...ROWk) -->
+            <!-- 2. 課程管理 (修正點：補回顯示區塊) -->
+            <div v-if="view === 'courses'" class="p-8 animate-fade-in">
+                <div class="table-container !m-0 hide-scrollbar">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>課程名稱</th>
+                                <th>分類</th>
+                                <th>價格</th>
+                                <th>目前人數</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="c in courses" :key="c.id">
+                                <td class="font-mono text-xs text-gray-400">{{ c.id }}</td>
+                                <td class="font-bold text-gray-800">{{ c.name }}</td>
+                                <td><span class="bg-gray-100 px-2 py-0.5 rounded text-[10px] font-bold">{{ c.type }}</span></td>
+                                <td class="text-orange-500 font-bold">$ {{ Number(c.price).toLocaleString() }}</td>
+                                <td class="font-medium">{{ c.enrolled }} / {{ c.capacity }}</td>
+                                <td>
+                                    <button @click="openEditModal(c)" class="text-[#06C755] font-bold hover:underline">編輯詳情</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. 訂單管理 -->
             <div v-if="view === 'orders'" class="p-8 animate-fade-in">
                 <div class="table-container !m-0 hide-scrollbar">
                     <table class="admin-table">
@@ -194,7 +219,7 @@
                 </div>
             </div>
 
-            <!-- 3. 會員管理視圖 -->
+            <!-- 4. 會員管理 -->
             <div v-if="view === 'members'" class="p-8 animate-fade-in">
                 <div class="table-container !m-0 hide-scrollbar">
                     <table class="admin-table">
@@ -221,8 +246,38 @@
                     </table>
                 </div>
             </div>
-
         </main>
+
+        <!-- 編輯課程彈窗 -->
+        <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
+            <div class="modal-body">
+                <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                    <h3 class="text-lg font-black text-gray-800">編輯課程詳情</h3>
+                    <button @click="editingCourse = null"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="flex-grow overflow-y-auto p-8 hide-scrollbar">
+                    <div class="grid grid-cols-2 gap-8">
+                        <div class="space-y-4">
+                            <div><label class="text-xs font-bold text-gray-400">課程名稱</label><input type="text" v-model="editingCourse.name" class="input-field"></div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-400">價格</label><input type="number" v-model="editingCourse.price" class="input-field"></div>
+                                <div><label class="text-xs font-bold text-gray-400">容量</label><input type="number" v-model="editingCourse.capacity" class="input-field"></div>
+                            </div>
+                            <div><label class="text-xs font-bold text-gray-400">上課地點</label><input type="text" v-model="editingCourse.location" class="input-field"></div>
+                        </div>
+                        <div class="space-y-4">
+                            <div><label class="text-xs font-bold text-gray-400">宣傳圖片 URL</label><input type="text" v-model="editingCourse.image" class="input-field"></div>
+                            <div><label class="text-xs font-bold text-gray-400">詳細說明</label><textarea v-model="editingCourse.description" class="input-field h-32 resize-none"></textarea></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gray-100 flex justify-end gap-3">
+                    <button @click="editingCourse = null" class="px-6 py-2 text-gray-400 font-bold">取消</button>
+                    <button @click="saveCourse" class="px-8 py-2 bg-[#06C755] text-white rounded-xl font-bold">確認儲存</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -236,13 +291,13 @@
                 const orders = ref([]);
                 const users = ref([]);
                 const isLoading = ref(false);
+                const editingCourse = ref(null);
 
                 const currentViewName = computed(() => {
                     const map = { 'dashboard': '營運統計', 'courses': '課程管理', 'orders': '訂單管理', 'members': '會員管理' };
                     return map[view.value];
                 });
 
-                // 計算五大統計指標
                 const stats = computed(() => {
                     let paid = 0, pending = 0, refund = 0, validOrders = 0;
                     orders.value.forEach(o => {
@@ -254,16 +309,14 @@
                     return { totalPaid: paid, totalPending: pending, totalRefund: refund, orderCount: validOrders, memberCount: users.value.length };
                 });
 
-                // 計算各課程營收表格
                 const courseStats = computed(() => {
                     return courses.value.map(c => {
                         const cOrders = orders.value.filter(o => o.courseId === c.id);
-                        let data = { id: c.id, name: c.name, totalOrders: cOrders.filter(o => o.status !== 'CANCELLED').length, totalExpected: 0, pendingCount: 0, pendingAmount: 0, paidCount: 0, paidAmount: 0, refundCount: 0, refundAmount: 0 };
+                        let data = { id: c.id, name: c.name, totalOrders: cOrders.filter(o => o.status !== 'CANCELLED').length, totalExpected: 0, pendingCount: 0, pendingAmount: 0, paidCount: 0, paidAmount: 0 };
                         cOrders.forEach(o => {
                             const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
                             if (o.status === 'PENDING') { data.pendingCount++; data.pendingAmount += amt; data.totalExpected += amt; }
                             else if (o.status === 'PAID') { data.paidCount++; data.paidAmount += amt; data.totalExpected += amt; }
-                            else if (o.status === 'REFUNDED') { data.refundCount++; data.refundAmount += amt; }
                         });
                         return data;
                     });
@@ -272,12 +325,8 @@
                 const callApi = async (act, pl = {}) => {
                     isLoading.value = true;
                     try {
-                        const res = await fetch(WORKER_URL, { 
-                            method: 'POST', 
-                            body: JSON.stringify({ action: act, payload: pl }) 
-                        });
+                        const res = await fetch(WORKER_URL, { method: 'POST', body: JSON.stringify({ action: act, payload: pl }) });
                         const json = await res.json();
-                        if (json.status !== 'success') throw new Error(json.data);
                         return json.data;
                     } catch (e) {
                         console.error('API Error:', e);
@@ -296,18 +345,27 @@
                     }
                 };
 
+                const openEditModal = (c) => {
+                    editingCourse.value = JSON.parse(JSON.stringify(c));
+                };
+
+                const saveCourse = async () => {
+                    await callApi('ADMIN_UPDATE_COURSE', editingCourse.value);
+                    editingCourse.value = null;
+                    await fetchData();
+                };
+
                 const updateOrder = async (o) => {
                     await callApi('ADMIN_UPDATE_ORDER', { orderId: o.orderId, status: o.status, amount: o.amount });
-                    await fetchData(); // 即時重新整理數據
+                    await fetchData();
                 };
 
                 const getCourseName = (id) => courses.value.find(c => c.id === id)?.name || id;
-
                 const logout = () => { if(confirm('確定要登出嗎？')) window.location.href = 'index.html'; };
 
                 onMounted(fetchData);
 
-                return { view, currentViewName, courses, orders, users, isLoading, stats, courseStats, fetchData, updateOrder, getCourseName, logout };
+                return { view, currentViewName, courses, orders, users, isLoading, stats, courseStats, editingCourse, openEditModal, saveCourse, fetchData, updateOrder, getCourseName, logout };
             }
         }).mount('#app');
     </script>
