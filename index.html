@@ -17,11 +17,10 @@
         input, select, textarea { font-size: 16px; }
         [v-cloak] { display: none !important; }
         
-        /* 解放版面：移除包框與陰影，採扁平化設計 */
+        /* 解放版面：完全扁平化 */
         body { background-color: #FFFFFF; }
-        .liberated-container { @apply w-full; }
         
-        /* 註冊畫面 - 完全對齊方框風格 */
+        /* 註冊畫面方框風格 */
         .input-box { width: 100%; border: 1px solid #333333; padding: 12px; border-radius: 4px; font-size: 16px; color: #18181b; outline: none; }
         .input-box:focus { border-color: #06C755; }
         .input-label { display: block; font-size: 15px; font-weight: 500; color: #333; margin-bottom: 6px; }
@@ -29,17 +28,19 @@
         .btn-primary { background: #06C755; color: white; padding: 16px; border-radius: 8px; font-weight: bold; font-size: 16px; transition: 0.2s; width: 100%; }
         .btn-primary:active { transform: scale(0.98); opacity: 0.9; }
         
-        /* 分類標籤樣式 */
-        .category-tab { @apply px-5 py-2.5 rounded-full text-[14px] font-bold transition-all whitespace-nowrap border; }
+        /* 綠底白字標籤樣式 */
+        .category-tab { @apply px-5 py-2 rounded-full text-[14px] font-medium transition-all whitespace-nowrap border border-transparent; }
         .category-tab-active { @apply bg-[#06C755] text-white border-[#06C755] shadow-sm; }
-        .category-tab-inactive { @apply bg-white text-gray-500 border-gray-200 hover:border-gray-300; }
+        .category-tab-inactive { @apply bg-gray-100 text-gray-500 hover:bg-gray-200; }
         
-        /* 橫向滾動隱藏滾動條 */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* 課程卡片優化 */
+        .course-card { @apply bg-white border border-gray-100 p-3 flex flex-col justify-between transition-all active:bg-gray-50; }
     </style>
 </head>
 
@@ -59,82 +60,81 @@
                 {{ error }}
             </div>
 
-            <!-- 1. 課程列表視圖 (解放版面、標籤切換) -->
+            <!-- 1. 課程列表視圖 -->
             <div v-else-if="view === 'course_list'" class="animate-fade-in">
-                <!-- Banner 區域 (取消小 Logo) -->
+                <!-- Banner 優先載入 -->
                 <div class="w-full">
                     <img src="https://s3.us-west-1.wasabisys.com/aitw/2026/04/001bd74e24a00403a292608ec2853cb9.jpg" class="w-full h-auto block object-cover">
                 </div>
                 
-                <!-- 功能按鈕區 (無包框) -->
+                <!-- 功能按鈕區 -->
                 <div class="px-5 py-6 grid grid-cols-3 gap-4 border-b border-gray-100">
-                    <button @click="editProfile" class="text-gray-500 flex flex-col items-center gap-2 hover:text-[#06C755] transition">
-                        <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-xl"><i class="fas fa-user-gear"></i></div>
-                        <span class="text-[11px] font-bold">基本資料</span>
+                    <button @click="editProfile" class="text-gray-400 flex flex-col items-center gap-1 hover:text-[#06C755] transition">
+                        <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-xl text-gray-500"><i class="fas fa-user-gear"></i></div>
+                        <span class="text-[11px] font-medium">基本資料</span>
                     </button>
-                    <button @click="goToMyOrders" class="text-gray-500 flex flex-col items-center gap-2 hover:text-[#06C755] transition">
-                        <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-xl"><i class="fas fa-file-invoice"></i></div>
-                        <span class="text-[11px] font-bold">報名紀錄</span>
+                    <button @click="goToMyOrders" class="text-gray-400 flex flex-col items-center gap-1 hover:text-[#06C755] transition">
+                        <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-xl text-gray-500"><i class="fas fa-file-invoice"></i></div>
+                        <span class="text-[11px] font-medium">報名紀錄</span>
                     </button>
-                    <a href="https://lin.ee/Y0FKXqD" class="text-gray-500 flex flex-col items-center gap-2 hover:text-[#06C755] transition">
-                        <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-xl"><i class="fab fa-line"></i></div>
-                        <span class="text-[11px] font-bold">聯絡客服</span>
+                    <a href="https://lin.ee/Y0FKXqD" class="text-gray-400 flex flex-col items-center gap-1 hover:text-[#06C755] transition">
+                        <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-xl text-gray-500"><i class="fab fa-line"></i></div>
+                        <span class="text-[11px] font-medium">聯絡客服</span>
                     </a>
                 </div>
 
-                <!-- 課程分類標籤列 (水平滑動) -->
+                <!-- 課程分類導覽 (綠底白字標籤) -->
                 <div class="sticky top-0 bg-white z-20 px-5 py-4 border-b border-gray-50">
-                    <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                    <div class="flex gap-2 overflow-x-auto hide-scrollbar">
                         <button v-for="cat in dynamicCategories" :key="cat.id" 
                                 @click="expandedCategory = cat.id"
                                 :class="expandedCategory === cat.id ? 'category-tab-active' : 'category-tab-inactive'"
                                 class="category-tab">
                             {{ cat.name }}
                         </button>
+                        <div v-if="isCoursesLoading" class="flex items-center ml-2">
+                            <i class="fas fa-circle-notch fa-spin text-gray-300 text-xs"></i>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 課程 2 欄網格列表 -->
-                <div class="p-4 bg-gray-50/30">
-                    <div v-if="filteredCourses.length > 0" class="grid grid-cols-2 gap-4">
-                        <div v-for="c in filteredCourses" :key="c.id" 
-                             class="bg-white rounded-2xl border border-gray-100 p-3 flex flex-col justify-between shadow-sm transition hover:shadow-md">
+                <!-- 課程列表區塊 -->
+                <div class="p-4">
+                    <div v-if="filteredCourses.length > 0" class="grid grid-cols-2 gap-3">
+                        <div v-for="c in filteredCourses" :key="c.id" class="course-card rounded-xl shadow-sm">
                             <div>
                                 <h3 class="font-bold text-gray-800 text-[14px] leading-snug mb-2 line-clamp-2 min-h-[2.5rem]">{{ c.name }}</h3>
-                                <div class="flex items-center text-[#06C755] mb-2">
-                                    <span class="font-black text-base tracking-tighter">${{ c.price }}</span>
-                                </div>
-                                <div class="text-[10px] text-gray-400 font-medium mb-4 space-y-1">
+                                <div class="text-[#06C755] font-black text-[15px] mb-3">${{ c.price }}</div>
+                                <div class="text-[10px] text-gray-400 font-medium space-y-1 mb-4">
                                     <div class="flex items-center gap-1"><i class="far fa-calendar-alt"></i>{{ c.startDate }}</div>
                                 </div>
                             </div>
                             <button @click="selectCourse(c)" :disabled="c.enrolled >= c.capacity" 
-                                    class="bg-gray-100 text-gray-800 py-2 rounded-lg text-[12px] font-bold active:bg-[#06C755] active:text-white transition disabled:opacity-50">
+                                    class="w-full bg-gray-100 text-gray-800 py-2 rounded-lg text-[12px] font-bold active:bg-[#06C755] active:text-white transition disabled:opacity-30">
                                 {{ c.enrolled >= c.capacity ? '額滿' : '立即報名' }}
                             </button>
                         </div>
                     </div>
-                    <div v-else class="text-center py-20 text-gray-400 font-medium">該分類暫無課程</div>
+                    <div v-else-if="!isCoursesLoading" class="text-center py-20 text-gray-400 font-medium">該分類暫無課程內容</div>
+                    <!-- 載入中的骨架顯示 -->
+                    <div v-if="isCoursesLoading" class="grid grid-cols-2 gap-3">
+                        <div v-for="i in 4" :key="i" class="h-40 bg-gray-50 rounded-xl animate-pulse"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 2. 註冊與資料設定 (保持黑線方框架構) -->
-            <div v-else-if="view === 'register'" class="p-6 animate-fade-in space-y-6 bg-white">
-                <h2 class="text-[22px] font-bold text-gray-800">基本資料設定</h2>
+            <!-- 2. 註冊畫面 (保持黑線方框架構) -->
+            <div v-else-if="view === 'register'" class="p-6 animate-fade-in bg-white">
+                <h2 class="text-[22px] font-bold text-gray-800 mb-6">基本資料設定</h2>
 
                 <div v-if="regStep === 1" class="space-y-6">
-                    <div class="bg-blue-50/50 p-4 rounded-xl flex items-center gap-4 border border-blue-100">
-                        <div class="w-10 h-10 bg-white text-blue-500 rounded-full flex items-center justify-center shadow-sm"><i class="fas fa-user-edit"></i></div>
-                        <p class="text-[13px] text-blue-800 font-medium leading-tight">請完善您的個人資料，<br>這將用於課程報名與保險辦理。</p>
-                    </div>
-
                     <div>
                         <label class="input-label">姓名</label>
-                        <input type="text" v-model="regForm.name" class="input-box" placeholder="請輸入真實姓名">
+                        <input type="text" v-model="regForm.name" class="input-box" placeholder="真實姓名">
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="input-label">業種</label><input type="text" v-model="regForm.industry" class="input-box" placeholder="例：行銷"></div>
+                        <div><label class="input-label">業種</label><input type="text" v-model="regForm.industry" class="input-box" placeholder="行銷"></div>
                         <div><label class="input-label">性別</label><select v-model="regForm.gender" class="input-box"><option value="男">男</option><option value="女">女</option></select></div>
                     </div>
 
@@ -144,40 +144,37 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="input-label">居住地區</label><input type="text" v-model="regForm.area" class="input-box" placeholder="例：桃園"></div>
+                        <div><label class="input-label">居住地區</label><input type="text" v-model="regForm.area" class="input-box" placeholder="桃園"></div>
                         <div><label class="input-label">完整地址</label><input type="text" v-model="regForm.address" class="input-box" placeholder="街道門牌"></div>
                     </div>
 
-                    <div class="pt-4">
+                    <div class="pt-10">
                         <button @click="regStep = 2" class="btn-primary">確認並繼續</button>
                     </div>
                 </div>
 
-                <!-- 上傳名片 (選填) -->
                 <div v-if="regStep === 2" class="space-y-8 animate-fade-in">
-                    <div class="text-center py-8 border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50/50">
-                        <div class="w-16 h-16 bg-white text-[#06C755] rounded-full flex items-center justify-center text-2xl mx-auto shadow-sm mb-4"><i class="fas fa-address-card"></i></div>
-                        <h3 class="font-bold text-gray-800 text-lg">建立商務名片</h3>
-                        <p class="text-xs text-gray-400 mt-2 px-10">AI 將自動辨識名片，並生成數位標籤，讓學員更認識您。</p>
+                    <div class="text-center py-10 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                        <i class="fas fa-address-card text-4xl text-[#06C755] mb-4"></i>
+                        <h3 class="font-bold text-lg">建立商務名片</h3>
+                        <p class="text-xs text-gray-400 mt-2 px-10">上傳名片後 AI 將自動辨識資訊，<br>產生您的專屬數位標籤。</p>
                     </div>
                     
                     <div class="flex gap-4">
-                        <button @click="$refs.cameraInput.click()" class="flex-1 bg-[#06C755]/10 text-[#06C755] py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition border border-[#06C755]/20"><i class="fas fa-camera"></i> 拍照</button>
-                        <button @click="$refs.albumInput.click()" class="flex-1 bg-gray-50 text-gray-500 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition border border-gray-200"><i class="fas fa-image"></i> 相簿</button>
+                        <button @click="$refs.cameraInput.click()" class="flex-1 bg-[#06C755]/10 text-[#06C755] py-4 rounded-2xl font-bold flex items-center justify-center gap-2 border border-[#06C755]/20"><i class="fas fa-camera"></i> 拍照</button>
+                        <button @click="$refs.albumInput.click()" class="flex-1 bg-gray-50 text-gray-500 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 border border-gray-200"><i class="fas fa-image"></i> 相簿</button>
                     </div>
                     <input type="file" ref="cameraInput" accept="image/*" capture="environment" class="hidden" @change="submitMemberRegister">
                     <input type="file" ref="albumInput" accept="image/*" class="hidden" @change="submitMemberRegister">
-                    <div class="text-center pt-4"><button @click="submitMemberRegister" :disabled="isSubmitting" class="text-sm text-gray-400 font-bold py-2 px-6 hover:text-gray-600 transition">略過，直接進入系統</button></div>
+                    <div class="text-center pt-4"><button @click="submitMemberRegister" :disabled="isSubmitting" class="text-sm text-gray-400 font-bold py-2 px-6">略過，直接進入系統</button></div>
                 </div>
             </div>
 
             <!-- 3. 報名確認視圖 -->
             <div v-else-if="view === 'form'" class="p-6 animate-fade-in">
-                <button @click="view='course_list'" class="mb-8 text-gray-400 flex items-center gap-2 text-sm"><i class="fas fa-chevron-left"></i> 返回課程列表</button>
+                <button @click="view='course_list'" class="mb-8 text-gray-400 flex items-center gap-2 text-sm font-medium"><i class="fas fa-chevron-left"></i> 返回課程列表</button>
                 <div class="space-y-6">
-                    <div class="border-b-2 border-[#06C755] pb-4">
-                        <h3 class="font-bold text-xl text-gray-800">確認報名資訊</h3>
-                    </div>
+                    <h3 class="font-bold text-xl text-gray-800 pb-2 border-b-2 border-[#06C755] inline-block">確認報名資訊</h3>
                     <div class="bg-gray-50 p-6 rounded-2xl">
                         <p class="text-[11px] text-gray-400 font-bold uppercase tracking-widest mb-2">Selected Course</p>
                         <h3 class="font-bold text-gray-800 text-[17px] mb-3 leading-snug">{{ selectedCourse.name }}</h3>
@@ -195,7 +192,7 @@
             <div v-else-if="view === 'success'" class="animate-fade-in flex flex-col items-center justify-center pt-24 px-10 text-center">
                 <div class="w-24 h-24 bg-[#06C755] text-white rounded-full flex items-center justify-center text-4xl shadow-xl shadow-green-100 mb-8 animate-bounce"><i class="fas fa-check"></i></div>
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">報名申請已送出</h2>
-                <p class="text-gray-400 mb-12 leading-relaxed">我們已收到您的報名，<br>請前往「報名紀錄」查看後續繳費資訊。</p>
+                <p class="text-gray-400 mb-12">管理員將儘速審核您的報名，<br>請前往「報名紀錄」查看繳費資訊。</p>
                 <button @click="view='course_list'" class="btn-primary max-w-[240px]">回到首頁</button>
             </div>
         </main>
@@ -212,6 +209,7 @@
                 const regStep = ref(1);
                 const error = ref('');
                 const isSubmitting = ref(false);
+                const isCoursesLoading = ref(false); // 追蹤課程載入狀態
                 const userProfile = ref(null);
                 const userInfo = ref({});
                 const courses = ref([]);
@@ -220,14 +218,14 @@
                 const registrationNote = ref('');
                 const expandedCategory = ref('');
 
-                // 動態分類：從後端資料的 type 欄位提取
+                // 動態分類計算
                 const dynamicCategories = computed(() => {
                     if (!courses.value || courses.value.length === 0) return [];
                     const types = [...new Set(courses.value.map(c => c.type))];
                     return types.map(t => ({ id: t, name: t }));
                 });
 
-                // 當分類資料載入後，預設選中第一個
+                // 分類載入後自動選取第一個
                 watch(dynamicCategories, (newVal) => {
                     if (newVal.length > 0 && !expandedCategory.value) {
                         expandedCategory.value = newVal[0].id;
@@ -253,9 +251,11 @@
                 };
 
                 const loadCourses = async () => {
+                    isCoursesLoading.value = true;
                     try { 
                         courses.value = await callApi('GET_COURSES'); 
-                    } catch (e) { error.value = '課程載入中，請稍候重試。'; }
+                    } catch (e) { error.value = '課程載入失敗'; }
+                    finally { isCoursesLoading.value = false; }
                 };
 
                 const init = async () => {
@@ -263,16 +263,24 @@
                         await liff.init({ liffId: LIFF_ID });
                         if (!liff.isLoggedIn()) { liff.login(); return; }
                         userProfile.value = await liff.getProfile();
+                        
+                        // 1. 優先獲取用戶註冊狀態
                         const data = await callApi('CHECK_USER');
+                        
                         if (data && data.registered) {
                             userInfo.value = data.info;
-                            await loadCourses();
+                            // 2. 確定註冊後立即切換至首頁 (Banner 會先出)
+                            view.value = 'course_list';
+                            // 3. 非同步載入後面的課程內容
+                            loadCourses();
                         } else {
                             regForm.value.name = userProfile.value.displayName;
                             view.value = 'register';
                             regStep.value = 1;
                         }
-                    } catch (err) { error.value = '連線異常，請從 LINE 選單重新進入。'; }
+                    } catch (err) { 
+                        error.value = '連線異常，請重新進入。'; 
+                    }
                 };
 
                 const submitMemberRegister = async () => {
@@ -297,10 +305,10 @@
                 onMounted(init);
 
                 return {
-                    view, regStep, error, isSubmitting, userInfo, userProfile, courses, regForm, selectedCourse, registrationNote, expandedCategory, dynamicCategories, filteredCourses,
+                    view, regStep, error, isSubmitting, isCoursesLoading, userInfo, userProfile, courses, regForm, selectedCourse, registrationNote, expandedCategory, dynamicCategories, filteredCourses,
                     toggleCategory: (id) => expandedCategory.value = id,
                     editProfile: () => { regForm.value = { ...userInfo.value }; view.value = 'register'; regStep.value = 1; },
-                    goToMyOrders: () => alert('報名紀錄查詢即將開放'),
+                    goToMyOrders: () => alert('紀錄查詢即將開放'),
                     selectCourse: (c) => { selectedCourse.value = c; view.value = 'form'; },
                     submitMemberRegister, submitRegistration
                 };
