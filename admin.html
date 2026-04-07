@@ -1,150 +1,342 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
   <base target="_top">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>宏學課程系統 - 後台管理</title>
+  <!-- 引入 Tailwind CSS 快速重現運動島 UI 佈局 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入 FontAwesome 圖示 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* 沿用極簡、無外框、貼近 LINE 原生格式 */
-    :root {
-      --line-bg: #f4f5f6;
-      --line-text-main: #111111;
-      --line-text-sub: #666666;
-      --line-border: #ebebeb;
-      --admin-header: #333333;
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .nav-item.active {
+      background-color: #f0fdf4; /* Tailwind green-50 */
+      color: #10b981; /* Tailwind emerald-500 */
+      border-left: 4px solid #10b981;
     }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background-color: var(--line-bg);
-      margin: 0;
-      padding: 0;
-      color: var(--line-text-main);
-      -webkit-font-smoothing: antialiased;
+    .nav-item {
+      border-left: 4px solid transparent;
     }
-    
-    .header {
-      background-color: var(--admin-header);
-      color: white;
-      padding: 14px 16px;
-      font-size: 16px;
-      text-align: center;
-      font-weight: 400;
-    }
-
-    .list-container {
-      background-color: #ffffff;
-      width: 100%;
-    }
-    
-    .booking-item {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--line-border);
-    }
-    .booking-item:last-child {
-      border-bottom: none;
-    }
-    
-    .booking-title {
-      font-size: 15px;
-      margin-bottom: 6px;
-      color: var(--line-text-main);
-      font-weight: 400; 
-    }
-    
-    .booking-info {
-      display: flex;
-      justify-content: space-between;
-      font-size: 14px;
-      color: var(--line-text-sub);
-      margin-bottom: 4px;
-      line-height: 1.4;
-    }
-
-    .status-tag {
-      color: #00b900;
-      font-size: 14px;
-    }
-    
-    .loading {
-      text-align: center;
-      padding: 30px 16px;
-      color: var(--line-text-sub);
-      font-size: 14px;
-    }
+    /* 隱藏未啟用的 Tab 區塊 */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
   </style>
 </head>
-<body>
+<body class="bg-gray-50 text-gray-800 flex h-screen overflow-hidden">
 
-  <div class="header">預約名單管理</div>
-  
-  <div id="loading" class="loading">讀取預約資料中...</div>
-  
-  <div id="booking-list" class="list-container"></div>
+  <!-- 左側邊欄 (Sidebar) -->
+  <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between">
+    <div>
+      <div class="py-6 px-6 border-b border-gray-100">
+        <h1 class="text-xl font-bold text-green-600 tracking-wider">宏學管理站</h1>
+      </div>
+      <nav class="mt-4 flex flex-col gap-1">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active flex items-center w-full text-left px-6 py-3 text-gray-600 hover:bg-gray-50 font-medium transition-colors">
+          <i class="fas fa-chart-pie w-6 text-center mr-2"></i> 營運統計
+        </button>
+        <button onclick="switchTab('courses')" id="nav-courses" class="nav-item flex items-center w-full text-left px-6 py-3 text-gray-600 hover:bg-gray-50 font-medium transition-colors">
+          <i class="fas fa-book w-6 text-center mr-2"></i> 課程管理
+        </button>
+        <button onclick="switchTab('orders')" id="nav-orders" class="nav-item flex items-center w-full text-left px-6 py-3 text-gray-600 hover:bg-gray-50 font-medium transition-colors">
+          <i class="fas fa-money-check w-6 text-center mr-2"></i> 訂單管理
+        </button>
+        <button onclick="switchTab('members')" id="nav-members" class="nav-item flex items-center w-full text-left px-6 py-3 text-gray-600 hover:bg-gray-50 font-medium transition-colors">
+          <i class="fas fa-users w-6 text-center mr-2"></i> 會員管理
+        </button>
+      </nav>
+    </div>
+    <div class="p-6">
+      <button class="w-full border border-gray-300 text-gray-600 rounded py-2 hover:bg-gray-100 transition">登出</button>
+    </div>
+  </aside>
+
+  <!-- 右側主內容區 -->
+  <main class="flex-1 overflow-auto bg-[#f4f5f6]">
+    
+    <!-- Tab 1: 營運統計 -->
+    <div id="tab-dashboard" class="tab-content active h-full flex flex-col">
+      <!-- Header -->
+      <div class="bg-white border-b px-8 py-4 flex justify-between items-center sticky top-0 z-10">
+        <h2 class="text-xl font-bold text-gray-800">營運統計</h2>
+        <button class="border border-gray-300 text-gray-700 px-4 py-2 rounded shadow-sm hover:bg-gray-50">
+          <i class="fas fa-sync-alt mr-1"></i> 資料同步
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <div class="p-8">
+        <!-- 頂部數據卡片 -->
+        <div class="grid grid-cols-5 gap-6 mb-8">
+          <div class="bg-white p-6 rounded shadow-sm">
+            <div class="text-gray-500 text-sm mb-2">總實收金額 (已完款)</div>
+            <div class="text-3xl font-bold text-[#00b900]">$6,500</div>
+            <div class="text-[#00b900] mt-1 text-sm"><i class="fas fa-dollar-sign"></i></div>
+          </div>
+          <div class="bg-white p-6 rounded shadow-sm">
+            <div class="text-gray-500 text-sm mb-2">總待收金額 (待付款)</div>
+            <div class="text-3xl font-bold text-[#ff9800]">$24,000</div>
+            <div class="text-[#ff9800] mt-1 text-sm"><i class="fas fa-hourglass-half"></i></div>
+          </div>
+          <div class="bg-white p-6 rounded shadow-sm">
+            <div class="text-gray-500 text-sm mb-2">總退款金額 (申退/已退)</div>
+            <div class="text-3xl font-bold text-[#f44336]">$16,268</div>
+            <div class="text-[#f44336] mt-1 text-sm"><i class="fas fa-hand-holding-usd"></i></div>
+          </div>
+          <div class="bg-white p-6 rounded shadow-sm">
+            <div class="text-gray-500 text-sm mb-2">有效報名訂單</div>
+            <div class="text-3xl font-bold text-[#2196f3]">5 <span class="text-sm font-normal text-gray-500">筆</span></div>
+            <div class="text-[#2196f3] mt-1 text-sm"><i class="fas fa-file-signature"></i></div>
+          </div>
+          <div class="bg-white p-6 rounded shadow-sm">
+            <div class="text-gray-500 text-sm mb-2">系統總會員數</div>
+            <div class="text-3xl font-bold text-[#9c27b0]">17 <span class="text-sm font-normal text-gray-500">人</span></div>
+            <div class="text-[#9c27b0] mt-1 text-sm"><i class="fas fa-user-friends"></i></div>
+          </div>
+        </div>
+
+        <!-- 統計表格 -->
+        <div class="mb-4 flex items-center">
+          <div class="w-1 h-6 bg-green-500 mr-2"></div>
+          <h3 class="text-lg font-bold text-gray-800">各課程營收狀態統計</h3>
+        </div>
+        <div class="bg-white rounded shadow-sm overflow-hidden">
+          <table class="w-full text-center border-collapse">
+            <thead>
+              <tr class="bg-gray-50 text-gray-500 text-sm border-b">
+                <th class="py-4 px-4 text-left font-normal">課程名稱</th>
+                <th class="py-4 px-4 font-normal">報名總數</th>
+                <th class="py-4 px-4 font-normal">應收總額</th>
+                <th class="py-4 px-4 font-normal">待付人數</th>
+                <th class="py-4 px-4 font-normal">待收金額</th>
+                <th class="py-4 px-4 font-normal">已付人數</th>
+                <th class="py-4 px-4 font-normal">實收金額</th>
+                <th class="py-4 px-4 font-normal">退款人數</th>
+                <th class="py-4 px-4 font-normal">退款金額</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b hover:bg-gray-50">
+                <td class="py-4 px-4 text-left">
+                  <div class="font-bold text-gray-800">星期五 羽球</div>
+                  <div class="text-xs text-gray-500 mt-1">(大班~12歲)</div>
+                </td>
+                <td class="py-4 px-4 font-medium">3</td>
+                <td class="py-4 px-4 font-medium">$19,500</td>
+                <td class="py-4 px-4 font-bold text-[#ff9800]">2</td>
+                <td class="py-4 px-4 font-bold text-[#ff9800]">$13,000</td>
+                <td class="py-4 px-4 font-bold text-[#00b900]">1</td>
+                <td class="py-4 px-4 font-bold text-[#00b900]">$6,500</td>
+                <td class="py-4 px-4 font-bold text-[#f44336]">0</td>
+                <td class="py-4 px-4 font-bold text-[#f44336]">$0</td>
+              </tr>
+              <!-- 更多資料列省略，格式同上 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: 課程管理 -->
+    <div id="tab-courses" class="tab-content h-full flex flex-col">
+      <!-- Header -->
+      <div class="bg-white border-b px-8 py-4 flex justify-between items-center sticky top-0 z-10">
+        <h2 class="text-xl font-bold text-gray-800">上架課程總數：<span id="course-count">讀取中...</span></h2>
+        <div class="flex gap-4">
+          <div class="relative">
+            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            <input type="text" placeholder="搜尋名稱、編號" class="pl-10 pr-4 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 w-64">
+          </div>
+          <button class="bg-[#06c755] text-white px-4 py-2 rounded shadow-sm hover:bg-green-600 transition">
+            <i class="fas fa-plus mr-1"></i> 新增課程
+          </button>
+        </div>
+      </div>
+      
+      <!-- Content -->
+      <div class="p-8">
+        <div class="mb-4 flex items-center">
+          <div class="w-1 h-6 bg-blue-500 mr-2"></div>
+          <h3 class="text-lg font-bold text-gray-800">一般課程管理</h3>
+        </div>
+        <div class="bg-white rounded shadow-sm overflow-hidden">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-gray-50 text-gray-500 text-sm border-b">
+                <th class="py-4 px-6 font-normal w-1/3">課程資訊</th>
+                <th class="py-4 px-6 font-normal">類型/時間 <i class="fas fa-sort text-gray-300 ml-1"></i></th>
+                <th class="py-4 px-6 font-normal">費用/名額</th>
+                <th class="py-4 px-6 font-normal">繳費狀況 (點擊查看名單)</th>
+                <th class="py-4 px-6 font-normal text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="course-table-body">
+              <tr><td colspan="5" class="text-center py-10 text-gray-500">正在從 Google Sheet 讀取資料中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: 訂單管理 -->
+    <div id="tab-orders" class="tab-content h-full flex flex-col">
+      <!-- Header -->
+      <div class="bg-white border-b px-8 py-4 flex justify-between items-center sticky top-0 z-10">
+        <h2 class="text-xl font-bold text-gray-800">訂單管理</h2>
+        <div class="flex gap-3">
+          <button class="border border-blue-500 text-blue-500 px-4 py-2 rounded hover:bg-blue-50 transition">
+            <i class="fas fa-file-export mr-1"></i> 匯出 CSV
+          </button>
+          <button class="border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition">
+            <i class="fas fa-sync-alt mr-1"></i> 資料同步
+          </button>
+        </div>
+      </div>
+      
+      <!-- Content -->
+      <div class="p-8">
+        <!-- 篩選器 -->
+        <div class="bg-white p-6 rounded shadow-sm mb-6 flex gap-6">
+          <div class="flex-1">
+            <label class="block text-sm text-gray-500 mb-2">關鍵字搜尋</label>
+            <input type="text" placeholder="搜尋姓名、電話、訂單號..." class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-green-500">
+          </div>
+          <div class="w-48">
+            <label class="block text-sm text-gray-500 mb-2">付款狀態篩選</label>
+            <select class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-green-500 bg-white">
+              <option>全部狀態</option>
+            </select>
+          </div>
+          <div class="w-64">
+            <label class="block text-sm text-gray-500 mb-2">課程活動篩選</label>
+            <select class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-green-500 bg-white">
+              <option>全部課程 (不限)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 訂單表格 -->
+        <div class="bg-white rounded shadow-sm overflow-hidden">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-gray-50 text-gray-500 text-sm border-b">
+                <th class="py-4 px-6 font-normal">單號</th>
+                <th class="py-4 px-6 font-normal">報名課程</th>
+                <th class="py-4 px-6 font-normal">學員</th>
+                <th class="py-4 px-6 font-normal">金額</th>
+                <th class="py-4 px-6 font-normal">狀態</th>
+                <th class="py-4 px-6 font-normal">後五碼</th>
+                <th class="py-4 px-6 font-normal text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- 靜態 Mockup 展示架構 (如同您截圖中的運動島系統) -->
+              <tr class="border-b hover:bg-gray-50">
+                <td class="py-4 px-6 text-gray-600">1257facd</td>
+                <td class="py-4 px-6">
+                  <div class="font-bold text-gray-800">2026 運動島聯名夏令營 - 第二梯次</div>
+                  <div class="text-sm text-gray-500">(07/13~07/17) - 羽球爭霸營</div>
+                </td>
+                <td class="py-4 px-6">
+                  <div class="font-bold text-gray-800">方萬隆</div>
+                  <div class="text-sm text-gray-500">0927136847</div>
+                </td>
+                <td class="py-4 px-6 font-bold text-[#00b900]">$6000</td>
+                <td class="py-4 px-6"><span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded text-sm font-bold">待付款</span></td>
+                <td class="py-4 px-6 text-blue-600 font-bold">23568</td>
+                <td class="py-4 px-6 text-right"><button class="border border-gray-300 rounded px-4 py-1 text-sm hover:bg-gray-100 transition">編輯</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
 
   <script>
-    window.onload = function() {
-      // 呼叫後端 getBookings 函式取得預約名單
+    // 簡易前端路由 (切換 Sidebar)
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById('tab-' + tabId).classList.add('active');
+      document.getElementById('nav-' + tabId).classList.add('active');
+
+      // 若切換到課程管理，且尚未載入資料，則呼叫後端
+      if(tabId === 'courses' && document.getElementById('course-table-body').innerHTML.includes('正在從')) {
+        loadCoursesFromGAS();
+      }
+    }
+
+    // 從 GAS 讀取客戶專屬的 Google Sheet (完全照運動島架構解析)
+    function loadCoursesFromGAS() {
       if (typeof google !== 'undefined' && google.script) {
         google.script.run
-          .withSuccessHandler(renderBookings)
-          .withFailureHandler(showError)
-          .getBookings();
-      } else {
-        renderBookings([
-          { "預約日期": "2026/04/08 10:00", "課程名稱": "測試課程 (本機)", "預約人": "測試員", "狀態": "已報名" }
-        ]);
+          .withSuccessHandler(renderCourseTable)
+          .withFailureHandler(err => {
+            document.getElementById('course-table-body').innerHTML = `<tr><td colspan="5" class="text-center py-6 text-red-500">資料讀取失敗：${err.message}</td></tr>`;
+          })
+          .getAdminCourses();
       }
-    };
+    }
 
-    function renderBookings(data) {
-      document.getElementById('loading').style.display = 'none';
-      const container = document.getElementById('booking-list');
+    // 渲染課程列表 (精準對應您的運動島畫面)
+    function renderCourseTable(data) {
+      const tbody = document.getElementById('course-table-body');
+      document.getElementById('course-count').innerText = data.length;
       
-      if (!data || data.length === 0) {
-        container.innerHTML = '<div class="loading">目前尚無任何預約紀錄</div>';
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-gray-500">目前無課程資料</td></tr>';
         return;
       }
 
       let html = '';
-      
-      data.forEach(function(record) {
-        html += '<div class="booking-item">';
-        html += '<div class="booking-title">' + escapeHtml(String(record['課程名稱'] || '未命名')) + '</div>';
-        
-        // 迴圈印出名單詳細資訊
-        for (const [key, val] of Object.entries(record)) {
-          if (key === '課程名稱') continue; // 標題已顯示
-          
-          html += '<div class="booking-info">';
-          html += '<span>' + escapeHtml(String(key)) + '</span>';
-          
-          // 針對狀態改變顏色 (純文字不加粗，以顏色區分)
-          if (key === '狀態') {
-            html += '<span class="status-tag">' + escapeHtml(String(val)) + '</span>';
-          } else {
-            html += '<span>' + escapeHtml(String(val)) + '</span>';
-          }
-          html += '</div>';
-        }
-        
-        html += '</div>';
+      data.forEach(item => {
+        // 依照運動島欄位陣列解析: 0:ID, 1:Name, 2:Start, 3:End, 4:Price, 5:Cap, 6:Enrolled, 12:Type
+        html += `
+        <tr class="border-b hover:bg-gray-50">
+          <td class="py-5 px-6">
+            <div class="font-bold text-gray-800 text-lg">${escapeHtml(item.name || '')}</div>
+            <div class="text-sm text-gray-500 mt-1">(依照表單設定之年齡)</div>
+            <span class="inline-block bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded mt-2">${escapeHtml(item.id || '')}</span>
+          </td>
+          <td class="py-5 px-6">
+            <span class="inline-block bg-blue-50 text-blue-600 px-2 py-1 rounded text-sm font-medium mb-2">${escapeHtml(item.type || '常態課後')}</span>
+            <div class="text-gray-800 font-medium">${formatDate(item.start)} ~ ${formatDate(item.end)}</div>
+          </td>
+          <td class="py-5 px-6">
+            <div class="text-[#00b900] font-bold text-lg">$${item.price}</div>
+            <div class="text-gray-600 mt-1">${item.enrolled} / ${item.cap} 人</div>
+          </td>
+          <td class="py-5 px-6">
+            <div class="text-[#00b900] font-medium text-sm mb-1">已付: 0</div>
+            <div class="text-[#ff9800] font-medium text-sm mb-2">待付: ${item.enrolled}</div>
+            <button class="bg-[#00b900] text-white text-xs px-3 py-1 rounded hover:bg-green-600"><i class="fas fa-mouse-pointer mr-1"></i> Click</button>
+          </td>
+          <td class="py-5 px-6 text-right space-x-2">
+            <button class="text-[#00b900] hover:bg-green-50 px-2 py-1 rounded transition"><i class="fas fa-user-check mr-1"></i> 簽到</button>
+            <button class="text-gray-600 hover:bg-gray-50 px-2 py-1 rounded transition"><i class="far fa-copy mr-1"></i> 複製</button>
+            <button class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition"><i class="far fa-edit mr-1"></i> 編輯</button>
+          </td>
+        </tr>`;
       });
-
-      container.innerHTML = html;
+      tbody.innerHTML = html;
     }
 
-    function showError(error) {
-      document.getElementById('loading').innerText = '系統錯誤：' + error.message;
+    function formatDate(dateString) {
+      if (!dateString) return '';
+      // 假設格式為 2026-07-06T... 轉換為 YYYY-MM-DD
+      const d = new Date(dateString);
+      if(isNaN(d.getTime())) return dateString;
+      return d.toISOString().split('T')[0];
     }
 
-    function escapeHtml(unsafeText) {
-      return unsafeText
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, function(m) {
+        return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'})[m];
+      });
     }
   </script>
 </body>
