@@ -19,11 +19,11 @@
         .input-box:focus { border-color: #06C755; }
         .input-label { display: block; font-size: 15px; font-weight: bold; color: #333; margin-bottom: 4px; }
 
-        /* 頂部標籤 - 圓角 pill 樣式 (對齊截圖) */
+        /* 頂部標籤 - 尺寸微縮以容納更多標籤 (修正點 2) */
         .category-tab {
-            padding: 8px 20px;
+            padding: 6px 12px;
             border-radius: 999px;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 700;
             white-space: nowrap;
             transition: all 0.15s;
@@ -123,7 +123,7 @@
                     </button>
                 </div>
 
-                <!-- 標籤列 (圓角 pill，對齊截圖) -->
+                <!-- 標籤列 (尺寸已微縮) -->
                 <div class="px-5 py-3 flex gap-2 overflow-x-auto hide-scrollbar">
                     <button v-for="cat in dynamicCategories" :key="cat.id"
                             @click="expandedCategory = cat.id"
@@ -158,13 +158,13 @@
                 </div>
             </div>
 
-            <!-- 2. 註冊與資料設定視圖 -->
+            <!-- 2. 註冊與資料設定視圖 (修復生日欄位溢出、移除名片流程) -->
             <div v-else-if="view === 'register'" class="p-6 animate-fade-in space-y-8 bg-white min-h-screen">
                 <div class="mb-4">
                     <h2 class="text-2xl font-bold text-gray-900 tracking-tight">基本資料設定</h2>
                 </div>
 
-                <div v-if="regStep === 1" class="space-y-6">
+                <div class="space-y-6">
                     <div>
                         <label class="input-label">姓名</label>
                         <input type="text" v-model="regForm.name" class="input-box" placeholder="您的姓名">
@@ -187,9 +187,10 @@
                             <label class="input-label">手機</label>
                             <input type="tel" v-model="regForm.phone" class="input-box" placeholder="09xx-xxx-xxx">
                         </div>
+                        <!-- [修正點 4] 縮減內距防止撐破版面 -->
                         <div>
                             <label class="input-label">生日</label>
-                            <input type="date" v-model="regForm.birthday" class="input-box">
+                            <input type="date" v-model="regForm.birthday" class="input-box !px-1">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
@@ -203,28 +204,8 @@
                         </div>
                     </div>
                     <div class="pt-8">
-                        <button @click="regStep = 2" class="btn-main">確認並繼續</button>
-                    </div>
-                </div>
-
-                <div v-if="regStep === 2" class="space-y-10 animate-fade-in text-center px-2">
-                    <div class="py-12 border-2 border-dashed border-slate-200 rounded-[2.5rem] bg-slate-50">
-                        <div class="w-20 h-20 bg-white text-[#06C755] rounded-full flex items-center justify-center text-3xl mx-auto shadow-sm mb-6"><i class="fas fa-address-card"></i></div>
-                        <h3 class="font-bold text-lg">建立商務名片</h3>
-                        <p class="text-xs text-slate-400 mt-2 px-10">上傳名片後 AI 將自動辨識，產生專屬標籤。</p>
-                    </div>
-                    <div class="flex gap-4">
-                        <button @click="$refs.cameraInput.click()" class="bg-[#06C755]/10 text-[#06C755] flex-1 py-4 rounded-2xl font-bold flex items-center justify-center gap-2">
-                            <i class="fas fa-camera"></i> 拍照
-                        </button>
-                        <button @click="$refs.albumInput.click()" class="bg-gray-100 text-gray-500 flex-1 py-4 rounded-2xl font-bold flex items-center justify-center gap-2">
-                            <i class="fas fa-image"></i> 相簿
-                        </button>
-                    </div>
-                    <input type="file" ref="cameraInput" accept="image/*" capture="environment" class="hidden" @change="submitMemberRegister">
-                    <input type="file" ref="albumInput" accept="image/*" class="hidden" @change="submitMemberRegister">
-                    <div class="pt-4">
-                        <button @click="submitMemberRegister" :disabled="isSubmitting" class="btn-main">完成註冊</button>
+                        <!-- [修正點 3] 直接進入提交，取消 Step 2 名片流程 -->
+                        <button @click="submitMemberRegister" :disabled="isSubmitting" class="btn-main">完成註冊並進入系統</button>
                     </div>
                 </div>
             </div>
@@ -274,7 +255,6 @@
                     </div>
                     <h3 class="text-xl font-bold text-slate-900 mb-5 leading-tight">{{ viewingCourse.name }}</h3>
                     <div class="text-slate-500 text-[15px] leading-relaxed whitespace-pre-wrap max-h-56 overflow-y-auto hide-scrollbar mb-8">{{ viewingCourse.description }}</div>
-                    <!-- ✅ 修正：先存 course，再關彈窗，避免傳入 null -->
                     <button @click="(function(c){ viewingCourse = null; selectCourse(c); })(viewingCourse)" class="btn-main">
                         我要報名 ‧ NT$ {{ Number(viewingCourse.price).toLocaleString() }}
                     </button>
@@ -315,17 +295,18 @@
                 const dynamicCategories = computed(() => {
                     if (!courses.value.length) return [];
                     const types = [...new Set(courses.value.map(c => c.type))];
-                    return [{ id: 'ALL', name: '全部活動' }, ...types.map(t => ({ id: t, name: t }))];
+                    return types.map(t => ({ id: t, name: t }));
                 });
 
+                // [修正點 1] 優先開啟「工作坊」，若無則開啟第一個
                 watch(dynamicCategories, (newVal) => {
                     if (newVal.length > 0 && !expandedCategory.value) {
-                        expandedCategory.value = 'ALL';
+                        const target = newVal.find(n => n.name.includes('工作坊')) || newVal[0];
+                        expandedCategory.value = target.id;
                     }
                 }, { immediate: true });
 
                 const filteredCourses = computed(() => {
-                    if (expandedCategory.value === 'ALL') return courses.value;
                     return courses.value.filter(c => c.type === expandedCategory.value);
                 });
 
@@ -374,7 +355,13 @@
                 const submitMemberRegister = async () => {
                     isSubmitting.value = true;
                     try {
-                        await callApi('REGISTER_USER', { userId: userProfile.value.userId, ...regForm.value });
+                        // [修正點 5] 手機補零：確保傳送時為 String 類型
+                        const submitData = { 
+                            userId: userProfile.value.userId, 
+                            ...regForm.value,
+                            phone: String(regForm.value.phone) 
+                        };
+                        await callApi('REGISTER_USER', submitData);
                         const data = await callApi('CHECK_USER');
                         userInfo.value = data.info;
                         view.value = 'course_list';
@@ -385,7 +372,7 @@
                 const submitRegistration = async () => {
                     isSubmitting.value = true;
                     try {
-                        await callApi('REGISTER', { courseId: selectedCourse.value.id, userId: userProfile.value.userId, name: userInfo.value.name, phone: userInfo.value.phone, note: registrationNote.value, amount: selectedCourse.value.price });
+                        await callApi('REGISTER', { courseId: selectedCourse.value.id, userId: userProfile.value.userId, name: userInfo.value.name, phone: String(userInfo.value.phone), note: registrationNote.value, amount: selectedCourse.value.price });
                         view.value = 'success';
                     } catch (e) { alert(e.message); } finally { isSubmitting.value = false; }
                 };
@@ -395,6 +382,7 @@
                 return {
                     view, regStep, error, isSubmitting, isCoursesLoading, userInfo, userProfile, courses, regForm,
                     selectedCourse, viewingCourse, registrationNote, expandedCategory, dynamicCategories, filteredCourses,
+                    toggleCategory: (id) => expandedCategory.value = id,
                     editProfile: () => { regForm.value = { ...userInfo.value }; view.value = 'register'; regStep.value = 1; },
                     goToMyOrders: () => alert('紀錄查詢即將開放'),
                     selectCourse: (c) => { selectedCourse.value = c; view.value = 'form'; },
@@ -405,4 +393,5 @@
         }).mount('#app');
     </script>
 </body>
+
 </html>
