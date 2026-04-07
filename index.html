@@ -39,7 +39,7 @@
         <header class="bg-[#06C755] text-white p-4 sticky top-0 z-30 flex items-center justify-between">
             <h1 class="text-base font-bold tracking-tight">宏學</h1>
             <div v-if="userInfo.name || userProfile" class="flex items-center bg-black/10 px-3 py-1 rounded-full border border-white/5">
-                <span class="text-xs font-normal">{{ userInfo.name || userProfile.displayName }}</span>
+                <span class="text-xs">{{ userInfo.name || userProfile.displayName }}</span>
             </div>
         </header>
 
@@ -48,7 +48,7 @@
                 {{ error }}
             </div>
 
-            <!-- 1. 課程列表視圖 -->
+            <!-- 1. 課程列表視圖 (優化為一排兩個) -->
             <div v-else-if="view === 'course_list'" class="animate-fade-in space-y-6">
                 <div class="w-full rounded-2xl overflow-hidden shadow-sm">
                     <img src="https://aiwe.cc/wp-content/uploads/2026/02/17a931ba9905835dd08db446b3d33e1b.png" class="w-full h-auto block">
@@ -61,25 +61,24 @@
                 </div>
 
                 <div class="space-y-4">
-                    <!-- 動態分類列表：分類名稱來自課程的 type 欄位 (C欄位) -->
                     <div v-for="cat in dynamicCategories" :key="cat.id" class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm transition hover:shadow-md">
                         <button @click="toggleCategory(cat.id)" class="w-full p-5 flex items-center justify-between bg-white focus:outline-none">
                             <span class="font-bold text-gray-700 tracking-wide">{{ cat.name }}</span>
                             <i class="fas fa-chevron-down text-gray-200 text-xs transition-transform duration-300" :class="{'rotate-180 text-[#06C755]': expandedCategory === cat.id}"></i>
                         </button>
-                        <div v-if="expandedCategory === cat.id" class="bg-gray-50/50 p-4 space-y-4 border-t border-gray-50 animate-fade-in">
-                            <div v-for="c in getFilteredCoursesByCat(cat.id)" :key="c.id" class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
+                        <!-- 網格佈局：一排兩個 -->
+                        <div v-if="expandedCategory === cat.id" class="bg-gray-50/50 p-3 grid grid-cols-2 gap-3 border-t border-gray-50 animate-fade-in">
+                            <div v-for="c in getFilteredCoursesByCat(cat.id)" :key="c.id" class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden flex flex-col justify-between group">
                                 <div class="absolute top-0 left-0 w-1 h-full bg-[#06C755] opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <h3 class="font-bold text-gray-800 text-[15px] leading-snug">{{ c.name }}</h3>
-                                    <span class="text-[#06C755] font-black text-lg ml-3 tracking-tighter">${{ c.price }}</span>
+                                <div>
+                                    <h3 class="font-bold text-gray-800 text-[14px] leading-tight mb-2 line-clamp-2 min-h-[2.5rem]">{{ c.name }}</h3>
+                                    <span class="text-[#06C755] font-black text-base tracking-tighter block mb-2">${{ c.price }}</span>
+                                    <div class="text-[10px] text-gray-400 font-medium space-y-1 mb-4">
+                                        <div class="flex items-center gap-1"><i class="far fa-calendar-alt"></i>{{ c.startDate }}</div>
+                                    </div>
                                 </div>
-                                <div class="flex items-center text-[11px] text-gray-400 font-medium space-x-3 mb-5">
-                                    <span><i class="far fa-calendar-alt mr-1"></i>{{ c.startDate }}</span>
-                                    <span v-if="c.location"><i class="fas fa-location-dot mr-1 text-[9px]"></i>{{ c.location }}</span>
-                                </div>
-                                <button @click="selectCourse(c)" :disabled="c.enrolled >= c.capacity" class="btn-primary py-3 text-[14px] font-bold">
-                                    {{ c.enrolled >= c.capacity ? '名額已滿' : '立即預約報名' }}
+                                <button @click="selectCourse(c)" :disabled="c.enrolled >= c.capacity" class="btn-primary py-2 text-[12px] font-bold rounded-lg shadow-none">
+                                    {{ c.enrolled >= c.capacity ? '額滿' : '報名' }}
                                 </button>
                             </div>
                         </div>
@@ -87,7 +86,7 @@
                 </div>
             </div>
 
-            <!-- 2. 註冊與資料設定 (保持方框架構) -->
+            <!-- 2. 註冊與資料設定 -->
             <div v-else-if="view === 'register'" class="animate-fade-in space-y-6">
                 <h2 class="text-[22px] font-bold text-gray-800 ml-1">基本資料設定</h2>
 
@@ -190,7 +189,6 @@
                 const registrationNote = ref('');
                 const expandedCategory = ref('');
 
-                // 計算動態分類：從後端資料的 type 提取唯一值
                 const dynamicCategories = computed(() => {
                     const types = [...new Set(courses.value.map(c => c.type))];
                     return types.map(t => ({ id: t, name: t }));
