@@ -16,13 +16,12 @@
     <style>
         input, select, textarea { font-size: 16px; }
         [v-cloak] { display: none !important; }
-        .btn-primary { @apply bg-[#06C755] hover:bg-[#05b34c] text-white py-3.5 rounded-xl shadow-lg active:scale-95 transition duration-150 disabled:bg-gray-300; }
+        .btn-primary { @apply bg-[#06C755] hover:bg-[#05b34c] text-white py-3.5 rounded-xl shadow active:scale-95 transition duration-150 disabled:bg-gray-300; }
         
-        /* LINE OA 原生資訊清單風格 */
-        .list-item { @apply py-4 border-b border-gray-50 last:border-0; }
-        .list-label { @apply text-[11px] text-gray-400 font-medium tracking-wider mb-0.5 block; }
-        .list-input { @apply w-full bg-transparent py-1 border-none focus:ring-0 outline-none text-[15px] text-gray-800 placeholder-gray-200 transition-colors; }
-        .list-input:focus { @apply border-b border-[#06C755]; }
+        /* [架構對齊] 模擬圖片中的輸入框與格線風格 */
+        .field-group { @apply flex flex-col mb-4; }
+        .field-label { @apply text-sm text-gray-500 mb-1 pl-1; }
+        .field-input { @apply w-full bg-white border border-gray-300 p-3 rounded focus:border-[#06C755] outline-none transition text-[15px]; }
         
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -31,52 +30,47 @@
 
 <body class="bg-[#F8F9FA] min-h-screen text-gray-800 font-sans">
     <div id="app" v-cloak class="max-w-md mx-auto bg-white min-h-screen shadow-sm flex flex-col relative overflow-hidden">
-        <header class="bg-[#06C755] text-white p-3.5 sticky top-0 z-30 flex items-center justify-between">
+        <header class="bg-[#06C755] text-white p-4 sticky top-0 z-30 flex items-center justify-between">
             <h1 class="text-base font-bold tracking-tight pl-1">宏學</h1>
-            <div v-if="userInfo.name || userProfile" class="flex items-center bg-black/10 px-3 py-1 rounded-full border border-white/10">
-                <span class="text-[11px] font-medium">{{ userInfo.name || userProfile.displayName }}</span>
+            <div v-if="userInfo.name || userProfile" class="flex items-center bg-black/10 px-3 py-1 rounded-full">
+                <span class="text-xs">{{ userInfo.name || userProfile.displayName }}</span>
             </div>
         </header>
 
         <main class="flex-grow p-0 relative pb-24 overflow-y-auto">
             <div v-if="error" class="p-8">
-                <div class="bg-red-50 text-red-700 p-5 rounded-2xl text-xs border border-red-100 shadow-sm">
-                    <p class="font-bold mb-1">系統提示</p>
+                <div class="bg-red-50 text-red-700 p-5 rounded-2xl text-xs border border-red-100">
                     <p>{{ error }}</p>
-                    <button @click="window.location.reload()" class="mt-3 underline text-red-800">重新載入頁面</button>
+                    <button @click="window.location.reload()" class="mt-3 underline">重新整理</button>
                 </div>
             </div>
 
             <!-- 課程列表 -->
             <div v-else-if="view === 'course_list'" class="animate-fade-in">
-                <div class="w-full bg-gray-50 border-b border-gray-100">
+                <div class="w-full bg-gray-50">
                     <img src="https://aiwe.cc/wp-content/uploads/2026/02/17a931ba9905835dd08db446b3d33e1b.png" class="w-full h-auto block">
                 </div>
                 <div class="bg-white px-4 py-3 border-b border-gray-50 grid grid-cols-3 gap-2 sticky top-0 z-20 shadow-sm">
-                    <button @click="editProfile" class="text-gray-400 flex flex-col items-center py-2 hover:text-[#06C755] transition"><i class="fas fa-id-card text-xl mb-1.5"></i><span class="text-[10px] font-bold">基本資料</span></button>
-                    <button @click="goToMyOrders" class="text-gray-400 flex flex-col items-center py-2 hover:text-[#06C755] transition"><i class="fas fa-history text-xl mb-1.5"></i><span class="text-[10px] font-bold">報名紀錄</span></button>
-                    <a href="https://lin.ee/Y0FKXqD" class="text-gray-400 flex flex-col items-center py-2 hover:text-[#06C755] transition"><i class="fab fa-line text-xl mb-1.5"></i><span class="text-[10px] font-bold">聯繫客服</span></a>
+                    <button @click="editProfile" class="text-gray-400 flex flex-col items-center py-2 hover:text-[#06C755]"><i class="fas fa-id-card text-xl mb-1.5"></i><span class="text-[10px] font-bold">基本資料</span></button>
+                    <button @click="goToMyOrders" class="text-gray-400 flex flex-col items-center py-2 hover:text-[#06C755]"><i class="fas fa-history text-xl mb-1.5"></i><span class="text-[10px] font-bold">報名紀錄</span></button>
+                    <a href="https://lin.ee/Y0FKXqD" class="text-gray-400 flex flex-col items-center py-2 hover:text-[#06C755]"><i class="fab fa-line text-xl mb-1.5"></i><span class="text-[10px] font-bold">聯繫客服</span></a>
                 </div>
 
                 <div class="p-6 space-y-5">
                     <div v-for="cat in categories" :key="cat.id" class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm transition hover:shadow-md">
                         <button @click="toggleCategory(cat.id)" class="w-full p-5 flex items-center justify-between bg-white focus:outline-none">
-                            <span class="font-bold text-gray-700 tracking-wide">{{ cat.name }}</span>
+                            <span class="font-bold text-gray-700">{{ cat.name }}</span>
                             <i class="fas fa-chevron-down text-gray-200 text-xs transition-transform duration-300" :class="{'rotate-180 text-[#06C755]': expandedCategory === cat.id}"></i>
                         </button>
                         <div v-if="expandedCategory === cat.id" class="bg-gray-50/50 p-4 space-y-4 border-t border-gray-50 animate-fade-in">
-                            <div v-for="c in filteredCourses" :key="c.id" class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
-                                <div class="absolute top-0 left-0 w-1 h-full bg-[#06C755] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div v-for="c in filteredCourses" :key="c.id" class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
                                 <div class="flex justify-between items-start mb-3">
                                     <h3 class="font-bold text-gray-800 text-[15px] leading-snug">{{ c.name }}</h3>
-                                    <span class="text-[#06C755] font-black text-lg ml-3 tracking-tighter">${{ c.price }}</span>
+                                    <span class="text-[#06C755] font-black text-lg tracking-tighter">${{ c.price }}</span>
                                 </div>
-                                <div class="flex items-center text-[11px] text-gray-400 font-medium space-x-3 mb-5">
-                                    <span><i class="far fa-calendar-alt mr-1"></i>{{ c.startDate }}</span>
-                                    <span><i class="far fa-clock mr-1"></i>課程時段</span>
-                                </div>
-                                <button @click="selectCourse(c)" :disabled="c.enrolled >= c.capacity" class="w-full btn-primary text-[14px] font-bold py-3">
-                                    {{ c.enrolled >= c.capacity ? '名額已滿' : '立即預約報名' }}
+                                <div class="text-[11px] text-gray-400 font-medium mb-5"><i class="far fa-calendar-alt mr-1"></i>{{ c.startDate }} ~ {{ c.endDate }}</div>
+                                <button @click="selectCourse(c)" :disabled="c.enrolled >= c.capacity" class="w-full btn-primary text-sm font-bold">
+                                    {{ c.enrolled >= c.capacity ? '名額已滿' : '立即報名' }}
                                 </button>
                             </div>
                         </div>
@@ -84,45 +78,62 @@
                 </div>
             </div>
 
-            <!-- [優化後] 註冊頁：LINE 原生清單風格 -->
-            <div v-else-if="view === 'register'" class="p-8 animate-fade-in">
-                <div class="mb-10 text-center">
-                    <h2 class="text-xl font-bold text-gray-800 mb-2">{{ (userInfo && userInfo.name) ? '修改資料' : '新會員註冊' }}</h2>
-                    <p class="text-[11px] text-gray-400 font-medium uppercase tracking-widest">Profile Settings</p>
+            <!-- [架構重建] 註冊與設定頁面 (按圖片 image_330c02.png) -->
+            <div v-else-if="view === 'register'" class="p-6 animate-fade-in">
+                <div class="mb-8 pl-1">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-1">基本資料設定</h2>
+                    <p class="text-xs text-gray-400 flex items-center"><i class="fas fa-user-circle mr-1.5"></i>編輯個人通訊錄</p>
                 </div>
                 
-                <form @submit.prevent="submitMemberRegister" class="space-y-1">
-                    <div class="list-item">
-                        <label class="list-label">姓名</label>
-                        <input type="text" v-model="regForm.name" class="list-input" placeholder="請輸入真實姓名">
+                <form @submit.prevent="submitMemberRegister">
+                    <!-- Row 1: 姓名 (Full Width) -->
+                    <div class="field-group">
+                        <label class="field-label">姓名</label>
+                        <input type="text" v-model="regForm.name" class="field-input" placeholder="請輸入姓名">
                     </div>
-                    <div class="list-item">
-                        <label class="list-label">性別</label>
-                        <select v-model="regForm.gender" class="list-input cursor-pointer">
-                            <option value="男">男</option>
-                            <option value="女">女</option>
-                        </select>
+
+                    <!-- Row 2: 業種 & 性別 (1:1) -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="field-group">
+                            <label class="field-label">業種</label>
+                            <input type="text" v-model="regForm.industry" class="field-input" placeholder="例：行銷">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">性別</label>
+                            <select v-model="regForm.gender" class="field-input">
+                                <option value="男">男</option>
+                                <option value="女">女</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="list-item">
-                        <label class="list-label">出生年月日</label>
-                        <input type="date" v-model="regForm.birthday" class="list-input">
+
+                    <!-- Row 3: 手機 & 生日 (1:1) -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="field-group">
+                            <label class="field-label">手機</label>
+                            <input type="tel" v-model="regForm.phone" class="field-input" placeholder="09xx-xxx-xxx">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">生日</label>
+                            <input type="date" v-model="regForm.birthday" class="field-input">
+                        </div>
                     </div>
-                    <div class="list-item">
-                        <label class="list-label">聯絡電話</label>
-                        <input type="tel" v-model="regForm.phone" class="list-input" placeholder="例：0912-345678">
-                    </div>
-                    <div class="list-item">
-                        <label class="list-label">行業類別</label>
-                        <input type="text" v-model="regForm.industry" class="list-input" placeholder="例：教育、服務業...">
-                    </div>
-                    <div class="list-item">
-                        <label class="list-label">居住地址</label>
-                        <input type="text" v-model="regForm.address" class="list-input" placeholder="寄送收據或備查用">
+
+                    <!-- Row 4: 居住地區 & 完整地址 (1:1) -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="field-group">
+                            <label class="field-label">居住地區</label>
+                            <input type="text" v-model="regForm.area" class="field-input" placeholder="例：桃園">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">完整地址</label>
+                            <input type="text" v-model="regForm.address" class="field-input" placeholder="請輸入地址">
+                        </div>
                     </div>
                     
-                    <div class="pt-12">
-                        <button type="submit" :disabled="isSubmitting" class="w-full btn-primary font-bold text-[15px]">
-                            {{ isSubmitting ? '正在儲存...' : '完成並進入系統' }}
+                    <div class="pt-8">
+                        <button type="submit" :disabled="isSubmitting" class="w-full btn-primary font-bold text-base tracking-widest">
+                            {{ isSubmitting ? '儲存中...' : '確認並進入' }}
                         </button>
                     </div>
                 </form>
@@ -131,32 +142,29 @@
             <!-- 報名確認頁 -->
             <div v-else-if="view === 'form'" class="p-8 animate-fade-in">
                 <div class="flex items-center mb-8">
-                    <button @click="view='course_list'" class="text-gray-300 hover:text-gray-500 transition"><i class="fas fa-chevron-left text-lg mr-3"></i></button>
+                    <button @click="view='course_list'" class="text-gray-300"><i class="fas fa-chevron-left text-lg mr-3"></i></button>
                     <span class="font-bold text-lg text-gray-700">確認報名資訊</span>
                 </div>
-                <div class="bg-gray-50/50 p-6 rounded-3xl border border-gray-100 mb-8">
-                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2">Selected Course</p>
-                    <h3 class="font-bold text-gray-800 text-lg mb-1">{{ selectedCourse.name }}</h3>
+                <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-8">
+                    <h3 class="font-bold text-gray-800 text-base mb-1">{{ selectedCourse.name }}</h3>
                     <p class="text-[#06C755] font-black text-xl tracking-tighter">${{ selectedCourse.price }}</p>
                 </div>
-                <div class="space-y-6">
-                    <div class="list-item">
-                        <label class="list-label">報名備註 (如有特殊需求請告知)</label>
-                        <textarea v-model="registrationNote" class="list-input min-h-[80px] pt-2" placeholder="選填..."></textarea>
-                    </div>
-                    <div class="pt-10">
-                        <button @click="submitRegistration" :disabled="isSubmitting" class="w-full btn-primary font-bold">確認預約 ‧ ${{ selectedCourse.price }}</button>
-                    </div>
+                <div class="field-group">
+                    <label class="field-label">報名備註</label>
+                    <textarea v-model="registrationNote" class="field-input min-h-[100px]" placeholder="如有特殊需求請告知 (選填)"></textarea>
+                </div>
+                <div class="pt-10">
+                    <button @click="submitRegistration" :disabled="isSubmitting" class="w-full btn-primary font-bold">確認預約 ‧ ${{ selectedCourse.price }}</button>
                 </div>
             </div>
             
             <!-- 報名成功 -->
             <div v-else-if="view === 'success'" class="p-12 text-center animate-fade-in flex flex-col items-center justify-center min-h-[60vh]">
-                <div class="w-20 h-20 bg-[#06C755] rounded-full flex items-center justify-center text-white text-3xl shadow-xl shadow-green-100 mb-6">
+                <div class="w-20 h-20 bg-[#06C755] rounded-full flex items-center justify-center text-white text-3xl shadow-lg shadow-green-100 mb-6 animate-bounce">
                     <i class="fas fa-check"></i>
                 </div>
                 <h2 class="text-xl font-bold text-gray-800 mb-2">預約報名成功</h2>
-                <p class="text-sm text-gray-400 mb-12 font-medium">請至「報名紀錄」查看繳費指引</p>
+                <p class="text-sm text-gray-400 mb-12">管理員將儘速審核您的報名</p>
                 <button @click="view='course_list'" class="w-full btn-primary font-bold">返回首頁</button>
             </div>
         </main>
@@ -175,7 +183,8 @@
                 const userProfile = ref(null);
                 const userInfo = ref({});
                 const courses = ref([]);
-                const regForm = ref({ name: '', gender: '男', birthday: '', phone: '', industry: '', address: '' });
+                // 按新架構初始化
+                const regForm = ref({ name: '', industry: '', gender: '男', phone: '', birthday: '', area: '', address: '' });
                 const selectedCourse = ref(null);
                 const registrationNote = ref('');
                 const expandedCategory = ref('');
@@ -200,11 +209,7 @@
                 };
 
                 const loadCourses = async () => {
-                    try { 
-                        courses.value = await callApi('GET_COURSES'); 
-                    } catch (e) { 
-                        error.value = '讀取課程失敗，請重試。'; 
-                    }
+                    try { courses.value = await callApi('GET_COURSES'); } catch (e) { error.value = '課程載入失敗'; }
                 };
 
                 const init = async () => {
@@ -220,9 +225,7 @@
                             regForm.value.name = userProfile.value.displayName;
                             view.value = 'register';
                         }
-                    } catch (err) { 
-                        error.value = '與伺服器連線失敗，請檢查網路環境。'; 
-                    }
+                    } catch (err) { error.value = '系統連線異常'; }
                 };
 
                 const submitMemberRegister = async () => {
@@ -233,11 +236,7 @@
                         userInfo.value = data.info;
                         view.value = 'course_list';
                         await loadCourses();
-                    } catch (e) { 
-                        alert('儲存失敗，請稍後再試。'); 
-                    } finally { 
-                        isSubmitting.value = false; 
-                    }
+                    } catch (e) { alert('儲存失敗'); } finally { isSubmitting.value = false; }
                 };
 
                 const submitRegistration = async () => {
@@ -252,11 +251,7 @@
                             amount: selectedCourse.value.price 
                         });
                         view.value = 'success';
-                    } catch (e) { 
-                        alert(e.message); 
-                    } finally { 
-                        isSubmitting.value = false; 
-                    }
+                    } catch (e) { alert(e.message); } finally { isSubmitting.value = false; }
                 };
 
                 onMounted(init);
@@ -265,17 +260,10 @@
                     view, error, isSubmitting, userInfo, userProfile, courses, regForm, selectedCourse, registrationNote, expandedCategory, categories,
                     toggleCategory: (id) => expandedCategory.value = (expandedCategory.value === id ? '' : id),
                     filteredCourses: computed(() => courses.value.filter(c => c.type === expandedCategory.value)),
-                    editProfile: () => { 
-                        regForm.value = { ...userInfo.value }; 
-                        view.value = 'register'; 
-                    },
-                    goToMyOrders: () => alert('報名紀錄功能即將開放'),
-                    selectCourse: (c) => { 
-                        selectedCourse.value = c; 
-                        view.value = 'form'; 
-                    },
-                    submitMemberRegister, 
-                    submitRegistration
+                    editProfile: () => { regForm.value = { ...userInfo.value }; view.value = 'register'; },
+                    goToMyOrders: () => alert('紀錄查詢即將開放'),
+                    selectCourse: (c) => { selectedCourse.value = c; view.value = 'form'; },
+                    submitMemberRegister, submitRegistration
                 };
             }
         }).mount('#app');
