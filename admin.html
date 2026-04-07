@@ -846,6 +846,12 @@
                                                 o.orderId ? String(o.orderId).slice(0,8) : '' }}</span>
                                         </div>
                                         <div class="flex items-center gap-2 text-sm">
+                                            <i class="far fa-calendar-alt text-gray-400 w-4 text-center"></i> <span
+                                                class="text-gray-500 font-medium">起訖時間</span>
+                                            <span class="text-gray-700 font-medium"
+                                                :class="o.status === 'CANCELLED' ? 'text-red-400' : ''">{{ getCourseDate(o.courseId) }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-sm">
                                             <i class="fas fa-user text-gray-400 w-4 text-center"></i> <span
                                                 class="text-gray-500 font-medium">學員姓名</span>
                                             <span class="font-bold text-gray-800"
@@ -911,6 +917,7 @@
                                                 class="text-xs mt-0.5"
                                                 :class="o.status === 'CANCELLED' ? 'text-red-400' : 'text-gray-500'">{{
                                                 splitCourseName(getCourseName(o.courseId)).subName }}</div>
+                                            <div class="text-[11px] text-gray-400 mt-1 font-medium">{{ getCourseDate(o.courseId) }}</div>
                                         </td>
                                         <td class="font-bold text-left text-base"
                                             :class="o.status === 'CANCELLED' ? 'text-red-600' : 'text-gray-800'">{{
@@ -957,9 +964,6 @@
                                             <span class="text-gray-600 text-sm font-medium"><i
                                                     class="fas fa-phone text-gray-400 text-xs text-center w-4"></i>{{
                                                     u.phone }}</span>
-                                            <span
-                                                class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[11px] font-bold">家人:
-                                                {{ u.familyMembers ? u.familyMembers.length : 0 }}</span>
                                         </div>
                                     </div>
                                     <button
@@ -998,7 +1002,6 @@
                                         <th class="text-left">姓名</th>
                                         <th class="text-center">手機</th>
                                         <th class="text-center">身分證</th>
-                                        <th class="text-center">家人數</th>
                                         <th class="text-right">操作</th>
                                     </tr>
                                 </thead>
@@ -1009,14 +1012,11 @@
                                         <td class="text-center text-gray-800 font-medium text-sm">{{ u.phone }}</td>
                                         <td class="font-mono text-gray-800 text-center font-bold text-sm">{{
                                             u.nationalId }}</td>
-                                        <td class="text-center"><span
-                                                class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">{{
-                                                u.familyMembers ? u.familyMembers.length : 0 }}</span></td>
                                         <td class="text-right"><button @click="openMember(u)"
                                                 class="text-blue-600 hover:underline font-bold text-sm">詳情</button></td>
                                     </tr>
                                     <tr v-if="filteredUsers.length === 0">
-                                        <td colspan="5" class="text-center py-20 text-gray-400 font-bold">目前尚無會員資料</td>
+                                        <td colspan="4" class="text-center py-20 text-gray-400 font-bold">目前尚無會員資料</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1437,112 +1437,42 @@
             </div>
         </div>
 
-        <!-- 會員詳情視窗 -->
+        <!-- 會員詳情視窗 (已簡化且移除家人版塊) -->
         <div v-if="showMemberModal" class="modal-mask">
-            <div class="modal-pop" style="max-width:900px; height:75%;">
-                <div class="h-14 border-b px-6 flex justify-between items-center shrink-0 bg-white">
+            <div class="modal-pop" style="max-width:500px; height:auto; max-height:90vh;">
+                <div class="h-14 border-b px-6 flex justify-between items-center shrink-0 bg-white rounded-t-xl">
                     <h3 class="font-bold">會員資料管理</h3><button @click="showMemberModal=false"><i
                             class="fas fa-times text-xl text-gray-400"></i></button>
                 </div>
-                <div class="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
-                    <div
-                        class="w-full md:w-1/2 p-4 md:p-6 md:overflow-y-auto border-b md:border-b-0 md:border-r bg-white flex-shrink-0">
-                        <div class="section-header text-[#06C755]"><i class="fas fa-user mr-1"></i> 主帳號資料</div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                            <div><label class="label-line">姓名</label><input v-model="editingMember.name"
-                                    class="input-line"></div>
-                            <div><label class="label-line text-gray-400">身分證 (不可修改)</label><input
-                                    v-model="editingMember.nationalId" class="input-line bg-gray-50" readonly></div>
-                            <div><label class="label-line">性別</label><select v-model="editingMember.gender"
-                                    class="input-line">
-                                    <option value="男">男</option>
-                                    <option value="女">女</option>
-                                </select></div>
-                            <div><label class="label-line">生日</label><input v-model="editingMember.birthday" type="date"
-                                    class="input-line"></div>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                            <div><label class="label-line">聯絡電話</label><input v-model="editingMember.phone"
-                                    class="input-line"></div>
-                            <div><label class="label-line">居住地址</label><input v-model="editingMember.address"
-                                    class="input-line"></div>
-                        </div>
-                        <div><label class="label-line text-blue-600">健康備註 (對外顯示)</label><textarea
-                                v-model="editingMember.healthNote" rows="3" class="input-line"></textarea></div>
-                    </div>
-                    <div class="w-full md:w-1/2 p-4 md:p-6 md:overflow-y-auto bg-[#f9fafb] flex-shrink-0">
-                        <div class="section-header text-[#e85d04]"><i class="fas fa-users mr-1"></i> 家人名單 (共 {{
-                            editingMember.familyMembers ? editingMember.familyMembers.length : 0 }} 人)</div>
-                        <div v-for="fm in editingMember.familyMembers" :key="fm.userId"
-                            class="bg-white p-4 rounded-xl border mb-3 shadow-sm relative group hover:border-blue-200 transition">
-                            <div class="flex justify-between items-start mb-2">
-                                <h4 class="font-bold text-gray-800 text-base">{{ fm.name }}</h4>
-                                <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">{{
-                                    fm.relation }}</span>
-                            </div>
-                            <div class="flex gap-4 text-xs text-gray-500 mb-1">
-                                <span><i class="far fa-id-card w-4 text-center"></i> {{ fm.nationalId }}</span>
-                                <span><i class="fas fa-birthday-cake w-4 text-center"></i> {{ fm.birthday }}</span>
-                            </div>
-                            <div class="text-xs text-gray-500">
-                                <span><i class="fas fa-venus-mars w-4 text-center"></i> {{ fm.gender }}</span>
-                                <span v-if="fm.school" class="ml-3"><i class="fas fa-school w-4 text-center"></i> {{
-                                    fm.school }} {{ fm.grade }}</span>
-                            </div>
-                            <button @click="openRelativeEdit(fm)"
-                                class="absolute bottom-4 right-4 text-blue-500 hover:bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm border border-blue-100"><i
-                                    class="fas fa-edit"></i></button>
-                        </div>
-                        <div v-if="!editingMember.familyMembers || editingMember.familyMembers.length === 0" class="text-center py-10 text-gray-400">目前無關聯家人
-                        </div>
-                    </div>
-                </div>
-                <div class="h-16 border-t px-6 flex justify-end items-center gap-3 bg-white shadow-lg z-10"><button
-                        @click="showMemberModal=false" class="btn-white px-8">取消</button><button @click="saveMember"
-                        class="btn-green px-10">確認儲存主帳號</button></div>
-            </div>
-        </div>
-
-        <!-- 子女編輯彈窗 -->
-        <div v-if="showRelativeModal" class="modal-mask" style="z-index: 10000;">
-            <div class="modal-pop" style="max-width:400px; height: auto;">
-                <div class="h-14 px-6 border-b flex justify-between items-center bg-white shadow-sm">
-                    <b>修改子女資訊</b><button @click="showRelativeModal=false"><i
-                            class="fas fa-times text-gray-400"></i></button>
-                </div>
-                <div class="p-6 space-y-4 bg-[#fafafa]">
-                    <div><label class="label-line">姓名</label><input v-model="editingRelative.name" class="input-line">
-                    </div>
-                    <div><label class="label-line">關係</label><input v-model="editingRelative.relation"
-                            class="input-line" placeholder="如：長子"></div>
-                    <div><label class="label-line text-gray-400">身分證 (不可修改)</label><input
-                            v-model="editingRelative.nationalId" class="input-line bg-gray-100" readonly></div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div><label class="label-line">性別</label><select v-model="editingRelative.gender"
+                <div class="p-6 overflow-y-auto bg-[#fafafa]">
+                    <div class="grid grid-cols-1 gap-4 mb-4">
+                        <div><label class="label-line">姓名</label><input v-model="editingMember.name"
+                                class="input-line"></div>
+                        <div><label class="label-line text-gray-400">身分證 (不可修改)</label><input
+                                v-model="editingMember.nationalId" class="input-line bg-gray-100" readonly></div>
+                        <div><label class="label-line">性別</label><select v-model="editingMember.gender"
                                 class="input-line">
                                 <option value="男">男</option>
                                 <option value="女">女</option>
                             </select></div>
-                        <div><label class="label-line">生日</label><input v-model="editingRelative.birthday" type="date"
+                        <div><label class="label-line">生日</label><input v-model="editingMember.birthday" type="date"
+                                class="input-line"></div>
+                        <div><label class="label-line">聯絡電話</label><input v-model="editingMember.phone"
+                                class="input-line"></div>
+                        <div><label class="label-line">居住地址</label><input v-model="editingMember.address"
                                 class="input-line"></div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div><label class="label-line">學校</label><input v-model="editingRelative.school"
-                                class="input-line" placeholder="如：宏學國小"></div>
-                        <div><label class="label-line">年級</label><input v-model="editingRelative.grade"
-                                class="input-line" placeholder="如：三年級"></div>
-                    </div>
                 </div>
-                <div class="p-4 border-t flex justify-end gap-2 bg-white"><button @click="showRelativeModal=false"
-                        class="btn-white">取消</button><button @click="saveRelative" class="btn-green px-8">確認修改</button>
-                </div>
+                <div class="p-4 border-t flex justify-end gap-3 bg-white rounded-b-xl"><button
+                        @click="showMemberModal=false" class="btn-white px-8">取消</button><button @click="saveMember"
+                        class="btn-green px-10">確認儲存</button></div>
             </div>
         </div>
 
         <!-- 訂單狀態編輯彈窗 -->
         <div v-if="showOrderModal" class="modal-mask" style="z-index: 10000;">
             <div class="modal-pop" style="max-width:450px; height: auto;">
-                <div class="h-14 px-6 border-b flex justify-between items-center bg-white shadow-sm">
+                <div class="h-14 px-6 border-b flex justify-between items-center bg-white shadow-sm rounded-t-xl">
                     <b>訂單狀態維修</b><button @click="showOrderModal=false"><i
                             class="fas fa-times text-gray-400"></i></button>
                 </div>
@@ -1566,7 +1496,7 @@
                     <div><label class="label-line">備註</label><textarea v-model="editingOrder.note" class="input-line"
                             rows="2" placeholder="可填入管理員手動調整的備註 (如：請假2天)"></textarea></div>
                 </div>
-                <div class="p-4 border-t flex justify-end gap-3 bg-white"><button @click="showOrderModal=false"
+                <div class="p-4 border-t flex justify-end gap-3 bg-white rounded-b-xl"><button @click="showOrderModal=false"
                         class="btn-white">取消</button><button @click="saveOrder" class="btn-green px-8">更新狀態</button>
                 </div>
             </div>
@@ -1575,76 +1505,62 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted, watch } = Vue;
+        const { createApp, ref, computed, onMounted } = Vue;
         const API_ENDPOINT = 'https://action.fangwl591021.workers.dev/';
 
         createApp({
             setup() {
-                const isLoggedIn = ref(false), password = ref(''), isLoading = ref(false), error = ref('');
+                // ================= State =================
+                const isLoggedIn = ref(false);
+                const password = ref('');
+                const isLoading = ref(false);
+                const error = ref('');
                 const authPayload = ref({}); 
                 const currentTab = ref('orders');
-                const tabName = computed(() => ({ 'dashboard': '營運統計', 'courses': '課程管理', 'orders': '訂單管理', 'members': '會員管理' }[currentTab.value]));
-                const courses = ref([]), orders = ref([]), users = ref([]);
+                
+                const courses = ref([]);
+                const orders = ref([]);
+                const users = ref([]);
 
                 const searchTerm = ref('');
                 const filterStatus = ref('ALL');
                 const filterCourse = ref('ALL');
                 const searchMemberTerm = ref('');
                 const searchCourseTerm = ref('');
-
                 const courseSortOrder = ref('');
 
-                // 營隊專屬輸入變數與進度條
+                // Expand variables
+                const expandedStatIds = ref([]);
+                const expandedCourseIds = ref([]);
+                const expandedCampBatches = ref([]);
+                const expandedOrderIds = ref([]);
+                const expandedMemberIds = ref([]);
+
+                // Course variables
                 const campTheme = ref('');
                 const campBatch = ref(''); 
                 const campItem = ref('');  
                 const campBatches = ref([{ name: '', startDate: '', endDate: '', items: [{ name: '', price: '', capacity: '' }] }]);
                 const createProgress = ref({ current: 0, total: 0, isCreating: false });
+                const showCourseModal = ref(false);
+                const isEditingCourse = ref(false);
+                const courseForm = ref({});
+                const courseEquipments = ref([]);
 
-                const showCourseModal = ref(false), isEditingCourse = ref(false), courseForm = ref({}), courseEquipments = ref([]);
-                const showMemberModal = ref(false), editingMember = ref({});
-                const showOrderModal = ref(false), editingOrder = ref({});
-                const showRelativeModal = ref(false), editingRelative = ref({});
+                // Member variables
+                const showMemberModal = ref(false);
+                const editingMember = ref({});
 
-                const showEnrollmentModal = ref(false), selectedCourseEnrollment = ref([]), currentViewingCourseName = ref('');
+                // Order variables
+                const showOrderModal = ref(false);
+                const editingOrder = ref({});
 
-                // 新增：梯次摺疊控制狀態與函式
-                const expandedCampBatches = ref([]);
-                const toggleCampBatch = (theme, batch) => {
-                    const key = theme + '_' + batch;
-                    const idx = expandedCampBatches.value.indexOf(key);
-                    if (idx > -1) expandedCampBatches.value.splice(idx, 1);
-                    else expandedCampBatches.value.push(key);
-                };
+                // Enrollment Modal variables
+                const showEnrollmentModal = ref(false);
+                const selectedCourseEnrollment = ref([]);
+                const currentViewingCourseName = ref('');
 
-                const expandedStatIds = ref([]);
-                const toggleStatExpand = (id) => {
-                    const idx = expandedStatIds.value.indexOf(id);
-                    if (idx > -1) expandedStatIds.value.splice(idx, 1);
-                    else expandedStatIds.value.push(id);
-                };
-
-                const expandedCourseIds = ref([]);
-                const toggleCourseExpand = (id) => {
-                    const idx = expandedCourseIds.value.indexOf(id);
-                    if (idx > -1) expandedCourseIds.value.splice(idx, 1);
-                    else expandedCourseIds.value.push(id);
-                };
-
-                const expandedOrderIds = ref([]);
-                const toggleOrderExpand = (id) => {
-                    const idx = expandedOrderIds.value.indexOf(id);
-                    if (idx > -1) expandedOrderIds.value.splice(idx, 1);
-                    else expandedOrderIds.value.push(id);
-                };
-
-                const expandedMemberIds = ref([]);
-                const toggleMemberExpand = (id) => {
-                    const idx = expandedMemberIds.value.indexOf(id);
-                    if (idx > -1) expandedMemberIds.value.splice(idx, 1);
-                    else expandedMemberIds.value.push(id);
-                };
-
+                // Attendance variables
                 const showAttendanceModal = ref(false);
                 const showAttendanceOverview = ref(false);
                 const attendanceCourse = ref(null);
@@ -1652,6 +1568,134 @@
                 const attendanceList = ref([]);
                 const attendanceOverviewList = ref([]);
                 const courseDatesList = ref([]);
+
+                // ================= Computed =================
+                const tabName = computed(() => ({ 'dashboard': '營運統計', 'courses': '課程管理', 'orders': '訂單管理', 'members': '會員管理' }[currentTab.value]));
+
+                const dashboardStats = computed(() => {
+                    let totalRev = 0, pendingRev = 0, refundedRev = 0, validOrdersCount = 0;
+                    orders.value.forEach(o => {
+                        if (o.status === 'PAID') { totalRev += Number(o.amount) || 0; validOrdersCount++; }
+                        else if (o.status === 'PENDING') { pendingRev += Number(o.amount) || 0; validOrdersCount++; }
+                        else if (o.status === 'REFUNDED' || o.status === 'REFUND_REQUESTED') { refundedRev += Number(o.amount) || 0; }
+                    });
+                    return { totalRevenue: totalRev, pendingRevenue: pendingRev, refundedRevenue: refundedRev, totalOrders: validOrdersCount, totalMembers: users.value.length };
+                });
+
+                const courseStats = computed(() => {
+                    return courses.value.map(c => {
+                        const cOrders = orders.value.filter(o => o.courseId === c.id);
+                        let paidCnt = 0, pendingCnt = 0, refundedCnt = 0, paidRev = 0, pendingRev = 0, refundedRev = 0;
+                        cOrders.forEach(o => {
+                            if (o.status === 'PAID') { paidCnt++; paidRev += Number(o.amount) || 0; }
+                            else if (o.status === 'PENDING') { pendingCnt++; pendingRev += Number(o.amount) || 0; }
+                            else if (o.status === 'REFUNDED' || o.status === 'REFUND_REQUESTED') { refundedCnt++; refundedRev += Number(o.amount) || 0; }
+                        });
+                        return { id: c.id, name: c.name, type: c.type, paidCount: paidCnt, pendingCount: pendingCnt, refundedCount: refundedCnt, paidRevenue: paidRev, pendingRevenue: pendingRev, refundedRevenue: refundedRev };
+                    });
+                });
+
+                const filteredOrders = computed(() => {
+                    let res = orders.value;
+                    if (filterStatus.value !== 'ALL') res = res.filter(o => o.status === filterStatus.value);
+                    if (filterCourse.value !== 'ALL') res = res.filter(o => o.courseId === filterCourse.value);
+                    const s = searchTerm.value.toLowerCase();
+                    if (s) {
+                        res = res.filter(o => 
+                            String(o.name || '').toLowerCase().includes(s) || 
+                            String(o.phone || '').toLowerCase().includes(s) || 
+                            String(o.orderId || '').toLowerCase().includes(s)
+                        );
+                    }
+                    return res;
+                });
+
+                const filteredUsers = computed(() => {
+                    const s = searchMemberTerm.value.toLowerCase();
+                    return users.value.filter(u => String(u.name || '').includes(s) || String(u.nationalId || '').includes(s) || String(u.phone || '').includes(s));
+                });
+
+                const normalCourses = computed(() => {
+                    const s = searchCourseTerm.value.toLowerCase();
+                    let arr = courses.value.filter(c => (c.type !== '多日營隊' || parseCampName(c.name).theme === '其他營隊') && (String(c.name || '').toLowerCase().includes(s) || String(c.id || '').toLowerCase().includes(s)));
+
+                    if (courseSortOrder.value === 'asc') {
+                        arr.sort((a, b) => {
+                            const cmp = (a.type || '').localeCompare(b.type || '', 'zh-TW');
+                            return cmp !== 0 ? cmp : (a.startDate || '').localeCompare(b.startDate || '');
+                        });
+                    } else if (courseSortOrder.value === 'desc') {
+                        arr.sort((a, b) => {
+                            const cmp = (b.type || '').localeCompare(a.type || '', 'zh-TW');
+                            return cmp !== 0 ? cmp : (a.startDate || '').localeCompare(b.startDate || '');
+                        });
+                    }
+                    return arr;
+                });
+
+                const groupedAdminCamps = computed(() => {
+                    const groups = {};
+                    const s = searchCourseTerm.value.toLowerCase();
+                    courses.value.filter(c => c.type === '多日營隊' && parseCampName(c.name).theme !== '其他營隊' && (String(c.name || '').toLowerCase().includes(s) || String(c.id || '').toLowerCase().includes(s))).forEach(c => {
+                        const parts = c.name.split(/\s*-\s*/);
+                        if (parts.length >= 3) {
+                            const theme = parts[0];
+                            const item = parts[parts.length - 1];
+                            const batch = parts.slice(1, parts.length - 1).join('-');
+
+                            if (!groups[theme]) {
+                                groups[theme] = {};
+                            }
+                            if (!groups[theme][batch]) {
+                                groups[theme][batch] = [];
+                            }
+
+                            groups[theme][batch].push({
+                                ...c,
+                                itemName: item
+                            });
+                        }
+                    });
+                    return groups;
+                });
+
+                // ================= Methods =================
+                const toggleCampBatch = (theme, batch) => {
+                    const key = theme + '_' + batch;
+                    const idx = expandedCampBatches.value.indexOf(key);
+                    if (idx > -1) expandedCampBatches.value.splice(idx, 1);
+                    else expandedCampBatches.value.push(key);
+                };
+
+                const toggleStatExpand = (id) => {
+                    const idx = expandedStatIds.value.indexOf(id);
+                    if (idx > -1) expandedStatIds.value.splice(idx, 1);
+                    else expandedStatIds.value.push(id);
+                };
+
+                const toggleCourseExpand = (id) => {
+                    const idx = expandedCourseIds.value.indexOf(id);
+                    if (idx > -1) expandedCourseIds.value.splice(idx, 1);
+                    else expandedCourseIds.value.push(id);
+                };
+
+                const toggleOrderExpand = (id) => {
+                    const idx = expandedOrderIds.value.indexOf(id);
+                    if (idx > -1) expandedOrderIds.value.splice(idx, 1);
+                    else expandedOrderIds.value.push(id);
+                };
+
+                const toggleMemberExpand = (id) => {
+                    const idx = expandedMemberIds.value.indexOf(id);
+                    if (idx > -1) expandedMemberIds.value.splice(idx, 1);
+                    else expandedMemberIds.value.push(id);
+                };
+
+                const toggleCourseSort = () => {
+                    if (courseSortOrder.value === '') courseSortOrder.value = 'asc';
+                    else if (courseSortOrder.value === 'asc') courseSortOrder.value = 'desc';
+                    else courseSortOrder.value = '';
+                };
 
                 const callApi = async (action, payload = {}) => {
                     const res = await fetch(API_ENDPOINT, { method: 'POST', body: JSON.stringify({ action, payload: { ...authPayload.value, ...payload } }) });
@@ -1694,7 +1738,19 @@
                     localStorage.removeItem('hongxue_sso_uid');
                 };
 
-                const fetchData = async () => { isLoading.value = true; try { const d = await callApi('ADMIN_GET_DATA'); courses.value = d.courses; orders.value = d.orders.reverse(); users.value = d.users; } catch (e) { alert('載入失敗'); } finally { isLoading.value = false; } };
+                const fetchData = async () => { 
+                    isLoading.value = true; 
+                    try { 
+                        const d = await callApi('ADMIN_GET_DATA'); 
+                        courses.value = d.courses; 
+                        orders.value = d.orders.reverse(); 
+                        users.value = d.users; 
+                    } catch (e) { 
+                        alert('載入失敗'); 
+                    } finally { 
+                        isLoading.value = false; 
+                    } 
+                };
 
                 const splitCourseName = (name) => {
                     if (!name) return { mainName: '', subName: '' };
@@ -1719,30 +1775,16 @@
                     return { theme: '其他營隊', batch: '', item: name };
                 };
 
-                const dashboardStats = computed(() => {
-                    let totalRev = 0, pendingRev = 0, refundedRev = 0, validOrdersCount = 0;
-                    orders.value.forEach(o => {
-                        if (o.status === 'PAID') { totalRev += Number(o.amount) || 0; validOrdersCount++; }
-                        else if (o.status === 'PENDING') { pendingRev += Number(o.amount) || 0; validOrdersCount++; }
-                        else if (o.status === 'REFUNDED' || o.status === 'REFUND_REQUESTED') { refundedRev += Number(o.amount) || 0; }
-                    });
-                    return { totalRevenue: totalRev, pendingRevenue: pendingRev, refundedRevenue: refundedRev, totalOrders: validOrdersCount, totalMembers: users.value.length };
-                });
+                const getCourseName = (courseId) => { 
+                    const c = courses.value.find(c => c.id === courseId); 
+                    return c ? c.name : '未知課程 (' + courseId + ')'; 
+                };
+                
+                const getCourseDate = (courseId) => {
+                    const c = courses.value.find(c => c.id === courseId);
+                    return c ? `${c.startDate} ~ ${c.endDate}` : '';
+                };
 
-                const courseStats = computed(() => {
-                    return courses.value.map(c => {
-                        const cOrders = orders.value.filter(o => o.courseId === c.id);
-                        let paidCnt = 0, pendingCnt = 0, refundedCnt = 0, paidRev = 0, pendingRev = 0, refundedRev = 0;
-                        cOrders.forEach(o => {
-                            if (o.status === 'PAID') { paidCnt++; paidRev += Number(o.amount) || 0; }
-                            else if (o.status === 'PENDING') { pendingCnt++; pendingRev += Number(o.amount) || 0; }
-                            else if (o.status === 'REFUNDED' || o.status === 'REFUND_REQUESTED') { refundedCnt++; refundedRev += Number(o.amount) || 0; }
-                        });
-                        return { id: c.id, name: c.name, type: c.type, paidCount: paidCnt, pendingCount: pendingCnt, refundedCount: refundedCnt, paidRevenue: paidRev, pendingRevenue: pendingRev, refundedRevenue: refundedRev };
-                    });
-                });
-
-                const getCourseName = (courseId) => { const c = courses.value.find(c => c.id === courseId); return c ? c.name : '未知課程 (' + courseId + ')'; };
                 const getPaidCount = (courseId) => orders.value.filter(o => o.courseId === courseId && o.status === 'PAID').length;
                 const getPendingCount = (courseId) => orders.value.filter(o => o.courseId === courseId && o.status === 'PENDING').length;
                 const getRefundedCount = (courseId) => orders.value.filter(o => o.courseId === courseId && (o.status === 'REFUNDED' || o.status === 'REFUND_REQUESTED')).length;
@@ -1752,15 +1794,22 @@
                     const d = new Date(dateStr);
                     return isNaN(d) ? '' : `(${days[d.getDay()]})`;
                 };
+
                 const countAttendance = (attObj, status) => {
                     if (!attObj) return 0;
                     return Object.values(attObj).filter(v => v === status).length;
                 };
 
-                const viewEnrollmentList = (course) => { currentViewingCourseName.value = course.name; selectedCourseEnrollment.value = orders.value.filter(o => o.courseId === course.id); showEnrollmentModal.value = true; };
-                const openOrderFromList = (order) => { editingOrder.value = { ...order }; showOrderModal.value = true; };
+                const viewEnrollmentList = (course) => { 
+                    currentViewingCourseName.value = course.name; 
+                    selectedCourseEnrollment.value = orders.value.filter(o => o.courseId === course.id); 
+                    showEnrollmentModal.value = true; 
+                };
 
-                const fmtDate = d => { if (!d || d === '-') return ''; if (typeof d === 'string' && d.length >= 10) return d.substring(0, 10); return d; };
+                const openOrderFromList = (order) => { 
+                    editingOrder.value = { ...order }; 
+                    showOrderModal.value = true; 
+                };
 
                 const fmtTime = (t) => {
                     if (!t) return ''; const s = String(t).trim();
@@ -1773,6 +1822,12 @@
                         return `${p[0].padStart(2, '0')}:${p[1].padStart(2, '0')}`;
                     }
                     return s;
+                };
+
+                const fmtDate = d => { 
+                    if (!d || d === '-') return ''; 
+                    if (typeof d === 'string' && d.length >= 10) return d.substring(0, 10); 
+                    return d; 
                 };
 
                 const handleImageUpload = (event) => {
@@ -1972,25 +2027,8 @@
                 const saveMember = async () => { 
                     try { 
                         await callApi('ADMIN_UPDATE_MEMBER', { memberData: editingMember.value }); 
-                        alert('成功'); 
+                        alert('會員資料儲存成功'); 
                         showMemberModal.value = false; 
-                        fetchData(); 
-                    } catch (e) { 
-                        alert('錯誤'); 
-                    } 
-                };
-
-                const openRelativeEdit = (fm) => { 
-                    editingRelative.value = JSON.parse(JSON.stringify(fm)); 
-                    editingRelative.value.birthday = fmtDate(editingRelative.value.birthday); 
-                    showRelativeModal.value = true; 
-                };
-
-                const saveRelative = async () => { 
-                    try { 
-                        await callApi('ADMIN_UPDATE_MEMBER', { memberData: editingRelative.value }); 
-                        alert('已更新'); 
-                        showRelativeModal.value = false; 
                         fetchData(); 
                     } catch (e) { 
                         alert('錯誤'); 
@@ -2005,7 +2043,7 @@
                 const saveOrder = async () => { 
                     try { 
                         await callApi('ADMIN_UPDATE_ORDER', { orderData: editingOrder.value }); 
-                        alert('成功'); 
+                        alert('訂單更新成功'); 
                         showOrderModal.value = false; 
                         fetchData(); 
                     } catch (e) { 
@@ -2013,10 +2051,85 @@
                     } 
                 };
 
+                const loadAttendanceList = () => {
+                    if (!attendanceCourse.value) return;
+                    const courseOrders = orders.value.filter(o => o.courseId === attendanceCourse.value.id && !['CANCELLED', 'REFUNDED'].includes(o.status));
+
+                    attendanceList.value = courseOrders.map(o => {
+                        const att = (o.extraData && o.extraData.attendance) ? o.extraData.attendance : {};
+                        return {
+                            orderId: o.orderId,
+                            name: o.name,
+                            phone: o.phone,
+                            status: att[attendanceDate.value] || 'NONE'
+                        };
+                    });
+
+                    const startDate = new Date(attendanceCourse.value.startDate);
+                    const endDate = new Date(attendanceCourse.value.endDate);
+                    courseDatesList.value = [];
+
+                    if (!isNaN(startDate) && !isNaN(endDate) && startDate <= endDate) {
+                        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                            courseDatesList.value.push(d.toISOString().split('T')[0]);
+                        }
+                    } else if (!isNaN(startDate)) {
+                        courseDatesList.value.push(startDate.toISOString().split('T')[0]);
+                    }
+
+                    if (courseDatesList.value.length > 60) {
+                        courseDatesList.value = courseDatesList.value.slice(0, 60);
+                    }
+
+                    attendanceOverviewList.value = courseOrders.map(o => {
+                        return {
+                            orderId: o.orderId,
+                            name: o.name,
+                            phone: o.phone,
+                            attendance: (o.extraData && o.extraData.attendance) ? o.extraData.attendance : {}
+                        };
+                    });
+                };
+
+                const openAttendance = (c) => {
+                    attendanceCourse.value = c;
+                    showAttendanceOverview.value = false;
+
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    if (c.startDate && todayStr < c.startDate) {
+                        attendanceDate.value = fmtDate(c.startDate);
+                    } else if (c.endDate && todayStr > c.endDate) {
+                        attendanceDate.value = fmtDate(c.endDate);
+                    } else {
+                        attendanceDate.value = todayStr;
+                    }
+
+                    loadAttendanceList();
+                    showAttendanceModal.value = true;
+                };
+
+                const saveAttendance = async () => {
+                    isLoading.value = true;
+                    try {
+                        await callApi('ADMIN_UPDATE_ATTENDANCE', {
+                            courseId: attendanceCourse.value.id,
+                            date: attendanceDate.value,
+                            attendanceData: attendanceList.value.map(a => ({ orderId: a.orderId, status: a.status }))
+                        });
+                        alert('簽到資料已成功儲存！');
+                        showAttendanceModal.value = false;
+                        fetchData();
+                    } catch (e) {
+                        alert('儲存失敗：' + e.message);
+                    } finally {
+                        isLoading.value = false;
+                    }
+                };
+
                 const exportOrdersCSV = () => {
                     let csv = '\uFEFF訂單號碼,報名課程,學員姓名,手機,金額,狀態,匯款五碼,報名日期\n';
                     filteredOrders.value.forEach(o => {
-                        csv += `${(o.orderId||'').slice(0,8)},${getCourseName(o.courseId)},${o.name},${o.phone},${o.amount},${getStatusLabel(o.status)},${o.remittance||''},${new Date(o.createdAt || Date.now()).toLocaleDateString()}\n`;
+                        csv += `"${(o.orderId||'').slice(0,8)}","${getCourseName(o.courseId)}","${o.name}","${o.phone}",${o.amount},"${getStatusLabel(o.status)}","${o.remittance||''}",${new Date(o.createdAt || Date.now()).toLocaleDateString()}\n`;
                     });
                     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                     const link = document.createElement("a");
@@ -2027,26 +2140,45 @@
                     document.body.removeChild(link);
                 };
 
+                const getStatusLabel = s => ({ 'PENDING': '待付款', 'PAID': '已完款', 'REFUND_REQUESTED': '申退款', 'REFUNDED': '已退款', 'CANCELLED': '已取消' }[s] || s);
+                
+                const getStatusClass = s => ({
+                    'PENDING': 'bg-yellow-100 text-yellow-800',
+                    'PAID': 'bg-green-100 text-green-800',
+                    'REFUND_REQUESTED': 'bg-orange-100 text-orange-700 border border-orange-300',
+                    'REFUNDED': 'bg-red-100 text-red-800',
+                    'CANCELLED': 'bg-red-500 text-white shadow-sm'
+                }[s] || 'bg-gray-100 text-gray-500');
+
+                onMounted(() => {
+                    const ssoUid = localStorage.getItem('hongxue_sso_uid');
+                    if (ssoUid) {
+                        loginSSO(ssoUid);
+                    }
+                });
+
+                // ================= 確保所有畫面使用到的變數與函式完整回傳 =================
                 return {
-                    isLoggedIn, password, isLoading, error, currentTab, tabName, courses, orders, users,
-                    searchTerm, searchMemberTerm, searchCourseTerm, filteredOrders, filteredUsers, normalCourses, groupedAdminCamps, filterStatus, filterCourse,
-                    dashboardStats, courseStats, getCourseName, splitCourseName, parseCampName,
-                    campTheme, campBatch, campItem, campBatches, createProgress,
-                    showCourseModal, isEditingCourse, courseForm, courseEquipments,
-                    showMemberModal, editingMember, showOrderModal, editingOrder, showRelativeModal, editingRelative,
-                    showEnrollmentModal, selectedCourseEnrollment, currentViewingCourseName,
-                    expandedStatIds, toggleStatExpand, expandedCourseIds, toggleCourseExpand, expandedOrderIds, toggleOrderExpand, expandedMemberIds, toggleMemberExpand,
-                    expandedCampBatches, toggleCampBatch, 
-
+                    isLoggedIn, password, isLoading, error, authPayload, currentTab, 
+                    courses, orders, users,
+                    searchTerm, filterStatus, filterCourse, searchMemberTerm, searchCourseTerm, courseSortOrder,
+                    expandedStatIds, expandedCourseIds, expandedCampBatches, expandedOrderIds, expandedMemberIds,
+                    showCourseModal, isEditingCourse, courseForm, courseEquipments, campTheme, campBatch, campItem, campBatches, createProgress,
+                    showMemberModal, editingMember,
+                    showOrderModal, editingOrder, 
+                    showEnrollmentModal, selectedCourseEnrollment, currentViewingCourseName, 
                     showAttendanceModal, showAttendanceOverview, attendanceCourse, attendanceDate, attendanceList, attendanceOverviewList, courseDatesList,
-                    openAttendance, loadAttendanceList, saveAttendance, getDayOfWeek, countAttendance, exportOrdersCSV, 
-                    
-                    courseSortOrder, toggleCourseSort, handleImageUpload,
 
-                    login, logout, fetchData, openAddCourse, openEditCourse, copyCourse, addEquipment, removeEquipment, saveCourse,
-                    openMember, saveMember, openOrder, saveOrder, openRelativeEdit, saveRelative,
-                    getStatusLabel, getStatusClass, getPaidCount, getPendingCount, getRefundedCount, viewEnrollmentList, openOrderFromList,
-                    formatTime: d => d ? new Date(d).toLocaleString('zh-TW', { hour12: false }) : '-'
+                    tabName, dashboardStats, courseStats, filteredOrders, filteredUsers, normalCourses, groupedAdminCamps,
+
+                    toggleCampBatch, toggleStatExpand, toggleCourseExpand, toggleOrderExpand, toggleMemberExpand, toggleCourseSort,
+                    callApi, login, loginSSO, logout, fetchData, 
+                    splitCourseName, parseCampName, getCourseName, getCourseDate, getPaidCount, getPendingCount, getRefundedCount, getDayOfWeek, countAttendance,
+                    viewEnrollmentList, openOrderFromList, fmtTime, handleImageUpload,
+                    openAddCourse, openEditCourse, copyCourse, addEquipment, removeEquipment, saveCourse,
+                    openMember, saveMember, openOrder, saveOrder, exportOrdersCSV,
+                    loadAttendanceList, openAttendance, saveAttendance,
+                    getStatusLabel, getStatusClass
                 };
             }
         }).mount('#app');
