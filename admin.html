@@ -1,370 +1,312 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>宏學 - 總管理後台 (全開版)</title>
-  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
-    body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
-    [v-cloak] { display: none !important; }
-    .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-    
-    /* LINE OA 風格微調：扁平化、無框感 */
-    .line-card { background: white; border-bottom: 1px solid #f1f5f9; padding: 1rem; transition: background 0.2s; }
-    .line-card:hover { background: #f8fafc; }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #06C755; ring: 0; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宏學管理後台</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [v-cloak] { display: none !important; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #F4F4F4; color: #333; }
+        .sidebar { width: 200px; background: #2C2C2C; color: #FFF; position: fixed; height: 100%; z-index: 10; }
+        .main-content { margin-left: 200px; padding: 20px; }
+        .menu-item { padding: 15px 20px; cursor: pointer; transition: 0.2s; font-size: 14px; opacity: 0.7; }
+        .menu-item:hover, .menu-item.active { background: #3D3D3D; opacity: 1; }
+        .line-table { width: 100%; border-collapse: collapse; background: white; border-radius: 0px; overflow: hidden; }
+        .line-table th { background: #FBFBFB; padding: 12px 15px; text-align: left; font-size: 13px; color: #888; border-bottom: 1px solid #EEE; font-weight: normal; }
+        .line-table td { padding: 15px; border-bottom: 1px solid #F4F4F4; font-size: 14px; vertical-align: middle; }
+        .btn-line { background: #06C755; color: #FFF; padding: 8px 16px; border-radius: 4px; font-size: 13px; transition: 0.2s; }
+        .btn-line:hover { background: #05b34c; }
+        .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .input-line { width: 100%; border: 1px solid #DDD; border-radius: 4px; padding: 10px; font-size: 14px; outline: none; background: #FFF; }
+        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal-pop { background: #FFF; width: 90%; max-width: 600px; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+        .stat-card { background: white; padding: 20px; border-bottom: 1px solid #EEE; }
+        @media (max-width: 768px) { .sidebar { width: 60px; } .sidebar span { display: none; } .main-content { margin-left: 60px; } }
+    </style>
 </head>
-<body class="text-slate-800">
-  <div id="root"></div>
-
-  <script type="text/babel" data-presets="react,env">
-    const { useState, useEffect, useMemo } = React;
-
-    const WORKER_URL = 'https://action.fangwl591021.workers.dev';
-
-    // 圖標組件
-    const Icon = ({ name, className = "w-5 h-5" }) => {
-      const icons = {
-        chart: <path d="M3 3v18h18M18 17l-3-3-4 4-4-4" />,
-        users: <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
-        book: <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 7H20v12H6.5A2.5 2.5 0 0 1 4 16.5v-12z" />,
-        plus: <React.Fragment><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></React.Fragment>,
-        edit: <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />,
-        save: <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM7 3v5h8M7 21v-8h10v8" />,
-        sync: <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-      };
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-          {icons[name]}
-        </svg>
-      );
-    };
-
-    function App() {
-      const [isLoggedIn, setIsLoggedIn] = useState(false);
-      const [auth, setAuth] = useState({ account: '', password: '' });
-      const [currentTab, setCurrentTab] = useState('dashboard'); // 初始分頁固定在營運統計
-      const [isLoading, setIsLoading] = useState(false);
-      const [error, setError] = useState('');
-      
-      const [data, setData] = useState({ courses: [], orders: [], users: [] });
-      const [editingCourse, setEditingCourse] = useState(null);
-
-      const callApi = async (action, payload = {}) => {
-        const res = await fetch(WORKER_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action, payload: { ...auth, ...payload } })
-        });
-        const json = await res.json();
-        if (json.status !== 'success') throw new Error(json.message);
-        return json.data;
-      };
-
-      const handleLogin = async () => {
-        setIsLoading(true);
-        setError('');
-        try {
-          await callApi('ADMIN_LOGIN');
-          setIsLoggedIn(true);
-          fetchMainData();
-        } catch (e) {
-          setError('帳號或密碼錯誤');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      const fetchMainData = async () => {
-        setIsLoading(true);
-        try {
-          const res = await callApi('ADMIN_GET_DATA');
-          setData({
-            courses: res.courses || [],
-            orders: (res.orders || []).reverse(),
-            users: res.users || []
-          });
-        } catch (e) {
-          alert('資料同步失敗');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      const handleSaveCourse = async () => {
-        setIsLoading(true);
-        try {
-          // 判斷是否為既有課程 (透過 ID 判斷)
-          const isUpdate = data.courses.some(c => c.id === editingCourse.id);
-          const action = isUpdate ? 'ADMIN_UPDATE_COURSE' : 'ADMIN_ADD_COURSE';
-          await callApi(action, editingCourse);
-          setEditingCourse(null);
-          fetchMainData();
-        } catch (e) {
-          alert('儲存失敗');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      // 統計數據
-      const stats = useMemo(() => {
-        let paid = 0, pending = 0;
-        data.orders.forEach(o => {
-          if (o.status === 'PAID') paid += Number(o.amount) || 0;
-          else if (o.status === 'PENDING') pending += Number(o.amount) || 0;
-        });
-        return { paid, pending, userCount: data.users.length, orderCount: data.orders.length };
-      }, [data]);
-
-      if (!isLoggedIn) {
-        return (
-          <div className="h-screen flex items-center justify-center bg-slate-50">
-            <div className="bg-white p-10 rounded-[2rem] shadow-xl w-full max-w-sm text-center border border-slate-100 animate-fade-in">
-              <h1 className="text-2xl font-bold mb-8 tracking-tight">宏學管理登入</h1>
-              <div className="space-y-4">
-                <input type="text" placeholder="管理帳號" className="w-full bg-slate-50 border-none p-4 rounded-2xl" value={auth.account} onChange={e=>setAuth({...auth, account:e.target.value})} />
-                <input type="password" placeholder="管理密碼" className="w-full bg-slate-50 border-none p-4 rounded-2xl" value={auth.password} onChange={e=>setAuth({...auth, password:e.target.value})} onKeyDown={e=>e.key==='Enter' && handleLogin()} />
-                <button onClick={handleLogin} disabled={isLoading} className="w-full bg-[#06C755] text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-100 active:scale-95 transition">
-                  {isLoading ? '驗證中...' : '進入系統'}
-                </button>
-                {error && <p className="text-red-500 text-xs mt-4">{error}</p>}
-              </div>
+<body>
+    <div id="app" v-cloak class="flex">
+        <!-- 登入遮罩 -->
+        <div v-if="!isLoggedIn" class="fixed inset-0 z-[1000] flex items-center justify-center bg-[#F4F4F4]">
+            <div class="bg-white p-10 rounded-lg shadow-sm w-80 text-center border">
+                <h2 class="text-xl font-bold mb-6">宏學管理登入</h2>
+                <input v-model="account" type="text" class="input-line mb-4" placeholder="帳號">
+                <input v-model="password" @keyup.enter="login" type="password" class="input-line mb-6" placeholder="密碼">
+                <button @click="login" class="w-full btn-line py-3">登入系統</button>
+                <p v-if="error" class="text-red-500 text-xs mt-4">{{ error }}</p>
             </div>
-          </div>
-        );
-      }
+        </div>
 
-      return (
-        <div className="flex h-screen overflow-hidden bg-white">
-          {/* 側邊導覽 */}
-          <aside className="w-64 border-r flex flex-col shrink-0 bg-slate-50/50">
-            <div className="p-8 text-xl font-bold tracking-tighter border-b bg-white">宏學 <span className="text-[#06C755]">ADMIN</span></div>
-            <nav className="flex-grow p-4 space-y-2">
-              {[
-                { id: 'dashboard', name: '營運統計', icon: 'chart' },
-                { id: 'members', name: '會員名冊', icon: 'users' },
-                { id: 'courses', name: '課程管理', icon: 'book' }
-              ].map(tab => (
-                <button key={tab.id} onClick={() => setCurrentTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${currentTab === tab.id ? 'bg-white shadow-sm text-[#06C755] font-bold' : 'text-slate-500 hover:bg-white'}`}>
-                  <Icon name={tab.icon} />
-                  <span>{tab.name}</span>
-                </button>
-              ))}
-            </nav>
-            <div className="p-6 border-t">
-              <button onClick={fetchMainData} className="w-full flex items-center justify-center gap-2 text-xs text-slate-400 hover:text-slate-600 transition">
-                <Icon name="sync" className="w-3 h-3" /> 資料同步
-              </button>
-            </div>
-          </aside>
-
-          {/* 主內容區 */}
-          <main className="flex-grow overflow-y-auto custom-scrollbar">
-            <div className="max-w-6xl mx-auto p-10 animate-fade-in">
-              <div className="flex justify-between items-center mb-10">
-                <h2 className="text-3xl font-bold tracking-tight">{tabsData[currentTab].title}</h2>
-                {currentTab === 'courses' && (
-                  <button onClick={() => setEditingCourse({ id: '', name: '', type: '單日課程', price: 0, capacity: 0, startDate: '', endDate: '', instructor: '' })} className="bg-[#06C755] text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition shadow-md shadow-green-100">
-                    <Icon name="plus" className="w-4 h-4" /> 新增課程
-                  </button>
-                )}
-              </div>
-
-              {/* 營運統計 */}
-              {currentTab === 'dashboard' && (
-                <div className="space-y-10">
-                  <div className="grid grid-cols-4 gap-6">
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-xs text-slate-400 font-bold mb-1">已收金額</p>
-                      <p className="text-3xl font-bold text-[#06C755]">${stats.paid.toLocaleString()}</p>
+        <template v-else>
+            <aside class="sidebar">
+                <div class="p-6 font-bold text-lg border-b border-white/10 text-center">宏學管理</div>
+                <div class="mt-4">
+                    <div v-for="tab in tabs" :key="tab.id" @click="currentTab=tab.id" class="menu-item" :class="{active: currentTab===tab.id}">
+                        <i :class="tab.icon" class="mr-2"></i> <span>{{ tab.name }}</span>
                     </div>
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-xs text-slate-400 font-bold mb-1">待收金額</p>
-                      <p className="text-3xl font-bold text-orange-400">${stats.pending.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-xs text-slate-400 font-bold mb-1">學員總數</p>
-                      <p className="text-3xl font-bold">{stats.userCount}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-xs text-slate-400 font-bold mb-1">報名筆數</p>
-                      <p className="text-3xl font-bold">{stats.orderCount}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
-                    <div className="px-8 py-6 bg-slate-50/50 font-bold border-b">近期報名</div>
-                    {data.orders.slice(0, 10).map(o => (
-                      <div key={o.orderId} className="px-8 py-4 border-b last:border-0 flex justify-between items-center text-sm">
-                        <div className="flex gap-4 items-center">
-                          <span className="text-slate-400 font-mono text-xs">{o.orderId.slice(-6)}</span>
-                          <span className="font-bold">{o.name}</span>
-                          <span className="text-slate-500">{o.courseName || o.courseId}</span>
-                        </div>
-                        <div className="flex items-center gap-6">
-                          <span className="font-bold text-slate-700">${o.amount}</span>
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${o.status === 'PAID' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                            {o.status === 'PAID' ? '已完款' : '待付款'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
-              )}
+                <div class="absolute bottom-6 w-full px-4"><button @click="logout" class="text-xs opacity-50 w-full text-center">登出系統</button></div>
+            </aside>
 
-              {/* 會員名冊 */}
-              {currentTab === 'members' && (
-                <div className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm">
-                  <div className="grid grid-cols-4 px-8 py-4 bg-slate-50/50 text-xs font-bold text-slate-400 border-b">
-                    <span>姓名 / 性別</span>
-                    <span>聯絡電話</span>
-                    <span>行業類別</span>
-                    <span className="text-right">註冊時間</span>
-                  </div>
-                  {data.users.map(u => (
-                    <div key={u.userId} className="grid grid-cols-4 px-8 py-5 border-b last:border-0 items-center hover:bg-slate-50 transition">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-slate-700">{u.name}</span>
-                        <span className="text-xs text-slate-300">{u.gender}</span>
-                      </div>
-                      <span className="text-sm text-slate-600 font-mono">{u.phone}</span>
-                      <span className="text-sm text-slate-500">{u.industry || '-'}</span>
-                      <span className="text-right text-xs text-slate-400">{u.createdAt}</span>
+            <main class="main-content flex-grow">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-700">{{ currentTabName }}</h2>
+                    <div class="flex gap-2">
+                        <button @click="fetchData" class="text-xs text-gray-500 bg-white border px-3 py-2 rounded"><i class="fas fa-sync-alt mr-1" :class="{'fa-spin':isLoading}"></i>同步</button>
+                        <button v-if="currentTab==='courses'" @click="openAddCourse" class="btn-line"><i class="fas fa-plus mr-1"></i>新增課程</button>
                     </div>
-                  ))}
                 </div>
-              )}
 
-              {/* 課程管理 */}
-              {currentTab === 'courses' && (
-                <div className="grid grid-cols-1 gap-4">
-                  {data.courses.map(c => (
-                    <div key={c.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 flex justify-between items-center hover:shadow-md transition group">
-                      <div className="flex gap-8 items-center">
-                        <div className="bg-slate-50 p-4 rounded-2xl group-hover:bg-green-50 transition">
-                          <Icon name="book" className="text-slate-300 group-hover:text-[#06C755]" />
+                <!-- 營運統計 -->
+                <div v-if="currentTab==='dashboard'">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="stat-card">
+                            <div class="text-xs text-gray-400 mb-1">已收款總額</div>
+                            <div class="text-2xl font-bold text-[#06C755]">${{ dashboardStats.totalRevenue.toLocaleString() }}</div>
                         </div>
-                        <div>
-                          <div className="flex items-center gap-3 mb-1">
-                            <h3 className="text-xl font-bold">{c.name}</h3>
-                            <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold uppercase">{c.type}</span>
-                          </div>
-                          <p className="text-xs text-slate-400 font-bold tracking-tight">{c.startDate} ~ {c.endDate}</p>
+                        <div class="stat-card">
+                            <div class="text-xs text-gray-400 mb-1">待收款總額</div>
+                            <div class="text-2xl font-bold text-orange-400">${{ dashboardStats.pendingRevenue.toLocaleString() }}</div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-10">
-                        <div className="text-right">
-                          <p className="text-xs text-slate-300 font-bold uppercase mb-1">Price</p>
-                          <p className="text-2xl font-bold text-[#06C755] tracking-tighter">${Number(c.price).toLocaleString()}</p>
+                        <div class="stat-card">
+                            <div class="text-xs text-gray-400 mb-1">學員總數</div>
+                            <div class="text-2xl font-bold text-blue-500">{{ users.length }}</div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-300 font-bold uppercase mb-1">Enrolled</p>
-                          <p className="text-xl font-bold text-slate-700">{c.enrolled} / {c.capacity}</p>
+                        <div class="stat-card">
+                            <div class="text-xs text-gray-400 mb-1">訂單總筆數</div>
+                            <div class="text-2xl font-bold text-purple-500">{{ orders.length }}</div>
                         </div>
-                        <button onClick={() => setEditingCourse({...c})} className="p-4 bg-slate-50 rounded-full hover:bg-slate-100 transition">
-                          <Icon name="edit" className="w-5 h-5 text-slate-400" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </main>
-
-          {/* 編輯課程 Modal (已修復類型變更問題) */}
-          {editingCourse && (
-            <div className="modal-mask animate-fade-in">
-              <div className="modal-pop shadow-2xl border border-slate-100">
-                <div className="px-10 py-8 border-b flex justify-between items-center bg-slate-50/50">
-                  <h3 className="text-xl font-bold tracking-tight">編輯課程詳情</h3>
-                  <button onClick={() => setEditingCourse(null)} className="text-slate-300 hover:text-slate-500"><Icon name="plus" className="rotate-45 w-6 h-6" /></button>
-                </div>
-                <div className="p-10 overflow-y-auto custom-scrollbar" style={{ maxHeight: '75vh' }}>
-                  <div className="space-y-8">
-                    <div className="grid grid-cols-2 gap-10">
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-2">課程 ID</label>
-                        <input type="text" className="w-full bg-slate-50 p-4 rounded-2xl font-mono text-sm opacity-60 border-none" value={editingCourse.id} disabled />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-2">課程類型</label>
-                        <select 
-                          className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" 
-                          value={editingCourse.type || "單日課程"} 
-                          onChange={e => setEditingCourse({...editingCourse, type: e.target.value})}
-                        >
-                          <option value="單日課程">單日課程</option>
-                          <option value="多日營隊">多日營隊</option>
-                          <option value="常態課後">常態課後</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-2">課程名稱</label>
-                      <input type="text" className="w-full text-2xl font-bold border-b border-slate-200 py-2 focus:border-[#06C755]" value={editingCourse.name} onChange={e=>setEditingCourse({...editingCourse, name:e.target.value})} />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-10">
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-2">售價</label>
-                        <input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" value={editingCourse.price} onChange={e=>setEditingCourse({...editingCourse, price:e.target.value})} />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-2">名額限制</label>
-                        <input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" value={editingCourse.capacity} onChange={e=>setEditingCourse({...editingCourse, capacity:e.target.value})} />
-                      </div>
+                    <div class="bg-white border rounded-sm overflow-hidden">
+                        <div class="p-4 bg-gray-50 border-b text-xs font-bold text-gray-500 tracking-widest">最新報名紀錄</div>
+                        <table class="line-table">
+                            <thead>
+                                <tr><th>單號</th><th>學員</th><th>課程</th><th>金額</th><th>狀態</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="o in orders.slice(0, 10)" :key="o.orderId">
+                                    <td class="text-xs text-gray-400">{{ o.orderId.slice(-6) }}</td>
+                                    <td>{{ o.name }}</td>
+                                    <td class="text-sm text-gray-500">{{ getCourseName(o.courseId) }}</td>
+                                    <td>${{ o.amount }}</td>
+                                    <td><span :class="getStatusClass(o.status)" class="badge">{{ getStatusLabel(o.status) }}</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
+                </div>
 
-                    <div className="grid grid-cols-2 gap-10">
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-2">開始日期</label>
-                        <input type="date" className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" value={editingCourse.startDate} onChange={e=>setEditingCourse({...editingCourse, startDate:e.target.value})} />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-2">截止日期</label>
-                        <input type="date" className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" value={editingCourse.endDate} onChange={e=>setEditingCourse({...editingCourse, endDate:e.target.value})} />
-                      </div>
+                <!-- 會員名冊 -->
+                <div v-if="currentTab==='members'" class="overflow-x-auto">
+                    <table class="line-table">
+                        <thead>
+                            <tr><th>姓名</th><th>性別</th><th>行業</th><th>電話</th><th class="text-right">管理</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="u in users" :key="u.userId">
+                                <td class="font-bold">{{ u.name }}</td>
+                                <td>{{ u.gender }}</td>
+                                <td>{{ u.industry || '-' }}</td>
+                                <td>{{ u.phone }}</td>
+                                <td class="text-right"><button @click="openMember(u)" class="text-blue-500 text-sm">編輯</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 課程管理 -->
+                <div v-if="currentTab==='courses'" class="overflow-x-auto">
+                    <table class="line-table">
+                        <thead>
+                            <tr><th>名稱與編號</th><th>費用 / 類型</th><th>日期</th><th>人數</th><th class="text-right">操作</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="c in courses" :key="c.id">
+                                <td>
+                                    <div class="font-bold text-gray-800">{{ c.name }}</div>
+                                    <div class="text-[10px] text-gray-400 mt-1">{{ c.id }}</div>
+                                </td>
+                                <td>
+                                    <div class="font-bold text-[#06C755]">${{ c.price.toLocaleString() }}</div>
+                                    <span class="text-[11px] text-gray-400">{{ c.type }}</span>
+                                </td>
+                                <td class="text-xs text-gray-500">{{ c.startDate }}</td>
+                                <td class="text-sm">{{ c.enrolled }} / {{ c.capacity }}人</td>
+                                <td class="text-right"><button @click="openEditCourse(c)" class="text-gray-400 hover:text-blue-500 transition"><i class="fas fa-edit"></i></button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </template>
+        
+        <!-- 課程編輯 Modal -->
+        <div v-if="showCourseModal" class="modal-mask">
+            <div class="modal-pop">
+                <div class="p-6 border-b flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold">編輯課程詳情</h3>
+                    <button @click="showCourseModal=false" class="text-gray-400"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-6 space-y-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs text-gray-400 mb-1 block">課程 ID (唯讀)</label>
+                            <input v-model="courseForm.id" class="input-line bg-gray-50 text-gray-400" readonly>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400 mb-1 block">課程類型</label>
+                            <!-- 修復處：確保選單包含正確選項並綁定資料 -->
+                            <select v-model="courseForm.type" class="input-line">
+                                <option value="單日課程">單日課程</option>
+                                <option value="多日營隊">多日營隊</option>
+                                <option value="常態課後">常態課後</option>
+                            </select>
+                        </div>
                     </div>
-
                     <div>
-                      <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-2">授課教練</label>
-                      <input type="text" className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-none" value={editingCourse.instructor} onChange={e=>setEditingCourse({...editingCourse, instructor:e.target.value})} />
+                        <label class="text-xs text-gray-400 mb-1 block">課程名稱</label>
+                        <input v-model="courseForm.name" class="input-line">
                     </div>
-                  </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs text-gray-400 mb-1 block">費用</label><input v-model="courseForm.price" type="number" class="input-line"></div>
+                        <div><label class="text-xs text-gray-400 mb-1 block">總名額</label><input v-model="courseForm.capacity" type="number" class="input-line"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs text-gray-400 mb-1 block">開始日期</label><input v-model="courseForm.startDate" type="date" class="input-line"></div>
+                        <div><label class="text-xs text-gray-400 mb-1 block">結束日期</label><input v-model="courseForm.endDate" type="date" class="input-line"></div>
+                    </div>
+                    <div><label class="text-xs text-gray-400 mb-1 block">授課教練</label><input v-model="courseForm.instructor" class="input-line"></div>
                 </div>
-                <div className="p-8 border-t bg-white flex justify-end">
-                  <button onClick={handleSaveCourse} disabled={isLoading} className="bg-[#06C755] text-white px-12 py-4 rounded-3xl font-bold shadow-lg shadow-green-100 hover:scale-105 transition flex items-center gap-2">
-                    <Icon name="save" className="w-5 h-5" /> 儲存變更
-                  </button>
+                <div class="p-4 border-t text-right bg-gray-50">
+                    <button @click="saveCourse" class="btn-line px-10">確認儲存</button>
                 </div>
-              </div>
             </div>
-          )}
         </div>
-      );
-    }
 
-    const tabsData = {
-      dashboard: { title: '營運數據' },
-      members: { title: '會員名冊' },
-      courses: { title: '課程管理' }
-    };
+        <!-- 會員資料管理 Modal -->
+        <div v-if="showMemberModal" class="modal-mask">
+            <div class="modal-pop" style="max-width: 450px;">
+                <div class="p-6 border-b flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold">會員資料管理</h3>
+                    <button @click="showMemberModal=false"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div><label class="text-xs text-gray-400 mb-1 block">姓名</label><input v-model="editingMember.name" class="input-line"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs text-gray-400 mb-1 block">性別</label><select v-model="editingMember.gender" class="input-line"><option value="男">男</option><option value="女">女</option></select></div>
+                        <div><label class="text-xs text-gray-400 mb-1 block">生日</label><input v-model="editingMember.birthday" type="date" class="input-line"></div>
+                    </div>
+                    <div><label class="text-xs text-gray-400 mb-1 block">電話</label><input v-model="editingMember.phone" class="input-line"></div>
+                    <div><label class="text-xs text-gray-400 mb-1 block">行業類別</label><input v-model="editingMember.industry" class="input-line"></div>
+                    <div><label class="text-xs text-gray-400 mb-1 block">居住地址</label><input v-model="editingMember.address" class="input-line"></div>
+                </div>
+                <div class="p-4 border-t text-right"><button @click="saveMember" class="btn-line px-10">確認更新</button></div>
+            </div>
+        </div>
+    </div>
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+        const API_ENDPOINT = 'https://action.fangwl591021.workers.dev/';
+
+        createApp({
+            setup() {
+                const isLoggedIn = ref(false);
+                const account = ref('');
+                const password = ref('');
+                const isLoading = ref(false);
+                const error = ref('');
+                const authPayload = ref({});
+                
+                // 固定進入首頁為營運統計 (dashboard)
+                const currentTab = ref('dashboard');
+                
+                const courses = ref([]), orders = ref([]), users = ref([]);
+                const tabs = [
+                    {id:'dashboard', name:'營運統計', icon:'fas fa-chart-line'},
+                    {id:'members', name:'會員名冊', icon:'fas fa-user-friends'},
+                    {id:'courses', name:'課程管理', icon:'fas fa-book'}
+                ];
+                const showCourseModal = ref(false), isEditingCourse = ref(false), courseForm = ref({});
+                const showMemberModal = ref(false), editingMember = ref({});
+
+                const dashboardStats = computed(() => {
+                    let totalRev = 0, pendingRev = 0;
+                    orders.value.forEach(o => {
+                        if (o.status === 'PAID') totalRev += Number(o.amount) || 0;
+                        else if (o.status === 'PENDING') pendingRev += Number(o.amount) || 0;
+                    });
+                    return { totalRevenue: totalRev, pendingRevenue: pendingRev };
+                });
+
+                const login = async () => {
+                    isLoading.value = true; error.value = '';
+                    try {
+                        authPayload.value = { account: account.value.trim(), password: password.value.trim() };
+                        await callApi('ADMIN_LOGIN');
+                        isLoggedIn.value = true;
+                        fetchData();
+                    } catch (e) { error.value = '帳號或密碼錯誤'; } finally { isLoading.value = false; }
+                };
+
+                const fetchData = async () => {
+                    isLoading.value = true;
+                    try {
+                        const d = await callApi('ADMIN_GET_DATA');
+                        courses.value = d.courses || [];
+                        orders.value = (d.orders || []).reverse();
+                        users.value = d.users || [];
+                    } catch (e) { alert('同步失敗'); } finally { isLoading.value = false; }
+                };
+
+                const callApi = async (action, payload = {}) => {
+                    const res = await fetch(API_ENDPOINT, { method: 'POST', body: JSON.stringify({ action, payload: { ...authPayload.value, ...payload } }) });
+                    const json = await res.json();
+                    if (json.status !== 'success') throw new Error(json.message);
+                    return json.data;
+                };
+
+                const openEditCourse = (c) => { 
+                    isEditingCourse.value = true; 
+                    courseForm.value = { ...c }; 
+                    showCourseModal.value = true; 
+                };
+
+                const saveCourse = async () => {
+                    try {
+                        const action = isEditingCourse.value ? 'ADMIN_UPDATE_COURSE' : 'ADMIN_ADD_COURSE';
+                        await callApi(action, courseForm.value);
+                        alert('儲存成功'); showCourseModal.value = false; fetchData();
+                    } catch (e) { alert('儲存失敗'); }
+                };
+
+                const openMember = (u) => { editingMember.value = { ...u }; showMemberModal.value = true; };
+                const saveMember = async () => {
+                    try {
+                        await callApi('ADMIN_UPDATE_MEMBER', { memberData: editingMember.value });
+                        alert('更新成功'); showMemberModal.value = false; fetchData();
+                    } catch (e) { alert('更新失敗'); }
+                };
+
+                return { 
+                    isLoggedIn, account, password, isLoading, error, currentTab, courses, orders, users, tabs, 
+                    currentTabName: computed(() => tabs.find(x=>x.id===currentTab.value).name), 
+                    dashboardStats, login, fetchData, 
+                    logout: () => { isLoggedIn.value = false; account.value = ''; password.value = ''; },
+                    openEditCourse, openAddCourse: () => { isEditingCourse.value = false; courseForm.value = { name:'', price:0, capacity:0, startDate:'', endDate:'', type:'單日課程', instructor:'' }; showCourseModal.value = true; },
+                    saveCourse, showCourseModal, courseForm,
+                    openMember, saveMember, showMemberModal, editingMember,
+                    getCourseName: (id) => courses.value.find(x => x.id === id)?.name || id,
+                    getStatusLabel: s => ({ 'PENDING': '待付款', 'PAID': '已完款', 'CANCELLED': '已取消' }[s] || s),
+                    getStatusClass: s => ({ 'PENDING': 'text-orange-400 bg-orange-50', 'PAID': 'text-green-500 bg-green-50', 'CANCELLED': 'text-gray-300 bg-gray-50' }[s])
+                };
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>
