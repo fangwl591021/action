@@ -323,6 +323,7 @@
         <div v-if="!isLoggedIn" class="fixed inset-0 z-[1000] flex items-center justify-center bg-[#f0f2f5]">
             <div class="bg-white p-8 md:p-12 rounded-xl shadow-2xl w-[90%] md:w-[400px] text-center border">
                 <h1 class="text-2xl font-bold text-gray-800 mb-6">宏學管理登入</h1>
+                <input v-model="account" type="text" class="input-line mb-4" placeholder="管理帳號">
                 <input v-model="password" @keyup.enter="login" type="password" class="input-line mb-6" placeholder="管理密碼">
                 <button @click="login" :disabled="isLoading"
                     class="w-full btn-green justify-center py-3 shadow-lg">登入系統</button>
@@ -1505,13 +1506,14 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted, watch } = Vue;
         const API_ENDPOINT = 'https://action.fangwl591021.workers.dev/';
 
         createApp({
             setup() {
                 // ================= State =================
                 const isLoggedIn = ref(false);
+                const account = ref('');
                 const password = ref('');
                 const isLoading = ref(false);
                 const error = ref('');
@@ -1706,13 +1708,14 @@
 
                 const login = async () => { 
                     isLoading.value = true; 
+                    error.value = '';
                     try { 
-                        authPayload.value = { password: password.value };
+                        authPayload.value = { account: account.value, password: password.value };
                         await callApi('ADMIN_LOGIN'); 
                         isLoggedIn.value = true; 
                         fetchData(); 
                     } catch (e) { 
-                        error.value = '密碼錯誤'; 
+                        error.value = '帳號或密碼錯誤'; 
                     } finally { 
                         isLoading.value = false; 
                     } 
@@ -1734,6 +1737,7 @@
 
                 const logout = () => { 
                     isLoggedIn.value = false; 
+                    account.value = '';
                     password.value = ''; 
                     localStorage.removeItem('hongxue_sso_uid');
                 };
@@ -2159,7 +2163,7 @@
 
                 // ================= 確保所有畫面使用到的變數與函式完整回傳 =================
                 return {
-                    isLoggedIn, password, isLoading, error, authPayload, currentTab, 
+                    isLoggedIn, account, password, isLoading, error, authPayload, currentTab, 
                     courses, orders, users,
                     searchTerm, filterStatus, filterCourse, searchMemberTerm, searchCourseTerm, courseSortOrder,
                     expandedStatIds, expandedCourseIds, expandedCampBatches, expandedOrderIds, expandedMemberIds,
