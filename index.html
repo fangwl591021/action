@@ -382,12 +382,11 @@
                     <button v-if="userInfo && userInfo.name" @click="view='course_list'"
                         class="mr-3 w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-full transition"><i
                             class="fas fa-arrow-left"></i></button>
-                    <h2 class="text-2xl font-black text-gray-800">{{ (userInfo && userInfo.name) ? '修改個人與子女資料' : '新會員註冊' }}</h2>
+                    <h2 class="text-2xl font-black text-gray-800">{{ (userInfo && userInfo.name) ? '修改個人資料' : '新會員註冊' }}</h2>
                 </div>
                 <form @submit.prevent="submitMemberRegister" class="space-y-4">
                     <div class="bg-blue-50 p-5 rounded-xl border border-blue-100 space-y-3 shadow-inner">
-                        <h3 class="text-blue-800 font-bold text-sm mb-2"><i class="fas fa-user-circle mr-1"></i> 家長/本人資料
-                            (必填)</h3>
+                        <h3 class="text-blue-800 font-bold text-sm mb-2"><i class="fas fa-user-circle mr-1"></i> 個人資料 (必填)</h3>
                         <div><label class="form-label">真實姓名</label><input type="text" v-model="regForm.name" required
                                 class="form-input shadow-sm"></div>
                         <div>
@@ -409,34 +408,6 @@
                                 <option value="男">男</option>
                                 <option value="女">女</option>
                             </select></div>
-                    </div>
-                    <div class="bg-orange-50 p-4 rounded-xl border border-orange-100 shadow-inner">
-                        <h3 class="text-orange-800 font-bold mb-3 text-sm flex justify-between items-center">
-                            <span><i class="fas fa-child mr-1"></i> 子女/家人名冊</span>
-                            <button type="button" @click="openFamilyModal(-1)"
-                                class="text-xs bg-orange-200 text-orange-800 px-3 py-1.5 rounded-full font-bold shadow-sm hover:bg-orange-300 transition">新增子女</button>
-                        </h3>
-                        <div v-for="(m, i) in regForm.familyMembers" :key="i"
-                            class="bg-white p-3 rounded-xl mb-2 border flex justify-between items-center shadow-sm">
-                            <div>
-                                <span class="font-bold text-gray-800">{{m.name}} <span
-                                        class="text-xs text-[#06C755] bg-green-50 px-1.5 py-0.5 rounded ml-1">{{m.relation}}</span></span>
-                                <div class="text-[10px] text-gray-400 mt-1">
-                                    ID: {{m.nationalId}} | 生日: {{m.birthday}}
-                                    <span v-if="m.school"><br>學校: {{m.school}} {{m.grade}}</span>
-                                </div>
-                            </div>
-                            <div class="flex gap-1">
-                                <button type="button" @click="openFamilyModal(i)"
-                                    class="w-8 h-8 flex items-center justify-center text-blue-500 hover:bg-blue-50 rounded-full transition border border-transparent hover:border-blue-100"><i
-                                        class="fas fa-pen text-sm"></i></button>
-                                <button type="button" @click="removeFamilyMember(i)"
-                                    class="w-8 h-8 flex items-center justify-center text-red-400 hover:bg-red-50 rounded-full transition border border-transparent hover:border-red-100"><i
-                                        class="fas fa-trash text-sm"></i></button>
-                            </div>
-                        </div>
-                        <div v-if="regForm.familyMembers.length === 0"
-                            class="text-center py-6 text-xs text-orange-400 italic">您尚未建立任何子女資料</div>
                     </div>
                     <button type="submit" :disabled="isSubmitting"
                         class="btn-primary w-full shadow-lg mt-2 py-4 text-lg">{{ (userInfo && userInfo.name) ? '確認儲存更新' : '完成註冊並進入'
@@ -466,33 +437,15 @@
                 </div>
                 <form @submit.prevent="submitRegistration" class="space-y-6">
                     <div>
-                        <label class="form-label mb-3 text-base">選擇上課學員 <span class="text-red-500">*</span></label>
-                        <div class="space-y-2">
-                            <label
-                                class="flex items-center p-3 border rounded-xl bg-white cursor-pointer transition shadow-sm"
-                                :class="{'border-[#06C755] bg-green-50': (selectedAttendee && selectedAttendee.nationalId) === (userInfo && userInfo.nationalId)}">
-                                <input type="radio" :value="userInfo" v-model="selectedAttendee" class="hidden">
-                                <div class="w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center transition"
-                                    :class="(selectedAttendee && selectedAttendee.nationalId) === (userInfo && userInfo.nationalId) ? 'border-green-500 bg-green-500' : 'border-gray-300'">
-                                    <div v-if="(selectedAttendee && selectedAttendee.nationalId) === (userInfo && userInfo.nationalId)"
-                                        class="w-2 h-2 bg-white rounded-full"></div>
-                                </div>
-                                <span class="font-bold text-gray-800">{{ userInfo && userInfo.name }} <span
-                                        class="text-[10px] text-gray-500 ml-1 font-normal">(本人)</span></span>
-                            </label>
-                            <label v-for="fam in (userInfo && userInfo.familyMembers)" :key="fam.nationalId"
-                                class="flex items-center p-3 border rounded-xl bg-white cursor-pointer transition shadow-sm"
-                                :class="{'border-[#06C755] bg-green-50': (selectedAttendee && selectedAttendee.nationalId) === fam.nationalId}">
-                                <input type="radio" :value="fam" v-model="selectedAttendee" class="hidden">
-                                <div class="w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center transition"
-                                    :class="(selectedAttendee && selectedAttendee.nationalId) === fam.nationalId ? 'border-green-500 bg-green-500' : 'border-gray-300'">
-                                    <div v-if="(selectedAttendee && selectedAttendee.nationalId) === fam.nationalId"
-                                        class="w-2 h-2 bg-white rounded-full"></div>
-                                </div>
-                                <span class="font-bold text-gray-800">{{ fam.name }} <span
-                                        class="text-[10px] text-gray-500 ml-1 font-normal">({{ fam.relation
-                                        }})</span></span>
-                            </label>
+                        <label class="form-label mb-2 text-base">報名學員</label>
+                        <div class="flex items-center p-4 border border-green-200 rounded-xl bg-green-50 shadow-sm">
+                            <div class="w-8 h-8 rounded-full bg-[#06C755] text-white flex items-center justify-center mr-3 shadow-sm">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-gray-800">{{ userInfo && userInfo.name }}</div>
+                                <div class="text-xs text-gray-500 mt-0.5">{{ userInfo && userInfo.phone }}</div>
+                            </div>
                         </div>
                     </div>
 
@@ -826,46 +779,6 @@
             </div>
         </main>
 
-        <!-- --- MODALS (全域彈窗) --- -->
-
-        <!-- 子女編輯彈窗 -->
-        <transition name="fade">
-            <div v-if="showFamilyModal" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-                <div class="bg-white w-full max-w-sm rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[85vh]">
-                    <h3 class="text-xl font-black mb-6 text-gray-800 border-l-4 border-orange-400 pl-2">{{
-                        editingFamilyIndex === -1 ? '新增子女資料' : '修改子女資訊' }}</h3>
-                    <form @submit.prevent="saveFamilyMember" class="space-y-4">
-                        <div><label class="form-label text-xs">真實姓名</label><input v-model="tempFamily.name" required
-                                class="form-input shadow-sm"></div>
-                        <div><label class="form-label text-gray-400 text-xs">身分證字號 <span
-                                    class="font-normal text-[10px]">(保險用)</span></label><input
-                                v-model="tempFamily.nationalId" required class="form-input uppercase shadow-sm"
-                                :readonly="editingFamilyIndex!==-1"></div>
-                        <div><label class="form-label text-xs">出生年月日</label><input v-model="tempFamily.birthday"
-                                type="date" required class="form-input shadow-sm"></div>
-                        <div><label class="form-label text-xs">關係</label><input v-model="tempFamily.relation" required
-                                class="form-input shadow-sm" placeholder="例：長男、次女"></div>
-                        <div><label class="form-label text-xs">性別</label><select v-model="tempFamily.gender" required
-                                class="form-input shadow-sm">
-                                <option value="男">男</option>
-                                <option value="女">女</option>
-                            </select></div>
-
-                        <div><label class="form-label text-xs">就讀學校 <span
-                                    class="font-normal text-[10px]">(選填)</span></label><input
-                                v-model="tempFamily.school" class="form-input shadow-sm" placeholder="例如：宏學國小"></div>
-                        <div><label class="form-label text-xs">年級 <span
-                                    class="font-normal text-[10px]">(選填)</span></label><input v-model="tempFamily.grade"
-                                class="form-input shadow-sm" placeholder="例如：三年級"></div>
-
-                        <button type="submit" class="btn-primary w-full mt-6 shadow-md py-3 text-lg">確認儲存</button>
-                        <button type="button" @click="showFamilyModal=false"
-                            class="w-full text-sm text-gray-400 py-3 font-bold mt-1">取消</button>
-                    </form>
-                </div>
-            </div>
-        </transition>
-
         <!-- 課程詳情彈窗 -->
         <transition name="fade">
             <div v-if="showDetailModal"
@@ -945,16 +858,12 @@
                 const campSelections = ref({});
                 const expandedDesc = ref({}); 
 
-                const regForm = ref({ name: '', nationalId: '', birthday: '', phone: '', address: '', identity: '家長', gender: '男', familyMembers: [] });
+                const regForm = ref({ name: '', nationalId: '', birthday: '', phone: '', address: '', gender: '男' });
                 const selectedCourse = ref(null);
-                const selectedAttendee = ref(null);
                 const excludedDates = ref([]);
                 const selectedEquipments = ref([]);
                 const registrationNote = ref('');
 
-                const showFamilyModal = ref(false);
-                const tempFamily = ref({});
-                const editingFamilyIndex = ref(-1);
                 const showDetailModal = ref(false);
                 const detailCourse = ref({});
 
@@ -1064,15 +973,8 @@
                             birthday: info.birthday ? String(info.birthday).substring(0, 10) : '',
                             phone: info.phone || '',
                             address: info.address || '',
-                            identity: info.identity || '家長',
-                            gender: info.gender || '男',
-                            familyMembers: Array.isArray(info.familyMembers) ? info.familyMembers.filter(Boolean) : []
+                            gender: info.gender || '男'
                         };
-
-                        regForm.value.familyMembers.forEach(fm => {
-                            if (fm.birthday) fm.birthday = String(fm.birthday).substring(0, 10);
-                        });
-
                         view.value = 'register';
                     } catch (e) { alert('載入資料發生錯誤'); }
                 };
@@ -1189,25 +1091,9 @@
                     return { mainName: name, subName: '' };
                 };
 
-                const openFamilyModal = (idx) => {
-                    editingFamilyIndex.value = idx;
-                    if (idx === -1) tempFamily.value = { name: '', nationalId: '', birthday: '', relation: '', gender: '男', school: '', grade: '' };
-                    else tempFamily.value = JSON.parse(JSON.stringify(regForm.value.familyMembers[idx]));
-                    showFamilyModal.value = true;
-                };
-
-                const saveFamilyMember = () => {
-                    if (editingFamilyIndex.value === -1) regForm.value.familyMembers.push({ ...tempFamily.value });
-                    else regForm.value.familyMembers[editingFamilyIndex.value] = { ...tempFamily.value };
-                    showFamilyModal.value = false;
-                };
-
-                const removeFamilyMember = (i) => { if (confirm('確定要刪除此位子女資料嗎？')) regForm.value.familyMembers.splice(i, 1); };
-
                 const openDetail = (c) => { detailCourse.value = c; showDetailModal.value = true; };
                 const selectCourse = (c) => {
                     selectedCourse.value = c;
-                    selectedAttendee.value = userInfo.value;
                     excludedDates.value = [];
                     selectedEquipments.value = [];
                     registrationNote.value = '';
@@ -1224,7 +1110,7 @@
                 const toggleEquipment = eq => { const idx = selectedEquipments.value.findIndex(e => e.name === eq.name); if (idx > -1) selectedEquipments.value.splice(idx, 1); else selectedEquipments.value.push(eq); };
 
                 const submitRegistration = async () => {
-                    if (!selectedAttendee.value || !selectedAttendee.value.name) return alert('請勾選要上課的學員');
+                    if (!userInfo.value || !userInfo.value.name) return alert('系統發生錯誤，找不到學員資料');
                     isSubmitting.value = true;
                     try {
                         const userOrders = await callApi('GET_USER_ORDERS');
@@ -1241,7 +1127,7 @@
 
                         const overlappingOrder = userOrders.find(order => {
                             if (['CANCELLED', 'REFUNDED', 'REFUND_REQUESTED'].includes(order.status)) return false;
-                            if (order.name !== selectedAttendee.value.name) return false;
+                            if (order.name !== userInfo.value.name) return false;
 
                             const exCourse = courses.value.find(c => c.name === order.courseName);
                             if (!exCourse) return false;
@@ -1269,16 +1155,16 @@
                         });
 
                         if (overlappingOrder) {
-                            alert('報名失敗：學員 [' + selectedAttendee.value.name + '] 於此時段已報名了「' + (overlappingOrder.courseName || '其他課程') + '」，發生時間重疊！');
+                            alert('報名失敗：學員 [' + userInfo.value.name + '] 於此時段已報名了「' + (overlappingOrder.courseName || '其他課程') + '」，發生時間重疊！');
                             return;
                         }
 
                         const pl = {
                             courseId: selectedCourse.value.id,
                             userId: userProfile.value ? userProfile.value.userId : '',
-                            name: selectedAttendee.value.name,
-                            nationalId: selectedAttendee.value.nationalId,
-                            phone: selectedAttendee.value.phone || (userInfo.value && userInfo.value.phone),
+                            name: userInfo.value.name,
+                            nationalId: userInfo.value.nationalId,
+                            phone: userInfo.value.phone,
                             excludedDates: excludedDates.value,
                             equipments: selectedEquipments.value,
                             note: registrationNote.value
@@ -1562,15 +1448,14 @@
                 return {
                     view, error, isSubmitting, isLoading, isAuthLoading, isCoursesLoading, isOrdersLoading,
                     userProfile, userInfo, courses, myOrders, isAdmin,
-                    regForm, selectedCourse, selectedAttendee, excludedDates, selectedEquipments, registrationNote,
-                    showDetailModal, detailCourse, showFamilyModal, tempFamily, editingFamilyIndex,
+                    regForm, selectedCourse, excludedDates, selectedEquipments, registrationNote,
+                    showDetailModal, detailCourse,
                     showEditOrderModal, editingOrder, tempRemittance, tempExcludedDates, tempSelectedEquipments,
                     categories, expandedCategory, toggleCategory, filteredCourses, splitCourseName,
 
                     init, loadCourses, goToCourses, goToMyOrders, editProfile, fmtTime,
                     openDetail, selectCourse, submitMemberRegister, submitRegistration,
                     isEqSelected, toggleEquipment, toggleDate,
-                    openFamilyModal, saveFamilyMember, removeFamilyMember,
                     openOrderDetail, openOrderInfo, toggleEditDate, isEditEqSelected, toggleEditEquipment, submitEditOrder,
                     cancelOrder, remittanceConfirmed, confirmRemittance, applyRefund, goToAdmin, scrollToInput,
                     isLeaveDateChanged, updateLeaveDateOnly,
