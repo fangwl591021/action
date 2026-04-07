@@ -272,13 +272,37 @@
 
     // 從 GAS 讀取客戶專屬的 Google Sheet (完全照運動島架構解析)
     function loadCoursesFromGAS() {
+      const tbody = document.getElementById('course-table-body');
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-gray-500">正在透過 Worker 讀取資料中...</td></tr>';
+      
       if (typeof google !== 'undefined' && google.script) {
+        // GAS 內部測試環境
         google.script.run
           .withSuccessHandler(renderCourseTable)
           .withFailureHandler(err => {
-            document.getElementById('course-table-body').innerHTML = `<tr><td colspan="5" class="text-center py-6 text-red-500">資料讀取失敗：${err.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-red-500">資料讀取失敗：${err.message}</td></tr>`;
           })
           .getAdminCourses();
+      } else {
+        // GitHub 網頁環境，透過 Cloudflare Worker 呼叫
+        const workerUrl = 'https://action.fangwl591021.workers.dev/';
+        
+        fetch(workerUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getCourses' })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success') {
+            renderCourseTable(data.data);
+          } else {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-red-500">API 錯誤：${data.message}</td></tr>`;
+          }
+        })
+        .catch(err => {
+          tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-red-500">Worker 連線失敗，請確認 Worker 網址與 GAS 部署：${err.message}</td></tr>`;
+        });
       }
     }
 
