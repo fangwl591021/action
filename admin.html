@@ -1,305 +1,151 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
-
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>宏學管理後台</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap"
-        rel="stylesheet">
-    <style>
-        [v-cloak] { display: none !important; }
-        :root { --line-green: #06C755; --bg-body: #f5f6f8; --text-main: #111827; }
-        body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg-body); color: var(--text-main); overflow: hidden; }
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>宏學課程系統 - 後台管理</title>
+  <style>
+    /* 沿用極簡、無外框、貼近 LINE 原生格式 */
+    :root {
+      --line-bg: #f4f5f6;
+      --line-text-main: #111111;
+      --line-text-sub: #666666;
+      --line-border: #ebebeb;
+      --admin-header: #333333;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--line-bg);
+      margin: 0;
+      padding: 0;
+      color: var(--line-text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .header {
+      background-color: var(--admin-header);
+      color: white;
+      padding: 14px 16px;
+      font-size: 16px;
+      text-align: center;
+      font-weight: 400;
+    }
 
-        .sidebar { width: 240px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0; z-index: 50; }
-        .menu-item { display: flex; align-items: center; width: 100%; height: 50px; padding: 0 24px; color: #4b5563; font-size: 14px; cursor: pointer; border-left: 4px solid transparent; transition: 0.2s; }
-        .menu-item.active { background-color: #f0fbf5; color: #06C755; border-left-color: #06C755; font-weight: 700; }
+    .list-container {
+      background-color: #ffffff;
+      width: 100%;
+    }
+    
+    .booking-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line-border);
+    }
+    .booking-item:last-child {
+      border-bottom: none;
+    }
+    
+    .booking-title {
+      font-size: 15px;
+      margin-bottom: 6px;
+      color: var(--line-text-main);
+      font-weight: 400; 
+    }
+    
+    .booking-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      color: var(--line-text-sub);
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
 
-        .main-content { flex: 1; display: flex; flex-direction: column; background: #f0f2f5; overflow: hidden; }
-        .top-header { height: 64px; background: white; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; }
-        .content-scroll { flex: 1; overflow-y: auto; padding: 32px; }
-
-        .card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02); margin-bottom: 24px; overflow: hidden; }
-        .stat-card { background: white; padding: 24px; border-radius: 16px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
-        .stat-watermark { position: absolute; right: -10px; bottom: -10px; font-size: 60px; opacity: 0.1; pointer-events: none; }
-
-        .data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .data-table th { padding: 12px 16px; background: #f9fafb; color: #6b7280; font-size: 12px; font-weight: 700; border-bottom: 1px solid #e5e7eb; white-space: nowrap; text-align: left; }
-        .data-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; overflow: hidden; vertical-align: middle; }
-
-        .col-name { width: 100px; max-width: 100px; }
-        .name-wrapper { width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1e293b; font-weight: 500; }
-
-        .drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 1000; display: flex; justify-content: flex-end; backdrop-filter: blur(2px); }
-        .drawer-pop { background: white; width: 100%; max-width: 480px; height: 100vh; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.1); }
-        .slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }
-        .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
-
-        .thumb-box { width: 80px; height: 80px; border-radius: 8px; border: 2px dashed #e5e7eb; overflow: hidden; background: #f9fafb; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-        .thumb-box img { width: 100%; height: 100%; object-fit: cover; }
-
-        .btn-green { background: var(--line-green); color: white; padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-white { background: white; border: 1px solid #d1d5db; color: #374151; padding: 8px 16px; border-radius: 6px; font-weight: 500; font-size: 14px; }
-        .input-line { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; font-size: 14px; outline: none; }
-
-        @media (max-width: 768px) {
-            .sidebar { width: 100%; height: 60px; position: fixed; bottom: 0; flex-direction: row; border-right: none; border-top: 1px solid #e5e7eb; }
-            .main-content { margin-left: 0; padding-bottom: 60px; }
-            .menu-item { flex: 1; flex-direction: column; justify-content: center; padding: 0; font-size: 10px; border-left: none; border-top: 3px solid transparent; height: 60px; }
-            .menu-item.active { border-top-color: #06C755; background: transparent; }
-            .menu-item i { font-size: 18px; margin: 0 0 4px 0 !important; }
-            .col-name { width: 80px; max-width: 80px; }
-        }
-    </style>
+    .status-tag {
+      color: #00b900;
+      font-size: 14px;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 30px 16px;
+      color: var(--line-text-sub);
+      font-size: 14px;
+    }
+  </style>
 </head>
-
 <body>
 
-    <div id="app" v-cloak class="flex h-screen w-full">
-        <!-- LOGIN -->
-        <div v-if="!isLoggedIn" class="fixed inset-0 z-[2000] flex items-center justify-center bg-[#f0f2f5]">
-            <div class="bg-white p-12 rounded-2xl shadow-2xl w-[90%] md:w-[400px] text-center border">
-                <h1 class="text-2xl font-black text-gray-800 mb-10">宏學管理系統</h1>
-                <div class="space-y-4 text-left">
-                    <input v-model="account" type="text" class="input-line h-12" placeholder="帳號">
-                    <input v-model="password" @keyup.enter="login" type="password" class="input-line h-12" placeholder="密碼">
-                    <button @click="login" :disabled="isLoading" class="w-full btn-green justify-center py-4 text-base font-black mt-2">登入系統</button>
-                </div>
-                <p v-if="error" class="text-red-500 text-sm mt-6 font-bold flex items-center justify-center gap-1"><i class="fas fa-exclamation-circle"></i> {{ error }}</p>
-            </div>
-        </div>
+  <div class="header">預約名單管理</div>
+  
+  <div id="loading" class="loading">讀取預約資料中...</div>
+  
+  <div id="booking-list" class="list-container"></div>
 
-        <!-- MAIN -->
-        <template v-else>
-            <aside class="sidebar shadow-xl">
-                <div class="p-6 font-black text-xl border-b tracking-tight text-[#06C755] hidden md:block text-center">宏學管理站</div>
-                <div class="flex-1 py-4 flex md:block">
-                    <div class="menu-item" :class="{active: currentTab==='dashboard'}" @click="currentTab='dashboard'"><i class="fas fa-chart-pie w-6 text-center mr-2"></i> <span>統計</span></div>
-                    <div class="menu-item" :class="{active: currentTab==='courses'}" @click="currentTab='courses'"><i class="fas fa-book-open w-6 text-center mr-2"></i> <span>課程管理</span></div>
-                    <div class="menu-item" :class="{active: currentTab==='orders'}" @click="currentTab='orders'"><i class="fas fa-receipt w-6 text-center mr-2"></i> <span>訂單管理</span></div>
-                    <div class="menu-item text-gray-400 mt-auto" @click="logout"><i class="fas fa-power-off w-6 text-center mr-2"></i> <span>登出</span></div>
-                </div>
-            </aside>
+  <script>
+    window.onload = function() {
+      // 呼叫後端 getBookings 函式取得預約名單
+      if (typeof google !== 'undefined' && google.script) {
+        google.script.run
+          .withSuccessHandler(renderBookings)
+          .withFailureHandler(showError)
+          .getBookings();
+      } else {
+        renderBookings([
+          { "預約日期": "2026/04/08 10:00", "課程名稱": "測試課程 (本機)", "預約人": "測試員", "狀態": "已報名" }
+        ]);
+      }
+    };
 
-            <main class="main-content">
-                <header class="top-header">
-                    <h2 class="text-xl font-bold text-gray-800">{{ tabLabel }}</h2>
-                    <div class="flex gap-2">
-                        <button v-if="currentTab==='courses'" @click="executeMacroImport" class="btn-white text-blue-600 border-blue-100"><i class="fas fa-file-import"></i> 匯入宏學表單</button>
-                        <button @click="fetchData" class="btn-white"><i class="fas fa-sync-alt" :class="{'fa-spin':isLoading}"></i></button>
-                    </div>
-                </header>
+    function renderBookings(data) {
+      document.getElementById('loading').style.display = 'none';
+      const container = document.getElementById('booking-list');
+      
+      if (!data || data.length === 0) {
+        container.innerHTML = '<div class="loading">目前尚無任何預約紀錄</div>';
+        return;
+      }
 
-                <div class="content-scroll">
-                    <!-- Dashboard -->
-                    <div v-if="currentTab==='dashboard'" class="animate-fade-in">
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                            <div class="stat-card border-l-4 border-green-500">
-                                <p class="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">實收金額</p>
-                                <h3 class="text-xl font-black text-green-600">${{ (dashboardStats.totalRevenue || 0).toLocaleString() }}</h3>
-                            </div>
-                            <div class="stat-card border-l-4 border-orange-500">
-                                <p class="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">待付款項</p>
-                                <h3 class="text-xl font-black text-orange-500">${{ (dashboardStats.pendingRevenue || 0).toLocaleString() }}</h3>
-                            </div>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-l-4 border-[#06C755] pl-3">營收分析明細</h3>
-                        <div class="card overflow-x-auto">
-                            <table class="data-table min-w-max w-full">
-                                <thead>
-                                    <tr><th class="col-name">課程名稱</th><th class="text-center w-24">報名數</th><th class="text-right w-32">實收金額</th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="stat in sortedCourseStats" :key="stat.id">
-                                        <td class="col-name"><div class="name-wrapper">{{ stat.name }}</div></td>
-                                        <td class="text-center">{{ stat.paidCount }}</td>
-                                        <td class="text-right font-black text-green-600">${{ (stat.paidRevenue || 0).toLocaleString() }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+      let html = '';
+      
+      data.forEach(function(record) {
+        html += '<div class="booking-item">';
+        html += '<div class="booking-title">' + escapeHtml(String(record['課程名稱'] || '未命名')) + '</div>';
+        
+        // 迴圈印出名單詳細資訊
+        for (const [key, val] of Object.entries(record)) {
+          if (key === '課程名稱') continue; // 標題已顯示
+          
+          html += '<div class="booking-info">';
+          html += '<span>' + escapeHtml(String(key)) + '</span>';
+          
+          // 針對狀態改變顏色 (純文字不加粗，以顏色區分)
+          if (key === '狀態') {
+            html += '<span class="status-tag">' + escapeHtml(String(val)) + '</span>';
+          } else {
+            html += '<span>' + escapeHtml(String(val)) + '</span>';
+          }
+          html += '</div>';
+        }
+        
+        html += '</div>';
+      });
 
-                    <!-- Course List -->
-                    <div v-if="currentTab==='courses'" class="animate-fade-in">
-                        <div class="flex justify-between items-center mb-6">
-                            <input v-model="searchCourseTerm" class="input-line max-w-md shadow-sm" placeholder="搜尋課程...">
-                            <button @click="openAddCourse" class="btn-green h-11"><i class="fas fa-plus"></i> 新增課程</button>
-                        </div>
-                        <div class="card overflow-x-auto">
-                            <table class="data-table">
-                                <thead>
-                                    <tr><th class="w-16">預覽</th><th class="col-name">名稱</th><th class="w-32">日期</th><th class="w-32">費用/名額</th><th class="text-right w-24">管理</th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="c in filteredCourses" :key="c.id" class="hover:bg-slate-50 transition border-b border-slate-50">
-                                        <td><div class="w-10 h-10 bg-slate-50 rounded overflow-hidden flex items-center justify-center border shadow-inner"><img v-if="c.image" :src="c.image" class="w-full h-full object-cover" @error="handleImgError"><i v-else class="fas fa-image text-slate-200"></i></div></td>
-                                        <td class="col-name"><div class="name-wrapper">{{ c.name }}</div><div class="text-[10px] text-slate-400 font-mono">{{ c.id }}</div></td>
-                                        <td class="text-sm text-slate-500">{{ formatDate(c.startDate) }}</td>
-                                        <td><div class="font-black text-green-600">${{ (Number(c.price) || 0).toLocaleString() }}</div><div class="text-[10px] text-slate-400">{{ c.enrolled }}/{{ c.capacity }}人</div></td>
-                                        <td class="text-right"><button @click="openEditCourse(c)" class="text-slate-400 font-bold text-xs hover:underline">編輯</button></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </main>
-        </template>
+      container.innerHTML = html;
+    }
 
-        <!-- Edit Drawer -->
-        <transition name="slide">
-            <div v-if="showCourseModal" class="drawer-mask" @click.self="showCourseModal=false">
-                <div class="drawer-pop">
-                    <div class="h-16 border-b px-6 flex justify-between items-center bg-white shrink-0">
-                        <h3 class="font-black text-gray-800 tracking-tight text-sm">{{ isEditingCourse ? '修改課程資料' : '新增課程' }}</h3>
-                        <button @click="showCourseModal=false" class="text-slate-300 hover:text-slate-500 flex items-center justify-center"><i class="fas fa-times text-lg"></i></button>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-8 space-y-8 bg-white text-left">
-                        <div class="flex gap-5 items-center pb-6 border-b border-slate-50">
-                            <div @click="$refs.fileInput.click()" class="thumb-box shadow-sm border-2"><img v-if="courseForm.image" :src="courseForm.image" @error="handleImgError"><i v-else class="fas fa-camera text-2xl text-slate-200"></i></div>
-                            <div class="flex-1">
-                                <p class="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">封面預覽 (800px)</p>
-                                <button @click="$refs.fileInput.click()" class="btn-white text-xs py-2 px-4 shadow-sm font-bold">選擇照片</button>
-                                <input type="file" ref="fileInput" @change="processImage" accept="image/*" class="hidden">
-                            </div>
-                        </div>
-                        <div class="space-y-5">
-                            <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">課程標題</label><input v-model="courseForm.name" class="input-line font-bold"></div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">類型</label><input v-model="courseForm.type" class="input-line"></div>
-                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">狀態</label><select v-model="courseForm.status" class="input-line"><option value="下架">下架</option><option value="上架">上架</option></select></div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">單價</label><input v-model="courseForm.price" type="number" class="input-line font-black text-green-600"></div>
-                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">名額限制</label><input v-model="courseForm.capacity" type="number" class="input-line"></div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">日期</label><input v-model="courseForm.startDate" class="input-line" placeholder="YYYY-MM-DD"></div>
-                                <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">時間</label><input v-model="courseForm.startTime" class="input-line" placeholder="HH:mm"></div>
-                            </div>
-                            <div><label class="text-[11px] font-bold text-slate-400 block mb-1 uppercase">簡介內容</label><textarea v-model="courseForm.description" rows="6" class="input-line text-sm leading-relaxed"></textarea></div>
-                        </div>
-                    </div>
-                    <div class="p-6 border-t bg-slate-50 flex gap-3"><button @click="showCourseModal=false" class="flex-1 btn-white py-4 h-auto font-bold">取消</button><button @click="saveCourse" :disabled="isLoading" class="flex-[2] btn-green py-4 h-auto justify-center shadow-lg text-base">確認儲存</button></div>
-                </div>
-            </div>
-        </transition>
-    </div>
+    function showError(error) {
+      document.getElementById('loading').innerText = '系統錯誤：' + error.message;
+    }
 
-    <script>
-        const { createApp, ref, computed } = Vue;
-        const API_ENDPOINT = 'https://action.fangwl591021.workers.dev/';
-        const MACRO_TOKEN = 'macro-import-2026';
-
-        createApp({
-            setup() {
-                const isLoggedIn = ref(false), account = ref(''), password = ref(''), isLoading = ref(false), error = ref('');
-                const currentTab = ref('dashboard'), courses = ref([]), orders = ref([]), users = ref([]);
-                const searchTerm = ref(''), searchCourseTerm = ref('');
-                const showCourseModal = ref(false), isEditingCourse = ref(false), courseForm = ref({});
-
-                const tabLabel = computed(() => ({ 'dashboard': '數據中心', 'courses': '課程管理', 'orders': '訂單紀錄' }[currentTab.value]));
-
-                const logout = () => {
-                    isLoggedIn.value = false; account.value = ''; password.value = '';
-                    localStorage.removeItem('sportIsland_sso_uid');
-                };
-
-                const callApi = async (action, payload = {}) => {
-                    try {
-                        const res = await fetch(API_ENDPOINT, { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${MACRO_TOKEN}` }, 
-                            body: JSON.stringify({ action, payload }) 
-                        });
-                        const json = await res.json();
-                        if (json.success || json.status === 'success') return json.data;
-                        throw new Error(json.message || '執行失敗');
-                    } catch (e) {
-                        console.error("API Call Error:", e);
-                        throw e;
-                    }
-                };
-
-                const fetchData = async () => {
-                    isLoading.value = true;
-                    try {
-                        const d = await callApi('ADMIN_GET_DATA');
-                        courses.value = d.courses || [];
-                        orders.value = (d.orders || []).reverse();
-                    } catch (e) { error.value = "資料同步失敗"; } finally { isLoading.value = false; }
-                };
-
-                const login = async () => {
-                    error.value = '';
-                    if (account.value !== 'action' || password.value !== '@1234') { error.value = '帳號或密碼錯誤'; return; }
-                    isLoading.value = true;
-                    try { isLoggedIn.value = true; fetchData(); } catch (e) { error.value = '連線異常'; } finally { isLoading.value = false; }
-                };
-
-                const executeMacroImport = async () => {
-                    if (!confirm('執行匯入？系統將從「工作表 1」讀取 A(名稱), B(價格), C(類型)。')) return;
-                    isLoading.value = true;
-                    try { const msg = await callApi('MACRO_IMPORT'); alert(msg); fetchData(); } catch (e) { alert(e.message); } finally { isLoading.value = false; }
-                };
-
-                const filteredCourses = computed(() => {
-                    const s = searchCourseTerm.value.toLowerCase();
-                    let res = courses.value.filter(c => !s || String(c.name).toLowerCase().includes(s));
-                    return res.sort((a, b) => (b.startDate || '').localeCompare(a.startDate || '') || (b.id || '').localeCompare(a.id || ''));
-                });
-
-                const sortedCourseStats = computed(() => {
-                    return courses.value.map(c => {
-                        const cOrders = orders.value.filter(o => o.courseId === c.id);
-                        return { id: c.id, name: c.name, paidCount: cOrders.filter(o => o.status === 'PAID').length, paidRevenue: cOrders.filter(o => o.status === 'PAID').reduce((a, b) => a + (Number(b.amount) || 0), 0) };
-                    }).sort((a, b) => (b.paidRevenue || 0) - (a.paidRevenue || 0));
-                });
-
-                const dashboardStats = computed(() => {
-                    let rev = 0, pending = 0;
-                    orders.value.forEach(o => {
-                        const amt = Number(o.amount) || 0;
-                        if (o.status === 'PAID') rev += amt;
-                        else if (o.status === 'PENDING') pending += amt;
-                    });
-                    return { totalRevenue: rev, pendingRevenue: pending, totalOrders: orders.length };
-                });
-
-                const openAddCourse = () => { isEditingCourse.value = false; courseForm.value = { id: '', name: '', type: '', startDate: '', price: 0, capacity: 20, status: '下架', image: '', startTime: '', description: '' }; showCourseModal.value = true; };
-                const openEditCourse = (c) => { isEditingCourse.value = true; courseForm.value = { ...c }; showCourseModal.value = true; };
-                const saveCourse = async () => { isLoading.value = true; try { await callApi(isEditingCourse.value ? 'ADMIN_UPDATE_COURSE' : 'ADMIN_ADD_COURSE', courseForm.value); showCourseModal.value = false; fetchData(); } catch (e) { alert(e.message); } finally { isLoading.value = false; } };
-                const formatDate = (d) => (d && d !== '1970-01-01' && !d.startsWith('1899')) ? d : '未定';
-                const handleImgError = (e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<i class="fas fa-image text-slate-200"></i>'; };
-
-                const processImage = (event) => {
-                    const file = event.target.files[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            let width = img.width, height = img.height;
-                            if (width > 800) { height *= 800 / width; width = 800; }
-                            canvas.width = width; canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, width, height);
-                            courseForm.value.image = canvas.toDataURL('image/jpeg', 0.7);
-                        };
-                        img.src = e.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                };
-
-                return { isLoggedIn, account, password, isLoading, error, currentTab, tabLabel, courses, orders, users, searchTerm, searchCourseTerm, filteredCourses, dashboardStats, sortedCourseStats, showCourseModal, isEditingCourse, courseForm, login, logout, fetchData, executeMacroImport, openAddCourse, openEditCourse, saveCourse, processImage, formatDate, handleImgError };
-            }
-        }).mount('#app');
-    </script>
+    function escapeHtml(unsafeText) {
+      return unsafeText
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
 </body>
 </html>
