@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.08.V36_Final_Complete_Sync -->
+    <!-- Version: 2026.04.08.V37_Description_Layout_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -92,7 +92,15 @@
             <div v-else-if="view === 'success'" class="animate-fade-in flex flex-col items-center justify-center min-h-[70vh] px-10 text-center"><div class="w-20 h-20 bg-[#06C755] text-white rounded-full flex items-center justify-center text-3xl shadow-xl mb-6 animate-bounce"><i class="fas fa-check"></i></div><h2 class="text-2xl font-bold mb-2">成功！</h2><button @click="view='course_list'" class="btn-main" style="max-width:240px;">返回</button></div>
         </main>
         <div v-if="viewingCourse" class="modal-mask" @click.self="viewingCourse = null">
-            <div class="modal-body animate-fade-in bg-white rounded-3xl overflow-hidden shadow-2xl"><img :src="viewingCourse.image" class="w-full aspect-video object-cover"><div class="p-6"><h3 class="font-bold mb-4">{{ viewingCourse.name }}</h3><div class="text-slate-500 text-sm mb-6 max-h-48 overflow-y-auto">{{ viewingCourse.description }}</div><button @click="viewingCourse = null; selectCourse(viewingCourse)" class="btn-main">我要報名</button></div></div>
+            <div class="modal-body animate-fade-in bg-white rounded-3xl overflow-hidden shadow-2xl">
+                <img :src="viewingCourse.image" class="w-full aspect-video object-cover" @error="viewingCourse.image='https://via.placeholder.com/400x225?text=No+Image'">
+                <div class="p-6">
+                    <h3 class="font-bold mb-4">{{ viewingCourse.name }}</h3>
+                    <!-- 核心修正：加入 whitespace-pre-wrap 與 leading-relaxed 確保換行與行距優雅呈現 -->
+                    <div class="text-slate-500 text-sm mb-6 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ viewingCourse.description || '暫無說明' }}</div>
+                    <button @click="viewingCourse = null; selectCourse(viewingCourse)" class="btn-main">我要報名</button>
+                </div>
+            </div>
         </div>
         <div v-if="activeRemitOrder" class="modal-mask" @click.self="activeRemitOrder = null"><div class="modal-body p-6 animate-fade-in bg-white rounded-3xl"><h3 class="font-bold mb-4">回報匯款</h3><input type="tel" v-model="remitLastFive" maxlength="5" class="input-box mb-4" placeholder="五碼"><button @click="submitRemitInfo" :disabled="isSubmitting" class="btn-main">確認</button></div></div>
     </div>
