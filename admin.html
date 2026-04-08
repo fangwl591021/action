@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.08.V32_Minimal_UI_Fix -->
+    <!-- Version: 2026.04.08.V33_True_Original_Mapping_Fix -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -67,7 +67,7 @@
             <header class="page-header">
                 <h2 class="text-lg font-bold text-slate-800">{{ currentViewName }}</h2>
                 <div class="flex items-center gap-4">
-                    <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V32_MINIMAL_UI</span>
+                    <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V33_TRUE_MAPPING</span>
                     <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition">
                         <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步
                     </button>
@@ -96,7 +96,7 @@
                     </div>
                 </div>
 
-                <!-- 2. 一般課程管理 (去按鈕化、極簡流) -->
+                <!-- 2. 一般課程管理 (極簡去框) -->
                 <div v-if="view === 'courses'" class="admin-table-container animate-fade-in">
                     <table class="admin-table">
                         <thead><tr><th style="width: 280px">課程資訊</th><th>類型/時間</th><th>費用/名額</th><th>繳費狀況</th><th class="text-right">操作</th></tr></thead>
@@ -107,12 +107,10 @@
                                 <td><div class="text-[19px] font-bold text-[#06C755] mb-0.5">${{ formatPrice(c.price) }}</div><div class="text-slate-500 text-[13px]">{{ c.enrolled }} / {{ c.capacity }} 人</div></td>
                                 <td>
                                     <div class="text-[13px] text-slate-600 mb-1">已付: <span class="text-[#06C755] font-bold">{{ getCoursePaidCount(c.id) }}</span> | 待付: <span class="text-orange-500 font-bold">{{ getCoursePendingCount(c.id) }}</span></div>
-                                    <!-- 修正：去背 Click -->
                                     <div @click="openEnrollments(c)" class="text-[13px] text-slate-700 cursor-pointer hover:text-[#06C755] transition inline-block">Click</div>
                                 </td>
                                 <td class="text-right">
                                     <div class="flex justify-end gap-5 items-center">
-                                        <!-- 修正：純文字與 icon 組合 -->
                                         <button class="text-[14px] text-slate-700 font-medium hover:text-[#06C755] transition">簽到</button>
                                         <button @click="copyCourse(c)" class="text-slate-400 hover:text-slate-700 text-lg transition"><i class="far fa-copy"></i></button>
                                         <button @click="openEditModal(c)" class="text-[14px] text-blue-600 font-medium transition">編輯</button>
@@ -130,11 +128,11 @@
                         <tbody>
                             <tr v-for="o in orders" :key="o.orderId">
                                 <td class="text-xs font-mono text-slate-400">{{ o.orderId }}</td><td class="font-medium text-slate-700">{{ getCourseName(o.courseId) }}</td>
-                                <td><div class="font-bold text-slate-800">{{ o.name }}</div><div class="text-[11px] text-slate-400">{{ o.phone }}</div></td>
+                                <td><div class="font-bold text-slate-800">{{ o.name }}</div><div class="text-[11px] text-slate-400 font-mono">{{ o.phone }}</div></td>
                                 <td class="text-[16px] font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td>
                                 <td><span :class="o.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge">{{ o.status === 'PAID' ? '已完款' : '待付款' }}</span></td>
-                                <td class="font-bold text-blue-600">{{ o.remittance || '-' }}</td>
-                                <td class="text-right"><button @click="openOrderEditModal(o)" class="px-5 py-1.5 border rounded-lg text-xs font-bold">編輯訂單</button></td>
+                                <td class="font-bold text-blue-600 tracking-widest">{{ o.remittance || '-' }}</td>
+                                <td class="text-right"><button @click="openOrderEditModal(o)" class="px-5 py-1.5 border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-50 transition">編輯</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -147,7 +145,7 @@
                         <tbody>
                             <tr v-for="u in users" :key="u.userId">
                                 <td class="font-bold text-slate-800">{{ u.name }}</td><td>{{ u.gender }}</td><td class="font-mono">{{ u.phone }}</td><td class="text-[#06C755] font-medium">{{ u.industry }}</td><td class="text-[11px] text-slate-400">{{ u.createdAt }}</td>
-                                <td class="text-right"><button @click="openMemberEditModal(u)" class="text-blue-600 font-medium text-[14px]">編輯</button></td>
+                                <td class="text-right"><button @click="openMemberEditModal(u)" class="text-blue-600 font-medium text-[14px] transition">編輯</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -155,7 +153,7 @@
             </div>
         </main>
 
-        <!-- [Modal D] 課程編輯 -->
+        <!-- [Modal D] 課程編輯：完全回歸正確的 A-S 欄位顯示標籤 -->
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
             <div class="modal-body modal-body-lg animate-fade-in" style="background-color: #f8fafc;">
                 <div class="px-8 py-5 border-b flex justify-between items-center bg-white">
@@ -166,22 +164,22 @@
                     <div class="grid grid-cols-12 gap-10">
                         <div class="col-span-7 space-y-6">
                             <div class="flex gap-5">
-                                <div class="w-1/3"><label class="input-label">課程 ID (H 欄)</label><input type="text" v-model="editingCourse.id" disabled class="input-field disabled:bg-slate-50"></div>
-                                <div class="flex-grow"><label class="input-label">分類標籤 (C 欄)</label><input type="text" v-model="editingCourse.type" class="input-field"></div>
+                                <div class="w-1/3"><label class="input-label">課程 ID (A 欄)</label><input type="text" v-model="editingCourse.id" disabled class="input-field disabled:bg-slate-50"></div>
+                                <div class="flex-grow"><label class="input-label">分類標籤 (M 欄)</label><input type="text" v-model="editingCourse.type" class="input-field"></div>
                             </div>
-                            <div><label class="input-label">課程名稱 (A 欄)</label><input type="text" v-model="editingCourse.name" class="input-field font-bold"></div>
+                            <div><label class="input-label">課程名稱 (B 欄)</label><input type="text" v-model="editingCourse.name" class="input-field font-bold text-lg"></div>
                             <div class="grid grid-cols-2 gap-6">
-                                <div><label class="input-label">費用 (B 欄)</label><input type="text" v-model="editingCourse.price" class="input-field font-bold text-orange-600"></div>
+                                <div><label class="input-label">費用 (E 欄)</label><input type="text" v-model="editingCourse.price" class="input-field font-bold text-orange-600"></div>
                                 <div><label class="input-label">容量 (F 欄)</label><input type="number" v-model="editingCourse.capacity" class="input-field"></div>
                             </div>
-                            <div><label class="input-label">時段描述 (L 欄)</label><input type="text" v-model="editingCourse.timeSlotType" class="input-field"></div>
+                            <div><label class="input-label">時段描述 (N 欄)</label><input type="text" v-model="editingCourse.timeSlotType" class="input-field"></div>
                             <div class="grid grid-cols-2 gap-6">
-                                <div><label class="input-label">開始日期 (D 欄)</label><input type="date" v-model="editingCourse.startDate" class="input-field"></div>
-                                <div><label class="input-label">結束日期 (E 欄)</label><input type="date" v-model="editingCourse.endDate" class="input-field"></div>
+                                <div><label class="input-label">開始日期 (C 欄)</label><input type="date" v-model="editingCourse.startDate" class="input-field"></div>
+                                <div><label class="input-label">結束日期 (D 欄)</label><input type="date" v-model="editingCourse.endDate" class="input-field"></div>
                             </div>
                             <div class="grid grid-cols-2 gap-6">
-                                <div><label class="input-label">上課地點 (J 欄)</label><input type="text" v-model="editingCourse.location" class="input-field"></div>
-                                <div><label class="input-label">導師姓名 (K 欄)</label><input type="text" v-model="editingCourse.instructor" class="input-field"></div>
+                                <div><label class="input-label">上課地點 (H 欄)</label><input type="text" v-model="editingCourse.location" class="input-field"></div>
+                                <div><label class="input-label">導師姓名 (I 欄)</label><input type="text" v-model="editingCourse.instructor" class="input-field"></div>
                             </div>
                         </div>
                         
@@ -192,12 +190,12 @@
                                     <img v-if="editingCourse.image" :src="editingCourse.image" class="w-full h-full object-cover">
                                     <div v-else class="text-slate-300 font-bold text-xs uppercase flex items-center gap-2"><i class="fas fa-camera"></i> 無圖片</div>
                                 </div>
-                                <button @click="$refs.fileInput.click()" class="w-full mt-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition"><i class="fas fa-upload mr-2"></i>更換圖片</button>
+                                <button @click="$refs.fileInput.click()" class="w-full mt-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition"><i class="fas fa-upload mr-2"></i>更換圖片 (自動壓縮)</button>
                                 <p class="text-[11px] text-slate-400 mt-2">💡 提示：圖片會自動壓縮至 250px 寬度，檔案大小限制 50KB 文字</p>
                                 <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload">
                             </div>
                             <div>
-                                <div class="section-title !text-[15px] !mb-3">詳細內容 (I 欄)</div>
+                                <div class="section-title !text-[15px] !mb-3">詳細內容 (S 欄)</div>
                                 <textarea v-model="editingCourse.description" class="input-field h-32 resize-none text-sm"></textarea>
                             </div>
                         </div>
@@ -205,14 +203,14 @@
                 </div>
                 <div class="px-8 py-5 border-t bg-white flex justify-end gap-3 rounded-b-16px">
                     <button @click="editingCourse = null" class="px-8 py-2.5 text-slate-500 font-bold transition">取消</button>
-                    <button @click="saveCourse" :disabled="isLoading" class="bg-[#f0fdf4] text-[#06C755] px-10 py-2.5 rounded-lg font-bold disabled:opacity-50 hover:bg-[#06c755] hover:text-white transition">{{ isLoading ? '處理中...' : '儲存變更' }}</button>
+                    <button @click="saveCourse" :disabled="isLoading" class="bg-[#f0fdf4] text-[#06C755] px-10 py-2.5 rounded-lg font-bold disabled:opacity-50 hover:bg-[#06c755] hover:text-white transition">{{ isLoading ? '處理中' : '儲存變更' }}</button>
                 </div>
             </div>
         </div>
 
-        <!-- [Modal A, B, C] -->
+        <!-- [Modal A, B, C] 報名名單, 訂單編輯, 學員編輯 -->
         <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
-            <div class="modal-body modal-body-lg animate-fade-in"><div class="px-8 py-6 border-b flex justify-between items-center"><h3 class="text-xl font-bold text-slate-800">{{ activeEnrollmentCourse.name }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400"><i class="fas fa-times"></i></button></div><div class="p-8 overflow-y-auto" style="max-height: 70vh;"><table class="admin-table !min-w-full border rounded-xl overflow-hidden shadow-sm"><thead><tr class="bg-slate-50"><th>學員姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">操作</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId"><td>{{ o.name }}</td><td>{{ o.phone }}</td><td class="font-bold">\$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付款' }}</span></td><td>{{ o.remittance || '-' }}</td><td class="text-right"><button @click="openOrderEditModal(o)" class="bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-lg border border-blue-100">編輯訂單</button></td></tr></tbody></table></div><div class="px-8 py-5 border-t flex justify-end"><button @click="activeEnrollmentCourse = null" class="px-10 py-2.5 border rounded-xl font-bold">關閉</button></div></div>
+            <div class="modal-body modal-body-lg animate-fade-in"><div class="px-8 py-6 border-b flex justify-between items-center"><h3 class="text-xl font-bold text-slate-800">{{ activeEnrollmentCourse.name }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400"><i class="fas fa-times"></i></button></div><div class="p-8 overflow-y-auto" style="max-height: 70vh;"><table class="admin-table !min-w-full border rounded-xl overflow-hidden shadow-sm"><thead><tr class="bg-slate-50"><th>學員姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">操作</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId"><td>{{ o.name }}</td><td>{{ o.phone }}</td><td class="font-bold">\$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付款' }}</span></td><td>{{ o.remittance || '-' }}</td><td class="text-right"><button @click="openOrderEditModal(o)" class="bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-lg border border-blue-100">編輯</button></td></tr></tbody></table></div><div class="px-8 py-5 border-t flex justify-end"><button @click="activeEnrollmentCourse = null" class="px-10 py-2.5 border rounded-xl font-bold">關閉</button></div></div>
         </div>
         <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
             <div class="modal-body animate-fade-in"><div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50/30"><h3 class="text-lg font-bold text-gray-800">訂單狀態維護</h3><button @click="editingOrder = null" class="text-gray-400"><i class="fas fa-times"></i></button></div><div class="p-8 space-y-6"><div class="grid grid-cols-2 gap-6"><div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field"><option value="PENDING">待付款</option><option value="PAID">已完款</option><option value="CANCELLED">已取消</option></select></div><div><label class="input-label">實收金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field text-[#06C755] font-bold"></div></div><div><label class="input-label">匯款後五碼</label><input type="text" v-model="editingOrder.remittance" class="input-field text-center font-mono" maxlength="5"></div><div><label class="input-label">備註</label><textarea v-model="editingOrder.note" class="input-field h-28 resize-none"></textarea></div></div><div class="px-8 py-5 bg-slate-50 border-t flex justify-end gap-3"><button @click="editingOrder = null" class="px-6 py-2.5 rounded-xl font-bold text-slate-400 border bg-white">取消</button><button @click="saveOrderUpdate" :disabled="isLoading" class="btn-green-main min-w-[120px]">{{ isLoading ? '更新中' : '更新狀態' }}</button></div></div>
@@ -232,7 +230,7 @@
                 const view = ref('dashboard'); const courses = ref([]); const orders = ref([]); const users = ref([]); const isLoading = ref(false); 
                 const editingCourse = ref(null); const editingOrder = ref(null); const editingMember = ref(null); const activeEnrollmentCourse = ref(null);
 
-                const currentViewName = computed(() => ({'dashboard': '數據中心', 'courses': '課程活動總表', 'orders': '訂單維護', 'members': '學員名冊'}[view.value]));
+                const currentViewName = computed(() => ({'dashboard': '數據中心', 'courses': '課程列表', 'orders': '訂單維護', 'members': '學員名冊'}[view.value]));
                 const formatPrice = (p) => { if(!p) return "0"; const clean = String(p).replace(/[^0-9.]/g, ""); return Number(clean).toLocaleString(); };
 
                 const statsSummary = computed(() => {
@@ -255,7 +253,7 @@
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
                         const json = await res.json(); if (json.status !== 'success') throw new Error(json.data); return json.data;
-                    } catch (e) { alert('伺服器錯誤: ' + e.message); return null; }
+                    } catch (e) { alert('伺服器連線失敗，請確認已重新發布 GAS。'); return null; }
                     finally { isLoading.value = false; }
                 };
 
