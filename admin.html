@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.08.V30_Image_Display_Fixed -->
+    <!-- Version: 2026.04.08.V31_Strict_Mapping_R_Column -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -26,12 +26,14 @@
         .admin-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.15s; }
         .admin-table tbody td { padding: 18px 16px; font-size: 14px; vertical-align: middle; }
 
-        .status-pill-waiting { background-color: #FEF3C7; color: #92400E; font-weight: 600; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
-        .status-pill-paid { background-color: #DCFCE7; color: #166534; font-weight: 600; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+        .status-badge { font-weight: 600; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+        .status-pill-waiting { background-color: #FEF3C7; color: #92400E; }
+        .status-pill-paid { background-color: #DCFCE7; color: #166534; }
         
+        .btn-green-main { background-color: #06C755; color: white; font-weight: 600; padding: 10px 24px; border-radius: 8px; transition: 0.2s; }
+        .btn-green-main:disabled { opacity: 0.6; }
         .btn-click-badge { @apply bg-[#06C755] text-white text-[10px] font-bold px-3 py-1 rounded inline-flex items-center gap-1; }
         .btn-checkin-badge { @apply bg-[#f0fdf4] border border-[#dcfce7] text-[#06C755] font-bold px-4 py-2 rounded-xl inline-flex items-center gap-2; }
-        .btn-green-main { @apply bg-[#06C755] text-white font-bold rounded-lg hover:bg-[#05b347] transition; }
 
         .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .modal-body { background: white; width: 100%; max-width: 560px; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
@@ -40,62 +42,13 @@
         .input-label { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 6px; display: block; }
         .input-field { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; font-size: 15px; outline: none; transition: 0.2s; background: #fff; }
         .input-field:focus { border-color: #06C755; box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.1); }
-        .input-field:disabled { background-color: #f8fafc; color: #94a3b8; }
+        .input-field:disabled { background-color: #f8fafc; color: #94a3b8; border-color: #e2e8f0; }
         
         .section-title { font-size: 16px; font-weight: 700; color: #1e293b; border-left: 5px solid #06C755; padding-left: 12px; margin-bottom: 20px; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .hide-scrollbar::-webkit-scrollbar { height: 4px; }
         .hide-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        
-        /* 【新增】圖片預覽容器 - 確保正確顯示 */
-        .image-preview-box { 
-            width: 100%; 
-            aspect-ratio: 16/9; 
-            background: #f8fafc; 
-            border: 2px dashed #cbd5e1; 
-            border-radius: 12px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            overflow: hidden;
-            position: relative;
-            margin-bottom: 12px;
-        }
-        .image-preview-box img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-        }
-        .image-preview-box.empty { 
-            color: #cbd5e1; 
-            font-size: 14px; 
-            font-weight: 600;
-        }
-        
-        /* 【新增】圖片上傳進度/狀態提示 */
-        .image-status { 
-            font-size: 12px; 
-            margin-top: 8px; 
-            padding: 8px 12px; 
-            border-radius: 6px; 
-            margin-bottom: 12px;
-        }
-        .image-status.success { 
-            background: #dcfce7; 
-            color: #166534; 
-            font-weight: 600;
-        }
-        .image-status.warning { 
-            background: #fef3c7; 
-            color: #92400e; 
-            font-weight: 600;
-        }
-        .image-status.error { 
-            background: #fee2e2; 
-            color: #991b1b; 
-            font-weight: 600;
-        }
     </style>
 </head>
 <body>
@@ -116,7 +69,7 @@
             <header class="page-header">
                 <h2 class="text-lg font-bold text-slate-800">{{ currentViewName }}</h2>
                 <div class="flex items-center gap-4">
-                    <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V30_Image_Fixed</span>
+                    <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V31_R_Strict_MAP</span>
                     <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition">
                         <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步
                     </button>
@@ -139,6 +92,7 @@
                                 <tr v-for="c in courseStatsFiltered" :key="c.id">
                                     <td class="font-bold text-slate-700">{{ c.name }}</td><td class="text-center">{{ c.totalOrders }}</td><td>$ {{ c.totalExpected.toLocaleString() }}</td><td class="text-orange-500 font-bold">$ {{ c.pendingAmount.toLocaleString() }}</td><td class="text-[#06C755] font-black">$ {{ c.paidAmount.toLocaleString() }}</td>
                                 </tr>
+                                <tr v-if="courseStatsFiltered.length === 0"><td colspan="5" class="text-center text-slate-400 py-10">尚無報名資料</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -150,7 +104,7 @@
                         <thead><tr><th style="width: 280px">課程資訊</th><th>類型/時間</th><th>費用/名額</th><th>繳費狀況</th><th class="text-right">操作</th></tr></thead>
                         <tbody>
                             <tr v-for="c in courses" :key="c.id">
-                                <td><div class="font-bold text-[17px] text-slate-800 mb-0.5">{{ c.name }}</div><div class="text-slate-400 text-xs mb-2">({{ c.timeSlotType }})</div><span class="bg-slate-100 text-[#94a3b8] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-tighter">{{ c.id }}</span></td>
+                                <td><div class="font-bold text-[17px] text-slate-800 mb-0.5">{{ c.name }}</div><div class="text-slate-400 text-xs mb-2">({{ c.timeSlotType || '未填寫時段' }})</div><span class="bg-slate-100 text-[#94a3b8] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-tighter">{{ c.id }}</span></td>
                                 <td><span class="bg-blue-50 text-blue-600 font-bold text-[10px] px-2 py-0.5 rounded mb-1 inline-block">{{ c.type }}</span><div class="text-[13px] text-slate-500">{{ c.startDate }} ~ {{ c.endDate }}</div></td>
                                 <td><div class="text-[19px] font-bold text-[#06C755] mb-0.5">${{ formatPrice(c.price) }}</div><div class="text-slate-500 text-[13px]">{{ c.enrolled }} / {{ c.capacity }} 人</div></td>
                                 <td><div class="text-[13px] text-slate-600 mb-2">已付: <span class="text-[#06C755] font-bold">{{ getCoursePaidCount(c.id) }}</span> | 待付: <span class="text-orange-500 font-bold">{{ getCoursePendingCount(c.id) }}</span></div><button @click="openEnrollments(c)" class="btn-click-badge">Click</button></td>
@@ -198,11 +152,14 @@
             </div>
         </main>
 
-        <!-- [Modal D] 課程編輯 (【修正】圖片顯示邏輯) -->
+        <!-- [Modal D] 課程編輯：精準對齊 A-R 欄位 -->
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
-            <div class="modal-body modal-body-lg animate-fade-in">
-                <div class="px-8 py-5 border-b flex justify-between items-center bg-slate-50/50"><h3 class="text-lg font-bold text-slate-800">課程活動內容編輯</h3><button @click="editingCourse = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button></div>
-                <div class="flex-grow overflow-y-auto p-10 hide-scrollbar" style="max-height: 70vh;">
+            <div class="modal-body modal-body-lg animate-fade-in" style="background-color: #f8fafc;">
+                <div class="px-8 py-5 border-b flex justify-between items-center bg-white">
+                    <h3 class="text-lg font-bold text-slate-800">課程活動內容編輯</h3>
+                    <button @click="editingCourse = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="flex-grow overflow-y-auto p-10 hide-scrollbar bg-white m-4 rounded-xl border border-slate-100" style="max-height: 70vh;">
                     <div class="grid grid-cols-12 gap-10">
                         <div class="col-span-7 space-y-6">
                             <div class="flex gap-5">
@@ -211,7 +168,7 @@
                             </div>
                             <div><label class="input-label">課程名稱 (A 欄)</label><input type="text" v-model="editingCourse.name" class="input-field font-bold"></div>
                             <div class="grid grid-cols-2 gap-6">
-                                <div><label class="input-label">費用 (B 欄)</label><input type="number" v-model="editingCourse.price" class="input-field font-bold text-orange-600"></div>
+                                <div><label class="input-label">費用 (B 欄)</label><input type="text" v-model="editingCourse.price" class="input-field font-bold text-orange-600"></div>
                                 <div><label class="input-label">容量 (F 欄)</label><input type="number" v-model="editingCourse.capacity" class="input-field"></div>
                             </div>
                             <div><label class="input-label">時段描述 (L 欄)</label><input type="text" v-model="editingCourse.timeSlotType" class="input-field"></div>
@@ -219,44 +176,46 @@
                                 <div><label class="input-label">開始日期 (D 欄)</label><input type="date" v-model="editingCourse.startDate" class="input-field"></div>
                                 <div><label class="input-label">結束日期 (E 欄)</label><input type="date" v-model="editingCourse.endDate" class="input-field"></div>
                             </div>
-                            <div><label class="input-label">上課地點 (J 欄)</label><input type="text" v-model="editingCourse.location" class="input-field"></div>
-                        </div>
-                        <div class="col-span-5 space-y-8">
-                            <div>
-                                <div class="section-title">宣傳圖片 (R 欄位)</div>
-                                <!-- 【修正】圖片預覽區 -->
-                                <div class="image-preview-box" :class="{'empty': !editingCourse.image}">
-                                    <img v-if="editingCourse.image && editingCourse.image.startsWith('data:image')" :src="editingCourse.image" alt="課程圖片">
-                                    <div v-else>📷 無圖片</div>
-                                </div>
-                                <!-- 【新增】圖片狀態提示 -->
-                                <div v-if="imageUploadStatus.message" :class="'image-status ' + imageUploadStatus.type">
-                                    {{ imageUploadStatus.message }}
-                                </div>
-                                <button @click="$refs.fileInput.click()" class="w-full py-2.5 border rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 transition"><i class="fas fa-upload mr-2"></i>更換圖片</button>
-                                <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload">
-                                <div class="text-[11px] text-slate-400 mt-2">💡 提示：圖片會自動壓縮至 250px 寬度，檔案大小限制 50KB 文字</div>
+                            <div class="grid grid-cols-2 gap-6">
+                                <div><label class="input-label">上課地點 (J 欄)</label><input type="text" v-model="editingCourse.location" class="input-field"></div>
+                                <div><label class="input-label">導師姓名 (K 欄)</label><input type="text" v-model="editingCourse.instructor" class="input-field"></div>
                             </div>
-                            <div><div class="section-title">詳細內容 (I 欄)</div><textarea v-model="editingCourse.description" class="input-field h-40 resize-none leading-relaxed text-sm"></textarea></div>
+                        </div>
+                        
+                        <div class="col-span-5 space-y-6">
+                            <div>
+                                <div class="section-title !text-[15px] !mb-3">宣傳圖片 (R 欄位映射)</div>
+                                <div class="w-full aspect-[4/3] bg-[#f8fafc] rounded-xl overflow-hidden border border-dashed border-slate-300 flex items-center justify-center relative">
+                                    <img v-if="editingCourse.image" :src="editingCourse.image" class="w-full h-full object-cover">
+                                    <div v-else class="text-slate-300 font-bold text-xs uppercase flex items-center gap-2"><i class="fas fa-camera"></i> 無圖片</div>
+                                </div>
+                                <button @click="$refs.fileInput.click()" class="w-full mt-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition"><i class="fas fa-upload mr-2"></i>更換圖片 (自動壓縮)</button>
+                                <p class="text-[11px] text-slate-400 mt-2">💡 提示：圖片會自動壓縮至 250px 寬度，防止儲存格溢位</p>
+                                <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload">
+                            </div>
+                            <div>
+                                <div class="section-title !text-[15px] !mb-3">詳細內容 (I 欄)</div>
+                                <textarea v-model="editingCourse.description" class="input-field h-32 resize-none text-sm"></textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="px-8 py-5 border-t bg-slate-50 flex justify-end gap-3">
-                    <button @click="editingCourse = null" class="px-8 py-2.5 text-slate-400 font-bold transition">取消</button>
-                    <button @click="saveCourse" :disabled="isLoading" class="btn-green-main px-12 py-2.5 rounded-xl font-bold shadow-lg shadow-green-100">{{ isLoading ? '儲存中...' : '儲存變更' }}</button>
+                <div class="px-8 py-5 border-t bg-white flex justify-end gap-3 rounded-b-16px">
+                    <button @click="editingCourse = null" class="px-8 py-2.5 text-slate-500 font-bold transition">取消</button>
+                    <button @click="saveCourse" :disabled="isLoading" class="bg-[#f0fdf4] text-[#06C755] px-10 py-2.5 rounded-lg font-bold disabled:opacity-50 hover:bg-[#06c755] hover:text-white transition">{{ isLoading ? '處理中...' : '儲存變更' }}</button>
                 </div>
             </div>
         </div>
 
-        <!-- [Modal A, B, C] 報名名單, 訂單編輯, 學員編輯 -->
+        <!-- [Modal A, B, C] 維持穩定 -->
         <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
-            <div class="modal-body modal-body-lg animate-fade-in"><div class="px-8 py-6 border-b flex justify-between items-center"><h3 class="text-xl font-bold text-slate-800">{{ activeEnrollmentCourse.name }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400"><i class="fas fa-times"></i></button></div><div class="p-8 overflow-y-auto" style="max-height: 70vh;"><table class="admin-table !min-w-full border rounded-xl overflow-hidden shadow-sm"><thead><tr class="bg-slate-50"><th>學員姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">操作</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId"><td>{{ o.name }}</td><td>{{ o.phone }}</td><td class="font-bold">\$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付款' }}</span></td><td>{{ o.remittance || '-' }}</td><td class="text-right"><button @click="openOrderEditModal(o)" class="bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-lg">編輯</button></td></tr></tbody></table></div><div class="px-8 py-5 border-t flex justify-end"><button @click="activeEnrollmentCourse = null" class="px-10 py-2.5 border rounded-xl font-bold">關閉</button></div></div>
+            <div class="modal-body modal-body-lg animate-fade-in"><div class="px-8 py-6 border-b flex justify-between items-center"><h3 class="text-xl font-bold text-slate-800">{{ activeEnrollmentCourse.name }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400"><i class="fas fa-times"></i></button></div><div class="p-8 overflow-y-auto" style="max-height: 70vh;"><table class="admin-table !min-w-full border rounded-xl overflow-hidden shadow-sm"><thead><tr class="bg-slate-50"><th>學員姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">操作</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId"><td>{{ o.name }}</td><td>{{ o.phone }}</td><td class="font-bold">\$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付款' }}</span></td><td>{{ o.remittance || '-' }}</td><td class="text-right"><button @click="openOrderEditModal(o)" class="bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-lg border border-blue-100">編輯訂單</button></td></tr></tbody></table></div><div class="px-8 py-5 border-t flex justify-end"><button @click="activeEnrollmentCourse = null" class="px-10 py-2.5 border rounded-xl font-bold">關閉</button></div></div>
         </div>
         <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
-            <div class="modal-body animate-fade-in"><div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50/30"><h3 class="text-lg font-bold text-gray-800">訂單狀態維護</h3><button @click="editingOrder = null" class="text-gray-400"><i class="fas fa-times"></i></button></div><div class="p-8 space-y-6"><div class="grid grid-cols-2 gap-6"><div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field"><option value="PENDING">待付款</option><option value="PAID">已完款</option><option value="CANCELLED">已取消</option></select></div><div><label class="input-label">實收金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field text-[#06C755] font-bold"></div></div><div><label class="input-label">匯款後五碼</label><input type="text" v-model="editingOrder.remittance" class="input-field text-center font-mono" maxlength="5"></div><div><label class="input-label">備註</label><textarea v-model="editingOrder.note" class="input-field h-28 resize-none"></textarea></div></div><div class="px-8 py-5 bg-slate-50 border-t flex justify-end gap-3"><button @click="editingOrder = null" class="px-6 py-2.5 rounded-xl font-bold text-slate-400">取消</button><button @click="saveOrderUpdate" :disabled="isLoading" class="btn-green-main min-w-[120px]">{{ isLoading ? '更新中' : '更新狀態' }}</button></div></div>
+            <div class="modal-body animate-fade-in"><div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50/30"><h3 class="text-lg font-bold text-gray-800">訂單狀態維護</h3><button @click="editingOrder = null" class="text-gray-400"><i class="fas fa-times"></i></button></div><div class="p-8 space-y-6"><div class="grid grid-cols-2 gap-6"><div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field"><option value="PENDING">待付款</option><option value="PAID">已完款</option><option value="CANCELLED">已取消</option></select></div><div><label class="input-label">實收金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field text-[#06C755] font-bold"></div></div><div><label class="input-label">匯款後五碼</label><input type="text" v-model="editingOrder.remittance" class="input-field text-center font-mono" maxlength="5"></div><div><label class="input-label">備註</label><textarea v-model="editingOrder.note" class="input-field h-28 resize-none"></textarea></div></div><div class="px-8 py-5 bg-slate-50 border-t flex justify-end gap-3"><button @click="editingOrder = null" class="px-6 py-2.5 rounded-xl font-bold text-slate-400 border bg-white">取消</button><button @click="saveOrderUpdate" :disabled="isLoading" class="btn-green-main min-w-[120px]">{{ isLoading ? '更新中...' : '更新狀態' }}</button></div></div>
         </div>
         <div v-if="editingMember" class="modal-mask" @click.self="editingMember = null">
-            <div class="modal-body animate-fade-in"><div class="px-6 py-4 border-b flex justify-between items-center"><h3 class="text-lg font-bold text-gray-800">學員編輯</h3><button @click="editingMember = null" class="text-gray-400"><i class="fas fa-times"></i></button></div><div class="p-8 space-y-6"><div><label class="input-label">學員姓名</label><input type="text" v-model="editingMember.name" class="input-field"></div><div class="grid grid-cols-2 gap-4"><div><label class="input-label">性別</label><select v-model="editingMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div><div><label class="input-label">手機</label><input type="tel" v-model="editingMember.phone" class="input-field"></div></div><div><label class="input-label">業種</label><input type="text" v-model="editingMember.industry" class="input-field"></div></div><div class="px-8 py-5 border-t flex justify-end gap-3"><button @click="editingMember = null" class="px-6 py-2.5 rounded-xl font-bold">取消</button><button @click="saveMemberUpdate" :disabled="isLoading" class="btn-green-main min-w-[120px]">{{ isLoading ? '處理中' : '確認儲存' }}</button></div></div>
+            <div class="modal-body animate-fade-in"><div class="px-6 py-4 border-b flex justify-between items-center"><h3 class="text-lg font-bold text-gray-800">學員編輯</h3><button @click="editingMember = null" class="text-gray-400"><i class="fas fa-times"></i></button></div><div class="p-8 space-y-6"><div><label class="input-label">學員姓名</label><input type="text" v-model="editingMember.name" class="input-field"></div><div class="grid grid-cols-2 gap-4"><div><label class="input-label">性別</label><select v-model="editingMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div><div><label class="input-label">手機</label><input type="tel" v-model="editingMember.phone" class="input-field"></div></div><div><label class="input-label">業種</label><input type="text" v-model="editingMember.industry" class="input-field"></div></div><div class="px-8 py-5 border-t flex justify-end gap-3"><button @click="editingMember = null" class="px-6 py-2.5 rounded-xl font-bold">取消</button><button @click="saveMemberUpdate" :disabled="isLoading" class="btn-green-main min-w-[120px]">{{ isLoading ? '處理中...' : '確認儲存' }}</button></div></div>
         </div>
 
     </div>
@@ -267,59 +226,23 @@
 
         createApp({
             setup() {
-                const view = ref('dashboard');
-                const courses = ref([]);
-                const orders = ref([]);
-                const users = ref([]);
-                const isLoading = ref(false);
-                const editingCourse = ref(null);
-                const editingOrder = ref(null);
-                const editingMember = ref(null);
-                const activeEnrollmentCourse = ref(null);
-                const imageUploadStatus = ref({ message: '', type: '' }); // 【新增】圖片狀態
+                const view = ref('dashboard'); const courses = ref([]); const orders = ref([]); const users = ref([]); const isLoading = ref(false); 
+                const editingCourse = ref(null); const editingOrder = ref(null); const editingMember = ref(null); const activeEnrollmentCourse = ref(null);
 
-                const currentViewName = computed(() => ({
-                    'dashboard': '數據中心',
-                    'courses': '課程列表',
-                    'orders': '訂單維護',
-                    'members': '學員名冊'
-                }[view.value]));
-
-                const formatPrice = (p) => {
-                    if (!p) return "0";
-                    const clean = String(p).replace(/[^0-9.]/g, "");
-                    return Number(clean).toLocaleString();
-                };
+                const currentViewName = computed(() => ({'dashboard': '數據中心', 'courses': '課程列表', 'orders': '訂單維護', 'members': '學員名冊'}[view.value]));
+                const formatPrice = (p) => { if(!p) return "0"; const clean = String(p).replace(/[^0-9.]/g, ""); return Number(clean).toLocaleString(); };
 
                 const statsSummary = computed(() => {
                     let paid = 0, pending = 0;
-                    orders.value.forEach(o => {
-                        const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
-                        if (o.status === 'PAID') paid += amt;
-                        else if (o.status === 'PENDING') pending += amt;
-                    });
-                    return [
-                        { label: '實收總額', value: paid, colorClass: 'text-[#06C755]' },
-                        { label: '待收總額', value: pending, colorClass: 'text-orange-500' },
-                        { label: '累計報名', value: orders.value.length, colorClass: 'text-blue-600' },
-                        { label: '系統會員', value: users.value.length, colorClass: 'text-purple-600' }
-                    ];
+                    orders.value.forEach(o => { const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0; if (o.status === 'PAID') paid += amt; else if (o.status === 'PENDING') pending += amt; });
+                    return [ { label: '實收總額', value: paid, colorClass: 'text-[#06C755]' }, { label: '待收總額', value: pending, colorClass: 'text-orange-500' }, { label: '累計報名', value: orders.value.length, colorClass: 'text-blue-600' }, { label: '系統會員', value: users.value.length, colorClass: 'text-purple-600' } ];
                 });
 
                 const courseStatsFiltered = computed(() => {
                     return courses.value.map(c => {
                         const cOrders = orders.value.filter(o => o.courseId === c.id || o.courseId === c.name);
                         let data = { id: c.id, name: c.name, totalOrders: cOrders.length, totalExpected: 0, pendingAmount: 0, paidAmount: 0 };
-                        cOrders.forEach(o => {
-                            const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
-                            if (o.status === 'PENDING') {
-                                data.pendingAmount += amt;
-                                data.totalExpected += amt;
-                            } else if (o.status === 'PAID') {
-                                data.paidAmount += amt;
-                                data.totalExpected += amt;
-                            }
-                        });
+                        cOrders.forEach(o => { const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0; if (o.status === 'PENDING') { data.pendingAmount += amt; data.totalExpected += amt; } else if (o.status === 'PAID') { data.paidAmount += amt; data.totalExpected += amt; } });
                         return data;
                     }).filter(c => c.totalOrders > 0);
                 });
@@ -327,111 +250,35 @@
                 const callApi = async (act, pl = {}) => {
                     isLoading.value = true;
                     try {
-                        const res = await fetch(WORKER_URL, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: act, payload: pl })
-                        });
-                        const json = await res.json();
-                        if (json.status !== 'success') throw new Error(json.data);
-                        return json.data;
-                    } catch (e) {
-                        alert('伺服器錯誤: ' + e.message);
-                        return null;
-                    } finally {
-                        isLoading.value = false;
-                    }
+                        const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
+                        const json = await res.json(); if (json.status !== 'success') throw new Error(json.data); return json.data;
+                    } catch (e) { alert('伺服器連線失敗，請確認已重新發布 GAS。'); return null; }
+                    finally { isLoading.value = false; }
                 };
 
-                const fetchData = async () => {
-                    const data = await callApi('ADMIN_GET_DATA');
-                    if (data) {
-                        courses.value = data.courses || [];
-                        orders.value = data.orders || [];
-                        users.value = data.users || [];
-                    }
-                };
+                const fetchData = async () => { const data = await callApi('ADMIN_GET_DATA'); if (data) { courses.value = data.courses || []; orders.value = data.orders || []; users.value = data.users || []; } };
 
                 const openEnrollments = (c) => activeEnrollmentCourse.value = c;
-                const openOrderEditModal = (o) => {
-                    activeEnrollmentCourse.value = null;
-                    editingOrder.value = { ...o };
-                };
-                const saveOrderUpdate = async () => {
-                    if (await callApi('ADMIN_UPDATE_ORDER', editingOrder.value)) {
-                        editingOrder.value = null;
-                        await fetchData();
-                    }
-                };
+                const openOrderEditModal = (o) => { activeEnrollmentCourse.value = null; editingOrder.value = { ...o }; };
+                const saveOrderUpdate = async () => { if(await callApi('ADMIN_UPDATE_ORDER', editingOrder.value)) { editingOrder.value = null; await fetchData(); } };
                 const openMemberEditModal = (u) => editingMember.value = { ...u };
-                const saveMemberUpdate = async () => {
-                    if (await callApi('ADMIN_UPDATE_MEMBER', { memberData: editingMember.value })) {
-                        editingMember.value = null;
-                        await fetchData();
-                    }
-                };
+                const saveMemberUpdate = async () => { if(await callApi('ADMIN_UPDATE_MEMBER', { memberData: editingMember.value })) { editingMember.value = null; await fetchData(); } };
 
-                const openEditModal = (c) => {
-                    editingCourse.value = JSON.parse(JSON.stringify(c));
-                    imageUploadStatus.value = { message: '', type: '' };
-                };
-
-                const saveCourse = async () => {
-                    // 【新增】儲存前驗證圖片大小
-                    if (editingCourse.value.image && editingCourse.value.image.length > 49500) {
-                        imageUploadStatus.value = {
-                            message: '❌ 圖片仍然過大，無法儲存。請重新上傳更小的圖片。',
-                            type: 'error'
-                        };
-                        return;
-                    }
-
-                    if (await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) {
-                        editingCourse.value = null;
-                        imageUploadStatus.value = { message: '', type: '' };
-                        await fetchData();
-                    }
-                };
-
-                const copyCourse = (c) => {
-                    editingCourse.value = JSON.parse(JSON.stringify(c));
-                    editingCourse.value.id = 'NEW_' + Date.now().toString().slice(-4);
-                    editingCourse.value.name += ' (複製)';
-                    imageUploadStatus.value = { message: '', type: '' };
-                };
+                const openEditModal = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); };
+                const saveCourse = async () => { if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { editingCourse.value = null; await fetchData(); } };
+                const copyCourse = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); editingCourse.value.id = 'NEW_' + Date.now().toString().slice(-4); editingCourse.value.name += ' (複製)'; };
 
                 const handleFileUpload = (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-
+                    const file = e.target.files[0]; if (!file) return;
                     const reader = new FileReader();
                     reader.onload = (event) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            const MAX_WIDTH = 250;
-                            let width = img.width;
-                            let height = img.height;
-
-                            if (width > MAX_WIDTH) {
-                                height *= MAX_WIDTH / width;
-                                width = MAX_WIDTH;
-                            }
-
-                            canvas.width = width;
-                            canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, width, height);
-
-                            const imageData = canvas.toDataURL('image/jpeg', 0.6);
-                            editingCourse.value.image = imageData;
-
-                            // 【新增】顯示壓縮結果
-                            const sizeKB = (imageData.length / 1024).toFixed(1);
-                            imageUploadStatus.value = {
-                                message: `✅ 圖片已上傳 (${sizeKB}KB，250px 寬度)`,
-                                type: sizeKB > 50 ? 'warning' : 'success'
-                            };
+                        const img = new Image(); img.onload = () => {
+                            const canvas = document.createElement('canvas'); const MAX_WIDTH = 250;
+                            let width = img.width; let height = img.height;
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                            canvas.width = width; canvas.height = height;
+                            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                            editingCourse.value.image = canvas.toDataURL('image/jpeg', 0.6);
                         };
                         img.src = event.target.result;
                     };
@@ -439,14 +286,11 @@
                 };
 
                 onMounted(fetchData);
-
-                return {
-                    view, courses, orders, users, isLoading, editingCourse, editingOrder, editingMember, activeEnrollmentCourse, imageUploadStatus,
-                    courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []),
-                    courseStatsFiltered,
+                return { 
+                    view, courses, orders, users, isLoading, editingCourse, editingOrder, editingMember, activeEnrollmentCourse, courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []), courseStatsFiltered,
                     openEditModal, openOrderEditModal, openMemberEditModal, openEnrollments, saveOrderUpdate, saveMemberUpdate, saveCourse, fetchData, currentViewName, statsSummary, formatPrice,
-                    getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length,
-                    getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PENDING').length,
+                    getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length, 
+                    getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PENDING').length, 
                     getCourseName: id => courses.value.find(c => c.id === id || c.name === id)?.name || id,
                     handleFileUpload, copyCourse, logout: () => window.location.reload()
                 };
