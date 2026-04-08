@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.08.V34_Click_Button_Fix -->
+    <!-- Version: 2026.04.08.V36_Final_Complete_Sync -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -67,7 +67,7 @@
             <header class="page-header">
                 <h2 class="text-lg font-bold text-slate-800">{{ currentViewName }}</h2>
                 <div class="flex items-center gap-4">
-                    <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V34_CLICK_BTN</span>
+                    <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V36_SYNC_COMPLETE</span>
                     <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition">
                         <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步
                     </button>
@@ -96,7 +96,7 @@
                     </div>
                 </div>
 
-                <!-- 2. 一般課程管理 (極簡去框) -->
+                <!-- 2. 一般課程管理 -->
                 <div v-if="view === 'courses'" class="admin-table-container animate-fade-in">
                     <table class="admin-table">
                         <thead><tr><th style="width: 280px">課程資訊</th><th>類型/時間</th><th>費用/名額</th><th>繳費狀況</th><th class="text-right">操作</th></tr></thead>
@@ -131,8 +131,8 @@
                                 <td><div class="font-bold text-slate-800">{{ o.name }}</div><div class="text-[11px] text-slate-400 font-mono">{{ o.phone }}</div></td>
                                 <td class="text-[16px] font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td>
                                 <td><span :class="o.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge">{{ o.status === 'PAID' ? '已完款' : '待付款' }}</span></td>
-                                <td class="font-bold text-blue-600 tracking-widest">{{ o.remittance || '-' }}</td>
-                                <td class="text-right"><button @click="openOrderEditModal(o)" class="px-5 py-1.5 border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-50 transition">編輯</button></td>
+                                <td class="font-bold text-blue-600">{{ o.remittance || '-' }}</td>
+                                <td class="text-right"><button @click="openOrderEditModal(o)" class="px-5 py-1.5 border rounded-lg text-xs font-bold hover:bg-slate-50 transition">編輯</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -153,7 +153,7 @@
             </div>
         </main>
 
-        <!-- [Modal D] 課程編輯：完全回歸正確的 A-S 欄位顯示標籤 -->
+        <!-- [Modal D] 課程編輯 -->
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
             <div class="modal-body modal-body-lg animate-fade-in" style="background-color: #f8fafc;">
                 <div class="px-8 py-5 border-b flex justify-between items-center bg-white">
@@ -230,7 +230,7 @@
                 const view = ref('dashboard'); const courses = ref([]); const orders = ref([]); const users = ref([]); const isLoading = ref(false); 
                 const editingCourse = ref(null); const editingOrder = ref(null); const editingMember = ref(null); const activeEnrollmentCourse = ref(null);
 
-                const currentViewName = computed(() => ({'dashboard': '數據中心', 'courses': '課程列表', 'orders': '訂單維護', 'members': '學員名冊'}[view.value]));
+                const currentViewName = computed(() => ({'dashboard': '數據中心', 'courses': '課程活動總表', 'orders': '訂單維護', 'members': '學員名冊'}[view.value]));
                 const formatPrice = (p) => { if(!p) return "0"; const clean = String(p).replace(/[^0-9.]/g, ""); return Number(clean).toLocaleString(); };
 
                 const statsSummary = computed(() => {
@@ -253,7 +253,7 @@
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
                         const json = await res.json(); if (json.status !== 'success') throw new Error(json.data); return json.data;
-                    } catch (e) { alert('伺服器連線失敗，請確認已重新發布 GAS。'); return null; }
+                    } catch (e) { alert('伺服器連線失敗，請確認已重新發布新版 GAS。'); return null; }
                     finally { isLoading.value = false; }
                 };
 
