@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.08.V27_Mapping_Fixed_R_Column -->
+    <!-- Version: 2026.04.08.V36_Final_Complete_Sync -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -49,11 +49,11 @@
                     <a href="https://lin.ee/Y0FKXqD" class="flex flex-col items-center gap-2"><div class="nav-icon"><i class="fab fa-line"></i></div><span class="text-[11px] font-bold text-slate-500">聯絡客服</span></a>
                 </div>
                 <div class="px-5 py-3 flex gap-2 overflow-x-auto hide-scrollbar">
-                    <button v-for="cat in dynamicCategories" :key="cat" @click="activeCat = cat" :class="activeCat === cat ? 'category-tab-active' : ''" class="category-tab">{{ cat }}</button>
+                    <button v-for="cat in dynamicCategories" :key="cat" @click="activeCat = cat" :class="activeCat === cat ? 'category-tab-active' : ''" class="category-tab">{{ cat || '未分類' }}</button>
                 </div>
                 <div class="px-4 pb-4 grid grid-cols-2 gap-4">
                     <div v-for="c in filteredCourses" :key="c.id" class="course-card">
-                        <div class="course-img-wrapper"><span class="course-tag">{{ c.type }}</span><img :src="c.image" class="w-full h-full object-cover" @error="c.image='https://via.placeholder.com/400x225?text=Course'"></div>
+                        <div class="course-img-wrapper"><span class="course-tag">{{ c.type || '未分類' }}</span><img :src="c.image" class="w-full h-full object-cover" @error="c.image='https://via.placeholder.com/400x225?text=Course'"></div>
                         <div class="course-content">
                             <div class="text-[11px] text-[#06C755] font-bold mb-1"><i class="far fa-calendar-alt mr-1"></i>{{ c.startDate }}</div>
                             <h3 class="course-title">{{ c.name }}</h3>
@@ -106,12 +106,12 @@
                 const regForm = ref({ name: '', industry: '', gender: '男', phone: '', birthday: '', area: '', address_detail: '' });
                 const selectedCourse = ref(null); const viewingCourse = ref(null); const registrationNote = ref(''); const activeCat = ref('');
                 const activeRemitOrder = ref(null); const remitLastFive = ref('');
-                const parsePrice = (p) => { const clean = String(p).replace(/[^0-9.]/g, ''); return Number(clean).toLocaleString(); };
+                const parsePrice = (p) => { const clean = String(p).replace(/[^0-9.]/g, ''); return clean ? Number(clean).toLocaleString() : '0'; };
                 const callApi = async (act, pl = {}) => {
                     const res = await fetch(WORKER_URL, { method: 'POST', body: JSON.stringify({ action: act, userProfile: { userId: userProfile.value?.userId }, payload: pl }) });
                     const json = await res.json(); if (json.status !== 'success') throw new Error(json.data); return json.data;
                 };
-                const loadCourses = async () => { courses.value = await callApi('GET_COURSES'); if (courses.value.length) activeCat.value = courses.value.find(c => c.type.includes('工作坊'))?.type || courses.value[0].type; };
+                const loadCourses = async () => { courses.value = await callApi('GET_COURSES'); if (courses.value.length) activeCat.value = courses.value.find(c => c.type && c.type.includes('工作坊'))?.type || courses.value[0].type || '未分類'; };
                 const goToMyOrders = async () => { try { myOrders.value = await callApi('GET_USER_ORDERS'); view.value = 'my_orders'; } catch (e) { alert('失敗'); } };
                 const editProfile = () => { regForm.value = { ...userInfo.value, area: '', address_detail: userInfo.value.address }; view.value = 'register'; };
                 const selectCourse = (c) => { selectedCourse.value = c; registrationNote.value = ''; view.value = 'form'; };
@@ -120,7 +120,7 @@
                 const submitRemitInfo = async () => { if (remitLastFive.value.length < 5) return alert('五碼'); isSubmitting.value = true; try { await callApi('UPDATE_MY_ORDER', { orderId: activeRemitOrder.value.orderId, userId: userProfile.value.userId, remittance: remitLastFive.value }); activeRemitOrder.value = null; alert('回報成功'); goToMyOrders(); } catch (e) { alert(e.message); } finally { isSubmitting.value = false; } };
                 const cancelOrder = async (o) => { if (!confirm('取消？')) return; try { await callApi('CANCEL_MY_ORDER', { orderId: o.orderId, userId: userProfile.value.userId }); alert('已取消'); goToMyOrders(); } catch (e) { alert(e.message); } };
                 onMounted(async () => { try { await liff.init({ liffId: LIFF_ID }); if (!liff.isLoggedIn()) { liff.login(); return; } userProfile.value = await liff.getProfile(); const data = await callApi('CHECK_USER'); if (data && data.registered) { userInfo.value = data.info; view.value = 'course_list'; await loadCourses(); } else { regForm.value.name = userProfile.value.displayName; view.value = 'register'; } } catch (err) { alert('LIFF 異常'); } });
-                return { view, isSubmitting, userInfo, courses, myOrders, regForm, selectedCourse, viewingCourse, registrationNote, activeCat, dynamicCategories: computed(() => [...new Set(courses.value.map(c => c.type))]), filteredCourses: computed(() => courses.value.filter(c => c.type === activeCat.value)), activeRemitOrder, remitLastFive, editProfile, goToMyOrders, selectCourse, getCourseName: (id) => courses.value.find(c => c.id === id)?.name || id, submitMemberRegister, submitRegistration, submitRemitInfo, cancelOrder, parsePrice };
+                return { view, isSubmitting, userInfo, courses, myOrders, regForm, selectedCourse, viewingCourse, registrationNote, activeCat, dynamicCategories: computed(() => { const cats = [...new Set(courses.value.map(c => c.type))].filter(Boolean); return cats.length ? cats : ['未分類']; }), filteredCourses: computed(() => courses.value.filter(c => c.type === activeCat.value || (!c.type && activeCat.value === '未分類'))), activeRemitOrder, remitLastFive, editProfile, goToMyOrders, selectCourse, getCourseName: (id) => courses.value.find(c => c.id === id)?.name || id, submitMemberRegister, submitRegistration, submitRemitInfo, cancelOrder, parsePrice };
             }
         }).mount('#app');
     </script>
