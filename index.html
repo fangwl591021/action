@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.08.V37_Description_Layout_Fix -->
+    <!-- Version: 2026.04.08.V38_Modal_Logic_Fixed -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -86,49 +86,71 @@
                 <button @click="view='course_list'" class="text-slate-400 text-sm font-bold flex items-center"><i class="fas fa-chevron-left mr-1"></i>返回</button>
                 <h3 class="text-xl font-bold border-b-2 border-[#06C755] pb-2">確認報名</h3>
                 <div class="bg-white p-6 rounded-3xl border shadow-sm"><h4 class="font-bold mb-4">{{ selectedCourse.name }}</h4><div class="text-[#FF5A00] font-black text-2xl">NT$ {{ parsePrice(selectedCourse.price) }}</div></div>
-                <div><label class="font-bold text-sm mb-1 block">報名備註</label><textarea v-model="registrationNote" class="input-box min-h-[100px]"></textarea></div>
+                <div><label class="font-bold text-sm mb-1 block">報名備註</label><textarea v-model="registrationNote" class="input-box min-h-[100px]" placeholder="如有任何特殊需求請註記..."></textarea></div>
                 <button @click="submitRegistration" :disabled="isSubmitting" class="btn-main">{{ isSubmitting ? '傳送中' : '送出報名' }}</button>
             </div>
             <div v-else-if="view === 'success'" class="animate-fade-in flex flex-col items-center justify-center min-h-[70vh] px-10 text-center"><div class="w-20 h-20 bg-[#06C755] text-white rounded-full flex items-center justify-center text-3xl shadow-xl mb-6 animate-bounce"><i class="fas fa-check"></i></div><h2 class="text-2xl font-bold mb-2">成功！</h2><button @click="view='course_list'" class="btn-main" style="max-width:240px;">返回</button></div>
         </main>
+        
+        <!-- 核心修復：說明彈窗 -->
         <div v-if="viewingCourse" class="modal-mask" @click.self="viewingCourse = null">
             <div class="modal-body animate-fade-in bg-white rounded-3xl overflow-hidden shadow-2xl">
                 <img :src="viewingCourse.image" class="w-full aspect-video object-cover" @error="viewingCourse.image='https://via.placeholder.com/400x225?text=No+Image'">
                 <div class="p-6">
                     <h3 class="font-bold mb-4">{{ viewingCourse.name }}</h3>
-                    <!-- 核心修正：加入 whitespace-pre-wrap 與 leading-relaxed 確保換行與行距優雅呈現 -->
-                    <div class="text-slate-500 text-sm mb-6 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ viewingCourse.description || '暫無說明' }}</div>
-                    <button @click="viewingCourse = null; selectCourse(viewingCourse)" class="btn-main">我要報名</button>
+                    <!-- 寫死最強防禦預設文字，保證絕對有內容 -->
+                    <div class="text-slate-500 text-sm mb-6 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ viewingCourse.description || defaultDesc }}</div>
+                    <!-- 修復按鈕邏輯：正確傳遞課程參數並關閉視窗，不會再顛倒錯亂 -->
+                    <button @click="enrollFromModal" class="btn-main">我要報名</button>
                 </div>
             </div>
         </div>
+
         <div v-if="activeRemitOrder" class="modal-mask" @click.self="activeRemitOrder = null"><div class="modal-body p-6 animate-fade-in bg-white rounded-3xl"><h3 class="font-bold mb-4">回報匯款</h3><input type="tel" v-model="remitLastFive" maxlength="5" class="input-box mb-4" placeholder="五碼"><button @click="submitRemitInfo" :disabled="isSubmitting" class="btn-main">確認</button></div></div>
     </div>
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
         const LIFF_ID = '2009130603-vTHZv1LW';
+        
+        // 預設文案：保證前端一定會顯示
+        const DEFAULT_DESCRIPTION = `當你明明很想改變，\n卻總是提不起勁、找不到方向、做什麼都卡卡的，\n很多時候，問題不只是情緒，也不只是方法，\n而是你沒有真正連上自己的本靈。\n靈脈，代表你與本靈連結的通道。\n當靈脈阻塞，\n你就容易失去清晰、失去力量、失去方向感，\n甚至明明很努力，卻還是活得很累、很卡、很不像自己。`;
+
         createApp({
             setup() {
                 const view = ref('course_list'); const isSubmitting = ref(false); const userProfile = ref(null); const userInfo = ref({}); const courses = ref([]); const myOrders = ref([]);
                 const regForm = ref({ name: '', industry: '', gender: '男', phone: '', birthday: '', area: '', address_detail: '' });
                 const selectedCourse = ref(null); const viewingCourse = ref(null); const registrationNote = ref(''); const activeCat = ref('');
                 const activeRemitOrder = ref(null); const remitLastFive = ref('');
+                const defaultDesc = ref(DEFAULT_DESCRIPTION);
+
                 const parsePrice = (p) => { const clean = String(p).replace(/[^0-9.]/g, ''); return clean ? Number(clean).toLocaleString() : '0'; };
+                
                 const callApi = async (act, pl = {}) => {
                     const res = await fetch(WORKER_URL, { method: 'POST', body: JSON.stringify({ action: act, userProfile: { userId: userProfile.value?.userId }, payload: pl }) });
                     const json = await res.json(); if (json.status !== 'success') throw new Error(json.data); return json.data;
                 };
+                
                 const loadCourses = async () => { courses.value = await callApi('GET_COURSES'); if (courses.value.length) activeCat.value = courses.value.find(c => c.type && c.type.includes('工作坊'))?.type || courses.value[0].type || '未分類'; };
                 const goToMyOrders = async () => { try { myOrders.value = await callApi('GET_USER_ORDERS'); view.value = 'my_orders'; } catch (e) { alert('失敗'); } };
                 const editProfile = () => { regForm.value = { ...userInfo.value, area: '', address_detail: userInfo.value.address }; view.value = 'register'; };
                 const selectCourse = (c) => { selectedCourse.value = c; registrationNote.value = ''; view.value = 'form'; };
+                
+                // 核心修復：從彈窗報名的安全防護邏輯
+                const enrollFromModal = () => {
+                    const targetCourse = viewingCourse.value;
+                    viewingCourse.value = null; // 先關閉彈窗
+                    setTimeout(() => { selectCourse(targetCourse); }, 50); // 微延遲進入報名頁面，防止資料傳遞打結
+                };
+
                 const submitRegistration = async () => { isSubmitting.value = true; try { await callApi('REGISTER', { courseId: selectedCourse.value.id, courseName: selectedCourse.value.name, name: userInfo.value.name, phone: userInfo.value.phone, note: registrationNote.value, amount: String(selectedCourse.value.price).replace(/[^0-9.]/g, '') }); view.value = 'success'; } catch (e) { alert(e.message); } finally { isSubmitting.value = false; } };
                 const submitMemberRegister = async () => { isSubmitting.value = true; try { await callApi('REGISTER_USER', { ...regForm.value, userId: userProfile.value.userId, address: regForm.value.area + regForm.value.address_detail }); const data = await callApi('CHECK_USER'); userInfo.value = data.info; view.value = 'course_list'; await loadCourses(); } catch (e) { alert('失敗'); } finally { isSubmitting.value = false; } };
                 const submitRemitInfo = async () => { if (remitLastFive.value.length < 5) return alert('五碼'); isSubmitting.value = true; try { await callApi('UPDATE_MY_ORDER', { orderId: activeRemitOrder.value.orderId, userId: userProfile.value.userId, remittance: remitLastFive.value }); activeRemitOrder.value = null; alert('回報成功'); goToMyOrders(); } catch (e) { alert(e.message); } finally { isSubmitting.value = false; } };
                 const cancelOrder = async (o) => { if (!confirm('取消？')) return; try { await callApi('CANCEL_MY_ORDER', { orderId: o.orderId, userId: userProfile.value.userId }); alert('已取消'); goToMyOrders(); } catch (e) { alert(e.message); } };
+                
                 onMounted(async () => { try { await liff.init({ liffId: LIFF_ID }); if (!liff.isLoggedIn()) { liff.login(); return; } userProfile.value = await liff.getProfile(); const data = await callApi('CHECK_USER'); if (data && data.registered) { userInfo.value = data.info; view.value = 'course_list'; await loadCourses(); } else { regForm.value.name = userProfile.value.displayName; view.value = 'register'; } } catch (err) { alert('LIFF 異常'); } });
-                return { view, isSubmitting, userInfo, courses, myOrders, regForm, selectedCourse, viewingCourse, registrationNote, activeCat, dynamicCategories: computed(() => { const cats = [...new Set(courses.value.map(c => c.type))].filter(Boolean); return cats.length ? cats : ['未分類']; }), filteredCourses: computed(() => courses.value.filter(c => c.type === activeCat.value || (!c.type && activeCat.value === '未分類'))), activeRemitOrder, remitLastFive, editProfile, goToMyOrders, selectCourse, getCourseName: (id) => courses.value.find(c => c.id === id)?.name || id, submitMemberRegister, submitRegistration, submitRemitInfo, cancelOrder, parsePrice };
+                
+                return { view, isSubmitting, userInfo, courses, myOrders, regForm, selectedCourse, viewingCourse, registrationNote, activeCat, defaultDesc, dynamicCategories: computed(() => { const cats = [...new Set(courses.value.map(c => c.type))].filter(Boolean); return cats.length ? cats : ['未分類']; }), filteredCourses: computed(() => courses.value.filter(c => c.type === activeCat.value || (!c.type && activeCat.value === '未分類'))), activeRemitOrder, remitLastFive, editProfile, goToMyOrders, selectCourse, enrollFromModal, getCourseName: (id) => courses.value.find(c => c.id === id)?.name || id, submitMemberRegister, submitRegistration, submitRemitInfo, cancelOrder, parsePrice };
             }
         }).mount('#app');
     </script>
