@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.08.V40_Modal_CSS_Fixed -->
+    <!-- Version: 2026.04.08.V41_Logic_Separation_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,7 +36,7 @@
         .nav-icon { width: 52px; height: 52px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #94a3b8; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
         .status-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 99px; }
         
-        /* 修正：補回遺失的彈窗懸浮與遮罩 CSS */
+        /* 彈窗樣式確保置中與置頂 */
         .modal-mask { position: fixed; inset: 0; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .modal-body { background: white; width: 100%; max-width: 400px; border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
         
@@ -76,7 +76,6 @@
                     <div v-for="c in filteredCourses" :key="c.id" class="course-card">
                         <div class="course-img-wrapper">
                             <span class="course-tag">{{ c.type || '未分類' }}</span>
-                            <!-- 安全的圖片防呆機制 -->
                             <img :src="c.image" class="w-full h-full object-cover" @error="$event.target.src='https://placehold.co/400x225/eeeeee/999999?text=No+Image'">
                         </div>
                         <div class="course-content">
@@ -84,9 +83,8 @@
                             <h3 class="course-title">{{ c.name }}</h3>
                             <div class="course-price">NT$ {{ parsePrice(c.price) }}</div>
                             
-                            <!-- 核心修復：使用顯式函式綁定，確保觸控與點擊絕不失效 -->
                             <div class="flex gap-2">
-                                <button @click="showInfo(c)" class="bg-slate-100 text-slate-500 text-[12px] font-bold py-2 px-2 rounded-lg flex-1 hover:bg-slate-200 transition active:bg-slate-300">說明</button>
+                                <button @click="viewingCourse = c" class="bg-slate-100 text-slate-500 text-[12px] font-bold py-2 px-2 rounded-lg flex-1 hover:bg-slate-200 transition active:bg-slate-300">說明</button>
                                 <button @click="selectCourse(c)" class="btn-enroll flex-[2]">我要報名</button>
                             </div>
                         </div>
@@ -109,7 +107,7 @@
                 </div>
             </div>
 
-            <!-- 3. 個人資料註冊 (1-2-2-2 黑線直角佈局) -->
+            <!-- 3. 個人資料註冊 (1-2-2-2 佈局) -->
             <div v-else-if="view === 'register'" class="p-6 animate-fade-in bg-white min-h-screen">
                 <h2 class="text-2xl font-bold mb-8 tracking-tight">建立個人資料</h2>
                 <div class="space-y-6">
@@ -142,17 +140,18 @@
             </div>
         </main>
         
-        <!-- 說明彈窗 (精確保證渲染) -->
-        <div v-if="viewingCourse" class="modal-mask" @click.self="closeInfo">
+        <!-- 說明彈窗 (精準對齊邏輯：純粹顯示內容，絕無誤導報名的按鈕) -->
+        <div v-if="viewingCourse" class="modal-mask" @click.self="viewingCourse = null">
             <div class="modal-body animate-fade-in bg-white rounded-3xl overflow-hidden shadow-2xl relative w-[90%] max-w-sm">
                 <!-- 關閉按鈕 -->
-                <button @click="closeInfo" class="absolute top-3 right-3 w-8 h-8 bg-black/40 text-white rounded-full z-10 flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button @click="viewingCourse = null" class="absolute top-3 right-3 w-8 h-8 bg-black/40 text-white rounded-full z-10 flex items-center justify-center"><i class="fas fa-times"></i></button>
                 <img :src="viewingCourse.image" class="w-full aspect-video object-cover" @error="$event.target.src='https://placehold.co/400x225/eeeeee/999999?text=No+Image'">
                 <div class="p-6">
                     <h3 class="font-bold mb-4 text-lg leading-tight">{{ viewingCourse.name }}</h3>
-                    <!-- 預設靈脈文字保護 -->
+                    <!-- 預設文案保護 -->
                     <div class="text-slate-500 text-sm mb-6 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ viewingCourse.description || defaultDesc }}</div>
-                    <button @click="enrollFromModal" class="btn-main">我要報名</button>
+                    <!-- 徹底移除「我要報名」，改為單純關閉按鈕，區隔動線 -->
+                    <button @click="viewingCourse = null" class="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition">關閉說明</button>
                 </div>
             </div>
         </div>
@@ -180,7 +179,6 @@
 
         createApp({
             setup() {
-                // 狀態管理
                 const view = ref('course_list'); 
                 const isSubmitting = ref(false); 
                 const userProfile = ref(null); 
@@ -197,7 +195,6 @@
                 const remitLastFive = ref('');
                 const defaultDesc = ref(DEFAULT_DESCRIPTION);
 
-                // 工具函式
                 const parsePrice = (p) => { 
                     if (!p) return '0';
                     const clean = String(p).replace(/[^0-9.]/g, ''); 
@@ -206,7 +203,7 @@
 
                 const switchView = (targetView) => {
                     view.value = targetView;
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); // 核心修復：防止畫面停在底端一片空白
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); 
                 };
 
                 const callApi = async (act, pl = {}) => {
@@ -228,29 +225,25 @@
                     }
                 };
 
-                // UI 互動邏輯 (核心修復：顯式定義)
-                const showInfo = (c) => { 
-                    viewingCourse.value = c; 
-                };
-                
-                const closeInfo = () => { 
-                    viewingCourse.value = null; 
-                };
-
                 const selectCourse = (c) => { 
+                    // 新增：攔截未註冊學員，引導至建立資料
+                    if (!userInfo.value || !userInfo.value.name) {
+                        alert('為了提供更好的服務，報名前請先建立基本資料！');
+                        switchView('register');
+                        return;
+                    }
                     selectedCourse.value = c; 
                     registrationNote.value = ''; 
                     switchView('form'); 
                 };
 
-                const enrollFromModal = () => {
-                    if (!viewingCourse.value) return;
-                    const targetCourse = viewingCourse.value;
-                    closeInfo();
-                    setTimeout(() => { selectCourse(targetCourse); }, 100); // 確保彈窗關閉動畫不卡頓
-                };
-
                 const goToMyOrders = async () => { 
+                    // 新增：攔截未註冊學員
+                    if (!userInfo.value || !userInfo.value.name) {
+                        alert('請先建立基本資料！');
+                        switchView('register');
+                        return;
+                    }
                     try { 
                         myOrders.value = await callApi('GET_USER_ORDERS'); 
                         switchView('my_orders'); 
@@ -262,11 +255,11 @@
                     switchView('register'); 
                 };
 
-                // API 送出邏輯
                 const submitRegistration = async () => { 
                     isSubmitting.value = true; 
                     try { 
                         await callApi('REGISTER', { 
+                            userId: userProfile.value.userId, // 核心修復：明確補上 userId，讓訂單成功綁定帳號！
                             courseId: selectedCourse.value.id, 
                             courseName: selectedCourse.value.name, 
                             name: userInfo.value.name, 
@@ -313,7 +306,6 @@
                     } catch (e) { alert(e.message); } 
                 };
 
-                // 初始化
                 onMounted(async () => { 
                     try { 
                         await liff.init({ liffId: LIFF_ID }); 
@@ -322,16 +314,15 @@
                         const data = await callApi('CHECK_USER'); 
                         if (data && data.registered) { 
                             userInfo.value = data.info; 
-                            switchView('course_list'); 
-                            await loadCourses(); 
                         } else { 
                             regForm.value.name = userProfile.value.displayName; 
-                            switchView('register'); 
                         } 
+                        // 核心修復：無論有沒有註冊過，都先放行進入首頁看課程！
+                        switchView('course_list'); 
+                        await loadCourses(); 
                     } catch (err) { alert('載入連線異常，請重新打開選單'); } 
                 });
 
-                // Computed Properties
                 const dynamicCategories = computed(() => { 
                     const cats = [...new Set(courses.value.map(c => c.type))].filter(Boolean); 
                     return cats.length ? cats : ['未分類']; 
@@ -349,9 +340,8 @@
                     view, isSubmitting, userInfo, courses, myOrders, regForm, selectedCourse, 
                     viewingCourse, registrationNote, activeCat, defaultDesc, dynamicCategories, 
                     filteredCourses, activeRemitOrder, remitLastFive, 
-                    editProfile, goToMyOrders, selectCourse, showInfo, closeInfo, enrollFromModal, 
-                    getCourseName, submitMemberRegister, submitRegistration, submitRemitInfo, 
-                    cancelOrder, parsePrice, switchView
+                    editProfile, goToMyOrders, selectCourse, getCourseName, submitMemberRegister, 
+                    submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView
                 };
             }
         }).mount('#app');
