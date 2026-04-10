@@ -186,20 +186,47 @@
                     </div>
 
                     <!-- 3. 訂單管理 -->
-                    <div v-if="view === 'orders'" class="admin-table-container animate-fade-in">
-                        <table class="admin-table">
-                            <thead><tr><th>單號</th><th>課程名稱</th><th>學員</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">維護</th></tr></thead>
-                            <tbody>
-                                <tr v-for="o in orders" :key="o.orderId">
-                                    <td class="text-xs font-mono text-slate-400">{{ o.orderId }}</td><td class="font-medium text-slate-700">{{ getCourseName(o.courseId) }}</td>
-                                    <td><div class="font-bold text-slate-800">{{ o.name }}</div><div class="text-[11px] text-slate-400 font-mono">{{ o.phone }}</div></td>
-                                    <td class="text-[16px] font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td>
-                                    <td><span :class="o.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge">{{ o.status === 'PAID' ? '已完款' : '待付款' }}</span></td>
-                                    <td class="font-bold text-blue-600">{{ o.remittance || '-' }}</td>
-                                    <td class="text-right"><button @click="openOrderEditModal(o)" class="px-5 py-1.5 border rounded-lg text-xs font-bold hover:bg-slate-50 transition">編輯</button></td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div v-if="view === 'orders'" class="animate-fade-in">
+                        <!-- 新增：訂單搜尋與篩選列 -->
+                        <div class="mx-[32px] mt-[32px] flex flex-wrap gap-3">
+                            <div class="relative flex-1 min-w-[220px] max-w-sm">
+                                <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                <input type="text" v-model="orderSearchQuery" placeholder="搜尋單號、時間 (如: 04-10) 或姓名..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm bg-white placeholder-slate-400 text-slate-700">
+                            </div>
+                            <select v-model="orderFilterCourse" class="px-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm text-slate-600 bg-white min-w-[160px] cursor-pointer">
+                                <option value="">所有課程</option>
+                                <option v-for="c in adminOrderCourses" :key="c.id" :value="c.id">{{ c.name }}</option>
+                            </select>
+                            <select v-model="orderFilterStatus" class="px-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm text-slate-600 bg-white min-w-[120px] cursor-pointer">
+                                <option value="">所有狀態</option>
+                                <option value="PAID">✅ 已完款</option>
+                                <option value="PENDING">⏳ 待付款</option>
+                                <option value="CANCELLED">❌ 已取消</option>
+                            </select>
+                        </div>
+
+                        <div class="admin-table-container !mt-4">
+                            <table class="admin-table">
+                                <thead><tr><th>時間/單號</th><th>課程名稱</th><th>學員</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">維護</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="o in filteredAdminOrders" :key="o.orderId">
+                                        <td>
+                                            <div class="text-[11px] text-slate-400 mb-0.5">{{ o.createdAt || '-' }}</div>
+                                            <div class="text-xs font-mono font-bold text-slate-500">{{ o.orderId }}</div>
+                                        </td>
+                                        <td class="font-medium text-slate-700">{{ getCourseName(o.courseId) }}</td>
+                                        <td><div class="font-bold text-slate-800">{{ o.name }}</div><div class="text-[11px] text-slate-400 font-mono">{{ o.phone }}</div></td>
+                                        <td class="text-[16px] font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td>
+                                        <td><span :class="o.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge">{{ o.status === 'PAID' ? '已完款' : (o.status === 'CANCELLED' ? '已取消' : '待付款') }}</span></td>
+                                        <td class="font-bold text-blue-600">{{ o.remittance || '-' }}</td>
+                                        <td class="text-right"><button @click="openOrderEditModal(o)" class="px-5 py-1.5 border rounded-lg text-xs font-bold hover:bg-slate-50 transition">編輯</button></td>
+                                    </tr>
+                                    <tr v-if="filteredAdminOrders.length === 0">
+                                        <td colspan="7" class="text-center text-slate-400 py-10 font-medium">找不到符合條件的訂單</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <!-- 4. 學員會員管理 -->
@@ -337,6 +364,11 @@
                 const courseSearchQuery = ref('');
                 const courseFilterCategory = ref('');
 
+                // 新增：訂單搜尋與篩選狀態
+                const orderSearchQuery = ref('');
+                const orderFilterCourse = ref('');
+                const orderFilterStatus = ref('');
+
                 const currentViewName = computed(() => ({'dashboard': '數據中心', 'courses': '課程活動總表', 'orders': '訂單維護', 'members': '學員名冊'}[view.value]));
                 const formatPrice = (p) => { if(!p) return "0"; const clean = String(p).replace(/[^0-9.]/g, ""); return Number(clean).toLocaleString(); };
 
@@ -369,6 +401,45 @@
                                            (c.id && c.id.toLowerCase().includes(query));
                         return matchCat && matchQuery;
                     });
+                });
+
+                // 新增：抽取 getCourseName 為獨立函式供 computed 使用
+                const getCourseName = (id) => {
+                    return courses.value.find(c => c.id === id || c.name === id)?.name || id;
+                };
+
+                // 新增：動態抓取「有訂單的課程」作為下拉選單選項
+                const adminOrderCourses = computed(() => {
+                    const courseIds = [...new Set(orders.value.map(o => o.courseId))].filter(Boolean);
+                    return courseIds.map(id => ({ id: id, name: getCourseName(id) }));
+                });
+
+                // 新增：訂單過濾核心邏輯
+                const filteredAdminOrders = computed(() => {
+                    // 預設反轉陣列，讓最新建立的訂單排在最上面
+                    let result = [...orders.value].reverse();
+
+                    // 1. 狀態過濾
+                    if (orderFilterStatus.value) {
+                        result = result.filter(o => o.status === orderFilterStatus.value);
+                    }
+
+                    // 2. 課程過濾
+                    if (orderFilterCourse.value) {
+                        result = result.filter(o => o.courseId === orderFilterCourse.value);
+                    }
+
+                    // 3. 關鍵字過濾 (單號、姓名、手機、時間)
+                    if (orderSearchQuery.value) {
+                        const q = orderSearchQuery.value.toLowerCase();
+                        result = result.filter(o => 
+                            (o.orderId && o.orderId.toLowerCase().includes(q)) ||
+                            (o.name && o.name.toLowerCase().includes(q)) ||
+                            (o.phone && o.phone.toLowerCase().includes(q)) ||
+                            (o.createdAt && o.createdAt.toLowerCase().includes(q))
+                        );
+                    }
+                    return result;
                 });
 
                 const callApi = async (act, pl = {}) => {
@@ -415,6 +486,10 @@
                     // View State
                     view, courses, orders, users, isLoading, editingCourse, editingOrder, editingMember, 
                     activeEnrollmentCourse, courseSearchQuery, courseFilterCategory, adminCategories, filteredAdminCourses,
+                    
+                    // 新增回傳：訂單搜尋與過濾
+                    orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders,
+                    
                     courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []), 
                     courseStatsFiltered,
                     // Methods
@@ -422,7 +497,7 @@
                     saveOrderUpdate, saveMemberUpdate, saveCourse, fetchData, currentViewName, statsSummary, formatPrice,
                     getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length, 
                     getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PENDING').length, 
-                    getCourseName: id => courses.value.find(c => c.id === id || c.name === id)?.name || id,
+                    getCourseName,
                     handleFileUpload, copyCourse
                 };
             }
