@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V57_High_Res_Images_Algorithm -->
+    <!-- Version: 2026.04.15.V59_Image_Compression_50_Percent -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -106,7 +106,7 @@
                 <header class="page-header">
                     <h2 class="text-lg font-bold text-slate-800">{{ currentViewName }}</h2>
                     <div class="flex items-center gap-4">
-                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V57_HIGH_RES_IMG</span>
+                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V59_IMG_COMPRESS_50</span>
                         <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步</button>
                     </div>
                 </header>
@@ -227,7 +227,7 @@
                 </div>
             </main>
 
-            <!-- [Modal D] 課程編輯 (圖片壓縮邏輯強化) -->
+            <!-- [Modal D] 課程編輯 -->
             <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
                 <div class="modal-body modal-body-lg animate-fade-in" style="background-color: #f8fafc;">
                     <div class="px-8 py-5 border-b flex justify-between items-center bg-white">
@@ -259,13 +259,22 @@
                             
                             <div class="col-span-5 space-y-6">
                                 <div>
-                                    <div class="section-title !text-[15px] !mb-3">宣傳圖片 (支援高畫質)</div>
-                                    <div class="w-full aspect-[4/3] bg-[#f8fafc] rounded-xl overflow-hidden border border-dashed border-slate-300 flex items-center justify-center relative">
+                                    <div class="section-title !text-[15px] !mb-3">宣傳圖片 <span class="text-orange-500 font-bold text-sm ml-1">(推薦貼上網址)</span></div>
+                                    <div class="w-full aspect-[4/3] bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative mb-3">
                                         <img v-if="editingCourse.image" :src="editingCourse.image" class="w-full h-full object-cover">
-                                        <div v-else class="text-slate-300 font-bold text-xs uppercase flex items-center gap-2"><i class="fas fa-camera"></i> 無圖片</div>
+                                        <div v-else class="text-slate-300 font-bold text-xs uppercase flex items-center gap-2"><i class="fas fa-image"></i> 無圖片</div>
                                     </div>
-                                    <button @click="$refs.fileInput.click()" class="w-full mt-4 py-3 border border-slate-200 rounded-lg text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition"><i class="fas fa-upload mr-2"></i>上傳圖片 (自動壓縮最佳化)</button>
-                                    <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">💡 V57 升級：圖片將自動壓縮至寬度 600px。系統將動態調整畫質，確保不超過 Google Sheets 儲存上限。</p>
+                                    
+                                    <input type="text" v-model="editingCourse.image" class="input-field mb-4" placeholder="貼上外部圖片網址 (如 https://s3.wasabisys...)">
+                                    
+                                    <div class="flex items-center gap-3 mb-4">
+                                        <div class="h-px bg-slate-100 flex-1"></div>
+                                        <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">或是</span>
+                                        <div class="h-px bg-slate-100 flex-1"></div>
+                                    </div>
+
+                                    <button @click="$refs.fileInput.click()" class="w-full py-3 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-upload mr-2"></i>本機上傳 (嘗試 50% 畫質壓縮)</button>
+                                    <p class="text-[11px] text-slate-400 mt-2 font-medium leading-relaxed">⚠️ 系統將優先嘗試以 50% 畫質壓縮圖片。若您的圖片結構過於複雜導致無法儲存，仍建議改用上方「貼上網址」功能。</p>
                                     <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload">
                                 </div>
                                 <div>
@@ -411,14 +420,14 @@
                 const saveCourse = async () => { if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { editingCourse.value = null; await fetchData(); } };
                 const copyCourse = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); editingCourse.value.id = 'NEW_' + Date.now().toString().slice(-4); editingCourse.value.name += ' (複製)'; };
 
-                // 🚀 V57 核心升級：動態高畫質壓縮演算法
+                // 🚀 V59 核心升級：直接鎖定 50% 畫質 (WebP) 與 600px 大寬度
                 const handleFileUpload = (e) => {
                     const file = e.target.files[0]; if (!file) return;
                     const reader = new FileReader();
                     reader.onload = (event) => {
                         const img = new Image(); img.onload = () => {
                             const canvas = document.createElement('canvas'); 
-                            const MAX_WIDTH = 600; // 升級：大幅提升解析度至 600px
+                            const MAX_WIDTH = 600; // 恢復 600px 大尺寸，確保全螢幕清晰
                             let width = img.width; let height = img.height;
                             if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                             canvas.width = width; canvas.height = height;
@@ -426,16 +435,19 @@
                             const ctx = canvas.getContext('2d'); 
                             ctx.drawImage(img, 0, 0, width, height);
                             
-                            // 動態壓縮機制：以 10% 遞減，確保 Base64 不超過 48,000 字元
-                            let quality = 0.7;
-                            let base64str = canvas.toDataURL('image/jpeg', quality);
-                            while (base64str.length > 48000 && quality > 0.1) {
+                            // 直接嘗試 50% 畫質的 WebP 壓縮
+                            let quality = 0.5;
+                            let base64str = canvas.toDataURL('image/webp', quality);
+                            
+                            // 容錯防線：如果 50% 還是太大，最多只降到 30%
+                            while (base64str.length > 48000 && quality > 0.3) {
                                 quality -= 0.1;
-                                base64str = canvas.toDataURL('image/jpeg', quality);
+                                base64str = canvas.toDataURL('image/webp', quality);
                             }
                             
+                            // 如果壓到底線 30% 還是塞不下，就會跳出警告
                             if (base64str.length > 49500) {
-                                alert('圖片內容過於複雜，系統壓縮後仍超出 Google Sheets 儲存上限 (50K字元)。請嘗試上傳其他圖片或預先裁切！');
+                                alert('❌ 您的圖片在 50% 畫質下依然超過 Google Sheets 容量限制！\n\n💡 請直接使用上方的「貼上網址」功能，以維持 100% 原始畫質。');
                                 return;
                             }
                             
