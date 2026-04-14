@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.10.V46_Admin_Login_Gate -->
+    <!-- Version: 2026.04.15.V57_High_Res_Images_Algorithm -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -49,19 +50,16 @@
         .hide-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
+
 <body>
     <div id="app" v-cloak>
         
         <!-- 🔐 登入閘門畫面 -->
         <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4">
             <div class="max-w-[380px] w-full bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-10 animate-fade-in border border-slate-100 relative overflow-hidden">
-                <!-- 裝飾背景色塊 -->
                 <div class="absolute top-0 left-0 w-full h-2 bg-[#06C755]"></div>
-                
                 <div class="text-center mb-10">
-                    <div class="w-16 h-16 bg-[#f0fdf4] text-[#06C755] rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5 shadow-sm border border-[#dcfce7]">
-                        <i class="fas fa-shield-alt"></i>
-                    </div>
+                    <div class="w-16 h-16 bg-[#f0fdf4] text-[#06C755] rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5 shadow-sm border border-[#dcfce7]"><i class="fas fa-shield-alt"></i></div>
                     <h2 class="text-2xl font-bold text-slate-800 tracking-tight">宏學管理站</h2>
                     <p class="text-slate-400 text-sm mt-2 font-medium">請登入以存取系統資料</p>
                 </div>
@@ -82,10 +80,7 @@
                         </div>
                     </div>
                     
-                    <!-- 錯誤提示 -->
-                    <div v-if="loginError" class="text-orange-600 text-xs font-bold text-center bg-orange-50 py-3 rounded-xl border border-orange-100 animate-fade-in">
-                        <i class="fas fa-exclamation-circle mr-1"></i> {{ loginError }}
-                    </div>
+                    <div v-if="loginError" class="text-orange-600 text-xs font-bold text-center bg-orange-50 py-3 rounded-xl border border-orange-100 animate-fade-in"><i class="fas fa-exclamation-circle mr-1"></i> {{ loginError }}</div>
                     
                     <button @click="handleLogin" :disabled="isLoading" class="w-full py-4 bg-[#06C755] text-white rounded-xl font-bold shadow-lg shadow-green-100 hover:bg-[#05b04a] transition active:scale-[0.98] mt-2">
                         {{ isLoading ? '驗證中...' : '登入系統' }}
@@ -94,7 +89,7 @@
             </div>
         </div>
 
-        <!-- 📊 內部管理系統 (登入後顯示) -->
+        <!-- 📊 內部管理系統 -->
         <div v-else class="flex min-h-screen">
             <aside class="sidebar">
                 <div class="sidebar-brand">宏學管理站</div>
@@ -104,21 +99,15 @@
                     <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-list-check w-5"></i>訂單管理控制台</div>
                     <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members'}"><i class="fas fa-users w-5"></i>學員會員管理</div>
                 </nav>
-                <div class="p-6 border-t border-gray-100">
-                    <button @click="logout" class="w-full py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-orange-500 transition">
-                        <i class="fas fa-sign-out-alt mr-2"></i>安全登出
-                    </button>
-                </div>
+                <div class="p-6 border-t border-gray-100"><button @click="logout" class="w-full py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-orange-500 transition"><i class="fas fa-sign-out-alt mr-2"></i>安全登出</button></div>
             </aside>
 
             <main class="main-content">
                 <header class="page-header">
                     <h2 class="text-lg font-bold text-slate-800">{{ currentViewName }}</h2>
                     <div class="flex items-center gap-4">
-                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V46_AUTH_SECURE</span>
-                        <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm">
-                            <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步
-                        </button>
+                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V57_HIGH_RES_IMG</span>
+                        <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步</button>
                     </div>
                 </header>
 
@@ -167,19 +156,16 @@
                                         <td><div class="text-[19px] font-bold text-[#06C755] mb-0.5">${{ formatPrice(c.price) }}</div><div class="text-slate-500 text-[13px]">{{ c.enrolled }} / {{ c.capacity }} 人</div></td>
                                         <td>
                                             <div class="text-[13px] text-slate-600 mb-1">已付: <span class="text-[#06C755] font-bold">{{ getCoursePaidCount(c.id) }}</span> | 待付: <span class="text-orange-500 font-bold">{{ getCoursePendingCount(c.id) }}</span></div>
-                                            <button @click="openEnrollments(c)" class="px-3 py-1 mt-1 bg-white border border-slate-300 shadow-sm hover:bg-slate-50 text-slate-700 text-xs rounded-md transition font-medium inline-flex items-center gap-1.5"><i class="fas fa-mouse-pointer text-slate-400"></i> Click</button>
+                                            <button @click="openEnrollments(c)" class="px-3 py-1 mt-1 bg-white border border-slate-300 shadow-sm hover:bg-slate-50 text-slate-700 text-xs rounded-md transition font-medium inline-flex items-center gap-1.5"><i class="fas fa-mouse-pointer text-slate-400"></i> 名單</button>
                                         </td>
                                         <td class="text-right">
                                             <div class="flex justify-end gap-5 items-center">
-                                                <button class="text-[14px] text-slate-700 font-medium hover:text-[#06C755] transition">簽到</button>
                                                 <button @click="copyCourse(c)" class="text-slate-400 hover:text-slate-700 text-lg transition" title="複製課程"><i class="far fa-copy"></i></button>
                                                 <button @click="openEditModal(c)" class="text-[14px] text-blue-600 font-medium transition">編輯</button>
                                             </div>
                                         </td>
                                     </tr>
-                                    <tr v-if="filteredAdminCourses.length === 0">
-                                        <td colspan="5" class="text-center text-slate-400 py-10 font-medium">找不到符合條件的課程</td>
-                                    </tr>
+                                    <tr v-if="filteredAdminCourses.length === 0"><td colspan="5" class="text-center text-slate-400 py-10 font-medium">找不到符合條件的課程</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -187,7 +173,6 @@
 
                     <!-- 3. 訂單管理 -->
                     <div v-if="view === 'orders'" class="animate-fade-in">
-                        <!-- 新增：訂單搜尋與篩選列 -->
                         <div class="mx-[32px] mt-[32px] flex flex-wrap gap-3">
                             <div class="relative flex-1 min-w-[220px] max-w-sm">
                                 <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
@@ -217,13 +202,11 @@
                                         <td class="font-medium text-slate-700">{{ getCourseName(o.courseId) }}</td>
                                         <td><div class="font-bold text-slate-800">{{ o.name }}</div><div class="text-[11px] text-slate-400 font-mono">{{ o.phone }}</div></td>
                                         <td class="text-[16px] font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td>
-                                        <td><span :class="o.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge">{{ o.status === 'PAID' ? '已完款' : (o.status === 'CANCELLED' ? '已取消' : '待付款') }}</span></td>
+                                        <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '已取消' : '待付款') }}</span></td>
                                         <td class="font-bold text-blue-600">{{ o.remittance || '-' }}</td>
                                         <td class="text-right"><button @click="openOrderEditModal(o)" class="px-5 py-1.5 border rounded-lg text-xs font-bold hover:bg-slate-50 transition">編輯</button></td>
                                     </tr>
-                                    <tr v-if="filteredAdminOrders.length === 0">
-                                        <td colspan="7" class="text-center text-slate-400 py-10 font-medium">找不到符合條件的訂單</td>
-                                    </tr>
+                                    <tr v-if="filteredAdminOrders.length === 0"><td colspan="7" class="text-center text-slate-400 py-10 font-medium">找不到符合條件的訂單</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -244,7 +227,7 @@
                 </div>
             </main>
 
-            <!-- [Modal D] 課程編輯 -->
+            <!-- [Modal D] 課程編輯 (圖片壓縮邏輯強化) -->
             <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
                 <div class="modal-body modal-body-lg animate-fade-in" style="background-color: #f8fafc;">
                     <div class="px-8 py-5 border-b flex justify-between items-center bg-white">
@@ -276,18 +259,18 @@
                             
                             <div class="col-span-5 space-y-6">
                                 <div>
-                                    <div class="section-title !text-[15px] !mb-3">宣傳圖片 (R 欄位映射)</div>
+                                    <div class="section-title !text-[15px] !mb-3">宣傳圖片 (支援高畫質)</div>
                                     <div class="w-full aspect-[4/3] bg-[#f8fafc] rounded-xl overflow-hidden border border-dashed border-slate-300 flex items-center justify-center relative">
                                         <img v-if="editingCourse.image" :src="editingCourse.image" class="w-full h-full object-cover">
                                         <div v-else class="text-slate-300 font-bold text-xs uppercase flex items-center gap-2"><i class="fas fa-camera"></i> 無圖片</div>
                                     </div>
-                                    <button @click="$refs.fileInput.click()" class="w-full mt-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition"><i class="fas fa-upload mr-2"></i>更換圖片 (自動壓縮)</button>
-                                    <p class="text-[11px] text-slate-400 mt-2">💡 提示：圖片會自動壓縮至 250px 寬度，檔案大小限制 50KB 文字</p>
+                                    <button @click="$refs.fileInput.click()" class="w-full mt-4 py-3 border border-slate-200 rounded-lg text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition"><i class="fas fa-upload mr-2"></i>上傳圖片 (自動壓縮最佳化)</button>
+                                    <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">💡 V57 升級：圖片將自動壓縮至寬度 600px。系統將動態調整畫質，確保不超過 Google Sheets 儲存上限。</p>
                                     <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload">
                                 </div>
                                 <div>
                                     <div class="section-title !text-[15px] !mb-3">詳細內容 (S 欄)</div>
-                                    <textarea v-model="editingCourse.description" class="input-field h-32 resize-none text-sm"></textarea>
+                                    <textarea v-model="editingCourse.description" class="input-field h-32 resize-none text-sm leading-relaxed"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -301,7 +284,7 @@
 
             <!-- [Modal A] 報名名單 -->
             <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
-                <div class="modal-body modal-body-lg animate-fade-in"><div class="px-8 py-6 border-b flex justify-between items-center"><h3 class="text-xl font-bold text-slate-800">{{ activeEnrollmentCourse.name }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400"><i class="fas fa-times"></i></button></div><div class="p-8 overflow-y-auto" style="max-height: 70vh;"><table class="admin-table !min-w-full border rounded-xl overflow-hidden shadow-sm"><thead><tr class="bg-slate-50"><th>學員姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">操作</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId"><td>{{ o.name }}</td><td>{{ o.phone }}</td><td class="font-bold">\$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付款' }}</span></td><td>{{ o.remittance || '-' }}</td><td class="text-right"><button @click="openOrderEditModal(o)" class="bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-lg border border-blue-100">編輯訂單</button></td></tr></tbody></table></div><div class="px-8 py-5 border-t flex justify-end"><button @click="activeEnrollmentCourse = null" class="px-10 py-2.5 border rounded-xl font-bold">關閉</button></div></div>
+                <div class="modal-body modal-body-lg animate-fade-in"><div class="px-8 py-6 border-b flex justify-between items-center"><h3 class="text-xl font-bold text-slate-800">{{ activeEnrollmentCourse.name }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400"><i class="fas fa-times"></i></button></div><div class="p-8 overflow-y-auto" style="max-height: 70vh;"><table class="admin-table !min-w-full border rounded-xl overflow-hidden shadow-sm"><thead><tr class="bg-slate-50"><th>學員姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">操作</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId"><td>{{ o.name }}</td><td>{{ o.phone }}</td><td class="font-bold">\$ {{ formatPrice(o.amount) }}</td><td><span :class="(o.status || 'PENDING')==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ (o.status || 'PENDING')==='PAID'?'已完款':'待付款' }}</span></td><td>{{ o.remittance || '-' }}</td><td class="text-right"><button @click="openOrderEditModal(o)" class="bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-lg border border-blue-100">編輯訂單</button></td></tr></tbody></table></div><div class="px-8 py-5 border-t flex justify-end"><button @click="activeEnrollmentCourse = null" class="px-10 py-2.5 border rounded-xl font-bold">關閉</button></div></div>
             </div>
             
             <!-- [Modal B] 訂單編輯 -->
@@ -314,7 +297,6 @@
                 <div class="modal-body animate-fade-in"><div class="px-6 py-4 border-b flex justify-between items-center"><h3 class="text-lg font-bold text-gray-800">學員編輯</h3><button @click="editingMember = null" class="text-gray-400"><i class="fas fa-times"></i></button></div><div class="p-8 space-y-6"><div><label class="input-label">學員姓名</label><input type="text" v-model="editingMember.name" class="input-field"></div><div class="grid grid-cols-2 gap-4"><div><label class="input-label">性別</label><select v-model="editingMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div><div><label class="input-label">手機</label><input type="tel" v-model="editingMember.phone" class="input-field"></div></div><div><label class="input-label">業種</label><input type="text" v-model="editingMember.industry" class="input-field"></div></div><div class="px-8 py-5 border-t flex justify-end gap-3"><button @click="editingMember = null" class="px-6 py-2.5 rounded-xl font-bold">取消</button><button @click="saveMemberUpdate" :disabled="isLoading" class="btn-green-main min-w-[120px]">{{ isLoading ? '處理中' : '確認儲存' }}</button></div></div>
             </div>
         </div>
-
     </div>
 
     <script>
@@ -323,17 +305,15 @@
 
         createApp({
             setup() {
-                // --- 🔐 認證區塊 ---
                 const isAuthenticated = ref(false);
                 const loginForm = ref({ account: '', password: '' });
                 const loginError = ref('');
 
                 const handleLogin = () => {
-                    // 預設密碼：可自行在此處更改
                     if (loginForm.value.account === 'admin' && loginForm.value.password === '@1234') {
                         isAuthenticated.value = true;
                         loginError.value = '';
-                        fetchData(); // 登入成功後才載入資料
+                        fetchData();
                     } else {
                         loginError.value = '您輸入的帳號或密碼不正確';
                     }
@@ -343,13 +323,9 @@
                     isAuthenticated.value = false;
                     loginForm.value = { account: '', password: '' };
                     view.value = 'dashboard';
-                    // 清空個資暫存
-                    courses.value = [];
-                    orders.value = [];
-                    users.value = [];
+                    courses.value = []; orders.value = []; users.value = [];
                 };
 
-                // --- 📊 系統邏輯區塊 ---
                 const view = ref('dashboard'); 
                 const courses = ref([]); 
                 const orders = ref([]); 
@@ -363,8 +339,6 @@
                 
                 const courseSearchQuery = ref('');
                 const courseFilterCategory = ref('');
-
-                // 新增：訂單搜尋與篩選狀態
                 const orderSearchQuery = ref('');
                 const orderFilterCourse = ref('');
                 const orderFilterStatus = ref('');
@@ -374,7 +348,7 @@
 
                 const statsSummary = computed(() => {
                     let paid = 0, pending = 0;
-                    orders.value.forEach(o => { const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0; if (o.status === 'PAID') paid += amt; else if (o.status === 'PENDING') pending += amt; });
+                    orders.value.forEach(o => { const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0; if (o.status === 'PAID') paid += amt; else if ((o.status || 'PENDING') === 'PENDING') pending += amt; });
                     return [ { label: '實收總額', value: paid, colorClass: 'text-[#06C755]' }, { label: '待收總額', value: pending, colorClass: 'text-orange-500' }, { label: '累計報名', value: orders.value.length, colorClass: 'text-blue-600' }, { label: '系統會員', value: users.value.length, colorClass: 'text-purple-600' } ];
                 });
 
@@ -382,62 +356,36 @@
                     return courses.value.map(c => {
                         const cOrders = orders.value.filter(o => o.courseId === c.id || o.courseId === c.name);
                         let data = { id: c.id, name: c.name, totalOrders: cOrders.length, totalExpected: 0, pendingAmount: 0, paidAmount: 0 };
-                        cOrders.forEach(o => { const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0; if (o.status === 'PENDING') { data.pendingAmount += amt; data.totalExpected += amt; } else if (o.status === 'PAID') { data.paidAmount += amt; data.totalExpected += amt; } });
+                        cOrders.forEach(o => { const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0; if ((o.status || 'PENDING') === 'PENDING') { data.pendingAmount += amt; data.totalExpected += amt; } else if (o.status === 'PAID') { data.paidAmount += amt; data.totalExpected += amt; } });
                         return data;
                     }).filter(c => c.totalOrders > 0);
                 });
 
-                const adminCategories = computed(() => {
-                    const cats = [...new Set(courses.value.map(c => c.type))].filter(Boolean);
-                    return cats.length ? cats : [];
-                });
+                const adminCategories = computed(() => { return [...new Set(courses.value.map(c => c.type))].filter(Boolean); });
 
                 const filteredAdminCourses = computed(() => {
                     return courses.value.filter(c => {
                         const matchCat = !courseFilterCategory.value || c.type === courseFilterCategory.value;
                         const query = courseSearchQuery.value.toLowerCase();
-                        const matchQuery = !query || 
-                                           (c.name && c.name.toLowerCase().includes(query)) || 
-                                           (c.id && c.id.toLowerCase().includes(query));
+                        const matchQuery = !query || (c.name && c.name.toLowerCase().includes(query)) || (c.id && c.id.toLowerCase().includes(query));
                         return matchCat && matchQuery;
                     });
                 });
 
-                // 新增：抽取 getCourseName 為獨立函式供 computed 使用
-                const getCourseName = (id) => {
-                    return courses.value.find(c => c.id === id || c.name === id)?.name || id;
-                };
+                const getCourseName = (id) => { return courses.value.find(c => c.id === id || c.name === id)?.name || id; };
 
-                // 新增：動態抓取「有訂單的課程」作為下拉選單選項
                 const adminOrderCourses = computed(() => {
                     const courseIds = [...new Set(orders.value.map(o => o.courseId))].filter(Boolean);
                     return courseIds.map(id => ({ id: id, name: getCourseName(id) }));
                 });
 
-                // 新增：訂單過濾核心邏輯
                 const filteredAdminOrders = computed(() => {
-                    // 預設反轉陣列，讓最新建立的訂單排在最上面
                     let result = [...orders.value].reverse();
-
-                    // 1. 狀態過濾
-                    if (orderFilterStatus.value) {
-                        result = result.filter(o => o.status === orderFilterStatus.value);
-                    }
-
-                    // 2. 課程過濾
-                    if (orderFilterCourse.value) {
-                        result = result.filter(o => o.courseId === orderFilterCourse.value);
-                    }
-
-                    // 3. 關鍵字過濾 (單號、姓名、手機、時間)
+                    if (orderFilterStatus.value) { result = result.filter(o => { const currentStatus = o.status || 'PENDING'; return currentStatus === orderFilterStatus.value; }); }
+                    if (orderFilterCourse.value) { result = result.filter(o => o.courseId === orderFilterCourse.value); }
                     if (orderSearchQuery.value) {
                         const q = orderSearchQuery.value.toLowerCase();
-                        result = result.filter(o => 
-                            (o.orderId && o.orderId.toLowerCase().includes(q)) ||
-                            (o.name && o.name.toLowerCase().includes(q)) ||
-                            (o.phone && o.phone.toLowerCase().includes(q)) ||
-                            (o.createdAt && o.createdAt.toLowerCase().includes(q))
-                        );
+                        result = result.filter(o => (o.orderId && o.orderId.toLowerCase().includes(q)) || (o.name && o.name.toLowerCase().includes(q)) || (o.phone && o.phone.toLowerCase().includes(q)) || (o.createdAt && o.createdAt.toLowerCase().includes(q)));
                     }
                     return result;
                 });
@@ -463,17 +411,35 @@
                 const saveCourse = async () => { if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { editingCourse.value = null; await fetchData(); } };
                 const copyCourse = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); editingCourse.value.id = 'NEW_' + Date.now().toString().slice(-4); editingCourse.value.name += ' (複製)'; };
 
+                // 🚀 V57 核心升級：動態高畫質壓縮演算法
                 const handleFileUpload = (e) => {
                     const file = e.target.files[0]; if (!file) return;
                     const reader = new FileReader();
                     reader.onload = (event) => {
                         const img = new Image(); img.onload = () => {
-                            const canvas = document.createElement('canvas'); const MAX_WIDTH = 250;
+                            const canvas = document.createElement('canvas'); 
+                            const MAX_WIDTH = 600; // 升級：大幅提升解析度至 600px
                             let width = img.width; let height = img.height;
                             if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                             canvas.width = width; canvas.height = height;
-                            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
-                            editingCourse.value.image = canvas.toDataURL('image/jpeg', 0.6);
+                            
+                            const ctx = canvas.getContext('2d'); 
+                            ctx.drawImage(img, 0, 0, width, height);
+                            
+                            // 動態壓縮機制：以 10% 遞減，確保 Base64 不超過 48,000 字元
+                            let quality = 0.7;
+                            let base64str = canvas.toDataURL('image/jpeg', quality);
+                            while (base64str.length > 48000 && quality > 0.1) {
+                                quality -= 0.1;
+                                base64str = canvas.toDataURL('image/jpeg', quality);
+                            }
+                            
+                            if (base64str.length > 49500) {
+                                alert('圖片內容過於複雜，系統壓縮後仍超出 Google Sheets 儲存上限 (50K字元)。請嘗試上傳其他圖片或預先裁切！');
+                                return;
+                            }
+                            
+                            editingCourse.value.image = base64str;
                         };
                         img.src = event.target.result;
                     };
@@ -481,24 +447,17 @@
                 };
 
                 return { 
-                    // Auth
                     isAuthenticated, loginForm, loginError, handleLogin, logout,
-                    // View State
                     view, courses, orders, users, isLoading, editingCourse, editingOrder, editingMember, 
                     activeEnrollmentCourse, courseSearchQuery, courseFilterCategory, adminCategories, filteredAdminCourses,
-                    
-                    // 新增回傳：訂單搜尋與過濾
                     orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders,
-                    
                     courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []), 
                     courseStatsFiltered,
-                    // Methods
                     openEditModal, openOrderEditModal, openMemberEditModal, openEnrollments, 
                     saveOrderUpdate, saveMemberUpdate, saveCourse, fetchData, currentViewName, statsSummary, formatPrice,
                     getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length, 
-                    getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PENDING').length, 
-                    getCourseName,
-                    handleFileUpload, copyCourse
+                    getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && (o.status || 'PENDING') === 'PENDING').length, 
+                    getCourseName, handleFileUpload, copyCourse
                 };
             }
         }).mount('#app');
