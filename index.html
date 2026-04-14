@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.15.V53_Icon_Color_And_Link_Fix -->
+    <!-- Version: 2026.04.15.V54_Register_Back_Button_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -33,11 +33,9 @@
         .btn-main { width: 100%; padding: 16px; background: #06C755; color: white; border-radius: 12px; font-weight: 700; font-size: 16px; transition: opacity 0.2s; }
         .btn-main:disabled { background: #ccc; cursor: not-allowed; opacity: 0.7; }
         
-        /* 修改：移除寫死的顏色，稍微放大字體與陰影讓顏色更跳 */
         .nav-icon { width: 52px; height: 52px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
         .status-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 99px; }
         
-        /* 彈窗樣式確保置中與置頂 */
         .modal-mask { position: fixed; inset: 0; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .modal-body { background: white; width: 100%; max-width: 400px; border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
         
@@ -63,7 +61,6 @@
                     <img src="https://s3.us-west-1.wasabisys.com/aitw/2026/04/001bd74e24a00403a292608ec2853cb9.jpg" class="w-full h-full object-cover">
                 </div>
                 
-                <!-- 修改：加入專屬鮮豔顏色，並將文字稍微加深/放大至 12px 增加可讀性 -->
                 <div class="px-8 py-6 grid grid-cols-3 gap-4">
                     <button @click="editProfile" class="flex flex-col items-center gap-2">
                         <div class="nav-icon text-blue-500"><i class="fas fa-user-circle"></i></div>
@@ -127,8 +124,9 @@
                 </div>
             </div>
 
-            <!-- 3. 個人資料註冊 -->
+            <!-- 3. 個人資料註冊 (新增返回按鈕) -->
             <div v-else-if="view === 'register'" class="p-6 animate-fade-in bg-white min-h-screen">
+                <button @click="switchView('course_list')" class="text-slate-400 text-sm font-bold flex items-center mb-4"><i class="fas fa-chevron-left mr-1"></i>返回</button>
                 <h2 class="text-2xl font-bold mb-8 tracking-tight">建立個人資料</h2>
                 <div class="space-y-6">
                     <div><label class="font-bold text-sm mb-1 block">姓名</label><input type="text" v-model="regForm.name" class="input-box"></div>
@@ -151,7 +149,7 @@
                 <button @click="submitRegistration" :disabled="isSubmitting" class="btn-main">{{ isSubmitting ? '報名傳送中...' : '確認資訊，送出報名' }}</button>
             </div>
 
-            <!-- 5. 報名成功 (升級：引導填寫匯款資訊) -->
+            <!-- 5. 報名成功 -->
             <div v-else-if="view === 'success'" class="animate-fade-in flex flex-col items-center justify-center min-h-[70vh] px-8 text-center">
                 <div class="w-20 h-20 bg-[#06C755] text-white rounded-full flex items-center justify-center text-3xl shadow-xl shadow-green-100 mb-6 animate-bounce"><i class="fas fa-check"></i></div>
                 <h2 class="text-2xl font-bold mb-3 tracking-tight">初步申請成功！</h2>
