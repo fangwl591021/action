@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.08.V41_Logic_Separation_Fix -->
+    <!-- Version: 2026.04.15.V53_Icon_Color_And_Link_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -33,7 +33,8 @@
         .btn-main { width: 100%; padding: 16px; background: #06C755; color: white; border-radius: 12px; font-weight: 700; font-size: 16px; transition: opacity 0.2s; }
         .btn-main:disabled { background: #ccc; cursor: not-allowed; opacity: 0.7; }
         
-        .nav-icon { width: 52px; height: 52px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #94a3b8; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        /* 修改：移除寫死的顏色，稍微放大字體與陰影讓顏色更跳 */
+        .nav-icon { width: 52px; height: 52px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
         .status-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 99px; }
         
         /* 彈窗樣式確保置中與置頂 */
@@ -62,10 +63,20 @@
                     <img src="https://s3.us-west-1.wasabisys.com/aitw/2026/04/001bd74e24a00403a292608ec2853cb9.jpg" class="w-full h-full object-cover">
                 </div>
                 
+                <!-- 修改：加入專屬鮮豔顏色，並將文字稍微加深/放大至 12px 增加可讀性 -->
                 <div class="px-8 py-6 grid grid-cols-3 gap-4">
-                    <button @click="editProfile" class="flex flex-col items-center gap-2"><div class="nav-icon"><i class="fas fa-user-circle"></i></div><span class="text-[11px] font-bold text-slate-500">基本資料</span></button>
-                    <button @click="goToMyOrders" class="flex flex-col items-center gap-2"><div class="nav-icon"><i class="fas fa-file-invoice"></i></div><span class="text-[11px] font-bold text-slate-500">報名紀錄</span></button>
-                    <a href="https://lin.ee/Y0FKXqD" class="flex flex-col items-center gap-2"><div class="nav-icon"><i class="fab fa-line"></i></div><span class="text-[11px] font-bold text-slate-500">聯絡客服</span></a>
+                    <button @click="editProfile" class="flex flex-col items-center gap-2">
+                        <div class="nav-icon text-blue-500"><i class="fas fa-user-circle"></i></div>
+                        <span class="text-[12px] font-bold text-slate-600">基本資料</span>
+                    </button>
+                    <button @click="goToMyOrders" class="flex flex-col items-center gap-2">
+                        <div class="nav-icon text-[#FF5A00]"><i class="fas fa-file-invoice"></i></div>
+                        <span class="text-[12px] font-bold text-slate-600">報名紀錄</span>
+                    </button>
+                    <a href="https://lin.ee/8SfC0rr" class="flex flex-col items-center gap-2">
+                        <div class="nav-icon text-[#06C755]"><i class="fab fa-line"></i></div>
+                        <span class="text-[12px] font-bold text-slate-600">聯絡客服</span>
+                    </a>
                 </div>
                 
                 <div class="px-5 py-3 flex gap-2 overflow-x-auto hide-scrollbar">
@@ -95,19 +106,28 @@
             <!-- 2. 報名紀錄 -->
             <div v-else-if="view === 'my_orders'" class="p-6 animate-fade-in space-y-4">
                 <button @click="switchView('course_list')" class="text-slate-400 text-sm font-bold flex items-center mb-2"><i class="fas fa-chevron-left mr-1"></i>返回</button>
-                <h3 class="text-xl font-bold">報名紀錄</h3>
+                <h3 class="text-xl font-bold mb-4">報名紀錄</h3>
+                
                 <div v-if="myOrders.length === 0" class="py-10 text-center text-slate-400 font-bold">目前無報名紀錄</div>
+                
                 <div v-for="o in myOrders" :key="o.orderId" class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                    <div class="flex justify-between items-start mb-2"><h4 class="font-bold text-[14px] text-slate-800 flex-grow pr-2">{{ getCourseName(o.courseId) }}</h4><span :class="o.status==='PAID'?'bg-green-50 text-green-600':'bg-orange-50 text-orange-600'" class="status-badge">{{ o.status==='PAID'?'已完成':'待處理' }}</span></div>
-                    <div class="flex justify-between items-center text-xs text-slate-400 mb-4"><span>單號: {{ o.orderId }}</span><span class="text-orange-500 font-bold">NT$ {{ parsePrice(o.amount) }}</span></div>
-                    <div v-if="o.status === 'PENDING'" class="flex gap-2 pt-3 border-t">
-                        <button @click="activeRemitOrder = o; remitLastFive = ''" class="flex-1 py-2 text-[11px] font-bold border rounded-lg text-slate-600 hover:bg-slate-50 transition">匯款回報</button>
-                        <button @click="cancelOrder(o)" class="flex-1 py-2 text-[11px] font-bold border border-red-50 rounded-lg text-red-400 hover:bg-red-50 transition">取消報名</button>
+                    <div class="flex justify-between items-start mb-3">
+                        <h4 class="font-bold text-[16px] text-slate-800 flex-grow pr-2">{{ getCourseName(o.courseId) }}</h4>
+                        <div :class="o.status==='PAID'?'text-[#06C755]':'text-[#FF5A00]'" class="font-bold text-[15px] whitespace-nowrap pt-0.5">
+                            {{ o.status==='PAID'?'已完成':'待付款' }}
+                        </div>
+                    </div>
+                    <div class="text-[15px] text-slate-600 mb-1">單號: {{ o.orderId }}</div>
+                    <div class="text-[16px] text-[#FF5A00] font-bold mb-4">NT$ {{ parsePrice(o.amount) }}</div>
+                    
+                    <div v-if="o.status === 'PENDING'" class="flex gap-3 pt-4 border-t border-slate-100">
+                        <button @click="activeRemitOrder = o; remitLastFive = ''" class="flex-1 py-3 bg-slate-100 text-slate-700 text-[15px] font-medium rounded-xl hover:bg-slate-200 transition">匯款回報</button>
+                        <button @click="cancelOrder(o)" class="flex-1 py-3 bg-white border border-slate-200 text-slate-500 text-[15px] font-medium rounded-xl hover:bg-slate-50 transition">取消報名</button>
                     </div>
                 </div>
             </div>
 
-            <!-- 3. 個人資料註冊 (1-2-2-2 佈局) -->
+            <!-- 3. 個人資料註冊 -->
             <div v-else-if="view === 'register'" class="p-6 animate-fade-in bg-white min-h-screen">
                 <h2 class="text-2xl font-bold mb-8 tracking-tight">建立個人資料</h2>
                 <div class="space-y-6">
@@ -150,17 +170,14 @@
             </div>
         </main>
         
-        <!-- 說明彈窗 (精準對齊邏輯：純粹顯示內容，絕無誤導報名的按鈕) -->
+        <!-- 說明彈窗 -->
         <div v-if="viewingCourse" class="modal-mask" @click.self="viewingCourse = null">
             <div class="modal-body animate-fade-in bg-white rounded-3xl overflow-hidden shadow-2xl relative w-[90%] max-w-sm">
-                <!-- 關閉按鈕 -->
                 <button @click="viewingCourse = null" class="absolute top-3 right-3 w-8 h-8 bg-black/40 text-white rounded-full z-10 flex items-center justify-center"><i class="fas fa-times"></i></button>
                 <img :src="viewingCourse.image" class="w-full aspect-video object-cover" @error="$event.target.src='https://placehold.co/400x225/eeeeee/999999?text=No+Image'">
                 <div class="p-6">
                     <h3 class="font-bold mb-4 text-lg leading-tight">{{ viewingCourse.name }}</h3>
-                    <!-- 預設文案保護 -->
                     <div class="text-slate-500 text-sm mb-6 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">{{ viewingCourse.description || defaultDesc }}</div>
-                    <!-- 徹底移除「我要報名」，改為單純關閉按鈕，區隔動線 -->
                     <button @click="viewingCourse = null" class="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition">關閉說明</button>
                 </div>
             </div>
@@ -222,7 +239,15 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: act, userProfile: { userId: userProfile.value?.userId }, payload: pl }) 
                     });
-                    const json = await res.json(); 
+                    
+                    const text = await res.text();
+                    let json;
+                    try {
+                        json = JSON.parse(text);
+                    } catch (e) {
+                        throw new Error("後端格式錯誤 (請確認 GAS 是否已建立新版本)\n" + text.substring(0, 50));
+                    }
+
                     if (json.status !== 'success') throw new Error(json.data); 
                     return json.data;
                 };
@@ -236,7 +261,6 @@
                 };
 
                 const selectCourse = (c) => { 
-                    // 新增：攔截未註冊學員，引導至建立資料
                     if (!userInfo.value || !userInfo.value.name) {
                         alert('為了提供更好的服務，報名前請先建立基本資料！');
                         switchView('register');
@@ -248,7 +272,6 @@
                 };
 
                 const goToMyOrders = async () => { 
-                    // 新增：攔截未註冊學員
                     if (!userInfo.value || !userInfo.value.name) {
                         alert('請先建立基本資料！');
                         switchView('register');
@@ -269,7 +292,7 @@
                     isSubmitting.value = true; 
                     try { 
                         await callApi('REGISTER', { 
-                            userId: userProfile.value.userId, // 核心修復：明確補上 userId，讓訂單成功綁定帳號！
+                            userId: userProfile.value.userId, 
                             courseId: selectedCourse.value.id, 
                             courseName: selectedCourse.value.name, 
                             name: userInfo.value.name, 
@@ -327,10 +350,11 @@
                         } else { 
                             regForm.value.name = userProfile.value.displayName; 
                         } 
-                        // 核心修復：無論有沒有註冊過，都先放行進入首頁看課程！
                         switchView('course_list'); 
                         await loadCourses(); 
-                    } catch (err) { alert('載入連線異常，請重新打開選單'); } 
+                    } catch (err) { 
+                        alert('⚠️ 系統驗證失敗\n請務必透過「LINE 官方帳號」內的專屬按鈕開啟，不要直接用手機瀏覽器打開網址喔！\n\n(除錯代碼: ' + err.message + ')'); 
+                    } 
                 });
 
                 const dynamicCategories = computed(() => { 
