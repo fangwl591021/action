@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V63_Member_CRM_Integration -->
+    <!-- Version: 2026.04.15.V64_Course_List_Attendance -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -107,7 +107,7 @@
                 <header class="page-header">
                     <h2 class="text-lg font-bold text-slate-800">{{ currentViewName }}</h2>
                     <div class="flex items-center gap-3">
-                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase hidden md:inline-block">V63_CRM_INTEGRATION</span>
+                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase hidden md:inline-block">V64_ATTENDANCE</span>
                         <button @click="runHealthCheck" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-orange-200 rounded-lg text-sm font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 transition shadow-sm">
                             <i class="fas fa-stethoscope" :class="{'fa-pulse': isLoading}"></i>系統健檢
                         </button>
@@ -218,21 +218,20 @@
                         </div>
                     </div>
 
-                    <!-- 4. 學員會員管理 (改版：將編輯改為前往 CRM 詳情) -->
+                    <!-- 4. 學員會員管理 -->
                     <div v-if="view === 'members'" class="admin-table-container animate-fade-in">
                         <table class="admin-table">
                             <thead><tr><th>姓名</th><th>性別</th><th>手機</th><th>業種</th><th>註冊日期</th><th class="text-right">操作</th></tr></thead>
                             <tbody>
                                 <tr v-for="u in users" :key="u.userId">
                                     <td class="font-bold text-slate-800">{{ u.name }}</td><td>{{ u.gender }}</td><td class="font-mono">{{ u.phone }}</td><td class="text-[#06C755] font-medium">{{ u.industry }}</td><td class="text-[11px] text-slate-400">{{ u.createdAt }}</td>
-                                    <!-- 🚀 核心升級：進入獨立 CRM 頁面 -->
                                     <td class="text-right"><button @click="openMemberDetail(u)" class="px-4 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50 transition">查看 CRM 檔案</button></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
-                    <!-- 🚀 V63 全新升級：學員專屬 CRM 頁面 -->
+                    <!-- 學員專屬 CRM 頁面 -->
                     <div v-if="view === 'member_detail'" class="p-8 animate-fade-in max-w-5xl mx-auto">
                         <button @click="view = 'members'" class="text-slate-400 text-sm font-bold flex items-center mb-6 hover:text-slate-600 transition"><i class="fas fa-chevron-left mr-2"></i>返回學員名冊</button>
 
@@ -278,7 +277,6 @@
                                             <td class="font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td>
                                             <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '已取消' : '待付款') }}</span></td>
                                             <td>
-                                                <!-- 🚀 核心升級：背景即時連線的出席切換器 -->
                                                 <select v-model="o.attendance" @change="updateOrderAttendance(o)" class="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold outline-none cursor-pointer shadow-sm transition" :class="{'bg-green-50 text-green-700 border-green-200': o.attendance === 'ATTENDED', 'bg-red-50 text-red-600 border-red-200': o.attendance === 'ABSENT', 'bg-white text-slate-500 hover:bg-slate-50': !o.attendance}">
                                                     <option value="">-- 尚未標記 --</option>
                                                     <option value="ATTENDED">🟢 已出席 / 完成</option>
@@ -421,9 +419,45 @@
                 </div>
             </div>
 
-            <!-- [Modal A] 報名名單 -->
+            <!-- [Modal A] 報名名單 (🚀 V64 新增批次出席點名功能) -->
             <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
-                <div class="modal-body modal-body-lg animate-fade-in"><div class="px-8 py-6 border-b flex justify-between items-center"><h3 class="text-xl font-bold text-slate-800">{{ activeEnrollmentCourse.name }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400"><i class="fas fa-times"></i></button></div><div class="p-8 overflow-y-auto" style="max-height: 70vh;"><table class="admin-table !min-w-full border rounded-xl overflow-hidden shadow-sm"><thead><tr class="bg-slate-50"><th>學員姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">操作</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId"><td>{{ o.name }}</td><td>{{ o.phone }}</td><td class="font-bold">\$ {{ formatPrice(o.amount) }}</td><td><span :class="(o.status || 'PENDING')==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ (o.status || 'PENDING')==='PAID'?'已完款':'待付款' }}</span></td><td>{{ o.remittance || '-' }}</td><td class="text-right"><button @click="openOrderEditModal(o)" class="bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-lg border border-blue-100">編輯訂單</button></td></tr></tbody></table></div><div class="px-8 py-5 border-t flex justify-end"><button @click="activeEnrollmentCourse = null" class="px-10 py-2.5 border rounded-xl font-bold">關閉</button></div></div>
+                <div class="modal-body modal-body-lg animate-fade-in">
+                    <div class="px-8 py-6 border-b flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-slate-800">{{ activeEnrollmentCourse.name }} - 名單</h3>
+                        <button @click="activeEnrollmentCourse = null" class="text-slate-400"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="p-8 overflow-y-auto" style="max-height: 70vh;">
+                        <table class="admin-table !min-w-full border rounded-xl overflow-hidden shadow-sm">
+                            <thead>
+                                <tr class="bg-slate-50">
+                                    <th>學員姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>後五碼</th><th>出席狀況</th><th class="text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="o in courseOrders" :key="o.orderId">
+                                    <td>{{ o.name }}</td>
+                                    <td class="font-mono">{{ o.phone }}</td>
+                                    <td class="font-bold">\$ {{ formatPrice(o.amount) }}</td>
+                                    <td><span :class="(o.status || 'PENDING')==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ (o.status || 'PENDING')==='PAID'?'已完款':'待付款' }}</span></td>
+                                    <td>{{ o.remittance || '-' }}</td>
+                                    <td>
+                                        <!-- 🚀 V64 新增：直接在課程名單點名 -->
+                                        <select v-model="o.attendance" @change="updateOrderAttendance(o)" class="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold outline-none cursor-pointer shadow-sm transition" :class="{'bg-green-50 text-green-700 border-green-200': o.attendance === 'ATTENDED', 'bg-red-50 text-red-600 border-red-200': o.attendance === 'ABSENT', 'bg-white text-slate-500 hover:bg-slate-50': !o.attendance}">
+                                            <option value="">-- 尚未標記 --</option>
+                                            <option value="ATTENDED">🟢 已出席</option>
+                                            <option value="ABSENT">🔴 未出席</option>
+                                        </select>
+                                    </td>
+                                    <td class="text-right"><button @click="openOrderEditModal(o)" class="bg-blue-50 text-blue-600 text-xs font-bold px-4 py-2 rounded-lg border border-blue-100 transition hover:bg-blue-100">編輯訂單</button></td>
+                                </tr>
+                                <tr v-if="courseOrders.length === 0"><td colspan="7" class="text-center text-slate-400 py-10 font-medium">尚無報名資料</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-8 py-5 border-t flex justify-end">
+                        <button @click="activeEnrollmentCourse = null" class="px-10 py-2.5 border rounded-xl font-bold hover:bg-slate-50 transition">關閉</button>
+                    </div>
+                </div>
             </div>
             
             <!-- [Modal B] 訂單編輯 -->
@@ -470,7 +504,6 @@
                 
                 const editingCourse = ref(null); 
                 const editingOrder = ref(null); 
-                // 🚀 V63：用 activeMember 取代 editingMember 實作全頁 CRM
                 const activeMember = ref(null); 
                 const activeEnrollmentCourse = ref(null);
                 
@@ -557,7 +590,6 @@
                 const openOrderEditModal = (o) => { activeEnrollmentCourse.value = null; editingOrder.value = { ...o }; };
                 const saveOrderUpdate = async () => { if(await callApi('ADMIN_UPDATE_ORDER', editingOrder.value)) { editingOrder.value = null; await fetchData(); } };
                 
-                // 🚀 V63 核心升級：學員 CRM 控制器
                 const openMemberDetail = (u) => {
                     activeMember.value = JSON.parse(JSON.stringify(u));
                     view.value = 'member_detail';
@@ -647,7 +679,6 @@
                     orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders,
                     sysSettings, 
                     courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []), 
-                    // 🚀 V63：即時過濾該學員的訂單
                     memberOrders: computed(() => activeMember.value ? orders.value.filter(o => o.userId === activeMember.value.userId).reverse() : []),
                     courseStatsFiltered,
                     openEditModal, openOrderEditModal, openMemberDetail, openEnrollments, 
