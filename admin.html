@@ -3,9 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V68_Calendar_Sync -->
+    <!-- Version: 2026.04.15.V72_Calendar_Embed -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -104,6 +104,8 @@
                 <div class="sidebar-brand">宏學管理站</div>
                 <nav class="flex-grow">
                     <div @click="view = 'dashboard'" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie w-5"></i>營運統計</div>
+                    <!-- 🚀 V72：新增日曆檢視 -->
+                    <div @click="view = 'calendar'" class="nav-item" :class="{'nav-active': view === 'calendar'}"><i class="far fa-calendar-alt w-5"></i>日曆檢視</div>
                     <div @click="view = 'courses'" class="nav-item" :class="{'nav-active': view === 'courses'}"><i class="fas fa-book w-5"></i>一般課程管理</div>
                     <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-list-check w-5"></i>訂單管理控制台</div>
                     <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-5"></i>學員會員管理</div>
@@ -112,9 +114,13 @@
                 <div class="p-6 border-t border-gray-100"><button @click="logout" class="w-full py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-orange-500 transition"><i class="fas fa-sign-out-alt mr-2"></i>安全登出</button></div>
             </aside>
 
+            <!-- 手機版導覽列 -->
             <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-50 flex justify-around items-center h-[65px] pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
                 <button @click="view = 'dashboard'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'dashboard' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'">
                     <i class="fas fa-chart-pie text-xl"></i><span class="text-[10px] font-bold">統計</span>
+                </button>
+                <button @click="view = 'calendar'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'calendar' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'">
+                    <i class="far fa-calendar-alt text-xl"></i><span class="text-[10px] font-bold">日曆</span>
                 </button>
                 <button @click="view = 'courses'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'courses' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'">
                     <i class="fas fa-book text-xl"></i><span class="text-[10px] font-bold">課程</span>
@@ -167,6 +173,13 @@
                                     <tr v-if="courseStatsFiltered.length === 0"><td colspan="5" class="text-center text-slate-400 py-10">尚無報名資料</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <!-- 🚀 V72 課程行事曆區塊 -->
+                    <div v-if="view === 'calendar'" class="animate-fade-in p-4 md:p-8 h-[calc(100vh-80px)] md:h-[calc(100vh-70px)]">
+                        <div class="bg-white rounded-xl border border-slate-100 shadow-sm w-full h-full overflow-hidden">
+                            <iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Asia%2FTaipei&showPrint=0&src=ZDUyMDgyNzIzOGMyYjI0MDE5MTYxY2E1N2FiOTI1YjI3N2E4YmNlNjE5YTFkYzI3NzViZjc4MGVkNzMwOGI3NEBncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%23f09300" style="border-width:0" width="100%" height="100%" frameborder="0" scrolling="yes"></iframe>
                         </div>
                     </div>
 
@@ -379,7 +392,6 @@
                                 </div>
                                 <div><label class="input-label">時段描述 (N欄)</label><input type="text" v-model="editingCourse.timeSlotType" class="input-field"></div>
                                 
-                                <!-- 🚀 V68 核心升級：解鎖開始與結束時間欄位 (供日曆同步使用) -->
                                 <div class="grid grid-cols-2 gap-4 md:gap-6">
                                     <div><label class="input-label">開始日期 (C欄)</label><input type="date" v-model="editingCourse.startDate" class="input-field text-sm md:text-base"></div>
                                     <div><label class="input-label">開始時間 (K欄)</label><input type="time" v-model="editingCourse.startTime" class="input-field text-sm md:text-base"></div>
@@ -545,7 +557,7 @@
                 const orderFilterCourse = ref('');
                 const orderFilterStatus = ref('');
 
-                const currentViewName = computed(() => ({'dashboard': '營運中心', 'courses': '課程管理', 'orders': '訂單維護', 'members': '學員名冊', 'settings': '系統設定', 'member_detail': 'CRM 檔案'}[view.value]));
+                const currentViewName = computed(() => ({'dashboard': '營運中心', 'courses': '課程管理', 'orders': '訂單維護', 'members': '學員名冊', 'settings': '系統設定', 'member_detail': 'CRM 檔案', 'calendar': '日曆檢視'}[view.value]));
                 const formatPrice = (p) => { if(!p) return "0"; const clean = String(p).replace(/[^0-9.]/g, ""); return Number(clean).toLocaleString(); };
 
                 const statsSummary = computed(() => {
