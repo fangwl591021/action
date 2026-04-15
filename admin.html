@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V86_Global_Discount_Settings -->
+    <!-- Version: 2026.04.16.V89_Admin_UID_Auth_Fix -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -66,7 +67,13 @@
 <body>
     <div id="app" v-cloak>
         
-        <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4">
+        <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4 relative">
+            
+            <div v-if="isLiffLoading" class="absolute inset-0 bg-[#F8FAFC] z-50 flex flex-col items-center justify-center">
+                <i class="fas fa-circle-notch fa-spin text-4xl text-[#06C755] mb-4"></i>
+                <div class="text-slate-500 font-bold">檢查登入狀態中...</div>
+            </div>
+
             <div class="max-w-[360px] w-full bg-white rounded-2xl shadow-sm p-8 animate-fade-in border border-slate-200 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-1.5 bg-[#06C755]"></div>
                 <div class="text-center mb-8">
@@ -75,7 +82,7 @@
                     <p class="text-slate-500 text-sm mt-1.5 font-medium">請登入以存取系統資料</p>
                 </div>
                 
-                <div class="space-y-5">
+                <div class="space-y-4">
                     <div>
                         <label class="input-label">管理員帳號</label>
                         <div class="relative">
@@ -93,8 +100,16 @@
                     
                     <div v-if="loginError" class="text-orange-600 text-xs font-bold text-center bg-orange-50 py-2.5 rounded-lg border border-orange-100 animate-fade-in"><i class="fas fa-exclamation-circle mr-1"></i> {{ loginError }}</div>
                     
-                    <button @click="handleLogin" :disabled="isLoading" class="w-full py-3 bg-[#06C755] text-white rounded-lg font-bold text-sm shadow-sm hover:bg-[#05b04a] transition mt-2">
-                        {{ isLoading ? '驗證中...' : '登入系統' }}
+                    <button @click="handleLogin" :disabled="isLoading" class="w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-slate-700 transition mt-2">
+                        {{ isLoading ? '驗證中...' : '帳號密碼登入' }}
+                    </button>
+
+                    <div class="pt-4 pb-2 flex items-center justify-between">
+                        <hr class="w-full border-slate-200"><span class="px-3 text-xs text-slate-400 font-bold">或</span><hr class="w-full border-slate-200">
+                    </div>
+                    
+                    <button @click="liffLogin" :disabled="isLoading" class="w-full py-3 bg-[#06C755] text-white rounded-lg font-bold text-sm shadow-sm hover:bg-[#05b04a] transition flex justify-center items-center gap-2">
+                        <i class="fab fa-line text-lg"></i> 使用 LINE 快速登入
                     </button>
                 </div>
             </div>
@@ -111,7 +126,10 @@
                     <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-6 text-center"></i>學員會員管理</div>
                     <div @click="view = 'settings'" class="nav-item border-t border-slate-100 mt-2 pt-4" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>全域系統設定</div>
                 </nav>
-                <div class="p-4 border-t border-gray-100"><button @click="logout" class="w-full py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-orange-500 transition"><i class="fas fa-sign-out-alt mr-2"></i>安全登出</button></div>
+                <div class="p-4 border-t border-gray-100 space-y-2">
+                    <button @click="goToFrontend" class="w-full py-2.5 bg-blue-50 border border-blue-100 rounded-lg text-sm font-bold text-blue-600 hover:bg-blue-100 transition"><i class="fas fa-mobile-alt mr-2"></i>切換前台</button>
+                    <button @click="logout" class="w-full py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-orange-500 transition"><i class="fas fa-sign-out-alt mr-2"></i>安全登出</button>
+                </div>
             </aside>
 
             <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-50 flex justify-around items-center h-[60px] pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
@@ -120,6 +138,7 @@
                 <button @click="view = 'courses'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'courses' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'"><i class="fas fa-book text-xl"></i><span class="text-[10px] font-bold">課程</span></button>
                 <button @click="view = 'orders'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'orders' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'"><i class="fas fa-list-check text-xl"></i><span class="text-[10px] font-bold">訂單</span></button>
                 <button @click="view = 'members'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'members' || view === 'member_detail' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'"><i class="fas fa-users text-xl"></i><span class="text-[10px] font-bold">學員</span></button>
+                <button @click="goToFrontend" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition text-slate-400 hover:text-blue-500"><i class="fas fa-mobile-alt text-xl"></i><span class="text-[10px] font-bold">前台</span></button>
             </nav>
 
             <main class="main-content relative">
@@ -137,7 +156,6 @@
 
                 <div class="py-4">
                     <div v-if="view === 'dashboard'" class="p-6 animate-fade-in">
-                        <!-- 🚀 V86：儀表板視覺瘦身 -->
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                             <div v-for="s in statsSummary" :key="s.label" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
                                 <div class="text-xs font-bold text-slate-500 uppercase mb-1">{{ s.label }}</div>
@@ -187,7 +205,6 @@
                                         <td><span class="bg-blue-50 text-blue-600 border border-blue-100 font-bold text-[11px] px-2 py-0.5 rounded mb-2 inline-block">{{ c.type || '未分類' }}</span><div class="text-[14px] text-slate-600 font-medium whitespace-nowrap">{{ c.startDate }}<br class="md:hidden"> <span class="hidden md:inline">~</span> {{ c.endDate }}</div></td>
                                         <td>
                                             <div class="text-lg font-bold text-[#06C755] mb-1">${{ formatPrice(c.price) }}</div>
-                                            <!-- 🚀 V86：動態抓取全域折抵規則標籤 -->
                                             <div v-if="c.discountRule && c.discountRule !== 'NONE'" class="text-[11px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded inline-block mb-1 border border-orange-100">
                                                 {{ getDiscountLabel(c.discountRule) }}
                                             </div>
@@ -221,13 +238,16 @@
                         </div>
                         <div class="admin-table-container !mt-0 !mx-6 md:!mx-8 !rounded-xl">
                             <table class="admin-table">
-                                <thead><tr><th>時間/單號</th><th>課程名稱</th><th>學員</th><th>金額</th><th>狀態</th><th>後五碼</th><th class="text-right">維護</th></tr></thead>
+                                <thead><tr><th>時間/單號</th><th>課程名稱</th><th>學員</th><th>金額/折抵</th><th>狀態</th><th>後五碼</th><th class="text-right">維護</th></tr></thead>
                                 <tbody>
                                     <tr v-for="o in filteredAdminOrders" :key="o.orderId">
                                         <td><div class="text-[13px] text-slate-500 mb-1 whitespace-nowrap font-medium">{{ o.createdAt || '-' }}</div><div class="text-[13px] font-mono font-bold text-slate-600 line-clamp-1">{{ o.orderId }}</div></td>
                                         <td class="font-bold text-slate-800 text-base max-w-[180px] truncate">{{ getCourseName(o.courseId) }}</td>
                                         <td><div class="font-bold text-slate-800 text-base whitespace-nowrap">{{ o.name }}</div><div class="text-[13px] text-slate-500 font-mono mt-1">{{ o.phone }}</div></td>
-                                        <td class="text-lg font-bold text-[#06C755] whitespace-nowrap">$ {{ formatPrice(o.amount) }}</td>
+                                        <td class="whitespace-nowrap">
+                                            <div class="text-lg font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</div>
+                                            <div v-if="o.pointsUsed > 0" class="text-[12px] font-bold text-red-500 mt-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 inline-block">🧧 -{{ o.pointsUsed }} 點</div>
+                                        </td>
                                         <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge whitespace-nowrap">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '已取消' : '待付款') }}</span></td>
                                         <td class="font-bold text-blue-600 text-[15px] tracking-wider">{{ o.remittance || '-' }}</td>
                                         <td class="text-right"><button @click="openOrderEditModal(o)" class="px-4 py-1.5 border border-slate-300 rounded-md text-[13px] font-bold bg-white hover:bg-slate-50 transition whitespace-nowrap shadow-sm text-slate-700">編輯狀態</button></td>
@@ -295,7 +315,6 @@
                             </div>
                         </div>
 
-                        <!-- 點數中控台 -->
                         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
                             <div class="p-6 pb-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                                 <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-wallet text-red-500"></i>紅包點數帳戶</h3>
@@ -324,12 +343,11 @@
                             </div>
                         </div>
 
-                        <!-- 下半部：購買紀錄 -->
                         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-10">
                             <h3 class="text-lg font-bold text-slate-800 p-6 pb-4 border-b border-slate-100"><i class="fas fa-history text-blue-500 mr-2"></i>購買與上課紀錄</h3>
                             <div class="overflow-x-auto pb-4">
                                 <table class="admin-table w-full min-w-[800px] !border-none !shadow-none !m-0">
-                                    <thead><tr class="bg-white"><th>日期/單號</th><th>課程名稱</th><th>金額</th><th>付款狀態</th><th>出席狀況</th><th class="text-right">操作</th></tr></thead>
+                                    <thead><tr class="bg-white"><th>日期/單號</th><th>課程名稱</th><th>金額/折抵</th><th>付款狀態</th><th>出席狀況</th><th class="text-right">操作</th></tr></thead>
                                     <tbody>
                                         <tr v-for="o in memberOrders" :key="o.orderId">
                                             <td class="pl-6">
@@ -337,7 +355,10 @@
                                                 <div class="text-[13px] font-mono font-bold text-slate-500">{{ o.orderId }}</div>
                                             </td>
                                             <td class="font-bold text-slate-700 text-[15px] max-w-[200px] truncate">{{ getCourseName(o.courseId) }}</td>
-                                            <td class="font-bold text-[#06C755] text-lg whitespace-nowrap">$ {{ formatPrice(o.amount) }}</td>
+                                            <td class="whitespace-nowrap">
+                                                <div class="font-bold text-[#06C755] text-lg">$ {{ formatPrice(o.amount) }}</div>
+                                                <div v-if="o.pointsUsed > 0" class="text-[11px] font-bold text-red-500 mt-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 inline-block">🧧 -{{ o.pointsUsed }} 點</div>
+                                            </td>
                                             <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge whitespace-nowrap">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '已取消' : '待付款') }}</span></td>
                                             <td>
                                                 <select v-model="o.attendance" @change="updateOrderAttendance(o)" class="px-3 py-1.5 border border-slate-200 rounded-md text-[13px] font-bold outline-none cursor-pointer shadow-sm transition" :class="{'bg-green-50 text-green-700 border-green-200': o.attendance === 'ATTENDED', 'bg-red-50 text-red-600 border-red-200': o.attendance === 'ABSENT', 'bg-white text-slate-500 hover:bg-slate-50': !o.attendance}">
@@ -353,10 +374,7 @@
                         </div>
                     </div>
 
-                    <!-- 5. 系統設定 -->
                     <div v-if="view === 'settings'" class="p-6 animate-fade-in max-w-4xl mx-auto">
-                        
-                        <!-- 🚀 V86 新增：全域紅包折抵規則 -->
                         <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8">
                             <div class="section-title !mb-4">紅包折抵參數設定 (%)</div>
                             <p class="text-[14px] text-slate-500 mb-6 leading-relaxed">設定全域折抵規則的百分比，修改後將直接連動所有套用該規則的課程計算公式。</p>
@@ -413,7 +431,6 @@
                                         <select v-model="editingCourse.isRegistrationOpen" class="input-field !w-auto !py-2 !text-[14px] font-bold cursor-pointer transition-colors" :class="editingCourse.isRegistrationOpen ? 'text-blue-700 border-blue-200' : 'text-orange-600 border-orange-200'"><option :value="true">🔓 開放報名 (顯示按鈕)</option><option :value="false">🔒 僅曝光 (隱藏按鈕)</option></select>
                                     </div>
                                     
-                                    <!-- 🚀 V86：紅包折抵規則動態連動選單 -->
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100 gap-3">
                                         <div class="font-bold text-slate-600 text-[14px]">紅包折抵規則 (Y欄)</div>
                                         <select v-model="editingCourse.discountRule" class="input-field !w-auto !py-2 !text-[14px] font-bold cursor-pointer transition-colors text-slate-700 bg-white border-slate-200">
@@ -593,14 +610,16 @@
     </div>
 
     <script>
-        const { createApp, ref, computed } = Vue;
+        const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
+        const LIFF_ID = '2009130603-vTHZv1LW'; // 🚀 V89 專用 LIFF ID
 
         createApp({
             setup() {
                 const isAuthenticated = ref(false);
                 const loginForm = ref({ account: '', password: '' });
                 const loginError = ref('');
+                const isLiffLoading = ref(true); 
 
                 const handleLogin = () => {
                     if (loginForm.value.account === 'admin' && loginForm.value.password === '@1234') {
@@ -608,7 +627,12 @@
                     } else { loginError.value = '您輸入的帳號或密碼不正確'; }
                 };
 
-                const logout = () => { isAuthenticated.value = false; loginForm.value = { account: '', password: '' }; view.value = 'dashboard'; courses.value = []; orders.value = []; users.value = []; };
+                const logout = () => { 
+                    isAuthenticated.value = false; 
+                    loginForm.value = { account: '', password: '' }; 
+                    view.value = 'dashboard'; courses.value = []; orders.value = []; users.value = []; 
+                    if (liff.isLoggedIn()) { liff.logout(); } // 登出時順便登出 LIFF
+                };
 
                 const view = ref('dashboard'); 
                 const courses = ref([]); 
@@ -657,7 +681,6 @@
                     return result;
                 });
 
-                // 🚀 V86：動態抓取全域設定的折抵標籤文字
                 const getDiscountLabel = (rule) => {
                     if (rule === 'RULE_A' || rule === '20%') return `最高折抵 ${sysSettings.value.discount_rate_a || 20}%`;
                     if (rule === 'RULE_B' || rule === '50%') return `最高折抵 ${sysSettings.value.discount_rate_b || 50}%`;
@@ -673,6 +696,50 @@
                     } catch (e) { alert('伺服器連線失敗，請稍後重試。'); return null; }
                     finally { isLoading.value = false; }
                 };
+
+                // 🚀 V89：LINE UID 自動登入驗證
+                const verifyLiffAdmin = async () => {
+                    isLoading.value = true;
+                    loginError.value = '';
+                    try {
+                        const profile = await liff.getProfile();
+                        const res = await callApi('ADMIN_LOGIN_UID', { uid: profile.userId });
+                        if (res && res.success) {
+                            isAuthenticated.value = true;
+                            await fetchData();
+                        }
+                    } catch (e) {
+                        loginError.value = e.message || '此 LINE 帳號無管理員權限';
+                        liff.logout(); 
+                    } finally {
+                        isLoading.value = false;
+                    }
+                };
+
+                const liffLogin = () => {
+                    if (!liff.isLoggedIn()) {
+                        liff.login({ redirectUri: window.location.href });
+                    } else {
+                        verifyLiffAdmin();
+                    }
+                };
+
+                const goToFrontend = () => {
+                    window.location.href = 'index.html';
+                };
+
+                onMounted(async () => {
+                    try {
+                        await liff.init({ liffId: LIFF_ID });
+                        if (liff.isLoggedIn()) {
+                            await verifyLiffAdmin();
+                        }
+                    } catch (err) {
+                        console.error('LIFF 初始化失敗', err);
+                    } finally {
+                        isLiffLoading.value = false;
+                    }
+                });
 
                 const fetchData = async () => { 
                     const data = await callApi('ADMIN_GET_DATA'); 
@@ -710,7 +777,6 @@
                     }
                 };
 
-                // 🚀 V86：確保編輯視窗開啟時，向下相容原本的舊寫法 ("20%" 轉為 "RULE_A")
                 const openEditModal = (c) => { 
                     const parsed = JSON.parse(JSON.stringify(c));
                     if(parsed.isPublished === undefined) parsed.isPublished = true;
@@ -771,6 +837,7 @@
 
                 return { 
                     isAuthenticated, loginForm, loginError, handleLogin, logout,
+                    isLiffLoading, liffLogin, goToFrontend, // 🚀 補回這三個遺漏的 Return
                     view, courses, orders, users, isLoading, editingCourse, editingOrder,
                     activeMember, activeEnrollmentCourse, checkinUrl, courseSearchQuery, courseFilterCategory, adminCategories, filteredAdminCourses,
                     orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders, sysSettings, 
