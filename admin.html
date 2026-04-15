@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V61_Admin_Course_Desc_Layout -->
+    <!-- Version: 2026.04.15.V62_System_Diagnostic_Alert -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -106,9 +106,15 @@
             <main class="main-content">
                 <header class="page-header">
                     <h2 class="text-lg font-bold text-slate-800">{{ currentViewName }}</h2>
-                    <div class="flex items-center gap-4">
-                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V61_DESC_LAYOUT_FIX</span>
-                        <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步</button>
+                    <div class="flex items-center gap-3">
+                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase hidden md:inline-block">V62_DIAGNOSTIC</span>
+                        <!-- 🚀 核心升級：系統健康檢測按鈕 -->
+                        <button @click="runHealthCheck" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-orange-200 rounded-lg text-sm font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 transition shadow-sm">
+                            <i class="fas fa-stethoscope" :class="{'fa-pulse': isLoading}"></i>系統健檢
+                        </button>
+                        <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm">
+                            <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步
+                        </button>
                     </div>
                 </header>
 
@@ -343,7 +349,7 @@
                             </div>
                         </div>
 
-                        <!-- 🚀 V61 核心升級：下半部：全寬度獨立詳細內容區塊 -->
+                        <!-- 下半部：全寬度獨立詳細內容區塊 -->
                         <div class="border-t border-slate-100 pt-8 mt-4">
                             <div class="section-title !text-[16px] !mb-4">詳細內容 (S 欄)</div>
                             <textarea v-model="editingCourse.description" class="input-field min-h-[280px] resize-y text-[15px] leading-relaxed p-5 bg-[#f8fafc] focus:bg-white" placeholder="請在此輸入完整的課程詳細介紹文案..."></textarea>
@@ -471,7 +477,11 @@
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
                         const json = await res.json(); if (json.status !== 'success') throw new Error(json.data); return json.data;
-                    } catch (e) { alert('伺服器連線失敗，請稍後重試。'); return null; }
+                    } catch (e) { 
+                        // 原有的 Alert 被攔截，此處若發生錯誤，同時代表後端已有 TG 發送，前端就單純提示即可
+                        alert('伺服器處理失敗：\n' + e.message); 
+                        return null; 
+                    }
                     finally { isLoading.value = false; }
                 };
 
@@ -483,6 +493,14 @@
                         users.value = data.users || []; 
                         sysSettings.value = Object.assign(sysSettings.value, data.settings || {});
                     } 
+                };
+
+                // 🚀 V62 核心升級：呼叫系統健康檢查 API
+                const runHealthCheck = async () => {
+                    const data = await callApi('SYSTEM_HEALTH_CHECK');
+                    if (data && data.status === 'healthy') {
+                        alert('🎉 系統健康檢查通過！\n\n' + data.log.join('\n'));
+                    }
                 };
 
                 const openEnrollments = (c) => activeEnrollmentCourse.value = c;
@@ -568,7 +586,8 @@
                     saveOrderUpdate, saveMemberUpdate, saveCourse, saveSettings, fetchData, currentViewName, statsSummary, formatPrice,
                     getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length, 
                     getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && (o.status || 'PENDING') === 'PENDING').length, 
-                    getCourseName, handleFileUpload, handleBannerUpload, copyCourse
+                    getCourseName, handleFileUpload, handleBannerUpload, copyCourse,
+                    runHealthCheck // 暴露系統健檢功能
                 };
             }
         }).mount('#app');
