@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V59_Image_Compression_50_Percent -->
+    <!-- Version: 2026.04.15.V60_Dynamic_Settings -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -98,6 +98,8 @@
                     <div @click="view = 'courses'" class="nav-item" :class="{'nav-active': view === 'courses'}"><i class="fas fa-book w-5"></i>一般課程管理</div>
                     <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-list-check w-5"></i>訂單管理控制台</div>
                     <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members'}"><i class="fas fa-users w-5"></i>學員會員管理</div>
+                    <!-- 🚀 新增系統設定選單 -->
+                    <div @click="view = 'settings'" class="nav-item border-t border-slate-100 mt-2 pt-4" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-5"></i>全域系統設定</div>
                 </nav>
                 <div class="p-6 border-t border-gray-100"><button @click="logout" class="w-full py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-orange-500 transition"><i class="fas fa-sign-out-alt mr-2"></i>安全登出</button></div>
             </aside>
@@ -106,7 +108,7 @@
                 <header class="page-header">
                     <h2 class="text-lg font-bold text-slate-800">{{ currentViewName }}</h2>
                     <div class="flex items-center gap-4">
-                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V59_IMG_COMPRESS_50</span>
+                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V60_DYNAMIC_SETTINGS</span>
                         <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步</button>
                     </div>
                 </header>
@@ -224,6 +226,65 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- 🚀 5. 系統設定 (新增) -->
+                    <div v-if="view === 'settings'" class="p-8 animate-fade-in max-w-4xl">
+                        <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm mb-6">
+                            <div class="section-title">首頁頂部橫幅 (Banner)</div>
+                            <p class="text-sm text-slate-500 mb-5 leading-relaxed">這是顯示在前台首頁最上方的宣傳圖片。為了確保畫質與載入速度，<span class="text-orange-500 font-bold">強烈建議將圖片上傳至您的外部空間 (如 Wasabi S3) 後，直接將網址貼在下方。</span></p>
+                            
+                            <div class="w-full aspect-[21/9] bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative mb-4">
+                                <img v-if="sysSettings.banner_image" :src="sysSettings.banner_image" class="w-full h-full object-cover">
+                                <div v-else class="text-slate-300 font-bold text-sm uppercase flex items-center gap-2"><i class="fas fa-image"></i> 尚未設定橫幅</div>
+                            </div>
+                            
+                            <input type="text" v-model="sysSettings.banner_image" class="input-field mb-3" placeholder="請貼上 Banner 圖片網址 (如 https://s3.wasabisys...)">
+                            
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="h-px bg-slate-100 flex-1"></div>
+                                <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">或是</span>
+                                <div class="h-px bg-slate-100 flex-1"></div>
+                            </div>
+                            <button @click="$refs.bannerInput.click()" class="w-full py-3 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-upload mr-2"></i>本機上傳 (嘗試壓縮)</button>
+                            <input type="file" ref="bannerInput" class="hidden" accept="image/*" @change="handleBannerUpload">
+                        </div>
+
+                        <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm mb-6">
+                            <div class="section-title">社群導流網址設定</div>
+                            <p class="text-sm text-slate-500 mb-6 leading-relaxed">只要在下方填入對應的網址，前台首頁就會自動顯示該社群的圖示。若留空白則不會顯示。</p>
+                            
+                            <div class="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label class="input-label"><i class="fab fa-line text-[#06C755] w-5 text-center mr-1"></i>LINE 官方帳號 (主客服)</label>
+                                    <input type="text" v-model="sysSettings.link_lineoa" class="input-field" placeholder="如 https://lin.ee/8SfC0rr">
+                                </div>
+                                <div>
+                                    <label class="input-label"><i class="fab fa-facebook text-[#1877F2] w-5 text-center mr-1"></i>Facebook 粉絲專頁</label>
+                                    <input type="text" v-model="sysSettings.link_fb" class="input-field" placeholder="如 https://www.facebook.com/2112espi">
+                                </div>
+                                <div>
+                                    <label class="input-label"><i class="fab fa-instagram text-[#E4405F] w-5 text-center mr-1"></i>Instagram</label>
+                                    <input type="text" v-model="sysSettings.link_ig" class="input-field" placeholder="您的 IG 網址">
+                                </div>
+                                <div>
+                                    <label class="input-label"><i class="fab fa-line text-[#06C755] w-5 text-center mr-1"></i>LINE 社群/群組 (一般)</label>
+                                    <input type="text" v-model="sysSettings.link_line" class="input-field" placeholder="LINE 社群網址">
+                                </div>
+                                <div>
+                                    <label class="input-label"><i class="fab fa-tiktok text-black w-5 text-center mr-1"></i>TikTok 抖音</label>
+                                    <input type="text" v-model="sysSettings.link_tiktok" class="input-field" placeholder="TikTok 頻道網址">
+                                </div>
+                                <div>
+                                    <label class="input-label"><i class="fas fa-globe text-slate-500 w-5 text-center mr-1"></i>官方網站</label>
+                                    <input type="text" v-model="sysSettings.link_web" class="input-field" placeholder="您的官方網站網址">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button @click="saveSettings" :disabled="isLoading" class="btn-green-main px-12 py-3.5 text-lg shadow-lg">{{ isLoading ? '儲存中...' : '儲存系統設定' }}</button>
+                        </div>
+                    </div>
                 </div>
             </main>
 
@@ -274,7 +335,6 @@
                                     </div>
 
                                     <button @click="$refs.fileInput.click()" class="w-full py-3 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-upload mr-2"></i>本機上傳 (嘗試 50% 畫質壓縮)</button>
-                                    <p class="text-[11px] text-slate-400 mt-2 font-medium leading-relaxed">⚠️ 系統將優先嘗試以 50% 畫質壓縮圖片。若您的圖片結構過於複雜導致無法儲存，仍建議改用上方「貼上網址」功能。</p>
                                     <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload">
                                 </div>
                                 <div>
@@ -339,6 +399,8 @@
                 const courses = ref([]); 
                 const orders = ref([]); 
                 const users = ref([]); 
+                // 🚀 V60 新增：設定儲存狀態
+                const sysSettings = ref({ banner_image: '', link_fb: '', link_ig: '', link_line: '', link_lineoa: '', link_tiktok: '', link_web: '' });
                 const isLoading = ref(false); 
                 
                 const editingCourse = ref(null); 
@@ -352,7 +414,7 @@
                 const orderFilterCourse = ref('');
                 const orderFilterStatus = ref('');
 
-                const currentViewName = computed(() => ({'dashboard': '數據中心', 'courses': '課程活動總表', 'orders': '訂單維護', 'members': '學員名冊'}[view.value]));
+                const currentViewName = computed(() => ({'dashboard': '數據中心', 'courses': '課程活動總表', 'orders': '訂單維護', 'members': '學員名冊', 'settings': '全域系統設定'}[view.value]));
                 const formatPrice = (p) => { if(!p) return "0"; const clean = String(p).replace(/[^0-9.]/g, ""); return Number(clean).toLocaleString(); };
 
                 const statsSummary = computed(() => {
@@ -408,7 +470,16 @@
                     finally { isLoading.value = false; }
                 };
 
-                const fetchData = async () => { const data = await callApi('ADMIN_GET_DATA'); if (data) { courses.value = data.courses || []; orders.value = data.orders || []; users.value = data.users || []; } };
+                const fetchData = async () => { 
+                    const data = await callApi('ADMIN_GET_DATA'); 
+                    if (data) { 
+                        courses.value = data.courses || []; 
+                        orders.value = data.orders || []; 
+                        users.value = data.users || []; 
+                        // 🚀 V60：載入系統設定
+                        sysSettings.value = Object.assign(sysSettings.value, data.settings || {});
+                    } 
+                };
 
                 const openEnrollments = (c) => activeEnrollmentCourse.value = c;
                 const openOrderEditModal = (o) => { activeEnrollmentCourse.value = null; editingOrder.value = { ...o }; };
@@ -420,38 +491,63 @@
                 const saveCourse = async () => { if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { editingCourse.value = null; await fetchData(); } };
                 const copyCourse = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); editingCourse.value.id = 'NEW_' + Date.now().toString().slice(-4); editingCourse.value.name += ' (複製)'; };
 
-                // 🚀 V59 核心升級：直接鎖定 50% 畫質 (WebP) 與 600px 大寬度
+                // 🚀 V60 新增：儲存系統設定
+                const saveSettings = async () => {
+                    const res = await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value);
+                    if (res && res.success) alert('系統設定已成功儲存！前台將即時生效。');
+                };
+
                 const handleFileUpload = (e) => {
                     const file = e.target.files[0]; if (!file) return;
                     const reader = new FileReader();
                     reader.onload = (event) => {
                         const img = new Image(); img.onload = () => {
                             const canvas = document.createElement('canvas'); 
-                            const MAX_WIDTH = 600; // 恢復 600px 大尺寸，確保全螢幕清晰
+                            const MAX_WIDTH = 600;
                             let width = img.width; let height = img.height;
                             if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                             canvas.width = width; canvas.height = height;
+                            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
                             
-                            const ctx = canvas.getContext('2d'); 
-                            ctx.drawImage(img, 0, 0, width, height);
-                            
-                            // 直接嘗試 50% 畫質的 WebP 壓縮
                             let quality = 0.5;
                             let base64str = canvas.toDataURL('image/webp', quality);
-                            
-                            // 容錯防線：如果 50% 還是太大，最多只降到 30%
                             while (base64str.length > 48000 && quality > 0.3) {
                                 quality -= 0.1;
                                 base64str = canvas.toDataURL('image/webp', quality);
                             }
-                            
-                            // 如果壓到底線 30% 還是塞不下，就會跳出警告
                             if (base64str.length > 49500) {
-                                alert('❌ 您的圖片在 50% 畫質下依然超過 Google Sheets 容量限制！\n\n💡 請直接使用上方的「貼上網址」功能，以維持 100% 原始畫質。');
-                                return;
+                                alert('❌ 您的圖片在 50% 畫質下依然超過 Google Sheets 容量限制！\n\n💡 請直接使用上方的「貼上網址」功能，以維持 100% 原始畫質。'); return;
                             }
-                            
                             editingCourse.value.image = base64str;
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                // 🚀 V60 新增：Banner 圖片上傳壓縮 (放寬一點寬度)
+                const handleBannerUpload = (e) => {
+                    const file = e.target.files[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image(); img.onload = () => {
+                            const canvas = document.createElement('canvas'); 
+                            const MAX_WIDTH = 800; // Banner 可以稍微大一點
+                            let width = img.width; let height = img.height;
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                            canvas.width = width; canvas.height = height;
+                            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                            
+                            let quality = 0.6;
+                            let base64str = canvas.toDataURL('image/webp', quality);
+                            while (base64str.length > 48000 && quality > 0.3) {
+                                quality -= 0.1;
+                                base64str = canvas.toDataURL('image/webp', quality);
+                            }
+                            if (base64str.length > 49500) {
+                                alert('❌ Banner 圖片過於複雜無法寫入系統！\n強烈建議將 Banner 圖片上傳至您的外部空間 (如 Wasabi S3)，然後將網址貼在上方的欄位。'); return;
+                            }
+                            sysSettings.value.banner_image = base64str;
                         };
                         img.src = event.target.result;
                     };
@@ -463,13 +559,14 @@
                     view, courses, orders, users, isLoading, editingCourse, editingOrder, editingMember, 
                     activeEnrollmentCourse, courseSearchQuery, courseFilterCategory, adminCategories, filteredAdminCourses,
                     orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders,
+                    sysSettings, // 暴露系統設定
                     courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []), 
                     courseStatsFiltered,
                     openEditModal, openOrderEditModal, openMemberEditModal, openEnrollments, 
-                    saveOrderUpdate, saveMemberUpdate, saveCourse, fetchData, currentViewName, statsSummary, formatPrice,
+                    saveOrderUpdate, saveMemberUpdate, saveCourse, saveSettings, fetchData, currentViewName, statsSummary, formatPrice,
                     getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length, 
                     getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && (o.status || 'PENDING') === 'PENDING').length, 
-                    getCourseName, handleFileUpload, copyCourse
+                    getCourseName, handleFileUpload, handleBannerUpload, copyCourse
                 };
             }
         }).mount('#app');
