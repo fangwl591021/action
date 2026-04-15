@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.15.V60_Dynamic_Settings -->
+    <!-- Version: 2026.04.15.V68_Calendar_Deep_Link -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,7 +35,6 @@
         
         .nav-icon { width: 52px; height: 52px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #f8fafc; }
         
-        /* 🚀 V60：新增社群小圖示樣式 */
         .social-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: transform 0.2s; }
         .social-icon:active { transform: scale(0.9); }
         
@@ -63,7 +62,6 @@
             
             <!-- 1. 課程列表 -->
             <div v-if="view === 'course_list'" class="animate-fade-in">
-                <!-- 🚀 V60 核心：動態橫幅 -->
                 <div class="w-full h-48 bg-slate-100 overflow-hidden relative">
                     <div v-if="isLoadingCourses" class="absolute inset-0 bg-slate-200 animate-pulse"></div>
                     <img v-if="sysSettings.banner_image" :src="sysSettings.banner_image" class="w-full h-full object-cover relative z-10" @error="$event.target.style.display='none'">
@@ -79,14 +77,12 @@
                             <div class="nav-icon text-[#FF5A00]"><i class="fas fa-file-invoice"></i></div>
                             <span class="text-[12px] font-bold text-slate-600">報名紀錄</span>
                         </button>
-                        <!-- 🚀 V60：自動綁定後台輸入的主力 LINE OA -->
                         <a :href="sysSettings.link_lineoa || 'https://lin.ee/8SfC0rr'" class="flex flex-col items-center gap-2">
                             <div class="nav-icon text-[#06C755]"><i class="fab fa-line"></i></div>
                             <span class="text-[12px] font-bold text-slate-600">聯絡客服</span>
                         </a>
                     </div>
 
-                    <!-- 🚀 V60 新增：社群專屬列 (有填網址才顯示) -->
                     <div v-if="sysSettings.link_fb || sysSettings.link_ig || sysSettings.link_line || sysSettings.link_tiktok || sysSettings.link_web" class="flex justify-center gap-4 mt-2 mb-1">
                         <a v-if="sysSettings.link_fb" :href="sysSettings.link_fb" target="_blank" class="social-icon bg-[#1877F2]"><i class="fab fa-facebook-f"></i></a>
                         <a v-if="sysSettings.link_ig" :href="sysSettings.link_ig" target="_blank" class="social-icon bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888]"><i class="fab fa-instagram"></i></a>
@@ -100,7 +96,6 @@
                     <button v-for="cat in dynamicCategories" :key="cat" @click="activeCat = cat" :class="activeCat === cat ? 'category-tab-active' : ''" class="category-tab">{{ cat || '未分類' }}</button>
                 </div>
                 
-                <!-- 骨架屏 -->
                 <div v-if="isLoadingCourses" class="px-4 pb-4 grid grid-cols-2 gap-4">
                     <div v-for="i in 4" :key="i" class="course-card animate-pulse shadow-none border-slate-100">
                         <div class="w-full aspect-[16/9] bg-slate-100"></div>
@@ -116,7 +111,6 @@
                     </div>
                 </div>
 
-                <!-- 真實資料 -->
                 <div v-else class="px-4 pb-4 grid grid-cols-2 gap-4">
                     <div v-for="c in filteredCourses" :key="c.id" class="course-card">
                         <div class="course-img-wrapper">
@@ -282,7 +276,6 @@
                 const userInfo = ref({}); 
                 const courses = ref([]); 
                 const myOrders = ref([]);
-                // 🚀 V60 預設 Banner 作為防呆打底
                 const sysSettings = ref({ banner_image: 'https://s3.us-west-1.wasabisys.com/aitw/2026/04/001bd74e24a00403a292608ec2853cb9.jpg', link_fb: '', link_ig: '', link_line: '', link_lineoa: 'https://lin.ee/8SfC0rr', link_tiktok: '', link_web: '' });
                 
                 const regForm = ref({ name: '', industry: '', gender: '男', phone: '', birthday: '', area: '', address_detail: '' });
@@ -325,7 +318,6 @@
                 
                 const loadSystemData = async () => { 
                     try {
-                        // 🚀 V60 同步載入全域設定
                         const [coursesData, settingsData] = await Promise.all([
                             callApi('GET_COURSES'),
                             callApi('GET_SETTINGS')
@@ -431,7 +423,7 @@
                 };
 
                 onMounted(async () => { 
-                    const fetchSysTask = loadSystemData(); // 改為載入課程與設定
+                    const fetchSysTask = loadSystemData(); 
 
                     const initLiffTask = (async () => {
                         await liff.init({ liffId: LIFF_ID }); 
@@ -448,6 +440,17 @@
 
                     try {
                         await Promise.all([fetchSysTask, initLiffTask]);
+                        
+                        // 🚀 V68 新增：解析 Google Calendar Deep Link 網址參數
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const targetCourseId = urlParams.get('courseId');
+                        if (targetCourseId) {
+                            const targetCourse = courses.value.find(c => c.id === targetCourseId);
+                            if (targetCourse) {
+                                // 找到對應課程，精準空降
+                                showCourseDetail(targetCourse);
+                            }
+                        }
                     } catch (err) { 
                         alert('⚠️ 系統驗證失敗\n請務必透過「LINE 官方帳號」內的專屬按鈕開啟，不要直接用手機瀏覽器打開網址喔！\n\n(除錯代碼: ' + err.message + ')'); 
                     } 
