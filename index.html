@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.15.V84_Accordion_Member_Center -->
+    <!-- Version: 2026.04.15.V87_Smart_Checkout_Calculator -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -170,7 +170,9 @@
                         <div class="text-base font-bold text-[#06C755] mb-4 flex items-center gap-2"><i class="fas fa-info-circle"></i> 課程詳細說明</div>
                         <div class="text-base text-slate-700 leading-loose whitespace-pre-wrap">{{ selectedCourse.description || defaultDesc }}</div>
                     </div>
-                    <button v-if="selectedCourse.isRegistrationOpen" @click="selectCourse(selectedCourse)" class="w-full py-4 bg-[#06C755] text-white rounded-2xl font-bold text-lg shadow-lg shadow-green-100 hover:bg-[#05b04a] transition active:scale-[0.98]">我要報名此課程</button>
+                    <button v-if="selectedCourse.isRegistrationOpen" @click="selectCourse(selectedCourse)" class="w-full py-4 bg-[#06C755] text-white rounded-2xl font-bold text-lg shadow-lg shadow-green-100 hover:bg-[#05b04a] transition active:scale-[0.98] flex justify-center items-center gap-2">
+                        <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i> {{ isSubmitting ? '資料讀取中...' : '我要報名此課程' }}
+                    </button>
                     <div v-else class="text-center text-slate-400 font-bold bg-slate-50 py-4 rounded-2xl border border-slate-100">敬請期待，即將開放報名</div>
                 </div>
             </div>
@@ -207,7 +209,7 @@
                 </div>
             </div>
 
-            <!-- 🚀 V84: 會員中心雙匣折疊面板 (Accordion UI) -->
+            <!-- 會員中心 -->
             <div v-else-if="view === 'register'" class="animate-fade-in bg-slate-50 min-h-screen pb-10">
                 <div class="bg-white px-5 py-4 shadow-sm flex items-center justify-between sticky top-0 z-10 mb-5">
                     <div class="flex items-center gap-4">
@@ -220,8 +222,6 @@
                 </div>
 
                 <div class="px-5 space-y-4">
-                    
-                    <!-- ACCORDION 1: 🧧 我的專屬紅包 -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                         <button @click="showRedEnvelopeContent = !showRedEnvelopeContent" class="w-full flex items-center justify-between p-5 focus:outline-none active:bg-slate-50 transition-colors">
                             <div class="flex items-center gap-4">
@@ -264,7 +264,6 @@
                         </div>
                     </div>
 
-                    <!-- ACCORDION 2: 👤 基本資料 -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                         <button @click="showBasicInfo = !showBasicInfo" class="w-full flex items-center justify-between p-5 focus:outline-none active:bg-slate-50 transition-colors">
                             <div class="flex items-center gap-4">
@@ -300,16 +299,56 @@
                 </div>
             </div>
 
-            <!-- ... (form, success views remain unchanged) ... -->
-            <div v-else-if="view === 'form'" class="p-6 animate-fade-in space-y-6 bg-white min-h-screen">
-                <button @click="switchView('course_detail')" class="text-slate-500 w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 transition mb-2"><i class="fas fa-chevron-left text-lg"></i></button>
-                <h3 class="text-2xl font-black text-slate-800 border-b border-slate-100 pb-5">確認報名資訊</h3>
-                <div class="bg-[#f8fafc] p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <h4 class="font-bold text-lg text-slate-700 mb-3 leading-relaxed">{{ selectedCourse.name }}</h4>
-                    <div class="text-[#FF5A00] font-black text-3xl">NT$ {{ parsePrice(selectedCourse.price) }}</div>
+            <!-- 🚀 V87: 智慧結帳單 UI (Frontend Calculator) -->
+            <div v-else-if="view === 'form'" class="p-6 animate-fade-in bg-slate-50 min-h-screen pb-10">
+                <div class="flex items-center gap-4 mb-6">
+                    <button @click="switchView('course_detail')" class="text-slate-500 w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm hover:bg-slate-100 transition"><i class="fas fa-chevron-left text-lg"></i></button>
+                    <h3 class="text-2xl font-black text-slate-800 tracking-tight">確認報名資訊</h3>
                 </div>
-                <div class="pt-2"><label class="font-bold text-base text-slate-700 mb-3 block">報名備註 (選填)</label><textarea v-model="registrationNote" class="input-box min-h-[120px] rounded-xl font-medium resize-y bg-slate-50 border-slate-200" placeholder="如有任何特殊需求請註記..."></textarea></div>
-                <div class="pt-6"><button @click="submitRegistration" :disabled="isSubmitting" class="btn-main shadow-lg">{{ isSubmitting ? '報名資料傳送中...' : '確認無誤，送出報名' }}</button></div>
+                
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
+                    <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">報名課程</div>
+                    <h4 class="font-bold text-lg text-slate-800 mb-6 leading-relaxed">{{ selectedCourse.name }}</h4>
+                    
+                    <div class="space-y-4 mb-6">
+                        <!-- 1. 原價 -->
+                        <div class="flex justify-between items-center">
+                            <span class="text-base text-slate-500 font-medium">課程原價</span>
+                            <span class="text-lg text-slate-700 font-bold">NT$ {{ parsePrice(selectedCourse.price) }}</span>
+                        </div>
+
+                        <!-- 2. 紅包折抵 -->
+                        <div v-if="selectedCourse.discountRule !== 'NONE' && maxDeductiblePoints > 0" class="flex justify-between items-center bg-red-50 p-4 rounded-xl border border-red-100">
+                            <div class="flex flex-col">
+                                <span class="text-base text-red-600 font-bold flex items-center gap-2"><i class="fas fa-wallet"></i> 紅包點數自動折抵</span>
+                                <span class="text-[12px] text-red-400 font-bold mt-1 tracking-wide">餘額 {{ Number(userPointsBalance).toLocaleString() }} 點 / 最高可扣 {{ maxDeductiblePoints.toLocaleString() }}</span>
+                            </div>
+                            <span class="text-xl text-red-600 font-black">- {{ actualDeductiblePoints.toLocaleString() }}</span>
+                        </div>
+                        <div v-else-if="selectedCourse.discountRule === 'NONE'" class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <span class="text-sm text-slate-500 font-medium flex items-center gap-2"><i class="fas fa-ban"></i> 紅包點數折抵</span>
+                            <span class="text-xs text-slate-500 font-bold">本課程不適用折抵</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. 最終金額 -->
+                    <div class="border-t border-slate-100 pt-5 flex justify-between items-end">
+                        <span class="text-base text-slate-800 font-black">實際應付總額</span>
+                        <div class="text-[#FF5A00] font-black text-4xl tracking-tight">NT$ {{ finalPayableAmount.toLocaleString() }}</div>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="font-bold text-sm text-slate-600 mb-2 block ml-1">報名備註 (選填)</label>
+                    <textarea v-model="registrationNote" class="input-box min-h-[120px] rounded-2xl font-medium resize-y bg-white border-slate-200 shadow-sm" placeholder="如有任何特殊需求請註記..."></textarea>
+                </div>
+                
+                <div class="pt-2">
+                    <button @click="submitRegistration" :disabled="isSubmitting" class="btn-main shadow-xl shadow-green-100 flex justify-center items-center gap-2">
+                        <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
+                        {{ isSubmitting ? '報名資料傳送中...' : '確認無誤，送出報名' }}
+                    </button>
+                </div>
             </div>
 
             <div v-else-if="view === 'success'" class="animate-fade-in flex flex-col items-center justify-center min-h-[80vh] px-8 text-center bg-white">
@@ -356,7 +395,7 @@
                 const userInfo = ref({}); 
                 const courses = ref([]); 
                 const myOrders = ref([]);
-                const sysSettings = ref({ banner_image: '', link_fb: '', link_ig: '', link_line: '', link_lineoa: '', link_tiktok: '', link_web: '' });
+                const sysSettings = ref({ banner_image: '', link_fb: '', link_ig: '', link_line: '', link_lineoa: '', link_tiktok: '', link_web: '', discount_rate_a: 20, discount_rate_b: 50, discount_rate_c: 100 });
                 
                 const regForm = ref({ name: '', industry: '', gender: '男', phone: '', birthday: '', area: '', address_detail: '' });
                 const selectedCourse = ref(null); 
@@ -370,7 +409,6 @@
                 const userPointsBalance = ref(0);
                 const userPointLogs = ref([]);
 
-                // 🚀 V84: UI 摺疊面板狀態變數
                 const showRedEnvelopeContent = ref(false);
                 const showPointLogs = ref(false);
                 const showBasicInfo = ref(false);
@@ -396,7 +434,8 @@
 
                 const showCourseDetail = (c) => { selectedCourse.value = c; switchView('course_detail'); };
 
-                const selectCourse = (c) => { 
+                // 🚀 V87：點擊報名前，強制更新學員最新餘額，防呆舊資料結帳
+                const selectCourse = async (c) => { 
                     selectedCourse.value = c;
                     const userTier = userInfo.value.memberTier || '一般會員';
                     if (c.targetTiers && c.targetTiers.length > 0 && !c.targetTiers.includes(userTier)) {
@@ -404,19 +443,55 @@
                     }
                     if (!userInfo.value || !userInfo.value.name) { 
                         alert('為了提供更好的服務，報名前請先建立基本資料！'); 
-                        showBasicInfo.value = true; // 🚀 自動展開資料填寫面板
+                        showBasicInfo.value = true; 
                         switchView('register'); 
                         return; 
                     }
-                    registrationNote.value = ''; switchView('form'); 
+                    
+                    isSubmitting.value = true;
+                    try {
+                        const pts = await callApi('GET_USER_POINTS');
+                        userPointsBalance.value = pts.balance || 0;
+                    } catch (e) {
+                        console.error("查點數失敗", e);
+                    } finally {
+                        isSubmitting.value = false;
+                    }
+
+                    registrationNote.value = ''; 
+                    switchView('form'); 
                 };
+
+                // 🚀 V87：結帳數學引擎 (Calculator)
+                const maxDeductiblePoints = computed(() => {
+                    if (!selectedCourse.value) return 0;
+                    const price = Number(String(selectedCourse.value.price).replace(/[^0-9.]/g, '')) || 0;
+                    const rule = selectedCourse.value.discountRule;
+
+                    if (!rule || rule === 'NONE') return 0;
+
+                    let rate = 0;
+                    if (rule === 'RULE_A' || rule === '20%') rate = Number(sysSettings.value.discount_rate_a) || 20;
+                    if (rule === 'RULE_B' || rule === '50%') rate = Number(sysSettings.value.discount_rate_b) || 50;
+                    if (rule === 'RULE_C' || rule === '100%') rate = Number(sysSettings.value.discount_rate_c) || 100;
+
+                    return Math.floor(price * (rate / 100)); // 計算可抵扣上限
+                });
+
+                const actualDeductiblePoints = computed(() => {
+                    // 真實能扣的，是「餘額」與「上限」取小值
+                    return Math.min(Number(userPointsBalance.value) || 0, maxDeductiblePoints.value);
+                });
+
+                const finalPayableAmount = computed(() => {
+                    if (!selectedCourse.value) return 0;
+                    const price = Number(String(selectedCourse.value.price).replace(/[^0-9.]/g, '')) || 0;
+                    return Math.max(0, price - actualDeductiblePoints.value);
+                });
 
                 const goToMyOrders = async () => { 
                     if (!userInfo.value || !userInfo.value.name) { 
-                        alert('請先建立基本資料！'); 
-                        showBasicInfo.value = true; // 🚀 自動展開資料填寫面板
-                        switchView('register'); 
-                        return; 
+                        alert('請先建立基本資料！'); showBasicInfo.value = true; switchView('register'); return; 
                     }
                     try { myOrders.value = await callApi('GET_USER_ORDERS'); switchView('my_orders'); } catch (e) { alert('獲取紀錄失敗，請檢查網路'); } 
                 };
@@ -426,15 +501,24 @@
                     switchView('register'); 
                     try {
                         const pts = await callApi('GET_USER_POINTS');
-                        userPointsBalance.value = pts.balance;
-                        userPointLogs.value = pts.logs;
+                        userPointsBalance.value = pts.balance; userPointLogs.value = pts.logs;
                     } catch (e) { console.error("紅包載入失敗", e); }
                 };
 
+                // 🚀 V87：結帳送出時，夾帶最終金額與使用點數給後端
                 const submitRegistration = async () => { 
                     isSubmitting.value = true; 
                     try { 
-                        await callApi('REGISTER', { userId: userProfile.value.userId, courseId: selectedCourse.value.id, courseName: selectedCourse.value.name, name: userInfo.value.name, phone: userInfo.value.phone, note: registrationNote.value, amount: String(selectedCourse.value.price).replace(/[^0-9.]/g, '') }); 
+                        await callApi('REGISTER', { 
+                            userId: userProfile.value.userId, 
+                            courseId: selectedCourse.value.id, 
+                            courseName: selectedCourse.value.name, 
+                            name: userInfo.value.name, 
+                            phone: userInfo.value.phone, 
+                            note: registrationNote.value, 
+                            amount: finalPayableAmount.value, // ✅ 傳送扣抵後的最終金額
+                            pointsUsed: actualDeductiblePoints.value // ✅ 傳送扣抵點數 (待 Step 3 後端雙重查核)
+                        }); 
                         switchView('success'); 
                     } catch (e) { alert(e.message); } finally { isSubmitting.value = false; } 
                 };
@@ -483,7 +567,7 @@
                             userInfo.value = data.info; 
                         } else { 
                             regForm.value.name = userProfile.value.displayName;
-                            showBasicInfo.value = true; // 🚀 自動展開面板讓新客直接填寫
+                            showBasicInfo.value = true;
                         }
                         isLiffLoading.value = false;
                     })();
@@ -504,8 +588,8 @@
 
                 return { 
                     view, isLoadingCourses, isLiffLoading, isSubmitting, userInfo, userProfile, courses, myOrders, regForm, selectedCourse, registrationNote, activeCat, defaultDesc, dynamicCategories, sysSettings, referrerCode, filteredCourses, activeRemitOrder, remitLastFive, 
-                    userPointsBalance, userPointLogs, 
-                    showRedEnvelopeContent, showPointLogs, showBasicInfo, // 🚀 V84 state variables
+                    userPointsBalance, userPointLogs, showRedEnvelopeContent, showPointLogs, showBasicInfo, 
+                    maxDeductiblePoints, actualDeductiblePoints, finalPayableAmount, // 🚀 V87 匯出結帳計算屬性
                     editProfile, goToMyOrders, selectCourse, showCourseDetail, getCourseName, submitMemberRegister, submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView, copyReferralLink
                 };
             }
