@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.16.V90_NewebPay_Settings -->
+    <!-- Version: 2026.04.16.V92_Custom_Payment_Methods -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -68,12 +68,10 @@
     <div id="app" v-cloak>
         
         <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4 relative">
-            
             <div v-if="isLiffLoading" class="absolute inset-0 bg-[#F8FAFC] z-50 flex flex-col items-center justify-center">
                 <i class="fas fa-circle-notch fa-spin text-4xl text-[#06C755] mb-4"></i>
                 <div class="text-slate-500 font-bold">檢查登入狀態中...</div>
             </div>
-
             <div class="max-w-[360px] w-full bg-white rounded-2xl shadow-sm p-8 animate-fade-in border border-slate-200 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-1.5 bg-[#06C755]"></div>
                 <div class="text-center mb-8">
@@ -81,7 +79,6 @@
                     <h2 class="text-xl font-bold text-slate-800">宏學管理站</h2>
                     <p class="text-slate-500 text-sm mt-1.5 font-medium">請登入以存取系統資料</p>
                 </div>
-                
                 <div class="space-y-4">
                     <div>
                         <label class="input-label">管理員帳號</label>
@@ -97,17 +94,11 @@
                             <input type="password" v-model="loginForm.password" class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#06C755] transition bg-slate-50 focus:bg-white text-slate-800" placeholder="請輸入密碼" @keyup.enter="handleLogin">
                         </div>
                     </div>
-                    
                     <div v-if="loginError" class="text-orange-600 text-xs font-bold text-center bg-orange-50 py-2.5 rounded-lg border border-orange-100 animate-fade-in"><i class="fas fa-exclamation-circle mr-1"></i> {{ loginError }}</div>
-                    
                     <button @click="handleLogin" :disabled="isLoading" class="w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-slate-700 transition mt-2">
                         {{ isLoading ? '驗證中...' : '帳號密碼登入' }}
                     </button>
-
-                    <div class="pt-4 pb-2 flex items-center justify-between">
-                        <hr class="w-full border-slate-200"><span class="px-3 text-xs text-slate-400 font-bold">或</span><hr class="w-full border-slate-200">
-                    </div>
-                    
+                    <div class="pt-4 pb-2 flex items-center justify-between"><hr class="w-full border-slate-200"><span class="px-3 text-xs text-slate-400 font-bold">或</span><hr class="w-full border-slate-200"></div>
                     <button @click="liffLogin" :disabled="isLoading" class="w-full py-3 bg-[#06C755] text-white rounded-lg font-bold text-sm shadow-sm hover:bg-[#05b04a] transition flex justify-center items-center gap-2">
                         <i class="fab fa-line text-lg"></i> 使用 LINE 快速登入
                     </button>
@@ -183,14 +174,8 @@
 
                     <div v-if="view === 'courses'" class="animate-fade-in">
                         <div class="px-6 md:px-8 mt-2 flex flex-col md:flex-row gap-3 mb-4">
-                            <div class="relative flex-1">
-                                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                                <input type="text" v-model="courseSearchQuery" placeholder="搜尋課程名稱或 ID..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm bg-white text-slate-800">
-                            </div>
-                            <select v-model="courseFilterCategory" class="w-full md:w-auto px-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm text-slate-700 bg-white cursor-pointer font-bold">
-                                <option value="">所有分類</option>
-                                <option v-for="cat in adminCategories" :key="cat" :value="cat">{{ cat }}</option>
-                            </select>
+                            <div class="relative flex-1"><i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="courseSearchQuery" placeholder="搜尋課程名稱或 ID..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm bg-white text-slate-800"></div>
+                            <select v-model="courseFilterCategory" class="w-full md:w-auto px-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm text-slate-700 bg-white cursor-pointer font-bold"><option value="">所有分類</option><option v-for="cat in adminCategories" :key="cat" :value="cat">{{ cat }}</option></select>
                         </div>
                         <div class="admin-table-container !mt-0 !mx-6 md:!mx-8 !rounded-xl">
                             <table class="admin-table">
@@ -205,10 +190,10 @@
                                         <td><span class="bg-blue-50 text-blue-600 border border-blue-100 font-bold text-[11px] px-2 py-0.5 rounded mb-2 inline-block">{{ c.type || '未分類' }}</span><div class="text-[14px] text-slate-600 font-medium whitespace-nowrap">{{ c.startDate }}<br class="md:hidden"> <span class="hidden md:inline">~</span> {{ c.endDate }}</div></td>
                                         <td>
                                             <div class="text-lg font-bold text-[#06C755] mb-1">${{ formatPrice(c.price) }}</div>
-                                            <div v-if="c.discountRule && c.discountRule !== 'NONE'" class="text-[11px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded inline-block mb-1 border border-orange-100">
-                                                {{ getDiscountLabel(c.discountRule) }}
-                                            </div>
-                                            <div class="text-slate-500 text-[13px] font-medium whitespace-nowrap">報名：{{ c.enrolled }} / {{ c.capacity }} 人</div>
+                                            <div v-if="c.discountRule && c.discountRule !== 'NONE'" class="text-[11px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded inline-block mb-1 border border-orange-100">{{ getDiscountLabel(c.discountRule) }}</div>
+                                            <!-- 🚀 V92 顯示付款方式標籤 -->
+                                            <div v-if="c.paymentMethod === 'REMITTANCE'" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded inline-block mb-1 border border-blue-100">🏦 僅限匯款</div>
+                                            <div class="text-slate-500 text-[13px] font-medium whitespace-nowrap mt-1">報名：{{ c.enrolled }} / {{ c.capacity }} 人</div>
                                         </td>
                                         <td>
                                             <div class="text-[13px] text-slate-600 mb-2 font-medium whitespace-nowrap">已收: <span class="text-[#06C755] font-bold text-[14px]">{{ getCoursePaidCount(c.id) }}</span><br class="md:hidden"> 待付: <span class="text-orange-500 font-bold text-[14px]">{{ getCoursePendingCount(c.id) }}</span></div>
@@ -333,7 +318,7 @@
                                                 <td class="text-[12px] text-slate-400 whitespace-nowrap font-mono">{{ log.createdAt }}</td>
                                                 <td><span class="text-[11px] font-bold px-1.5 py-0.5 rounded border" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-500 border-red-100'">{{ log.type.includes('ADD')||log.type.includes('EARN')?'獲得':'扣除' }}</span></td>
                                                 <td class="text-slate-600">{{ log.reason }}</td>
-                                                <td class="text-right font-bold" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'text-green-600' : 'text-red-500'">{{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{{ log.amount.toLocaleString() }}</td>
+                                                <td class="text-right font-bold" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'text-green-600' : 'text-red-500'">{{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{log.amount.toLocaleString() }}</td>
                                                 <td class="text-right font-bold text-slate-500">{{ log.balance.toLocaleString() }}</td>
                                             </tr>
                                             <tr v-if="!activeMemberPoints.logs || activeMemberPoints.logs.length === 0"><td colspan="5" class="text-center text-slate-400 py-6">無點數紀錄</td></tr>
@@ -375,12 +360,10 @@
                     </div>
 
                     <div v-if="view === 'settings'" class="p-6 animate-fade-in max-w-4xl mx-auto">
-                        
-                        <!-- 🚀 V90：藍新金流設定區塊 -->
                         <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8 relative overflow-hidden">
                             <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
                             <div class="section-title !mb-4 flex items-center gap-2 text-blue-800 border-blue-500">
-                                <i class="fas fa-credit-card"></i> 藍新金流 (NewebPay) 設定 <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded ml-2">測試/正式共用</span>
+                                <i class="fas fa-credit-card"></i> 藍新金流 (NewebPay) 設定 <span class="bg-blue-100 text-blue-700 text-[11px] font-bold px-2 py-0.5 rounded ml-2">測試/正式共用</span>
                             </div>
                             <p class="text-[14px] text-slate-500 mb-6 leading-relaxed">請輸入藍新金流提供之 API 金鑰。系統會自動根據此金鑰建立交易加密封包。</p>
                             <div class="space-y-4">
@@ -455,6 +438,15 @@
                                             <option value="RULE_A">🔵 規則 A (目前 {{sysSettings.discount_rate_a || 20}}%)</option>
                                             <option value="RULE_B">🟡 規則 B (目前 {{sysSettings.discount_rate_b || 50}}%)</option>
                                             <option value="RULE_C">🟢 規則 C (目前 {{sysSettings.discount_rate_c || 100}}%)</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- 🚀 V92 新增：自訂付款方式下拉選單 -->
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100 gap-3">
+                                        <div class="font-bold text-blue-700 text-[14px]">開放付款方式 (Z欄)</div>
+                                        <select v-model="editingCourse.paymentMethod" class="input-field !w-auto !py-2 !text-[14px] font-bold cursor-pointer transition-colors text-blue-800 bg-white border-blue-200 shadow-sm">
+                                            <option value="ALL">💳 線上刷卡 + 匯款</option>
+                                            <option value="REMITTANCE">🏦 僅限實體匯款</option>
                                         </select>
                                     </div>
                                 </div>
@@ -656,7 +648,6 @@
                 const orders = ref([]); 
                 const users = ref([]); 
                 
-                // 🚀 V90：預設加入藍新變數防呆
                 const sysSettings = ref({ 
                     banner_image: '', link_fb: '', link_ig: '', link_line: '', link_lineoa: '', link_tiktok: '', link_web: '', 
                     discount_rate_a: 20, discount_rate_b: 50, discount_rate_c: 100,
@@ -778,6 +769,7 @@
                     }
                 };
 
+                // 🚀 V92 確保向下相容與載入 paymentMethod
                 const openEditModal = (c) => { 
                     const parsed = JSON.parse(JSON.stringify(c));
                     if(parsed.isPublished === undefined) parsed.isPublished = true;
@@ -787,6 +779,7 @@
                     if(parsed.discountRule === '20%') parsed.discountRule = 'RULE_A';
                     if(parsed.discountRule === '50%') parsed.discountRule = 'RULE_B';
                     if(parsed.discountRule === '100%') parsed.discountRule = 'RULE_C';
+                    if(!parsed.paymentMethod) parsed.paymentMethod = 'ALL';
                     editingCourse.value = parsed;
                 };
                 
@@ -803,6 +796,7 @@
                     if(parsed.discountRule === '20%') parsed.discountRule = 'RULE_A';
                     if(parsed.discountRule === '50%') parsed.discountRule = 'RULE_B';
                     if(parsed.discountRule === '100%') parsed.discountRule = 'RULE_C';
+                    if(!parsed.paymentMethod) parsed.paymentMethod = 'ALL';
                     editingCourse.value = parsed; 
                 };
                 
