@@ -3,9 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V65_Mobile_Responsive_Admin -->
+    <!-- Version: 2026.04.15.V67_Cloud_Drive_Backup -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,7 +13,6 @@
         [v-cloak] { display: none !important; }
         body { background-color: #F8FAFC; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        /* 桌機側邊欄 (手機隱藏) */
         .sidebar { width: 240px; background: white; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 50; }
         .sidebar-brand { padding: 24px; font-size: 20px; font-weight: 800; color: #06C755; letter-spacing: -0.5px; }
         .nav-item { display: flex; align-items: center; gap: 12px; padding: 14px 24px; cursor: pointer; transition: 0.2s; color: #64748b; font-weight: 500; border-right: 4px solid transparent; }
@@ -49,18 +48,13 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hide-scrollbar::-webkit-scrollbar { height: 4px; display: none; }
         
-        /* 🚀 V65 手機版專屬響應式設計 (RWD) */
         @media (max-width: 768px) {
-            .sidebar { display: none; } /* 隱藏左側選單 */
-            .main-content { margin-left: 0; padding-bottom: 80px; } /* 釋放左側空間，底部預留導覽列空間 */
-            .page-header { padding: 12px 16px; flex-wrap: wrap; gap: 8px; } /* 縮小頭部 padding */
-            
-            /* 表格釋放邊界 (Edge to Edge) */
+            .sidebar { display: none; } 
+            .main-content { margin-left: 0; padding-bottom: 80px; } 
+            .page-header { padding: 12px 16px; flex-wrap: wrap; gap: 8px; } 
             .admin-table-container { margin: 16px 0; border-radius: 0; border-left: none; border-right: none; }
             .admin-table tbody td { padding: 12px 12px; font-size: 13px; }
             .admin-table thead th { padding: 10px 12px; font-size: 12px; }
-            
-            /* 彈窗全螢幕化 */
             .modal-mask { padding: 0; }
             .modal-body { max-width: 100%; max-height: 100%; height: 100%; border-radius: 0; }
             .modal-body-lg { border-radius: 0; }
@@ -108,8 +102,6 @@
 
         <!-- 📊 內部管理系統 -->
         <div v-else class="flex min-h-screen">
-            
-            <!-- [桌機專用] 左側欄 -->
             <aside class="sidebar hidden md:flex">
                 <div class="sidebar-brand">宏學管理站</div>
                 <nav class="flex-grow">
@@ -122,7 +114,6 @@
                 <div class="p-6 border-t border-gray-100"><button @click="logout" class="w-full py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-orange-500 transition"><i class="fas fa-sign-out-alt mr-2"></i>安全登出</button></div>
             </aside>
 
-            <!-- 🚀 V65 [手機專用] 底部導覽列 (Bottom Tab Bar) -->
             <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-50 flex justify-around items-center h-[65px] pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
                 <button @click="view = 'dashboard'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'dashboard' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'">
                     <i class="fas fa-chart-pie text-xl"></i><span class="text-[10px] font-bold">統計</span>
@@ -148,6 +139,10 @@
                         <button class="md:hidden text-slate-400" @click="logout" title="登出"><i class="fas fa-sign-out-alt"></i></button>
                     </div>
                     <div class="flex items-center gap-2 md:gap-3 w-full md:w-auto">
+                        <!-- 🚀 V67 新增：雲端備份按鈕 -->
+                        <button @click="triggerBackup" :disabled="isLoading" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 border border-blue-200 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition shadow-sm">
+                            <i class="fas fa-hdd" :class="{'fa-pulse': isLoading}"></i><span class="hidden sm:inline">雲端備份</span><span class="sm:hidden">備份</span>
+                        </button>
                         <button @click="runHealthCheck" :disabled="isLoading" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 border border-orange-200 rounded-lg text-sm font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 transition shadow-sm">
                             <i class="fas fa-stethoscope" :class="{'fa-pulse': isLoading}"></i><span class="hidden sm:inline">系統健檢</span><span class="sm:hidden">健檢</span>
                         </button>
@@ -160,7 +155,6 @@
                 <div class="py-2 md:py-4">
                     <!-- 1. 營運統計 -->
                     <div v-if="view === 'dashboard'" class="p-4 md:p-8 animate-fade-in">
-                        <!-- 🚀 V65 折疊數據看板 -->
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-10">
                             <div v-for="s in statsSummary" :key="s.label" class="bg-white p-5 md:p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-center">
                                 <div class="text-[11px] font-bold text-slate-400 uppercase mb-1 md:mb-2">{{ s.label }}</div>
@@ -276,7 +270,7 @@
                         </div>
                     </div>
 
-                    <!-- 🚀 V65 學員專屬 CRM 頁面 (響應式優化) -->
+                    <!-- 學員專屬 CRM 頁面 -->
                     <div v-if="view === 'member_detail'" class="p-4 md:p-8 animate-fade-in max-w-5xl mx-auto">
                         <button @click="view = 'members'" class="text-slate-400 text-sm font-bold flex items-center mb-4 md:mb-6 hover:text-slate-600 transition"><i class="fas fa-chevron-left mr-2"></i>返回學員名冊</button>
 
@@ -375,8 +369,6 @@
                     </div>
                 </div>
             </main>
-
-            <!-- 🚀 V65：彈窗全螢幕化與響應式優化 -->
             
             <!-- [Modal D] 課程編輯 -->
             <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
@@ -388,7 +380,6 @@
                     <div class="flex-grow overflow-y-auto p-4 md:p-8 hide-scrollbar">
                         
                         <div class="flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-10 mb-6 md:mb-8">
-                            <!-- 左欄 -->
                             <div class="lg:col-span-7 space-y-4 md:space-y-6 bg-white p-5 md:p-0 rounded-xl md:bg-transparent shadow-sm md:shadow-none">
                                 <div class="flex flex-col sm:flex-row gap-4 md:gap-5">
                                     <div class="sm:w-1/3"><label class="input-label">ID (A欄)</label><input type="text" v-model="editingCourse.id" disabled class="input-field disabled:bg-slate-50"></div>
@@ -410,7 +401,6 @@
                                 </div>
                             </div>
                             
-                            <!-- 右欄 -->
                             <div class="lg:col-span-5 bg-white p-5 md:p-0 rounded-xl md:bg-transparent shadow-sm md:shadow-none">
                                 <div class="section-title !text-[15px] !mb-3">宣傳圖片</div>
                                 <div class="w-full aspect-[4/3] bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative mb-3">
@@ -424,12 +414,11 @@
                             </div>
                         </div>
 
-                        <!-- 下半部 -->
                         <div class="bg-white p-5 md:p-0 md:bg-transparent rounded-xl shadow-sm md:shadow-none md:border-t md:border-slate-200 md:pt-6">
                             <div class="section-title !text-[16px] !mb-3 md:!mb-4">詳細內容 (S 欄)</div>
                             <textarea v-model="editingCourse.description" class="input-field min-h-[200px] md:min-h-[280px] resize-y text-[14px] md:text-[15px] leading-relaxed p-4 md:p-5 bg-slate-50 focus:bg-white" placeholder="輸入課程文案..."></textarea>
                         </div>
-                        <div class="h-[60px] md:hidden"></div> <!-- 手機版底部留白 -->
+                        <div class="h-[60px] md:hidden"></div> 
                     </div>
                     <div class="px-5 md:px-8 py-4 border-t bg-white flex flex-col md:flex-row justify-end gap-3 sticky bottom-0 md:rounded-b-2xl pb-safe">
                         <button @click="editingCourse = null" class="w-full md:w-auto px-8 py-3 md:py-2.5 text-slate-500 font-bold border border-slate-200 rounded-lg md:border-none md:bg-transparent bg-white">取消</button>
@@ -447,7 +436,6 @@
                     </div>
                     <div class="flex-grow overflow-y-auto bg-slate-50 md:bg-white p-0 md:p-8">
                         
-                        <!-- 🚀 V66: 導師簽到網址產生器 -->
                         <div class="m-4 md:m-0 md:mb-6 bg-blue-50/50 border border-blue-100 rounded-xl p-4 md:p-5">
                             <div class="flex items-center gap-2 mb-3">
                                 <i class="fas fa-link text-blue-600"></i>
@@ -555,7 +543,7 @@
                 const editingOrder = ref(null); 
                 const activeMember = ref(null); 
                 const activeEnrollmentCourse = ref(null);
-                const checkinUrl = ref(''); // 🚀 V66 新增
+                const checkinUrl = ref('');
                 
                 const courseSearchQuery = ref('');
                 const courseFilterCategory = ref('');
@@ -636,14 +624,23 @@
                     }
                 };
 
-                const openEnrollments = (c) => { activeEnrollmentCourse.value = c; checkinUrl.value = ''; }; // 🚀 V66 重置網址
+                // 🚀 V67 新增：觸發手動雲端備份
+                const triggerBackup = async () => {
+                    if (!confirm('將立即打包三大資料庫並備份至 Google Drive，這可能需要幾秒鐘的時間，確認執行？')) return;
+                    const data = await callApi('ADMIN_TRIGGER_BACKUP');
+                    if (data && data.success) {
+                        alert('🎉 ' + data.message);
+                    }
+                };
+
+                const openEnrollments = (c) => { activeEnrollmentCourse.value = c; checkinUrl.value = ''; }; 
                 const openOrderEditModal = (o) => { activeEnrollmentCourse.value = null; editingOrder.value = { ...o }; };
                 const saveOrderUpdate = async () => { if(await callApi('ADMIN_UPDATE_ORDER', editingOrder.value)) { editingOrder.value = null; await fetchData(); } };
                 
                 const openMemberDetail = (u) => {
                     activeMember.value = JSON.parse(JSON.stringify(u));
                     view.value = 'member_detail';
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); // 手機版切換時確保回到頂部
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 };
                 
                 const saveMemberDetail = async () => {
@@ -661,7 +658,6 @@
                 const saveCourse = async () => { if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { editingCourse.value = null; await fetchData(); } };
                 const copyCourse = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); editingCourse.value.id = 'NEW_' + Date.now().toString().slice(-4); editingCourse.value.name += ' (複製)'; };
 
-                // 🚀 V66 簽到連結產生器
                 const generateCheckinLink = async (course) => {
                     if (!course.checkinPwd) return alert('請先輸入簽到密碼！');
                     if (await callApi('ADMIN_SET_CHECKIN_PWD', { courseId: course.id, checkinPwd: course.checkinPwd })) {
@@ -673,7 +669,6 @@
                 const copyUrl = () => {
                     if (!checkinUrl.value) return;
                     navigator.clipboard.writeText(checkinUrl.value).then(() => alert('網址已複製成功！')).catch(() => {
-                        // 防禦 iframe 無法讀取剪貼簿的狀況
                         const dummy = document.createElement("input");
                         document.body.appendChild(dummy);
                         dummy.setAttribute("value", checkinUrl.value);
@@ -736,7 +731,7 @@
                                 base64str = canvas.toDataURL('image/webp', quality);
                             }
                             if (base64str.length > 49500) {
-                                alert('❌ Banner 過於複雜無法儲存，請將圖片上傳至您的外部空間後再貼上網址。'); return;
+                                alert('❌ Banner 過於複雜無法儲存，請改貼網址。'); return;
                             }
                             sysSettings.value.banner_image = base64str;
                         };
@@ -759,7 +754,7 @@
                     getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length, 
                     getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && (o.status || 'PENDING') === 'PENDING').length, 
                     getCourseName, handleFileUpload, handleBannerUpload, copyCourse, runHealthCheck,
-                    generateCheckinLink, copyUrl // 🚀 V66 匯出方法
+                    generateCheckinLink, copyUrl, triggerBackup // 🚀 匯出手動備份方法
                 };
             }
         }).mount('#app');
