@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.15.V74_Membership_Tier -->
+    <!-- Version: 2026.04.15.V76_Subtle_Share_Button -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -55,7 +55,6 @@
         <header v-if="view !== 'course_detail' && view !== 'calendar'" class="bg-[#06C755] text-white px-4 py-3 sticky top-0 z-50 flex items-center justify-between shadow-sm">
             <h1 class="text-lg font-bold">人生進化三部曲</h1>
             <div v-if="!userInfo.name && isLiffLoading" class="w-16 h-8 bg-white/20 rounded-full animate-pulse"></div>
-            <!-- 🚀 V74：大頭貼與會員等級顯示 UI -->
             <div v-else-if="userInfo.name" class="flex items-center gap-2.5 bg-black/10 pl-1.5 pr-4 py-1.5 rounded-full border border-white/10 shadow-inner">
                 <img v-if="userProfile && userProfile.pictureUrl" :src="userProfile.pictureUrl" class="w-8 h-8 rounded-full object-cover border border-white/30 shadow-sm">
                 <div v-else class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm shadow-sm"><i class="fas fa-user"></i></div>
@@ -227,35 +226,28 @@
             <!-- 3. 個人資料註冊 -->
             <div v-else-if="view === 'register'" class="p-6 animate-fade-in bg-white min-h-screen">
                 <button @click="switchView('course_list')" class="text-slate-400 text-sm font-bold flex items-center mb-4"><i class="fas fa-chevron-left mr-1"></i>返回</button>
-                <h2 class="text-2xl font-bold mb-8 tracking-tight">建立個人資料</h2>
+                
+                <!-- 🚀 V76: 低調實用的一鍵分享按鈕 -->
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-2xl font-bold tracking-tight">建立個人資料</h2>
+                    <button v-if="userInfo.referralCode" @click="copyReferralLink" class="bg-white border border-slate-200 text-slate-600 px-3.5 py-1.5 rounded-full text-[13px] font-bold shadow-sm hover:bg-slate-50 transition flex items-center gap-1.5 active:scale-95">
+                        <i class="fas fa-share-square"></i> 分享好友
+                    </button>
+                </div>
+
                 <div class="space-y-6">
                     <div><label class="font-bold text-sm mb-1 block">姓名</label><input type="text" v-model="regForm.name" class="input-box"></div>
                     <div class="grid grid-cols-2 gap-4"><div><label class="font-bold text-sm mb-1 block">業種</label><input type="text" v-model="regForm.industry" class="input-box"></div><div><label class="font-bold text-sm mb-1 block">性別</label><select v-model="regForm.gender" class="input-box"><option value="男">男</option><option value="女">女</option></select></div></div>
                     <div class="grid grid-cols-2 gap-4"><div><label class="font-bold text-sm mb-1 block">手機</label><input type="tel" v-model="regForm.phone" class="input-box"></div><div><label class="font-bold text-sm mb-1 block">生日</label><input type="date" v-model="regForm.birthday" class="input-box"></div></div>
                     <div><label class="font-bold text-sm mb-1 block">地址</label><input type="text" v-model="regForm.address_detail" class="input-box" placeholder="區域及詳細地址"></div>
                     
-                    <!-- 🚀 V75: 推薦人鎖定提示 (僅限尚未綁定推薦人之新註冊顯示) -->
-                    <div v-if="referrerCode && !userInfo.referrerUid" class="bg-blue-50 border border-blue-100 p-4 rounded-xl mt-4">
-                        <div class="text-xs text-blue-500 font-bold mb-1">🎁 經銷好友專屬綁定</div>
-                        <div class="text-sm font-bold text-blue-700">推薦代碼已鎖定：{{ referrerCode }}</div>
+                    <!-- 🚀 V76: 弱化的推薦人綁定提示 -->
+                    <div v-if="referrerCode && !userInfo.referrerUid" class="bg-slate-50 border border-slate-100 px-3 py-2 rounded-lg mt-2 flex items-center gap-2">
+                        <i class="fas fa-link text-slate-400 text-xs"></i>
+                        <div class="text-xs font-medium text-slate-500">邀請碼綁定：<span class="text-slate-600 font-mono font-bold">{{ referrerCode }}</span></div>
                     </div>
 
-                    <div class="pt-8"><button @click="submitMemberRegister" :disabled="isSubmitting" class="btn-main">{{ isSubmitting ? '處理中...' : '確認並儲存' }}</button></div>
-
-                    <!-- 🚀 V75: 專屬分享按鈕區塊 (會員建立資料後自動解鎖顯示) -->
-                    <div v-if="userInfo.referralCode" class="mt-8 border-t border-slate-100 pt-6">
-                        <div class="bg-green-50 border border-green-100 p-5 rounded-xl text-center shadow-sm">
-                            <div class="w-10 h-10 bg-[#06C755] text-white rounded-full flex items-center justify-center text-lg mx-auto mb-2 shadow-sm"><i class="fas fa-share-alt"></i></div>
-                            <div class="text-sm text-green-700 font-bold mb-1">您的專屬推廣分享連結</div>
-                            <div class="text-xs text-green-600 font-medium mb-3">邀請好友註冊，獲取高額紅包獎勵！</div>
-                            <div class="text-[11px] font-bold text-slate-500 bg-white py-2 px-3 rounded-lg border border-green-200 break-all mb-3 text-left leading-relaxed select-all">
-                                https://liff.line.me/2009130603-vTHZv1LW?ref={{ userInfo.referralCode }}
-                            </div>
-                            <button @click="copyReferralLink" class="w-full bg-[#06C755] text-white text-sm font-bold py-3 rounded-xl hover:bg-[#05b04a] transition shadow-md active:scale-[0.98]">
-                                <i class="far fa-copy mr-1"></i> 複製網址傳給好友
-                            </button>
-                        </div>
-                    </div>
+                    <div class="pt-6 pb-10"><button @click="submitMemberRegister" :disabled="isSubmitting" class="btn-main">{{ isSubmitting ? '處理中...' : '確認並儲存' }}</button></div>
                 </div>
             </div>
 
@@ -331,7 +323,6 @@
                 const remitLastFive = ref('');
                 const defaultDesc = ref(DEFAULT_DESCRIPTION);
                 
-                // 🚀 V74: 推薦碼接收容器
                 const referrerCode = ref('');
 
                 const parsePrice = (p) => { 
@@ -445,11 +436,11 @@
                             ...regForm.value, 
                             userId: userProfile.value.userId, 
                             address: regForm.value.area + regForm.value.address_detail,
-                            referrerCode: referrerCode.value // 🚀 帶上推薦碼給後端
+                            referrerCode: referrerCode.value 
                         }); 
                         const data = await callApi('CHECK_USER'); 
                         userInfo.value = data.info; 
-                        alert('個人資料已儲存成功！'); // 明確提示
+                        alert('✅ 個人資料已儲存成功'); 
                         switchView('course_list'); 
                     } catch (e) { alert('儲存失敗'); } 
                     finally { isSubmitting.value = false; } 
@@ -476,24 +467,23 @@
                     } catch (e) { alert(e.message); } 
                 };
 
-                // 🚀 V75: 一鍵複製專屬推薦連結
+                // 🚀 V76: 低調簡約的一鍵分享
                 const copyReferralLink = () => {
                     const link = `https://liff.line.me/2009130603-vTHZv1LW?ref=${userInfo.value.referralCode}`;
-                    navigator.clipboard.writeText(link).then(() => alert('專屬網址已複製！快傳給好友吧！')).catch(() => {
+                    navigator.clipboard.writeText(link).then(() => alert('✅ 已複製分享連結')).catch(() => {
                         const dummy = document.createElement("input");
                         document.body.appendChild(dummy);
                         dummy.setAttribute("value", link);
                         dummy.select();
                         document.execCommand("copy");
                         document.body.removeChild(dummy);
-                        alert('專屬網址已複製！快傳給好友吧！');
+                        alert('✅ 已複製分享連結');
                     });
                 };
 
                 onMounted(async () => { 
                     const fetchSysTask = loadSystemData(); 
                     
-                    // 🚀 V74: 嘗試捕獲推薦碼 (防丟失設計)
                     const urlParams = new URLSearchParams(window.location.search);
                     const refParam = urlParams.get('ref');
                     if (refParam) {
@@ -550,7 +540,7 @@
                     registrationNote, activeCat, defaultDesc, dynamicCategories, sysSettings, referrerCode,
                     filteredCourses, activeRemitOrder, remitLastFive, 
                     editProfile, goToMyOrders, selectCourse, showCourseDetail, getCourseName, submitMemberRegister, 
-                    submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView, copyReferralLink // 🚀 導出複製函數
+                    submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView, copyReferralLink
                 };
             }
         }).mount('#app');
