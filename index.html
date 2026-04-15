@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.16.V89_Admin_UID_Auth -->
+    <!-- Version: 2026.04.16.V92_Custom_Payment_Methods -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -57,7 +57,6 @@
         <header v-if="view !== 'course_detail' && view !== 'calendar'" class="bg-[#06C755] text-white px-4 py-3 sticky top-0 z-50 flex items-center shadow-sm">
             <h1 class="text-lg font-bold mr-auto">人生進化三部曲</h1>
             
-            <!-- 🚀 V89：如果判定為管理員，在此處顯示專屬進入按鈕 -->
             <button v-if="isAdmin" @click="goToAdmin" class="mr-3 bg-black/15 hover:bg-black/25 text-white text-[12px] font-bold px-2.5 py-1.5 rounded-full transition border border-white/20">
                 <i class="fas fa-cog mr-1"></i> 後台
             </button>
@@ -208,12 +207,16 @@
                     </div>
                     <div class="text-[13px] text-slate-500 mb-2 font-medium">單號: <span class="font-mono text-slate-600">{{ o.orderId }}</span></div>
                     
-                    <div class="text-lg text-[#FF5A00] font-bold" :class="o.pointsUsed > 0 ? 'mb-1' : 'mb-4'">NT$ {{ parsePrice(o.amount) }}</div>
-                    <div v-if="o.pointsUsed > 0" class="text-[11px] text-red-500 font-bold mb-4 bg-red-50 px-1.5 py-0.5 rounded inline-block border border-red-100"><i class="fas fa-wallet mr-1"></i> 已折抵 {{ Number(o.pointsUsed).toLocaleString() }} 點</div>
+                    <div class="text-lg text-[#FF5A00] font-bold" :class="o.pointsUsed > 0 ? 'mb-1' : 'mb-3'">NT$ {{ parsePrice(o.amount) }}</div>
+                    <div v-if="o.pointsUsed > 0" class="text-[11px] text-red-500 font-bold mb-3 bg-red-50 px-1.5 py-0.5 rounded inline-block border border-red-100"><i class="fas fa-wallet mr-1"></i> 已折抵 {{ Number(o.pointsUsed).toLocaleString() }} 點</div>
 
-                    <div v-if="o.status === 'PENDING'" class="flex gap-2 pt-4 border-t border-slate-100">
-                        <button @click="activeRemitOrder = o; remitLastFive = ''" class="flex-1 py-2.5 bg-slate-50 text-slate-700 text-sm font-bold rounded-lg border border-slate-200 hover:bg-slate-100 transition">匯款回報</button>
-                        <button @click="cancelOrder(o)" class="flex-1 py-2.5 bg-white border border-slate-200 text-slate-500 text-sm font-bold rounded-lg hover:bg-slate-50 transition">取消報名</button>
+                    <!-- 🚀 V92：如果未付款，且課程允許刷卡，顯示斷點續付按鈕 -->
+                    <div v-if="o.status === 'PENDING' && Number(String(o.amount).replace(/[^0-9.]/g, '')) > 0" class="flex gap-2 pt-4 border-t border-slate-100 mt-2">
+                        <button v-if="getCoursePaymentMethod(o.courseId) !== 'REMITTANCE'" @click="retryPayment(o)" class="flex-1 py-2 bg-[#06C755] text-white text-[13px] font-bold rounded-lg hover:bg-[#05b04a] transition shadow-sm flex items-center justify-center gap-1.5">
+                            <i class="fas fa-credit-card"></i> 線上付款
+                        </button>
+                        <button @click="activeRemitOrder = o; remitLastFive = ''" class="flex-1 py-2 bg-slate-50 text-slate-700 text-[13px] font-bold rounded-lg border border-slate-200 hover:bg-slate-100 transition">匯款回報</button>
+                        <button @click="cancelOrder(o)" class="w-[60px] shrink-0 py-2 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 text-[13px] font-bold rounded-lg transition">取消</button>
                     </div>
                 </div>
             </div>
@@ -321,8 +324,14 @@
                     <div class="text-[11px] font-bold text-slate-400 mb-1.5 uppercase tracking-widest">報名課程</div>
                     <h4 class="font-bold text-[15px] text-slate-800 mb-4 leading-relaxed">{{ selectedCourse.name }}</h4>
                     
-                    <div class="space-y-3 mb-5">
-                        <div class="flex justify-between items-center">
+                    <div class="space-y-3 mb-4">
+                        <!-- 🚀 V92 支援付款方式提示 -->
+                        <div class="flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-100 mb-2">
+                            <span class="text-[12px] text-blue-600 font-bold flex items-center gap-1.5"><i class="fas fa-credit-card"></i> 開放付款方式</span>
+                            <span class="text-[12px] text-blue-700 font-bold">{{ selectedCourse.paymentMethod === 'REMITTANCE' ? '🏦 僅限實體匯款' : '💳 線上刷卡 / 🏦 匯款' }}</span>
+                        </div>
+
+                        <div class="flex justify-between items-center px-1">
                             <span class="text-[13px] text-slate-500 font-medium">課程原價</span>
                             <span class="text-[15px] text-slate-700 font-bold">NT$ {{ parsePrice(selectedCourse.price) }}</span>
                         </div>
@@ -340,7 +349,7 @@
                         </div>
                     </div>
 
-                    <div class="border-t border-slate-100 pt-4 flex justify-between items-end">
+                    <div class="border-t border-slate-100 pt-4 flex justify-between items-end px-1">
                         <span class="text-[13px] text-slate-800 font-bold">實際應付總額</span>
                         <div class="text-[#FF5A00] font-bold text-xl tracking-tight">NT$ {{ finalPayableAmount.toLocaleString() }}</div>
                     </div>
@@ -354,7 +363,7 @@
                 <div class="pt-1">
                     <button @click="submitRegistration" :disabled="isSubmitting" class="btn-main text-[15px] py-3.5 shadow-sm flex justify-center items-center gap-2">
                         <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
-                        {{ isSubmitting ? '資料傳送中...' : '確認無誤，送出報名' }}
+                        {{ isSubmitting ? '資料傳送中...' : (finalPayableAmount > 0 && selectedCourse.paymentMethod !== 'REMITTANCE' ? '確認前往線上付款' : '確認無誤，送出報名') }}
                     </button>
                 </div>
             </div>
@@ -362,10 +371,20 @@
             <div v-else-if="view === 'success'" class="animate-fade-in flex flex-col items-center justify-center min-h-[80vh] px-6 text-center bg-white">
                 <div class="w-16 h-16 bg-[#06C755] text-white rounded-full flex items-center justify-center text-2xl shadow-sm shadow-green-100 mb-5 animate-bounce"><i class="fas fa-check"></i></div>
                 <h2 class="text-xl font-bold mb-3 tracking-tight text-slate-800">初步申請成功！</h2>
-                <div class="bg-orange-50 border border-orange-100 p-4 rounded-xl mb-8 w-full max-w-[300px]"><p class="text-orange-600 text-[13px] font-bold leading-relaxed">⚠️ 系統已為您保留名額<br>請前往「報名紀錄」<br>完成匯款並回報後五碼即成功！</p></div>
+                
+                <div v-if="justPaidFree" class="bg-green-50 border border-green-100 p-4 rounded-xl mb-8 w-full max-w-[300px]">
+                    <p class="text-green-700 text-[13px] font-bold leading-relaxed">🎉 系統已為您確認名額<br>本課程已全額折抵，無須額外匯款<br>期待與您在課程中相見！</p>
+                </div>
+                <div v-else-if="justPaidRemittance" class="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-8 w-full max-w-[300px]">
+                    <p class="text-blue-700 text-[13px] font-bold leading-relaxed">🏦 本課程僅限實體匯款<br>系統已為您保留名額<br>請前往「報名紀錄」查看匯款資訊！</p>
+                </div>
+                <div v-else class="bg-orange-50 border border-orange-100 p-4 rounded-xl mb-8 w-full max-w-[300px]">
+                    <p class="text-orange-600 text-[13px] font-bold leading-relaxed">⚠️ 系統已為您保留名額<br>請前往「報名紀錄」<br>完成線上刷卡或回報後五碼即成功！</p>
+                </div>
+                
                 <div class="w-full space-y-3 max-w-[260px]">
-                    <button @click="goToMyOrders" class="w-full py-3 bg-[#06C755] text-white rounded-lg font-bold text-[14px] shadow-sm hover:bg-[#05b04a] transition">前往填寫匯款資訊</button>
-                    <button @click="switchView('course_list')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-lg font-bold text-[14px] hover:bg-slate-100 transition border border-slate-100">稍後再填，返回首頁</button>
+                    <button @click="goToMyOrders" class="w-full py-3 bg-[#06C755] text-white rounded-lg font-bold text-[14px] shadow-sm hover:bg-[#05b04a] transition">前往查看報名紀錄</button>
+                    <button @click="switchView('course_list')" class="w-full py-3 bg-slate-50 text-slate-600 rounded-lg font-bold text-[14px] hover:bg-slate-100 transition border border-slate-100">返回首頁</button>
                 </div>
             </div>
 
@@ -389,8 +408,8 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const LIFF_ID = '2009130603-vTHZv1LW';
-        
+        const LIFF_ID = '2009130603-vTHZv1LW'; 
+
         const DEFAULT_DESCRIPTION = `當你明明很想改變，\n卻總是提不起勁、找不到方向、做什麼都卡卡的，\n很多時候，問題不只是情緒，也不只是方法，\n而是你沒有真正連上自己的本靈。\n靈脈，代表你與本靈連結的通道。\n當靈脈阻塞，\n你就容易失去清晰、失去力量、失去方向感，\n甚至明明很努力，卻還是活得很累、很卡、很不像自己。`;
 
         createApp({
@@ -420,8 +439,9 @@
                 const showRedEnvelopeContent = ref(false);
                 const showPointLogs = ref(false);
                 const showBasicInfo = ref(false);
+                const justPaidFree = ref(false);
+                const justPaidRemittance = ref(false);
 
-                // 🚀 V89：新增管理員權限變數
                 const isAdmin = ref(false);
 
                 const parsePrice = (p) => { if (!p) return '0'; const clean = String(p).replace(/[^0-9.]/g, ''); return clean ? Number(clean).toLocaleString() : '0'; };
@@ -515,8 +535,15 @@
 
                 const submitRegistration = async () => { 
                     isSubmitting.value = true; 
+                    justPaidFree.value = false;
+                    justPaidRemittance.value = false;
+
                     try { 
-                        await callApi('REGISTER', { 
+                        const baseUrl = window.location.href.split('?')[0];
+                        const returnUrl = `${baseUrl}?view=my_orders`;
+                        const notifyUrl = `${WORKER_URL}?action=NEWEBPAY_NOTIFY`;
+
+                        const res = await callApi('REGISTER', { 
                             userId: userProfile.value.userId, 
                             courseId: selectedCourse.value.id, 
                             courseName: selectedCourse.value.name, 
@@ -524,15 +551,78 @@
                             phone: userInfo.value.phone, 
                             note: registrationNote.value, 
                             amount: finalPayableAmount.value,
-                            pointsUsed: actualDeductiblePoints.value 
+                            pointsUsed: actualDeductiblePoints.value,
+                            returnUrl: returnUrl,
+                            notifyUrl: notifyUrl
                         }); 
                         
                         if (actualDeductiblePoints.value > 0) {
-                            userPointsBalance.value = 0; 
-                            userPointLogs.value = [];
+                            userPointsBalance.value = 0; userPointLogs.value = [];
                         }
-                        switchView('success'); 
-                    } catch (e) { alert(e.message); } finally { isSubmitting.value = false; } 
+
+                        if (res.isFree) {
+                            justPaidFree.value = true;
+                            switchView('success'); 
+                        } else if (res.isRemittance) {
+                            justPaidRemittance.value = true;
+                            switchView('success'); 
+                        } else if (res.newebpay) {
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = res.newebpay.GatewayUrl;
+                            ['MerchantID', 'TradeInfo', 'TradeSha', 'Version'].forEach(key => {
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = key;
+                                input.value = res.newebpay[key];
+                                form.appendChild(input);
+                            });
+                            document.body.appendChild(form);
+                            form.submit();
+                        }
+                        
+                    } catch (e) { 
+                        alert(e.message); 
+                        isSubmitting.value = false;
+                    } 
+                };
+
+                // 🚀 V92 斷點續付：重新取得金流憑證
+                const retryPayment = async (o) => {
+                    isSubmitting.value = true;
+                    try {
+                        const baseUrl = window.location.href.split('?')[0];
+                        const returnUrl = `${baseUrl}?view=my_orders`;
+                        const notifyUrl = `${WORKER_URL}?action=NEWEBPAY_NOTIFY`;
+                        
+                        const payload = await callApi('GET_PAYMENT_PAYLOAD', { 
+                            orderId: o.orderId, 
+                            userId: userProfile.value.userId,
+                            returnUrl: returnUrl,
+                            notifyUrl: notifyUrl
+                        });
+                        
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = payload.GatewayUrl;
+                        ['MerchantID', 'TradeInfo', 'TradeSha', 'Version'].forEach(key => {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = key;
+                            input.value = payload[key];
+                            form.appendChild(input);
+                        });
+                        document.body.appendChild(form);
+                        form.submit();
+                    } catch(e) {
+                        alert(e.message);
+                        isSubmitting.value = false;
+                    }
+                };
+
+                const getCoursePaymentMethod = (id) => {
+                    const c = courses.value.find(x => x.id === id);
+                    return c ? c.paymentMethod : 'ALL';
                 };
 
                 const submitMemberRegister = async () => { 
@@ -563,7 +653,6 @@
                     navigator.clipboard.writeText(link).then(() => alert('✅ 已複製分享連結')).catch(() => { const dummy = document.createElement("input"); document.body.appendChild(dummy); dummy.setAttribute("value", link); dummy.select(); document.execCommand("copy"); document.body.removeChild(dummy); alert('✅ 已複製分享連結'); });
                 };
 
-                // 🚀 V89：無縫切換至後台
                 const goToAdmin = () => {
                     window.location.href = 'admin.html?fromLiff=true';
                 };
@@ -571,6 +660,12 @@
                 onMounted(async () => { 
                     const fetchSysTask = loadSystemData(); 
                     const urlParams = new URLSearchParams(window.location.search);
+                    
+                    const viewParam = urlParams.get('view');
+                    if (viewParam) {
+                        view.value = viewParam;
+                    }
+
                     const refParam = urlParams.get('ref');
                     if (refParam) { referrerCode.value = refParam; sessionStorage.setItem('referrerCode', refParam); } 
                     else { const storedRef = sessionStorage.getItem('referrerCode'); if (storedRef) referrerCode.value = storedRef; }
@@ -582,7 +677,11 @@
                         const data = await callApi('CHECK_USER'); 
                         if (data && data.registered) { 
                             userInfo.value = data.info; 
-                            isAdmin.value = data.isAdmin || false; // 🚀 V89 判定權限
+                            isAdmin.value = data.isAdmin || false; 
+                            
+                            if (view.value === 'my_orders') {
+                                myOrders.value = await callApi('GET_USER_ORDERS');
+                            }
                         } else { 
                             regForm.value.name = userProfile.value.displayName;
                             showBasicInfo.value = true;
@@ -607,9 +706,9 @@
 
                 return { 
                     view, isLoadingCourses, isLiffLoading, isSubmitting, userInfo, userProfile, courses, myOrders, regForm, selectedCourse, registrationNote, activeCat, defaultDesc, dynamicCategories, sysSettings, referrerCode, filteredCourses, activeRemitOrder, remitLastFive, 
-                    userPointsBalance, userPointLogs, showRedEnvelopeContent, showPointLogs, showBasicInfo, isAdmin, 
+                    userPointsBalance, userPointLogs, showRedEnvelopeContent, showPointLogs, showBasicInfo, isAdmin, justPaidFree, justPaidRemittance,
                     maxDeductiblePoints, actualDeductiblePoints, finalPayableAmount, 
-                    editProfile, goToMyOrders, selectCourse, showCourseDetail, getCourseName, submitMemberRegister, submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView, copyReferralLink, goToAdmin
+                    editProfile, goToMyOrders, selectCourse, showCourseDetail, getCourseName, submitMemberRegister, submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView, copyReferralLink, goToAdmin, retryPayment, getCoursePaymentMethod
                 };
             }
         }).mount('#app');
