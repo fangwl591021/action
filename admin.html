@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V81_RedEnvelope_Points_Engine -->
+    <!-- Version: 2026.04.15.V85_Course_Discount_Rules -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -153,7 +153,6 @@
 
                 <div class="py-4 md:py-6">
                     <div v-if="view === 'dashboard'" class="p-6 md:p-10 animate-fade-in">
-                        <!-- ... (Dashboard content remains unchanged) ... -->
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
                             <div v-for="s in statsSummary" :key="s.label" class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
                                 <div class="text-base font-bold text-slate-500 uppercase mb-3">{{ s.label }}</div>
@@ -179,7 +178,6 @@
                         </div>
                     </div>
 
-                    <!-- ... (Courses view remains unchanged) ... -->
                     <div v-if="view === 'courses'" class="animate-fade-in">
                         <div class="px-6 md:px-10 mt-4 md:mt-6 flex flex-col md:flex-row gap-5 mb-6">
                             <div class="relative flex-1">
@@ -202,7 +200,14 @@
                                             <span class="bg-slate-100 text-slate-500 text-sm font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider border border-slate-200">{{ c.id }}</span>
                                         </td>
                                         <td><span class="bg-blue-50 text-blue-700 border border-blue-200 font-bold text-sm px-3 py-1.5 rounded-lg mb-3 inline-block">{{ c.type || '未分類' }}</span><div class="text-lg text-slate-700 font-medium whitespace-nowrap">{{ c.startDate }}<br class="md:hidden"> <span class="hidden md:inline">~</span> {{ c.endDate }}</div></td>
-                                        <td><div class="text-2xl font-black text-[#06C755] mb-2">${{ formatPrice(c.price) }}</div><div class="text-slate-500 text-lg font-medium whitespace-nowrap">報名：{{ c.enrolled }} / {{ c.capacity }} 人</div></td>
+                                        <td>
+                                            <div class="text-2xl font-black text-[#06C755] mb-1">${{ formatPrice(c.price) }}</div>
+                                            <!-- 🚀 V85：顯示折抵規則 -->
+                                            <div v-if="c.discountRule && c.discountRule !== 'NONE'" class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded inline-block mb-2">
+                                                {{ c.discountRule === '100%' ? '可全額折抵' : `最高折抵 ${c.discountRule}` }}
+                                            </div>
+                                            <div class="text-slate-500 text-lg font-medium whitespace-nowrap">報名：{{ c.enrolled }} / {{ c.capacity }} 人</div>
+                                        </td>
                                         <td>
                                             <div class="text-base text-slate-700 mb-3 font-medium whitespace-nowrap">已收: <span class="text-[#06C755] font-black text-lg">{{ getCoursePaidCount(c.id) }}</span><br class="md:hidden"> 待付: <span class="text-orange-600 font-black text-lg">{{ getCoursePendingCount(c.id) }}</span></div>
                                             <button @click="openEnrollments(c)" class="px-5 py-3 bg-white border border-slate-300 shadow-sm hover:bg-slate-50 text-slate-800 text-base rounded-xl transition font-bold inline-flex items-center gap-2 whitespace-nowrap"><i class="fas fa-list text-slate-500"></i> 查看名單</button>
@@ -221,7 +226,6 @@
                         </div>
                     </div>
 
-                    <!-- ... (Orders and Members view remain unchanged) ... -->
                     <div v-if="view === 'orders'" class="animate-fade-in">
                         <div class="px-6 md:px-10 mt-4 md:mt-6 flex flex-col md:flex-row gap-5 mb-6">
                             <div class="relative flex-1"><i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-xl"></i><input type="text" v-model="orderSearchQuery" placeholder="搜尋單號、時間或姓名..." class="w-full pl-14 pr-5 py-4 border border-slate-300 rounded-xl text-lg outline-none focus:border-[#06C755] transition shadow-sm bg-white text-slate-800"></div>
@@ -265,7 +269,6 @@
                         </div>
                     </div>
 
-                    <!-- 學員專屬 CRM 頁面 -->
                     <div v-if="view === 'member_detail'" class="p-6 md:p-10 animate-fade-in max-w-[1400px] mx-auto">
                         <button @click="view = 'members'" class="text-slate-500 text-lg font-bold flex items-center mb-8 hover:text-slate-800 transition"><i class="fas fa-chevron-left mr-2"></i>返回學員名冊</button>
 
@@ -309,7 +312,7 @@
                             </div>
                         </div>
 
-                        <!-- 🚀 V81：新增紅包點數中控台 -->
+                        <!-- 點數中控台 -->
                         <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-10">
                             <div class="p-8 pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <h3 class="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-3"><i class="fas fa-wallet text-red-500"></i>紅包點數帳戶</h3>
@@ -367,7 +370,6 @@
                         </div>
                     </div>
 
-                    <!-- 5. 系統設定 -->
                     <div v-if="view === 'settings'" class="p-6 md:p-10 animate-fade-in max-w-5xl mx-auto">
                         <div class="bg-white p-8 md:p-12 rounded-3xl border border-slate-200 shadow-sm mb-10">
                             <div class="section-title !mb-6 !text-2xl">首頁頂部橫幅 (Banner)</div>
@@ -402,7 +404,7 @@
                     </div>
                     <div class="flex-grow overflow-y-auto p-6 md:p-10 hide-scrollbar">
                         
-                        <!-- V79 新增：上架與報名權限設定區塊 -->
+                        <!-- 🚀 V79 & V85：上架與報名權限設定區塊 -->
                         <div class="col-span-12 bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-200 mb-8 shadow-inner">
                             <div class="text-xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-sliders-h text-blue-500 mr-3"></i>上架與報名權限設定</div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -414,6 +416,17 @@
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-5 rounded-2xl border border-slate-200 shadow-sm gap-4">
                                         <div class="font-bold text-slate-700 text-lg">開放報名開關 (W欄)</div>
                                         <select v-model="editingCourse.isRegistrationOpen" class="input-field !w-auto !py-2.5 !text-base font-black cursor-pointer transition-colors" :class="editingCourse.isRegistrationOpen ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-orange-700 bg-orange-50 border-orange-200'"><option :value="true">🔓 開放報名 (顯示按鈕)</option><option :value="false">🔒 僅曝光 (隱藏按鈕)</option></select>
+                                    </div>
+                                    
+                                    <!-- 🚀 V85：紅包折抵規則 (Y欄) -->
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-5 rounded-2xl border border-slate-200 shadow-sm gap-4">
+                                        <div class="font-bold text-slate-700 text-lg">紅包折抵規則 (Y欄)</div>
+                                        <select v-model="editingCourse.discountRule" class="input-field !w-auto !py-2.5 !text-base font-black cursor-pointer transition-colors text-slate-700 bg-slate-50 border-slate-200">
+                                            <option value="NONE">🚫 不可折抵 (純現金)</option>
+                                            <option value="20%">🔵 最多折抵 20%</option>
+                                            <option value="50%">🟡 最多折抵 50%</option>
+                                            <option value="100%">🟢 100% 全額折抵</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -549,7 +562,7 @@
                 </div>
             </div>
 
-            <!-- 🚀 V81：新增「點數手動異動」彈窗 -->
+            <!-- 點數手動異動彈窗 -->
             <div v-if="editingPointAction" class="modal-mask" @click.self="editingPointAction = null">
                 <div class="modal-body animate-fade-in flex flex-col bg-white">
                     <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10" :class="editingPointAction.type === 'MANUAL_ADD' ? 'bg-green-50' : 'bg-red-50'">
@@ -615,7 +628,6 @@
                 const activeEnrollmentCourse = ref(null);
                 const checkinUrl = ref('');
                 
-                // 🚀 V81：紅包點數狀態
                 const activeMemberPoints = ref({ balance: 0, logs: [] });
                 const editingPointAction = ref(null);
                 
@@ -670,12 +682,9 @@
                 const openOrderEditModal = (o) => { activeEnrollmentCourse.value = null; editingOrder.value = { ...o }; };
                 const saveOrderUpdate = async () => { if(await callApi('ADMIN_UPDATE_ORDER', editingOrder.value)) { editingOrder.value = null; await fetchData(); } };
                 
-                // 🚀 V81：打開會員檔案時，同步載入紅包點數
                 const openMemberDetail = async (u) => {
                     activeMember.value = JSON.parse(JSON.stringify(u));
-                    view.value = 'member_detail';
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    // 背景加載紅包資料
+                    view.value = 'member_detail'; window.scrollTo({ top: 0, behavior: 'smooth' });
                     const pts = await callApi('GET_USER_POINTS', { targetUid: u.userId });
                     if (pts) activeMemberPoints.value = pts;
                 };
@@ -683,45 +692,45 @@
                 const saveMemberDetail = async () => { if (await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value })) { alert('✅ 學員資料與備註已成功儲存！'); await fetchData(); } };
                 const updateOrderAttendance = async (o) => { fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ADMIN_UPDATE_ORDER', payload: { orderId: o.orderId, attendance: o.attendance } }) }); };
 
-                // 🚀 V81：打開手動增減紅包彈窗
-                const openPointActionModal = (type) => {
-                    editingPointAction.value = { type: type, amount: '', reason: '' };
-                };
-
-                // 🚀 V81：送出紅包增減請求
+                const openPointActionModal = (type) => { editingPointAction.value = { type: type, amount: '', reason: '' }; };
                 const submitPointAction = async () => {
                     if (!editingPointAction.value.amount || editingPointAction.value.amount <= 0) return alert('請輸入有效的金額');
                     if (!editingPointAction.value.reason) return alert('請輸入異動原因');
                     if (!confirm(`確定要${editingPointAction.value.type==='MANUAL_ADD'?'發放':'扣除'} ${editingPointAction.value.amount} 點嗎？此操作不可逆。`)) return;
                     
-                    const res = await callApi('ADMIN_MANAGE_POINTS', {
-                        uid: activeMember.value.userId,
-                        type: editingPointAction.value.type,
-                        amount: editingPointAction.value.amount,
-                        reason: editingPointAction.value.reason,
-                        operator: loginForm.value.account // 紀錄是誰操作的
-                    });
-                    
+                    const res = await callApi('ADMIN_MANAGE_POINTS', { uid: activeMember.value.userId, type: editingPointAction.value.type, amount: editingPointAction.value.amount, reason: editingPointAction.value.reason, operator: loginForm.value.account });
                     if (res && res.success) {
                         alert(`✅ 點數異動成功！\n最新餘額：${res.newBalance.toLocaleString()} 點`);
                         editingPointAction.value = null;
-                        // 重新刷新點數資料
                         const pts = await callApi('GET_USER_POINTS', { targetUid: activeMember.value.userId });
                         if (pts) activeMemberPoints.value = pts;
                     }
                 };
 
+                // 🚀 V85：開啟編輯視窗時，確保 discountRule 有預設值
                 const openEditModal = (c) => { 
                     const parsed = JSON.parse(JSON.stringify(c));
                     if(parsed.isPublished === undefined) parsed.isPublished = true;
                     if(parsed.isRegistrationOpen === undefined) parsed.isRegistrationOpen = true;
                     if(!parsed.targetTiers || !Array.isArray(parsed.targetTiers) || parsed.targetTiers.length === 0) parsed.targetTiers = ["一般會員", "喚醒階段會員", "蛻變階段會員", "完整階段會員"];
+                    if(!parsed.discountRule) parsed.discountRule = 'NONE';
                     editingCourse.value = parsed;
                 };
                 
                 const saveCourse = async () => { if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { editingCourse.value = null; await fetchData(); } };
                 const syncToCalendar = async (c) => { if(!confirm(`確定要將「${c.name}」同步至 Google 日曆嗎？`)) return; const data = await callApi('ADMIN_SYNC_CALENDAR', { courseId: c.id }); if (data && data.success) { alert(data.message); await fetchData(); } };
-                const copyCourse = (c) => { const parsed = JSON.parse(JSON.stringify(c)); parsed.id = 'NEW_' + Date.now().toString().slice(-4); parsed.name += ' (複製)'; if(parsed.isPublished === undefined) parsed.isPublished = true; if(parsed.isRegistrationOpen === undefined) parsed.isRegistrationOpen = true; if(!parsed.targetTiers || !Array.isArray(parsed.targetTiers)) parsed.targetTiers = ["一般會員", "喚醒階段會員", "蛻變階段會員", "完整階段會員"]; editingCourse.value = parsed; };
+                
+                // 🚀 V85：複製課程時，連帶複製 discountRule
+                const copyCourse = (c) => { 
+                    const parsed = JSON.parse(JSON.stringify(c)); 
+                    parsed.id = 'NEW_' + Date.now().toString().slice(-4); parsed.name += ' (複製)'; 
+                    if(parsed.isPublished === undefined) parsed.isPublished = true; 
+                    if(parsed.isRegistrationOpen === undefined) parsed.isRegistrationOpen = true; 
+                    if(!parsed.targetTiers || !Array.isArray(parsed.targetTiers)) parsed.targetTiers = ["一般會員", "喚醒階段會員", "蛻變階段會員", "完整階段會員"]; 
+                    if(!parsed.discountRule) parsed.discountRule = 'NONE';
+                    editingCourse.value = parsed; 
+                };
+                
                 const generateCheckinLink = async (course) => { if (!course.checkinPwd) return alert('請先輸入簽到密碼！'); if (await callApi('ADMIN_SET_CHECKIN_PWD', { courseId: course.id, checkinPwd: course.checkinPwd })) { const url = window.location.origin + window.location.pathname.replace('admin.html', 'checkin.html') + '?id=' + course.id; checkinUrl.value = url; } };
                 const copyUrl = () => { if (!checkinUrl.value) return; navigator.clipboard.writeText(checkinUrl.value).then(() => alert('✅ 網址已複製成功！')).catch(() => { const dummy = document.createElement("input"); document.body.appendChild(dummy); dummy.setAttribute("value", checkinUrl.value); dummy.select(); document.execCommand("copy"); document.body.removeChild(dummy); alert('✅ 網址已複製成功！'); }); };
                 const saveSettings = async () => { const res = await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value); if (res && res.success) alert('✅ 系統設定已儲存！'); };
@@ -757,7 +766,7 @@
                     view, courses, orders, users, isLoading, editingCourse, editingOrder,
                     activeMember, activeEnrollmentCourse, checkinUrl, courseSearchQuery, courseFilterCategory, adminCategories, filteredAdminCourses,
                     orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders, sysSettings, 
-                    activeMemberPoints, editingPointAction, // 🚀 V81
+                    activeMemberPoints, editingPointAction,
                     courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []), 
                     memberOrders: computed(() => activeMember.value ? orders.value.filter(o => o.userId === activeMember.value.userId).reverse() : []),
                     courseStatsFiltered,
@@ -766,7 +775,7 @@
                     getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length, 
                     getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && (o.status || 'PENDING') === 'PENDING').length, 
                     getCourseName, handleFileUpload, handleBannerUpload, copyCourse, runHealthCheck,
-                    generateCheckinLink, copyUrl, triggerBackup, syncToCalendar, openPointActionModal, submitPointAction // 🚀 V81
+                    generateCheckinLink, copyUrl, triggerBackup, syncToCalendar, openPointActionModal, submitPointAction
                 };
             }
         }).mount('#app');
