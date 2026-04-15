@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V60_Dynamic_Settings -->
+    <!-- Version: 2026.04.15.V61_Admin_Course_Desc_Layout -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -98,7 +98,6 @@
                     <div @click="view = 'courses'" class="nav-item" :class="{'nav-active': view === 'courses'}"><i class="fas fa-book w-5"></i>一般課程管理</div>
                     <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-list-check w-5"></i>訂單管理控制台</div>
                     <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members'}"><i class="fas fa-users w-5"></i>學員會員管理</div>
-                    <!-- 🚀 新增系統設定選單 -->
                     <div @click="view = 'settings'" class="nav-item border-t border-slate-100 mt-2 pt-4" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-5"></i>全域系統設定</div>
                 </nav>
                 <div class="p-6 border-t border-gray-100"><button @click="logout" class="w-full py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-orange-500 transition"><i class="fas fa-sign-out-alt mr-2"></i>安全登出</button></div>
@@ -108,7 +107,7 @@
                 <header class="page-header">
                     <h2 class="text-lg font-bold text-slate-800">{{ currentViewName }}</h2>
                     <div class="flex items-center gap-4">
-                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V60_DYNAMIC_SETTINGS</span>
+                        <span class="text-[10px] text-gray-300 font-mono tracking-widest uppercase">V61_DESC_LAYOUT_FIX</span>
                         <button @click="fetchData" :disabled="isLoading" class="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>資料同步</button>
                     </div>
                 </header>
@@ -227,7 +226,7 @@
                         </table>
                     </div>
 
-                    <!-- 🚀 5. 系統設定 (新增) -->
+                    <!-- 5. 系統設定 -->
                     <div v-if="view === 'settings'" class="p-8 animate-fade-in max-w-4xl">
                         <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm mb-6">
                             <div class="section-title">首頁頂部橫幅 (Banner)</div>
@@ -296,7 +295,10 @@
                         <button @click="editingCourse = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
                     </div>
                     <div class="flex-grow overflow-y-auto p-10 hide-scrollbar bg-white m-4 rounded-xl border border-slate-100" style="max-height: 70vh;">
-                        <div class="grid grid-cols-12 gap-10">
+                        
+                        <!-- 上半部：基本資料與圖片 (雙欄) -->
+                        <div class="grid grid-cols-12 gap-10 mb-8">
+                            <!-- 左欄：基本資訊 -->
                             <div class="col-span-7 space-y-6">
                                 <div class="flex gap-5">
                                     <div class="w-1/3"><label class="input-label">課程 ID (A 欄)</label><input type="text" v-model="editingCourse.id" disabled class="input-field disabled:bg-slate-50"></div>
@@ -318,6 +320,7 @@
                                 </div>
                             </div>
                             
+                            <!-- 右欄：宣傳圖片 -->
                             <div class="col-span-5 space-y-6">
                                 <div>
                                     <div class="section-title !text-[15px] !mb-3">宣傳圖片 <span class="text-orange-500 font-bold text-sm ml-1">(推薦貼上網址)</span></div>
@@ -337,12 +340,15 @@
                                     <button @click="$refs.fileInput.click()" class="w-full py-3 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-upload mr-2"></i>本機上傳 (嘗試 50% 畫質壓縮)</button>
                                     <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleFileUpload">
                                 </div>
-                                <div>
-                                    <div class="section-title !text-[15px] !mb-3">詳細內容 (S 欄)</div>
-                                    <textarea v-model="editingCourse.description" class="input-field h-32 resize-none text-sm leading-relaxed"></textarea>
-                                </div>
                             </div>
                         </div>
+
+                        <!-- 🚀 V61 核心升級：下半部：全寬度獨立詳細內容區塊 -->
+                        <div class="border-t border-slate-100 pt-8 mt-4">
+                            <div class="section-title !text-[16px] !mb-4">詳細內容 (S 欄)</div>
+                            <textarea v-model="editingCourse.description" class="input-field min-h-[280px] resize-y text-[15px] leading-relaxed p-5 bg-[#f8fafc] focus:bg-white" placeholder="請在此輸入完整的課程詳細介紹文案..."></textarea>
+                        </div>
+
                     </div>
                     <div class="px-8 py-5 border-t bg-white flex justify-end gap-3 rounded-b-16px">
                         <button @click="editingCourse = null" class="px-8 py-2.5 text-slate-500 font-bold transition">取消</button>
@@ -399,7 +405,6 @@
                 const courses = ref([]); 
                 const orders = ref([]); 
                 const users = ref([]); 
-                // 🚀 V60 新增：設定儲存狀態
                 const sysSettings = ref({ banner_image: '', link_fb: '', link_ig: '', link_line: '', link_lineoa: '', link_tiktok: '', link_web: '' });
                 const isLoading = ref(false); 
                 
@@ -476,7 +481,6 @@
                         courses.value = data.courses || []; 
                         orders.value = data.orders || []; 
                         users.value = data.users || []; 
-                        // 🚀 V60：載入系統設定
                         sysSettings.value = Object.assign(sysSettings.value, data.settings || {});
                     } 
                 };
@@ -491,7 +495,6 @@
                 const saveCourse = async () => { if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { editingCourse.value = null; await fetchData(); } };
                 const copyCourse = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); editingCourse.value.id = 'NEW_' + Date.now().toString().slice(-4); editingCourse.value.name += ' (複製)'; };
 
-                // 🚀 V60 新增：儲存系統設定
                 const saveSettings = async () => {
                     const res = await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value);
                     if (res && res.success) alert('系統設定已成功儲存！前台將即時生效。');
@@ -525,14 +528,13 @@
                     reader.readAsDataURL(file);
                 };
 
-                // 🚀 V60 新增：Banner 圖片上傳壓縮 (放寬一點寬度)
                 const handleBannerUpload = (e) => {
                     const file = e.target.files[0]; if (!file) return;
                     const reader = new FileReader();
                     reader.onload = (event) => {
                         const img = new Image(); img.onload = () => {
                             const canvas = document.createElement('canvas'); 
-                            const MAX_WIDTH = 800; // Banner 可以稍微大一點
+                            const MAX_WIDTH = 800; 
                             let width = img.width; let height = img.height;
                             if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                             canvas.width = width; canvas.height = height;
@@ -559,7 +561,7 @@
                     view, courses, orders, users, isLoading, editingCourse, editingOrder, editingMember, 
                     activeEnrollmentCourse, courseSearchQuery, courseFilterCategory, adminCategories, filteredAdminCourses,
                     orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders,
-                    sysSettings, // 暴露系統設定
+                    sysSettings, 
                     courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []), 
                     courseStatsFiltered,
                     openEditModal, openOrderEditModal, openMemberEditModal, openEnrollments, 
