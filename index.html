@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.15.V57_High_Res_Images_Algorithm -->
+    <!-- Version: 2026.04.15.V60_Dynamic_Settings -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -34,6 +34,11 @@
         .btn-main:disabled { background: #ccc; cursor: not-allowed; opacity: 0.7; }
         
         .nav-icon { width: 52px; height: 52px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #f8fafc; }
+        
+        /* 🚀 V60：新增社群小圖示樣式 */
+        .social-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .social-icon:active { transform: scale(0.9); }
+        
         .status-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 99px; }
         
         .modal-mask { position: fixed; inset: 0; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -58,23 +63,37 @@
             
             <!-- 1. 課程列表 -->
             <div v-if="view === 'course_list'" class="animate-fade-in">
-                <div class="w-full h-48 bg-slate-200 overflow-hidden">
-                    <img src="https://s3.us-west-1.wasabisys.com/aitw/2026/04/001bd74e24a00403a292608ec2853cb9.jpg" class="w-full h-full object-cover">
+                <!-- 🚀 V60 核心：動態橫幅 -->
+                <div class="w-full h-48 bg-slate-100 overflow-hidden relative">
+                    <div v-if="isLoadingCourses" class="absolute inset-0 bg-slate-200 animate-pulse"></div>
+                    <img v-if="sysSettings.banner_image" :src="sysSettings.banner_image" class="w-full h-full object-cover relative z-10" @error="$event.target.style.display='none'">
                 </div>
                 
-                <div class="px-8 py-6 grid grid-cols-3 gap-4 border-b border-slate-50">
-                    <button @click="editProfile" class="flex flex-col items-center gap-2">
-                        <div class="nav-icon text-blue-500"><i class="fas fa-user-circle"></i></div>
-                        <span class="text-[12px] font-bold text-slate-600">基本資料</span>
-                    </button>
-                    <button @click="goToMyOrders" class="flex flex-col items-center gap-2">
-                        <div class="nav-icon text-[#FF5A00]"><i class="fas fa-file-invoice"></i></div>
-                        <span class="text-[12px] font-bold text-slate-600">報名紀錄</span>
-                    </button>
-                    <a href="https://lin.ee/8SfC0rr" class="flex flex-col items-center gap-2">
-                        <div class="nav-icon text-[#06C755]"><i class="fab fa-line"></i></div>
-                        <span class="text-[12px] font-bold text-slate-600">聯絡客服</span>
-                    </a>
+                <div class="px-8 pt-6 pb-4 border-b border-slate-50 relative">
+                    <div class="grid grid-cols-3 gap-4 mb-4">
+                        <button @click="editProfile" class="flex flex-col items-center gap-2">
+                            <div class="nav-icon text-blue-500"><i class="fas fa-user-circle"></i></div>
+                            <span class="text-[12px] font-bold text-slate-600">基本資料</span>
+                        </button>
+                        <button @click="goToMyOrders" class="flex flex-col items-center gap-2">
+                            <div class="nav-icon text-[#FF5A00]"><i class="fas fa-file-invoice"></i></div>
+                            <span class="text-[12px] font-bold text-slate-600">報名紀錄</span>
+                        </button>
+                        <!-- 🚀 V60：自動綁定後台輸入的主力 LINE OA -->
+                        <a :href="sysSettings.link_lineoa || 'https://lin.ee/8SfC0rr'" class="flex flex-col items-center gap-2">
+                            <div class="nav-icon text-[#06C755]"><i class="fab fa-line"></i></div>
+                            <span class="text-[12px] font-bold text-slate-600">聯絡客服</span>
+                        </a>
+                    </div>
+
+                    <!-- 🚀 V60 新增：社群專屬列 (有填網址才顯示) -->
+                    <div v-if="sysSettings.link_fb || sysSettings.link_ig || sysSettings.link_line || sysSettings.link_tiktok || sysSettings.link_web" class="flex justify-center gap-4 mt-2 mb-1">
+                        <a v-if="sysSettings.link_fb" :href="sysSettings.link_fb" target="_blank" class="social-icon bg-[#1877F2]"><i class="fab fa-facebook-f"></i></a>
+                        <a v-if="sysSettings.link_ig" :href="sysSettings.link_ig" target="_blank" class="social-icon bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888]"><i class="fab fa-instagram"></i></a>
+                        <a v-if="sysSettings.link_line" :href="sysSettings.link_line" target="_blank" class="social-icon bg-[#06C755]"><i class="fas fa-users"></i></a>
+                        <a v-if="sysSettings.link_tiktok" :href="sysSettings.link_tiktok" target="_blank" class="social-icon bg-black"><i class="fab fa-tiktok"></i></a>
+                        <a v-if="sysSettings.link_web" :href="sysSettings.link_web" target="_blank" class="social-icon bg-slate-500"><i class="fas fa-globe"></i></a>
+                    </div>
                 </div>
                 
                 <div class="px-5 py-3 flex gap-2 overflow-x-auto hide-scrollbar">
@@ -118,9 +137,8 @@
                 </div>
             </div>
 
-            <!-- 1.5 課程詳細介紹 (全螢幕無壓迫感版) -->
+            <!-- 1.5 課程詳細介紹 -->
             <div v-else-if="view === 'course_detail'" class="animate-fade-in bg-white min-h-screen pb-6">
-                <!-- 頂部圖與返回 -->
                 <div class="relative w-full aspect-video bg-slate-100">
                     <button @click="switchView('course_list')" class="absolute top-4 left-4 w-9 h-9 bg-black/40 text-white rounded-full flex items-center justify-center z-10 backdrop-blur-sm"><i class="fas fa-chevron-left text-sm -ml-0.5"></i></button>
                     <img :src="selectedCourse.image" class="w-full h-full object-cover" @error="$event.target.src='https://placehold.co/400x225/eeeeee/999999?text=No+Image'">
@@ -133,7 +151,6 @@
                     <h2 class="text-2xl font-bold text-slate-800 leading-snug mb-4">{{ selectedCourse.name }}</h2>
                     <div class="text-2xl font-black text-[#FF5A00] mb-8 border-b border-slate-100 pb-5">NT$ {{ parsePrice(selectedCourse.price) }}</div>
                     
-                    <!-- 詳細資訊清單 -->
                     <div class="space-y-4 mb-8">
                         <div class="flex border-b border-slate-50 pb-3">
                             <div class="w-1/3 text-[14px] text-slate-400 font-medium">報名狀態</div>
@@ -157,13 +174,11 @@
                         </div>
                     </div>
 
-                    <!-- 課程說明文案 -->
                     <div class="mb-10">
                         <div class="text-[14px] font-bold text-slate-400 mb-3 border-l-4 border-[#06C755] pl-2">課程詳細說明</div>
                         <div class="text-[15px] text-slate-700 leading-relaxed whitespace-pre-wrap">{{ selectedCourse.description || defaultDesc }}</div>
                     </div>
 
-                    <!-- 報名行動呼籲按鈕 -->
                     <button @click="selectCourse(selectedCourse)" class="w-full py-4 bg-[#06C755] text-white rounded-xl font-bold text-[16px] shadow-lg shadow-green-100 hover:bg-[#05b04a] transition active:scale-[0.98]">我要報名此課程</button>
                 </div>
             </div>
@@ -267,6 +282,8 @@
                 const userInfo = ref({}); 
                 const courses = ref([]); 
                 const myOrders = ref([]);
+                // 🚀 V60 預設 Banner 作為防呆打底
+                const sysSettings = ref({ banner_image: 'https://s3.us-west-1.wasabisys.com/aitw/2026/04/001bd74e24a00403a292608ec2853cb9.jpg', link_fb: '', link_ig: '', link_line: '', link_lineoa: 'https://lin.ee/8SfC0rr', link_tiktok: '', link_web: '' });
                 
                 const regForm = ref({ name: '', industry: '', gender: '男', phone: '', birthday: '', area: '', address_detail: '' });
                 const selectedCourse = ref(null); 
@@ -306,15 +323,25 @@
                     return json.data;
                 };
                 
-                const loadCourses = async () => { 
+                const loadSystemData = async () => { 
                     try {
-                        courses.value = await callApi('GET_COURSES'); 
+                        // 🚀 V60 同步載入全域設定
+                        const [coursesData, settingsData] = await Promise.all([
+                            callApi('GET_COURSES'),
+                            callApi('GET_SETTINGS')
+                        ]);
+                        
+                        if(settingsData && Object.keys(settingsData).length > 0) {
+                            sysSettings.value = Object.assign(sysSettings.value, settingsData);
+                        }
+
+                        courses.value = coursesData; 
                         if (courses.value.length > 0) {
                             const workshop = courses.value.find(c => c.type && c.type.includes('工作坊'));
                             activeCat.value = workshop ? workshop.type : (courses.value[0].type || '未分類');
                         }
                     } catch (e) {
-                        console.error('載入課程失敗', e);
+                        console.error('載入系統資料失敗', e);
                     } finally {
                         isLoadingCourses.value = false;
                     }
@@ -404,7 +431,7 @@
                 };
 
                 onMounted(async () => { 
-                    const fetchCoursesTask = loadCourses();
+                    const fetchSysTask = loadSystemData(); // 改為載入課程與設定
 
                     const initLiffTask = (async () => {
                         await liff.init({ liffId: LIFF_ID }); 
@@ -420,7 +447,7 @@
                     })();
 
                     try {
-                        await Promise.all([fetchCoursesTask, initLiffTask]);
+                        await Promise.all([fetchSysTask, initLiffTask]);
                     } catch (err) { 
                         alert('⚠️ 系統驗證失敗\n請務必透過「LINE 官方帳號」內的專屬按鈕開啟，不要直接用手機瀏覽器打開網址喔！\n\n(除錯代碼: ' + err.message + ')'); 
                     } 
@@ -441,7 +468,7 @@
 
                 return { 
                     view, isLoadingCourses, isLiffLoading, isSubmitting, userInfo, courses, myOrders, regForm, selectedCourse, 
-                    registrationNote, activeCat, defaultDesc, dynamicCategories, 
+                    registrationNote, activeCat, defaultDesc, dynamicCategories, sysSettings,
                     filteredCourses, activeRemitOrder, remitLastFive, 
                     editProfile, goToMyOrders, selectCourse, showCourseDetail, getCourseName, submitMemberRegister, 
                     submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView
