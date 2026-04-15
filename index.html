@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.15.V72_Calendar_Embed -->
+    <!-- Version: 2026.04.15.V74_Membership_Tier -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -54,8 +54,16 @@
         
         <header v-if="view !== 'course_detail' && view !== 'calendar'" class="bg-[#06C755] text-white px-4 py-3 sticky top-0 z-50 flex items-center justify-between shadow-sm">
             <h1 class="text-lg font-bold">人生進化三部曲</h1>
-            <div v-if="!userInfo.name && isLiffLoading" class="w-16 h-6 bg-white/20 rounded-full animate-pulse"></div>
-            <div v-else-if="userInfo.name" class="bg-black/10 px-3 py-1 rounded-full text-[11px] border border-white/10">{{ userInfo.name }}</div>
+            <div v-if="!userInfo.name && isLiffLoading" class="w-16 h-8 bg-white/20 rounded-full animate-pulse"></div>
+            <!-- 🚀 V74：大頭貼與會員等級顯示 UI -->
+            <div v-else-if="userInfo.name" class="flex items-center gap-2.5 bg-black/10 pl-1.5 pr-4 py-1.5 rounded-full border border-white/10 shadow-inner">
+                <img v-if="userProfile && userProfile.pictureUrl" :src="userProfile.pictureUrl" class="w-8 h-8 rounded-full object-cover border border-white/30 shadow-sm">
+                <div v-else class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm shadow-sm"><i class="fas fa-user"></i></div>
+                <div class="flex flex-col justify-center">
+                    <span class="text-[13px] font-bold leading-none mb-1 shadow-sm">{{ userInfo.name }}</span>
+                    <span class="text-[10px] text-[#06C755] bg-white font-bold leading-none px-1.5 py-0.5 rounded shadow-sm">{{ userInfo.memberTier || '一般會員' }}</span>
+                </div>
+            </div>
         </header>
 
         <main class="flex-grow pb-24 overflow-y-auto">
@@ -68,7 +76,6 @@
                 </div>
                 
                 <div class="px-6 pt-6 pb-4 border-b border-slate-50 relative">
-                    <!-- 🚀 V72：變更為四顆按鈕，加入行事曆入口 -->
                     <div class="grid grid-cols-4 gap-2 mb-4">
                         <button @click="editProfile" class="flex flex-col items-center gap-2">
                             <div class="nav-icon text-blue-500"><i class="fas fa-user-circle"></i></div>
@@ -182,14 +189,13 @@
                 </div>
             </div>
 
-            <!-- 🚀 1.6 課程行事曆檢視 -->
+            <!-- 1.6 課程行事曆檢視 -->
             <div v-else-if="view === 'calendar'" class="animate-fade-in bg-white min-h-screen flex flex-col">
                 <div class="px-4 py-3 border-b flex items-center bg-slate-50 sticky top-0 z-10">
                     <button @click="switchView('course_list')" class="text-slate-500 mr-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition"><i class="fas fa-chevron-left"></i></button>
                     <h3 class="font-bold text-slate-800 text-lg">近期課程行事曆</h3>
                 </div>
                 <div class="flex-grow w-full h-[calc(100vh-60px)]">
-                    <!-- 使用 AGENDA 模式優化手機閱讀體驗 -->
                     <iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Asia%2FTaipei&showPrint=0&mode=AGENDA&src=ZDUyMDgyNzIzOGMyYjI0MDE5MTYxY2E1N2FiOTI1YjI3N2E4YmNlNjE5YTFkYzI3NzViZjc4MGVkNzMwOGI3NEBncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%23f09300" style="border-width:0" width="100%" height="100%" frameborder="0" scrolling="yes"></iframe>
                 </div>
             </div>
@@ -227,7 +233,13 @@
                     <div class="grid grid-cols-2 gap-4"><div><label class="font-bold text-sm mb-1 block">業種</label><input type="text" v-model="regForm.industry" class="input-box"></div><div><label class="font-bold text-sm mb-1 block">性別</label><select v-model="regForm.gender" class="input-box"><option value="男">男</option><option value="女">女</option></select></div></div>
                     <div class="grid grid-cols-2 gap-4"><div><label class="font-bold text-sm mb-1 block">手機</label><input type="tel" v-model="regForm.phone" class="input-box"></div><div><label class="font-bold text-sm mb-1 block">生日</label><input type="date" v-model="regForm.birthday" class="input-box"></div></div>
                     <div><label class="font-bold text-sm mb-1 block">地址</label><input type="text" v-model="regForm.address_detail" class="input-box" placeholder="區域及詳細地址"></div>
-                    <div class="pt-10"><button @click="submitMemberRegister" :disabled="isSubmitting" class="btn-main">{{ isSubmitting ? '處理中...' : '確認並儲存' }}</button></div>
+                    
+                    <div v-if="referrerCode" class="bg-blue-50 border border-blue-100 p-4 rounded-xl mt-4">
+                        <div class="text-xs text-blue-500 font-bold mb-1">🎁 經銷好友專屬綁定</div>
+                        <div class="text-sm font-bold text-blue-700">推薦代碼已鎖定：{{ referrerCode }}</div>
+                    </div>
+
+                    <div class="pt-8"><button @click="submitMemberRegister" :disabled="isSubmitting" class="btn-main">{{ isSubmitting ? '處理中...' : '確認並儲存' }}</button></div>
                 </div>
             </div>
 
@@ -302,6 +314,9 @@
                 const activeRemitOrder = ref(null); 
                 const remitLastFive = ref('');
                 const defaultDesc = ref(DEFAULT_DESCRIPTION);
+                
+                // 🚀 V74: 推薦碼接收容器
+                const referrerCode = ref('');
 
                 const parsePrice = (p) => { 
                     if (!p) return '0';
@@ -410,7 +425,12 @@
                     if (!regForm.value.name || !regForm.value.phone) return alert('姓名與手機為必填欄位');
                     isSubmitting.value = true; 
                     try { 
-                        await callApi('REGISTER_USER', { ...regForm.value, userId: userProfile.value.userId, address: regForm.value.area + regForm.value.address_detail }); 
+                        await callApi('REGISTER_USER', { 
+                            ...regForm.value, 
+                            userId: userProfile.value.userId, 
+                            address: regForm.value.area + regForm.value.address_detail,
+                            referrerCode: referrerCode.value // 🚀 帶上推薦碼給後端
+                        }); 
                         const data = await callApi('CHECK_USER'); 
                         userInfo.value = data.info; 
                         switchView('course_list'); 
@@ -441,6 +461,17 @@
 
                 onMounted(async () => { 
                     const fetchSysTask = loadSystemData(); 
+                    
+                    // 🚀 V74: 嘗試捕獲推薦碼 (防丟失設計)
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const refParam = urlParams.get('ref');
+                    if (refParam) {
+                        referrerCode.value = refParam;
+                        sessionStorage.setItem('referrerCode', refParam);
+                    } else {
+                        const storedRef = sessionStorage.getItem('referrerCode');
+                        if (storedRef) referrerCode.value = storedRef;
+                    }
 
                     const initLiffTask = (async () => {
                         await liff.init({ liffId: LIFF_ID }); 
@@ -458,7 +489,6 @@
                     try {
                         await Promise.all([fetchSysTask, initLiffTask]);
                         
-                        const urlParams = new URLSearchParams(window.location.search);
                         const targetCourseId = urlParams.get('courseId');
                         if (targetCourseId) {
                             const targetCourse = courses.value.find(c => c.id === targetCourseId);
@@ -485,8 +515,8 @@
                 };
 
                 return { 
-                    view, isLoadingCourses, isLiffLoading, isSubmitting, userInfo, courses, myOrders, regForm, selectedCourse, 
-                    registrationNote, activeCat, defaultDesc, dynamicCategories, sysSettings,
+                    view, isLoadingCourses, isLiffLoading, isSubmitting, userInfo, userProfile, courses, myOrders, regForm, selectedCourse, 
+                    registrationNote, activeCat, defaultDesc, dynamicCategories, sysSettings, referrerCode,
                     filteredCourses, activeRemitOrder, remitLastFive, 
                     editProfile, goToMyOrders, selectCourse, showCourseDetail, getCourseName, submitMemberRegister, 
                     submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView
