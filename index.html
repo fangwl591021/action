@@ -234,12 +234,28 @@
                     <div class="grid grid-cols-2 gap-4"><div><label class="font-bold text-sm mb-1 block">手機</label><input type="tel" v-model="regForm.phone" class="input-box"></div><div><label class="font-bold text-sm mb-1 block">生日</label><input type="date" v-model="regForm.birthday" class="input-box"></div></div>
                     <div><label class="font-bold text-sm mb-1 block">地址</label><input type="text" v-model="regForm.address_detail" class="input-box" placeholder="區域及詳細地址"></div>
                     
-                    <div v-if="referrerCode" class="bg-blue-50 border border-blue-100 p-4 rounded-xl mt-4">
+                    <!-- 🚀 V75: 推薦人鎖定提示 (僅限尚未綁定推薦人之新註冊顯示) -->
+                    <div v-if="referrerCode && !userInfo.referrerUid" class="bg-blue-50 border border-blue-100 p-4 rounded-xl mt-4">
                         <div class="text-xs text-blue-500 font-bold mb-1">🎁 經銷好友專屬綁定</div>
                         <div class="text-sm font-bold text-blue-700">推薦代碼已鎖定：{{ referrerCode }}</div>
                     </div>
 
                     <div class="pt-8"><button @click="submitMemberRegister" :disabled="isSubmitting" class="btn-main">{{ isSubmitting ? '處理中...' : '確認並儲存' }}</button></div>
+
+                    <!-- 🚀 V75: 專屬分享按鈕區塊 (會員建立資料後自動解鎖顯示) -->
+                    <div v-if="userInfo.referralCode" class="mt-8 border-t border-slate-100 pt-6">
+                        <div class="bg-green-50 border border-green-100 p-5 rounded-xl text-center shadow-sm">
+                            <div class="w-10 h-10 bg-[#06C755] text-white rounded-full flex items-center justify-center text-lg mx-auto mb-2 shadow-sm"><i class="fas fa-share-alt"></i></div>
+                            <div class="text-sm text-green-700 font-bold mb-1">您的專屬推廣分享連結</div>
+                            <div class="text-xs text-green-600 font-medium mb-3">邀請好友註冊，獲取高額紅包獎勵！</div>
+                            <div class="text-[11px] font-bold text-slate-500 bg-white py-2 px-3 rounded-lg border border-green-200 break-all mb-3 text-left leading-relaxed select-all">
+                                https://liff.line.me/2009130603-vTHZv1LW?ref={{ userInfo.referralCode }}
+                            </div>
+                            <button @click="copyReferralLink" class="w-full bg-[#06C755] text-white text-sm font-bold py-3 rounded-xl hover:bg-[#05b04a] transition shadow-md active:scale-[0.98]">
+                                <i class="far fa-copy mr-1"></i> 複製網址傳給好友
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -433,6 +449,7 @@
                         }); 
                         const data = await callApi('CHECK_USER'); 
                         userInfo.value = data.info; 
+                        alert('個人資料已儲存成功！'); // 明確提示
                         switchView('course_list'); 
                     } catch (e) { alert('儲存失敗'); } 
                     finally { isSubmitting.value = false; } 
@@ -457,6 +474,20 @@
                         alert('已為您取消報名'); 
                         goToMyOrders(); 
                     } catch (e) { alert(e.message); } 
+                };
+
+                // 🚀 V75: 一鍵複製專屬推薦連結
+                const copyReferralLink = () => {
+                    const link = `https://liff.line.me/2009130603-vTHZv1LW?ref=${userInfo.value.referralCode}`;
+                    navigator.clipboard.writeText(link).then(() => alert('專屬網址已複製！快傳給好友吧！')).catch(() => {
+                        const dummy = document.createElement("input");
+                        document.body.appendChild(dummy);
+                        dummy.setAttribute("value", link);
+                        dummy.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(dummy);
+                        alert('專屬網址已複製！快傳給好友吧！');
+                    });
                 };
 
                 onMounted(async () => { 
@@ -519,7 +550,7 @@
                     registrationNote, activeCat, defaultDesc, dynamicCategories, sysSettings, referrerCode,
                     filteredCourses, activeRemitOrder, remitLastFive, 
                     editProfile, goToMyOrders, selectCourse, showCourseDetail, getCourseName, submitMemberRegister, 
-                    submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView
+                    submitRegistration, submitRemitInfo, cancelOrder, parsePrice, switchView, copyReferralLink // 🚀 導出複製函數
                 };
             }
         }).mount('#app');
