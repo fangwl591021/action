@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.16.V89_Admin_UID_Auth_Fix -->
+    <!-- Version: 2026.04.16.V90_NewebPay_Settings -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -375,6 +375,23 @@
                     </div>
 
                     <div v-if="view === 'settings'" class="p-6 animate-fade-in max-w-4xl mx-auto">
+                        
+                        <!-- 🚀 V90：藍新金流設定區塊 -->
+                        <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
+                            <div class="section-title !mb-4 flex items-center gap-2 text-blue-800 border-blue-500">
+                                <i class="fas fa-credit-card"></i> 藍新金流 (NewebPay) 設定 <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded ml-2">測試/正式共用</span>
+                            </div>
+                            <p class="text-[14px] text-slate-500 mb-6 leading-relaxed">請輸入藍新金流提供之 API 金鑰。系統會自動根據此金鑰建立交易加密封包。</p>
+                            <div class="space-y-4">
+                                <div><label class="input-label">商店代號 (MerchantID)</label><input type="text" v-model="sysSettings.newebpay_merchant_id" class="input-field text-[15px] font-mono" placeholder="例：MS12345678"></div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label class="input-label">HashKey (加密金鑰)</label><input type="text" v-model="sysSettings.newebpay_hash_key" class="input-field text-[15px] font-mono text-slate-600 bg-slate-50"></div>
+                                    <div><label class="input-label">HashIV (加密向量)</label><input type="text" v-model="sysSettings.newebpay_hash_iv" class="input-field text-[15px] font-mono text-slate-600 bg-slate-50"></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8">
                             <div class="section-title !mb-4">紅包折抵參數設定 (%)</div>
                             <p class="text-[14px] text-slate-500 mb-6 leading-relaxed">設定全域折抵規則的百分比，修改後將直接連動所有套用該規則的課程計算公式。</p>
@@ -612,7 +629,7 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const LIFF_ID = '2009130603-vTHZv1LW'; // 🚀 V89 專用 LIFF ID
+        const LIFF_ID = '2009130603-vTHZv1LW'; 
 
         createApp({
             setup() {
@@ -631,14 +648,21 @@
                     isAuthenticated.value = false; 
                     loginForm.value = { account: '', password: '' }; 
                     view.value = 'dashboard'; courses.value = []; orders.value = []; users.value = []; 
-                    if (liff.isLoggedIn()) { liff.logout(); } // 登出時順便登出 LIFF
+                    if (liff.isLoggedIn()) { liff.logout(); } 
                 };
 
                 const view = ref('dashboard'); 
                 const courses = ref([]); 
                 const orders = ref([]); 
                 const users = ref([]); 
-                const sysSettings = ref({ banner_image: '', link_fb: '', link_ig: '', link_line: '', link_lineoa: '', link_tiktok: '', link_web: '', discount_rate_a: 20, discount_rate_b: 50, discount_rate_c: 100 });
+                
+                // 🚀 V90：預設加入藍新變數防呆
+                const sysSettings = ref({ 
+                    banner_image: '', link_fb: '', link_ig: '', link_line: '', link_lineoa: '', link_tiktok: '', link_web: '', 
+                    discount_rate_a: 20, discount_rate_b: 50, discount_rate_c: 100,
+                    newebpay_merchant_id: '', newebpay_hash_key: '', newebpay_hash_iv: '' 
+                });
+                
                 const isLoading = ref(false); 
                 
                 const editingCourse = ref(null); 
@@ -697,48 +721,25 @@
                     finally { isLoading.value = false; }
                 };
 
-                // 🚀 V89：LINE UID 自動登入驗證
                 const verifyLiffAdmin = async () => {
-                    isLoading.value = true;
-                    loginError.value = '';
+                    isLoading.value = true; loginError.value = '';
                     try {
                         const profile = await liff.getProfile();
                         const res = await callApi('ADMIN_LOGIN_UID', { uid: profile.userId });
-                        if (res && res.success) {
-                            isAuthenticated.value = true;
-                            await fetchData();
-                        }
+                        if (res && res.success) { isAuthenticated.value = true; await fetchData(); }
                     } catch (e) {
-                        loginError.value = e.message || '此 LINE 帳號無管理員權限';
-                        liff.logout(); 
-                    } finally {
-                        isLoading.value = false;
-                    }
+                        loginError.value = e.message || '此 LINE 帳號無管理員權限'; liff.logout(); 
+                    } finally { isLoading.value = false; }
                 };
 
-                const liffLogin = () => {
-                    if (!liff.isLoggedIn()) {
-                        liff.login({ redirectUri: window.location.href });
-                    } else {
-                        verifyLiffAdmin();
-                    }
-                };
-
-                const goToFrontend = () => {
-                    window.location.href = 'index.html';
-                };
+                const liffLogin = () => { if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); } else { verifyLiffAdmin(); } };
+                const goToFrontend = () => { window.location.href = 'index.html'; };
 
                 onMounted(async () => {
                     try {
                         await liff.init({ liffId: LIFF_ID });
-                        if (liff.isLoggedIn()) {
-                            await verifyLiffAdmin();
-                        }
-                    } catch (err) {
-                        console.error('LIFF 初始化失敗', err);
-                    } finally {
-                        isLiffLoading.value = false;
-                    }
+                        if (liff.isLoggedIn()) { await verifyLiffAdmin(); }
+                    } catch (err) { console.error('LIFF 初始化失敗', err); } finally { isLiffLoading.value = false; }
                 });
 
                 const fetchData = async () => { 
@@ -837,7 +838,7 @@
 
                 return { 
                     isAuthenticated, loginForm, loginError, handleLogin, logout,
-                    isLiffLoading, liffLogin, goToFrontend, // 🚀 補回這三個遺漏的 Return
+                    isLiffLoading, liffLogin, goToFrontend,
                     view, courses, orders, users, isLoading, editingCourse, editingOrder,
                     activeMember, activeEnrollmentCourse, checkinUrl, courseSearchQuery, courseFilterCategory, adminCategories, filteredAdminCourses,
                     orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders, sysSettings, 
