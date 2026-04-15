@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.15.V67_Cloud_Drive_Backup -->
+    <!-- Version: 2026.04.15.V68_Calendar_Sync -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -65,7 +65,6 @@
 <body>
     <div id="app" v-cloak>
         
-        <!-- 🔐 登入閘門畫面 -->
         <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4">
             <div class="max-w-[380px] w-full bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 md:p-10 animate-fade-in border border-slate-100 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-2 bg-[#06C755]"></div>
@@ -100,7 +99,6 @@
             </div>
         </div>
 
-        <!-- 📊 內部管理系統 -->
         <div v-else class="flex min-h-screen">
             <aside class="sidebar hidden md:flex">
                 <div class="sidebar-brand">宏學管理站</div>
@@ -139,7 +137,6 @@
                         <button class="md:hidden text-slate-400" @click="logout" title="登出"><i class="fas fa-sign-out-alt"></i></button>
                     </div>
                     <div class="flex items-center gap-2 md:gap-3 w-full md:w-auto">
-                        <!-- 🚀 V67 新增：雲端備份按鈕 -->
                         <button @click="triggerBackup" :disabled="isLoading" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 border border-blue-200 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition shadow-sm">
                             <i class="fas fa-hdd" :class="{'fa-pulse': isLoading}"></i><span class="hidden sm:inline">雲端備份</span><span class="sm:hidden">備份</span>
                         </button>
@@ -153,7 +150,6 @@
                 </header>
 
                 <div class="py-2 md:py-4">
-                    <!-- 1. 營運統計 -->
                     <div v-if="view === 'dashboard'" class="p-4 md:p-8 animate-fade-in">
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-10">
                             <div v-for="s in statsSummary" :key="s.label" class="bg-white p-5 md:p-6 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-center">
@@ -174,7 +170,6 @@
                         </div>
                     </div>
 
-                    <!-- 2. 一般課程管理 -->
                     <div v-if="view === 'courses'" class="animate-fade-in">
                         <div class="px-4 md:px-8 mt-4 md:mt-8 flex flex-col md:flex-row gap-3">
                             <div class="relative flex-1">
@@ -212,7 +207,6 @@
                         </div>
                     </div>
 
-                    <!-- 3. 訂單管理 -->
                     <div v-if="view === 'orders'" class="animate-fade-in">
                         <div class="px-4 md:px-8 mt-4 md:mt-8 flex flex-col md:flex-row gap-3">
                             <div class="relative flex-1">
@@ -255,7 +249,6 @@
                         </div>
                     </div>
 
-                    <!-- 4. 學員會員管理 -->
                     <div v-if="view === 'members'" class="animate-fade-in">
                         <div class="admin-table-container">
                             <table class="admin-table">
@@ -270,12 +263,10 @@
                         </div>
                     </div>
 
-                    <!-- 學員專屬 CRM 頁面 -->
                     <div v-if="view === 'member_detail'" class="p-4 md:p-8 animate-fade-in max-w-5xl mx-auto">
                         <button @click="view = 'members'" class="text-slate-400 text-sm font-bold flex items-center mb-4 md:mb-6 hover:text-slate-600 transition"><i class="fas fa-chevron-left mr-2"></i>返回學員名冊</button>
 
                         <div class="grid grid-cols-1 flex-col md:grid md:grid-cols-12 gap-4 md:gap-6 mb-6">
-                            <!-- 左側：個人資料 -->
                             <div class="md:col-span-7 bg-white p-5 md:p-8 rounded-xl border border-slate-100 shadow-sm">
                                 <div class="flex justify-between items-center mb-4 md:mb-6">
                                     <h3 class="text-[16px] md:text-lg font-bold text-slate-800"><i class="fas fa-id-card text-[#06C755] mr-2"></i>學員資料</h3>
@@ -290,7 +281,6 @@
                                 </div>
                             </div>
 
-                            <!-- 右側：CRM 專屬備註 -->
                             <div class="md:col-span-5 bg-[#f8fafc] p-5 md:p-8 rounded-xl border border-slate-100 shadow-sm flex flex-col h-[300px] md:h-auto">
                                 <h3 class="text-[16px] md:text-lg font-bold text-slate-800 mb-3 md:mb-4"><i class="fas fa-sticky-note text-orange-500 mr-2"></i>管理員備註 (CRM)</h3>
                                 <textarea v-model="activeMember.adminNote" class="input-field flex-grow resize-none text-[14px] md:text-[15px] leading-relaxed bg-white border-slate-200" placeholder="紀錄學員特殊狀況..."></textarea>
@@ -300,7 +290,6 @@
                             </div>
                         </div>
 
-                        <!-- 下半部：上課與購買紀錄 -->
                         <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
                             <h3 class="text-[16px] md:text-lg font-bold text-slate-800 p-5 md:p-6 pb-2 md:pb-6"><i class="fas fa-history text-blue-500 mr-2"></i>購買與上課紀錄</h3>
                             <div class="overflow-x-auto pb-2">
@@ -331,7 +320,6 @@
                         </div>
                     </div>
 
-                    <!-- 5. 系統設定 -->
                     <div v-if="view === 'settings'" class="p-4 md:p-8 animate-fade-in max-w-4xl mx-auto">
                         <div class="bg-white p-5 md:p-8 rounded-xl border border-slate-100 shadow-sm mb-6">
                             <div class="section-title">首頁頂部橫幅 (Banner)</div>
@@ -370,7 +358,6 @@
                 </div>
             </main>
             
-            <!-- [Modal D] 課程編輯 -->
             <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
                 <div class="modal-body modal-body-lg animate-fade-in flex flex-col bg-[#f8fafc]">
                     <div class="px-5 md:px-8 py-4 md:py-5 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm">
@@ -391,10 +378,17 @@
                                     <div><label class="input-label">名額 (F欄)</label><input type="number" v-model="editingCourse.capacity" class="input-field"></div>
                                 </div>
                                 <div><label class="input-label">時段描述 (N欄)</label><input type="text" v-model="editingCourse.timeSlotType" class="input-field"></div>
+                                
+                                <!-- 🚀 V68 核心升級：解鎖開始與結束時間欄位 (供日曆同步使用) -->
                                 <div class="grid grid-cols-2 gap-4 md:gap-6">
-                                    <div><label class="input-label">開始 (C欄)</label><input type="date" v-model="editingCourse.startDate" class="input-field text-sm md:text-base"></div>
-                                    <div><label class="input-label">結束 (D欄)</label><input type="date" v-model="editingCourse.endDate" class="input-field text-sm md:text-base"></div>
+                                    <div><label class="input-label">開始日期 (C欄)</label><input type="date" v-model="editingCourse.startDate" class="input-field text-sm md:text-base"></div>
+                                    <div><label class="input-label">開始時間 (K欄)</label><input type="time" v-model="editingCourse.startTime" class="input-field text-sm md:text-base"></div>
                                 </div>
+                                <div class="grid grid-cols-2 gap-4 md:gap-6">
+                                    <div><label class="input-label">結束日期 (D欄)</label><input type="date" v-model="editingCourse.endDate" class="input-field text-sm md:text-base"></div>
+                                    <div><label class="input-label">結束時間 (L欄)</label><input type="time" v-model="editingCourse.endTime" class="input-field text-sm md:text-base"></div>
+                                </div>
+                                
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                                     <div><label class="input-label">地點 (H欄)</label><input type="text" v-model="editingCourse.location" class="input-field"></div>
                                     <div><label class="input-label">導師 (I欄)</label><input type="text" v-model="editingCourse.instructor" class="input-field"></div>
@@ -431,7 +425,7 @@
             <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
                 <div class="modal-body modal-body-lg animate-fade-in flex flex-col">
                     <div class="px-5 md:px-8 py-4 md:py-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
-                        <h3 class="text-[16px] md:text-xl font-bold text-slate-800 line-clamp-1 pr-4">{{ activeEnrollmentCourse.name }}</h3>
+                        <h3 class="text-[16px] md:text-xl font-bold text-slate-800 line-clamp-1 pr-4">{{ activeEnrollmentCourse.name }} - 名單</h3>
                         <button @click="activeEnrollmentCourse = null" class="text-slate-400 p-2"><i class="fas fa-times text-xl"></i></button>
                     </div>
                     <div class="flex-grow overflow-y-auto bg-slate-50 md:bg-white p-0 md:p-8">
@@ -624,7 +618,6 @@
                     }
                 };
 
-                // 🚀 V67 新增：觸發手動雲端備份
                 const triggerBackup = async () => {
                     if (!confirm('將立即打包三大資料庫並備份至 Google Drive，這可能需要幾秒鐘的時間，確認執行？')) return;
                     const data = await callApi('ADMIN_TRIGGER_BACKUP');
@@ -655,7 +648,12 @@
                 };
 
                 const openEditModal = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); };
-                const saveCourse = async () => { if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { editingCourse.value = null; await fetchData(); } };
+                const saveCourse = async () => { 
+                    if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { 
+                        editingCourse.value = null; 
+                        await fetchData(); 
+                    } 
+                };
                 const copyCourse = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); editingCourse.value.id = 'NEW_' + Date.now().toString().slice(-4); editingCourse.value.name += ' (複製)'; };
 
                 const generateCheckinLink = async (course) => {
@@ -703,7 +701,7 @@
                                 base64str = canvas.toDataURL('image/webp', quality);
                             }
                             if (base64str.length > 49500) {
-                                alert('❌ 圖片依然過大！請使用「貼上網址」功能。'); return;
+                                alert('❌ 您的圖片在 50% 畫質下依然超過 Google Sheets 容量限制！\n\n💡 請直接使用上方的「貼上網址」功能，以維持 100% 原始畫質。'); return;
                             }
                             editingCourse.value.image = base64str;
                         };
@@ -731,7 +729,7 @@
                                 base64str = canvas.toDataURL('image/webp', quality);
                             }
                             if (base64str.length > 49500) {
-                                alert('❌ Banner 過於複雜無法儲存，請改貼網址。'); return;
+                                alert('❌ Banner 圖片過於複雜無法儲存，請改貼網址。'); return;
                             }
                             sysSettings.value.banner_image = base64str;
                         };
@@ -754,7 +752,7 @@
                     getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length, 
                     getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && (o.status || 'PENDING') === 'PENDING').length, 
                     getCourseName, handleFileUpload, handleBannerUpload, copyCourse, runHealthCheck,
-                    generateCheckinLink, copyUrl, triggerBackup // 🚀 匯出手動備份方法
+                    generateCheckinLink, copyUrl, triggerBackup
                 };
             }
         }).mount('#app');
