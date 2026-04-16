@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.16.V100_Dynamic_LIFF_Engine -->
+    <!-- Version: 2026.04.16.V101_Dynamic_LIFF_Trim_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -263,7 +263,6 @@
                             
                             <div class="border-t border-slate-100 pt-4">
                                 
-                                <!-- 🚀 V100 新增：每日打卡按鈕 -->
                                 <button @click="handleDailyCheckin" :disabled="isSubmitting" class="w-full py-3 bg-orange-50 text-orange-600 border border-orange-200 rounded-xl font-bold mb-4 hover:bg-orange-100 transition active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm">
                                     <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
                                     <i v-else class="fas fa-calendar-check"></i> 
@@ -543,13 +542,11 @@
                     } catch (e) { console.error("紅包載入失敗", e); }
                 };
 
-                // 🚀 V100 每日打卡領紅包
                 const handleDailyCheckin = async () => {
                     isSubmitting.value = true;
                     try {
                         const res = await callApi('DAILY_CHECKIN');
                         alert(`🎉 ${res.message}`);
-                        // 更新畫面餘額與明細
                         userPointsBalance.value = res.newBalance;
                         const pts = await callApi('GET_USER_POINTS');
                         userPointLogs.value = pts.logs;
@@ -657,7 +654,6 @@
                     try { 
                         await callApi('REGISTER_USER', { ...regForm.value, userId: userProfile.value.userId, address: regForm.value.area + regForm.value.address_detail, referrerCode: referrerCode.value }); 
                         
-                        // 註冊成功後，重新拉取點數（因為 V100 後台會自動發紅包）
                         const pts = await callApi('GET_USER_POINTS');
                         userPointsBalance.value = pts.balance; 
                         userPointLogs.value = pts.logs;
@@ -683,7 +679,9 @@
                 };
 
                 const copyReferralLink = () => {
-                    const link = `https://liff.line.me/${sysSettings.value.liff_id}?ref=${userInfo.value.referralCode}`;
+                    // 🚀 V101：防呆處理，過濾掉任何不小心填入的空白
+                    const cleanLiffId = (sysSettings.value.liff_id || '').trim();
+                    const link = `https://liff.line.me/${cleanLiffId}?ref=${userInfo.value.referralCode}`;
                     navigator.clipboard.writeText(link).then(() => alert('✅ 已複製分享連結')).catch(() => { const dummy = document.createElement("input"); document.body.appendChild(dummy); dummy.setAttribute("value", link); dummy.select(); document.execCommand("copy"); document.body.removeChild(dummy); alert('✅ 已複製分享連結'); });
                 };
 
@@ -691,29 +689,28 @@
                     window.location.href = 'admin.html?fromLiff=true';
                 };
 
-                // 🚀 V100 終極動態初始化：先抓後台 LIFF ID，再啟動 LINE SDK
                 onMounted(async () => { 
-                    // 1. 優先背景載入系統資料 (取得後台設定的 liff_id)
+                    // 1. 先背景取得後台設定
                     await loadSystemData(); 
                     
                     const urlParams = new URLSearchParams(window.location.search);
                     const viewParam = urlParams.get('view');
                     if (viewParam) { view.value = viewParam; }
 
-                    // 解析推薦碼
                     const refParam = urlParams.get('ref');
                     if (refParam) { referrerCode.value = refParam; sessionStorage.setItem('referrerCode', refParam); } 
                     else { const storedRef = sessionStorage.getItem('referrerCode'); if (storedRef) referrerCode.value = storedRef; }
 
-                    // 2. 驗證是否已在後台設定 LIFF ID
-                    const currentLiffId = sysSettings.value.liff_id;
+                    // 🚀 V101 防呆：確保取出後台的 LIFF ID 並強制移除前後隱形空白
+                    const currentLiffId = (sysSettings.value.liff_id || '').trim();
+                    
                     if (!currentLiffId) {
                         alert('⚠️ 系統尚未初始化\n管理員尚未在後台設定「系統主 LIFF ID」，請通知客服處理。');
                         isLiffLoading.value = false;
                         return;
                     }
 
-                    // 3. 使用動態抓取的 ID 啟動 LIFF
+                    // 3. 用純淨無瑕的 LIFF ID 啟動
                     try {
                         await liff.init({ liffId: currentLiffId }); 
                         if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; } 
@@ -736,7 +733,6 @@
                         isLiffLoading.value = false;
                     }
 
-                    // 處理指定課程跳轉
                     const targetCourseId = urlParams.get('courseId');
                     if (targetCourseId) {
                         const targetCourse = courses.value.find(c => c.id === targetCourseId && c.isPublished !== false);
