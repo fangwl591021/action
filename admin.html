@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.16.V92_Custom_Payment_Methods -->
+    <!-- Version: 2026.04.16.V93_Viral_Reward_Engine -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -174,8 +174,14 @@
 
                     <div v-if="view === 'courses'" class="animate-fade-in">
                         <div class="px-6 md:px-8 mt-2 flex flex-col md:flex-row gap-3 mb-4">
-                            <div class="relative flex-1"><i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="courseSearchQuery" placeholder="搜尋課程名稱或 ID..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm bg-white text-slate-800"></div>
-                            <select v-model="courseFilterCategory" class="w-full md:w-auto px-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm text-slate-700 bg-white cursor-pointer font-bold"><option value="">所有分類</option><option v-for="cat in adminCategories" :key="cat" :value="cat">{{ cat }}</option></select>
+                            <div class="relative flex-1">
+                                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                <input type="text" v-model="courseSearchQuery" placeholder="搜尋課程名稱或 ID..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm bg-white text-slate-800">
+                            </div>
+                            <select v-model="courseFilterCategory" class="w-full md:w-auto px-4 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#06C755] transition shadow-sm text-slate-700 bg-white cursor-pointer font-bold">
+                                <option value="">所有分類</option>
+                                <option v-for="cat in adminCategories" :key="cat" :value="cat">{{ cat }}</option>
+                            </select>
                         </div>
                         <div class="admin-table-container !mt-0 !mx-6 md:!mx-8 !rounded-xl">
                             <table class="admin-table">
@@ -191,7 +197,6 @@
                                         <td>
                                             <div class="text-lg font-bold text-[#06C755] mb-1">${{ formatPrice(c.price) }}</div>
                                             <div v-if="c.discountRule && c.discountRule !== 'NONE'" class="text-[11px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded inline-block mb-1 border border-orange-100">{{ getDiscountLabel(c.discountRule) }}</div>
-                                            <!-- 🚀 V92 顯示付款方式標籤 -->
                                             <div v-if="c.paymentMethod === 'REMITTANCE'" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded inline-block mb-1 border border-blue-100">🏦 僅限匯款</div>
                                             <div class="text-slate-500 text-[13px] font-medium whitespace-nowrap mt-1">報名：{{ c.enrolled }} / {{ c.capacity }} 人</div>
                                         </td>
@@ -318,7 +323,7 @@
                                                 <td class="text-[12px] text-slate-400 whitespace-nowrap font-mono">{{ log.createdAt }}</td>
                                                 <td><span class="text-[11px] font-bold px-1.5 py-0.5 rounded border" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-500 border-red-100'">{{ log.type.includes('ADD')||log.type.includes('EARN')?'獲得':'扣除' }}</span></td>
                                                 <td class="text-slate-600">{{ log.reason }}</td>
-                                                <td class="text-right font-bold" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'text-green-600' : 'text-red-500'">{{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{log.amount.toLocaleString() }}</td>
+                                                <td class="text-right font-bold" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'text-green-600' : 'text-red-500'">{{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{{ log.amount.toLocaleString() }}</td>
                                                 <td class="text-right font-bold text-slate-500">{{ log.balance.toLocaleString() }}</td>
                                             </tr>
                                             <tr v-if="!activeMemberPoints.logs || activeMemberPoints.logs.length === 0"><td colspan="5" class="text-center text-slate-400 py-6">無點數紀錄</td></tr>
@@ -360,6 +365,26 @@
                     </div>
 
                     <div v-if="view === 'settings'" class="p-6 animate-fade-in max-w-4xl mx-auto">
+                        
+                        <!-- 🚀 V93：新增裂變紅包點數中控台 -->
+                        <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
+                            <div class="section-title !mb-4 flex items-center gap-2 text-red-700 border-red-500">
+                                <i class="fas fa-gift"></i> 裂變行銷 (Viral Marketing) 紅包獎勵設定
+                            </div>
+                            <p class="text-[14px] text-slate-500 mb-6 leading-relaxed">設定各項推廣動作的發放點數。系統 LIFF ID 必填，才能正確產生分享連結與 QR Code 圖片。</p>
+                            
+                            <div class="mb-6"><label class="input-label">系統主 LIFF ID (產生分享連結用)</label><input type="text" v-model="sysSettings.liff_id" class="input-field text-[15px] font-mono text-slate-600" placeholder="例如：2009130603-vTHZv1LW"></div>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                                <div><label class="input-label">新客註冊 (點)</label><input type="number" v-model="sysSettings.reward_register" class="input-field text-[15px] font-bold text-[#06C755]" placeholder="200"></div>
+                                <div><label class="input-label">自己加好友 (點)</label><input type="number" v-model="sysSettings.reward_self_add" class="input-field text-[15px] font-bold text-[#06C755]" placeholder="100"></div>
+                                <div><label class="input-label">被加好友 (點)</label><input type="number" v-model="sysSettings.reward_referred" class="input-field text-[15px] font-bold text-[#06C755]" placeholder="400"></div>
+                                <div><label class="input-label">推薦好友 (點)</label><input type="number" v-model="sysSettings.reward_refer" class="input-field text-[15px] font-bold text-[#06C755]" placeholder="100"></div>
+                                <div><label class="input-label">每日打卡 (點)</label><input type="number" v-model="sysSettings.reward_daily" class="input-field text-[15px] font-bold text-[#06C755]" placeholder="10"></div>
+                            </div>
+                        </div>
+
                         <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8 relative overflow-hidden">
                             <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
                             <div class="section-title !mb-4 flex items-center gap-2 text-blue-800 border-blue-500">
@@ -376,8 +401,7 @@
                         </div>
 
                         <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8">
-                            <div class="section-title !mb-4">紅包折抵參數設定 (%)</div>
-                            <p class="text-[14px] text-slate-500 mb-6 leading-relaxed">設定全域折抵規則的百分比，修改後將直接連動所有套用該規則的課程計算公式。</p>
+                            <div class="section-title !mb-4">結帳紅包折抵參數 (%)</div>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div><label class="input-label">規則 A 上限 (%)</label><input type="number" v-model="sysSettings.discount_rate_a" class="input-field text-[15px]" placeholder="20"></div>
                                 <div><label class="input-label">規則 B 上限 (%)</label><input type="number" v-model="sysSettings.discount_rate_b" class="input-field text-[15px]" placeholder="50"></div>
@@ -441,7 +465,6 @@
                                         </select>
                                     </div>
 
-                                    <!-- 🚀 V92 新增：自訂付款方式下拉選單 -->
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100 gap-3">
                                         <div class="font-bold text-blue-700 text-[14px]">開放付款方式 (Z欄)</div>
                                         <select v-model="editingCourse.paymentMethod" class="input-field !w-auto !py-2 !text-[14px] font-bold cursor-pointer transition-colors text-blue-800 bg-white border-blue-200 shadow-sm">
@@ -648,10 +671,12 @@
                 const orders = ref([]); 
                 const users = ref([]); 
                 
+                // 🚀 V93：新增預設紅包獎勵參數與 LIFF ID
                 const sysSettings = ref({ 
                     banner_image: '', link_fb: '', link_ig: '', link_line: '', link_lineoa: '', link_tiktok: '', link_web: '', 
                     discount_rate_a: 20, discount_rate_b: 50, discount_rate_c: 100,
-                    newebpay_merchant_id: '', newebpay_hash_key: '', newebpay_hash_iv: '' 
+                    newebpay_merchant_id: '', newebpay_hash_key: '', newebpay_hash_iv: '',
+                    liff_id: '', reward_register: 200, reward_self_add: 100, reward_referred: 400, reward_refer: 100, reward_daily: 10 
                 });
                 
                 const isLoading = ref(false); 
@@ -769,7 +794,6 @@
                     }
                 };
 
-                // 🚀 V92 確保向下相容與載入 paymentMethod
                 const openEditModal = (c) => { 
                     const parsed = JSON.parse(JSON.stringify(c));
                     if(parsed.isPublished === undefined) parsed.isPublished = true;
