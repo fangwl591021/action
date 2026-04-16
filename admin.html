@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.16.V93_Viral_Reward_Engine -->
+    <!-- Version: 2026.04.16.V101_Dynamic_LIFF_Trim_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -366,7 +366,6 @@
 
                     <div v-if="view === 'settings'" class="p-6 animate-fade-in max-w-4xl mx-auto">
                         
-                        <!-- 🚀 V93：新增裂變紅包點數中控台 -->
                         <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8 relative overflow-hidden">
                             <div class="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
                             <div class="section-title !mb-4 flex items-center gap-2 text-red-700 border-red-500">
@@ -644,7 +643,6 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const LIFF_ID = '2009130603-vTHZv1LW'; 
 
         createApp({
             setup() {
@@ -671,7 +669,6 @@
                 const orders = ref([]); 
                 const users = ref([]); 
                 
-                // 🚀 V93：新增預設紅包獎勵參數與 LIFF ID
                 const sysSettings = ref({ 
                     banner_image: '', link_fb: '', link_ig: '', link_line: '', link_lineoa: '', link_tiktok: '', link_web: '', 
                     discount_rate_a: 20, discount_rate_b: 50, discount_rate_c: 100,
@@ -748,15 +745,44 @@
                     } finally { isLoading.value = false; }
                 };
 
-                const liffLogin = () => { if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); } else { verifyLiffAdmin(); } };
+                // 🚀 V101 核心：移除硬編碼，使用後端設定之 LIFF ID 並強制 trim() 防呆
+                const liffLogin = async () => { 
+                    await loadSystemData(); 
+                    const currentLiffId = (sysSettings.value.liff_id || '').trim();
+                    if (!currentLiffId) {
+                        alert('⚠️ 系統尚未初始化\n請先至後台「全域系統設定」填寫「系統主 LIFF ID」');
+                        return;
+                    }
+
+                    if (!liff.isLoggedIn()) { 
+                        liff.init({ liffId: currentLiffId }).then(() => {
+                            liff.login({ redirectUri: window.location.href });
+                        }).catch(e => alert("LIFF 啟動失敗：" + e.message));
+                    } else { 
+                        verifyLiffAdmin(); 
+                    } 
+                };
+
                 const goToFrontend = () => { window.location.href = 'index.html'; };
 
                 onMounted(async () => {
                     try {
-                        await liff.init({ liffId: LIFF_ID });
-                        if (liff.isLoggedIn()) { await verifyLiffAdmin(); }
+                        await loadSystemData();
+                        const currentLiffId = (sysSettings.value.liff_id || '').trim();
+                        if (currentLiffId) {
+                            await liff.init({ liffId: currentLiffId });
+                            if (liff.isLoggedIn()) { await verifyLiffAdmin(); }
+                        }
                     } catch (err) { console.error('LIFF 初始化失敗', err); } finally { isLiffLoading.value = false; }
                 });
+
+                const loadSystemData = async () => { 
+                    try {
+                        const [coursesData, settingsData] = await Promise.all([ callApi('GET_COURSES'), callApi('GET_SETTINGS') ]);
+                        if(settingsData && Object.keys(settingsData).length > 0) sysSettings.value = Object.assign(sysSettings.value, settingsData);
+                        courses.value = coursesData; 
+                    } catch (e) { console.error('載入系統資料失敗', e); } finally { isLoading.value = false; }
+                };
 
                 const fetchData = async () => { 
                     const data = await callApi('ADMIN_GET_DATA'); 
