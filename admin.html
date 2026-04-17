@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
+    <!-- Version: 2026.04.17.V111_Touch_Optimized -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -52,7 +53,7 @@
         @media (max-width: 768px) {
             .sidebar { display: none; } 
             .main-content { margin-left: 0; padding-bottom: 80px; } 
-            .page-header { padding: 12px 16px; flex-wrap: wrap; gap: 8px; } 
+            .page-header { padding: 12px 16px; flex-col; gap: 12px; align-items: stretch; } 
             .admin-table-container { margin: 12px 0; border-radius: 0; border-left: none; border-right: none; }
             .admin-table tbody td { padding: 12px; font-size: 14px; }
             .admin-table thead th { padding: 10px 12px; font-size: 13px; }
@@ -133,14 +134,22 @@
 
             <main class="main-content relative">
                 <header class="page-header flex-col items-start md:flex-row md:items-center">
-                    <div class="flex justify-between w-full md:w-auto items-center mb-3 md:mb-0">
+                    <div class="flex justify-between w-full md:w-auto items-center">
                         <h2 class="text-xl md:text-2xl font-bold text-slate-800">{{ currentViewName }}</h2>
                         <button class="md:hidden text-slate-400 p-1 text-xl" @click="logout" title="登出"><i class="fas fa-sign-out-alt"></i></button>
                     </div>
-                    <div class="flex items-center gap-2 w-full md:w-auto">
-                        <button @click="triggerBackup" :disabled="isLoading" class="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 border border-blue-200 rounded-md text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition shadow-sm"><i class="fas fa-hdd text-sm" :class="{'fa-pulse': isLoading}"></i><span>備份</span></button>
-                        <button @click="runHealthCheck" :disabled="isLoading" class="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 border border-orange-200 rounded-md text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition shadow-sm"><i class="fas fa-stethoscope text-sm" :class="{'fa-pulse': isLoading}"></i><span>健檢</span></button>
-                        <button @click="fetchData" :disabled="isLoading" class="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-md text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-sync-alt text-sm" :class="{'fa-spin': isLoading}"></i><span>同步</span></button>
+                    
+                    <!-- 🚀 V111 防呆優化：加寬按鈕、增加間距，防止手機誤觸 -->
+                    <div class="flex items-center gap-3 w-full md:w-auto mt-3 md:mt-0 overflow-x-auto hide-scrollbar pb-1">
+                        <button @click="fetchData" :disabled="isLoading" class="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-300 rounded-lg text-[13px] font-bold text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm">
+                            <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i><span>重新同步</span>
+                        </button>
+                        <button @click="triggerBackup" :disabled="isLoading" class="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 border border-blue-200 rounded-lg text-[13px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition shadow-sm">
+                            <i class="fas fa-hdd" :class="{'fa-pulse': isLoading}"></i><span>資料備份</span>
+                        </button>
+                        <button @click="runHealthCheck" :disabled="isLoading" class="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 border border-orange-200 rounded-lg text-[13px] font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 transition shadow-sm">
+                            <i class="fas fa-stethoscope" :class="{'fa-pulse': isLoading}"></i><span>系統健檢</span>
+                        </button>
                     </div>
                 </header>
 
@@ -348,7 +357,7 @@
                                                 <div class="font-bold text-[#06C755] text-lg">$ {{ formatPrice(o.amount) }}</div>
                                                 <div v-if="o.pointsUsed > 0" class="text-[11px] font-bold text-red-500 mt-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 inline-block">🧧 -{{ o.pointsUsed }} 點</div>
                                             </td>
-                                            <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge whitespace-nowrap">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '已取消' : '待付款') }}</span></td>
+                                            <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge whitespace-nowrap">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '待付款') }}</span></td>
                                             <td>
                                                 <select v-model="o.attendance" @change="updateOrderAttendance(o)" class="px-3 py-1.5 border border-slate-200 rounded-md text-[13px] font-bold outline-none cursor-pointer shadow-sm transition" :class="{'bg-green-50 text-green-700 border-green-200': o.attendance === 'ATTENDED', 'bg-red-50 text-red-600 border-red-200': o.attendance === 'ABSENT', 'bg-white text-slate-500 hover:bg-slate-50': !o.attendance}">
                                                     <option value="">-- 未標記 --</option><option value="ATTENDED">🟢 已出席</option><option value="ABSENT">🔴 缺席</option>
@@ -535,6 +544,7 @@
                 </div>
             </div>
 
+            <!-- [Modal A] 報名名單 -->
             <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
                 <div class="modal-body modal-body-lg animate-fade-in flex flex-col bg-[#f8fafc]">
                     <div class="px-6 py-5 border-b flex justify-between items-center sticky top-0 bg-white z-10 shadow-sm">
@@ -582,6 +592,7 @@
                 </div>
             </div>
             
+            <!-- [Modal B] 訂單編輯 -->
             <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
                 <div class="modal-body animate-fade-in flex flex-col bg-[#f8fafc]">
                     <div class="px-6 py-5 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm">
@@ -602,6 +613,7 @@
                 </div>
             </div>
 
+            <!-- 點數手動異動彈窗 -->
             <div v-if="editingPointAction" class="modal-mask" @click.self="editingPointAction = null">
                 <div class="modal-body animate-fade-in flex flex-col bg-white">
                     <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10" :class="editingPointAction.type === 'MANUAL_ADD' ? 'bg-green-50' : 'bg-red-50'">
