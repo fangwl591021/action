@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化三部曲</title>
-    <!-- Version: 2026.04.17.V109_Frontend_Restore -->
+    <!-- Version: 2026.04.17.V115_Frontend_Final -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -23,7 +23,7 @@
         
         .course-card { display: flex; flex-direction: column; background: #fff; border: 1px solid #f1f5f9; overflow: hidden; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); height: 100%; }
         .course-img-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; background: #f8fafc; overflow: hidden; }
-        .course-tag { position: absolute; top: 8px; left: 8px; background: white; color: #333; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 800; z-index: 10; border: 1px solid #e2e8f0; }
+        .course-tag { position: absolute; top: 8px; left: 8px; background: white; color: #333; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 800; z-index: 10; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .course-tag-exclusive { position: absolute; top: 8px; right: 8px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: 800; z-index: 10; box-shadow: 0 2px 4px rgba(217, 119, 6, 0.3); }
         .course-content { padding: 14px; flex-grow: 1; display: flex; flex-direction: column; }
         .course-title { font-size: 15px; font-weight: 700; color: #1e293b; line-height: 1.4; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 42px; }
@@ -76,9 +76,11 @@
             </div>
         </header>
 
+        <!-- 全螢幕 Loading 狀態遮罩 -->
         <div v-if="isLiffLoading" class="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center">
             <i class="fas fa-circle-notch fa-spin text-4xl text-[#06C755] mb-4"></i>
-            <div class="text-slate-500 font-bold text-sm">系統啟動中...</div>
+            <div class="text-slate-500 font-bold text-sm mt-3">系統啟動中...</div>
+            <div class="text-slate-400 text-xs mt-1">正在載入專屬品牌資源</div>
         </div>
 
         <main v-if="!isLiffLoading" class="flex-grow pb-20 overflow-y-auto bg-white">
@@ -236,7 +238,7 @@
                                             <div class="text-[10px] text-slate-400 font-medium font-mono">{{ log.createdAt }}</div>
                                         </div>
                                         <div class="text-[15px] font-bold text-right shrink-0 font-mono" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'text-[#06C755]' : 'text-slate-600'">
-                                            {{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{{ Number(log.amount).toLocaleString() }}
+                                            {{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{{ Number(log.amount || 0).toLocaleString() }}
                                         </div>
                                     </div>
                                 </div>
@@ -646,27 +648,34 @@
                 const handleLiffLogin = () => { liff.login({ redirectUri: window.location.href }); };
 
                 onMounted(async () => { 
-                    const urlParams = new URLSearchParams(window.location.search);
-                    currentBrand.value = urlParams.get('brand') || 'DEFAULT';
-                    const viewParam = urlParams.get('view');
-                    if (viewParam) { view.value = viewParam; }
-
-                    const refParam = urlParams.get('ref');
-                    if (refParam) { referrerCode.value = refParam; sessionStorage.setItem('referrerCode', refParam); } 
-                    else { const storedRef = sessionStorage.getItem('referrerCode'); if (storedRef) referrerCode.value = storedRef; }
-
-                    await loadSystemData(); 
-                    const currentLiffId = (sysSettings.value.liff_id || '').trim();
-                    
-                    if (!currentLiffId) {
-                        alert('⚠️ 系統尚未初始化\n管理員尚未在後台設定「系統主 LIFF ID」，請通知客服處理。');
-                        isLiffLoading.value = false;
-                        return;
-                    }
-
                     try {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        currentBrand.value = urlParams.get('brand') || 'DEFAULT';
+                        const viewParam = urlParams.get('view');
+                        if (viewParam) { view.value = viewParam; }
+
+                        const refParam = urlParams.get('ref');
+                        if (refParam) { referrerCode.value = refParam; sessionStorage.setItem('referrerCode', refParam); } 
+                        else { const storedRef = sessionStorage.getItem('referrerCode'); if (storedRef) referrerCode.value = storedRef; }
+
+                        // 1. 背景取得後台設定
+                        await loadSystemData(); 
+                        
+                        const currentLiffId = (sysSettings.value.liff_id || '').trim();
+                        
+                        if (!currentLiffId) {
+                            alert('⚠️ 系統尚未初始化\n管理員尚未在後台設定「系統主 LIFF ID」，請聯絡客服。');
+                            isLiffLoading.value = false;
+                            return;
+                        }
+
+                        // 2. 使用取得的 LIFF ID 啟動
                         await liff.init({ liffId: currentLiffId }); 
-                        if (!liff.isLoggedIn()) { isLoggedIn.value = false; return; } 
+                        
+                        if (!liff.isLoggedIn()) { 
+                            isLoggedIn.value = false; 
+                            return; 
+                        } 
                         
                         isLoggedIn.value = true;
                         userProfile.value = await liff.getProfile(); 
@@ -676,21 +685,23 @@
                             userInfo.value = data.info; 
                             isAdmin.value = data.isAdmin || false; 
                             if (view.value === 'my_orders') { const o = await callApi('GET_USER_ORDERS'); if(o) myOrders.value = o; }
-                        } else { 
+                        } else if (data) { 
                             regForm.value.name = userProfile.value.displayName;
                             showBasicInfo.value = true;
                             isAdmin.value = data.isAdmin || false; 
                         }
+
                     } catch (err) { 
-                        alert('⚠️ 系統驗證失敗\n請務必透過「LINE 官方帳號」內的專屬按鈕開啟，不要直接用手機瀏覽器打開網址喔！'); 
+                        console.error('LIFF Error:', err);
+                        alert(`⚠️ 系統驗證失敗\n\n您可能點擊了舊版連結，或是在錯誤的 LINE 帳號內開啟。\n\n(系統錯誤訊息: ${err.message})`); 
                     } finally {
                         isLiffLoading.value = false;
-                    }
-
-                    const targetCourseId = urlParams.get('courseId');
-                    if (targetCourseId) {
-                        const targetCourse = courses.value.find(c => c.id === targetCourseId && c.isPublished !== false);
-                        if (targetCourse) showCourseDetail(targetCourse);
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const targetCourseId = urlParams.get('courseId');
+                        if (targetCourseId && courses.value.length > 0) {
+                            const targetCourse = courses.value.find(c => c.id === targetCourseId && c.isPublished !== false);
+                            if (targetCourse) showCourseDetail(targetCourse);
+                        }
                     }
                 });
 
