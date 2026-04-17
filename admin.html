@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.16.V101_Dynamic_LIFF_Trim_Fix -->
+    <!-- Version: 2026.04.17.V115_Admin_Final -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -53,7 +53,7 @@
         @media (max-width: 768px) {
             .sidebar { display: none; } 
             .main-content { margin-left: 0; padding-bottom: 80px; } 
-            .page-header { padding: 12px 16px; flex-wrap: wrap; gap: 8px; } 
+            .page-header { padding: 12px 16px; flex-col; gap: 12px; align-items: stretch; } 
             .admin-table-container { margin: 12px 0; border-radius: 0; border-left: none; border-right: none; }
             .admin-table tbody td { padding: 12px; font-size: 14px; }
             .admin-table thead th { padding: 10px 12px; font-size: 13px; }
@@ -134,14 +134,21 @@
 
             <main class="main-content relative">
                 <header class="page-header flex-col items-start md:flex-row md:items-center">
-                    <div class="flex justify-between w-full md:w-auto items-center mb-3 md:mb-0">
+                    <div class="flex justify-between w-full md:w-auto items-center">
                         <h2 class="text-xl md:text-2xl font-bold text-slate-800">{{ currentViewName }}</h2>
                         <button class="md:hidden text-slate-400 p-1 text-xl" @click="logout" title="登出"><i class="fas fa-sign-out-alt"></i></button>
                     </div>
-                    <div class="flex items-center gap-2 w-full md:w-auto">
-                        <button @click="triggerBackup" :disabled="isLoading" class="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 border border-blue-200 rounded-md text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition shadow-sm"><i class="fas fa-hdd text-sm" :class="{'fa-pulse': isLoading}"></i><span>備份</span></button>
-                        <button @click="runHealthCheck" :disabled="isLoading" class="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 border border-orange-200 rounded-md text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition shadow-sm"><i class="fas fa-stethoscope text-sm" :class="{'fa-pulse': isLoading}"></i><span>健檢</span></button>
-                        <button @click="fetchData" :disabled="isLoading" class="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-md text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 transition shadow-sm"><i class="fas fa-sync-alt text-sm" :class="{'fa-spin': isLoading}"></i><span>同步</span></button>
+                    
+                    <div class="flex items-center gap-3 w-full md:w-auto mt-3 md:mt-0 overflow-x-auto hide-scrollbar pb-1">
+                        <button @click="fetchData" :disabled="isLoading" class="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-300 rounded-lg text-[13px] font-bold text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm">
+                            <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i><span>重新同步</span>
+                        </button>
+                        <button @click="triggerBackup" :disabled="isLoading" class="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 border border-blue-200 rounded-lg text-[13px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition shadow-sm">
+                            <i class="fas fa-hdd" :class="{'fa-pulse': isLoading}"></i><span>資料備份</span>
+                        </button>
+                        <button @click="runHealthCheck" :disabled="isLoading" class="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 border border-orange-200 rounded-lg text-[13px] font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 transition shadow-sm">
+                            <i class="fas fa-stethoscope" :class="{'fa-pulse': isLoading}"></i><span>系統健檢</span>
+                        </button>
                     </div>
                 </header>
 
@@ -323,8 +330,8 @@
                                                 <td class="text-[12px] text-slate-400 whitespace-nowrap font-mono">{{ log.createdAt }}</td>
                                                 <td><span class="text-[11px] font-bold px-1.5 py-0.5 rounded border" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-500 border-red-100'">{{ log.type.includes('ADD')||log.type.includes('EARN')?'獲得':'扣除' }}</span></td>
                                                 <td class="text-slate-600">{{ log.reason }}</td>
-                                                <td class="text-right font-bold" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'text-green-600' : 'text-red-500'">{{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{{ log.amount.toLocaleString() }}</td>
-                                                <td class="text-right font-bold text-slate-500">{{ log.balance.toLocaleString() }}</td>
+                                                <td class="text-right font-bold" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'text-green-600' : 'text-red-500'">{{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{{ Number(log.amount || 0).toLocaleString() }}</td>
+                                                <td class="text-right font-bold text-slate-500">{{ Number(log.balance || 0).toLocaleString() }}</td>
                                             </tr>
                                             <tr v-if="!activeMemberPoints.logs || activeMemberPoints.logs.length === 0"><td colspan="5" class="text-center text-slate-400 py-6">無點數紀錄</td></tr>
                                         </tbody>
@@ -651,10 +658,14 @@
                 const loginError = ref('');
                 const isLiffLoading = ref(true); 
 
-                const handleLogin = () => {
+                const handleLogin = async () => {
                     if (loginForm.value.account === 'admin' && loginForm.value.password === '@1234') {
-                        isAuthenticated.value = true; loginError.value = ''; fetchData();
-                    } else { loginError.value = '您輸入的帳號或密碼不正確'; }
+                        loginError.value = ''; 
+                        isAuthenticated.value = true; 
+                        await fetchData();
+                    } else { 
+                        loginError.value = '您輸入的帳號或密碼不正確'; 
+                    }
                 };
 
                 const logout = () => { 
@@ -729,8 +740,18 @@
                     isLoading.value = true;
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
-                        const json = await res.json(); if (json.status !== 'success') throw new Error(json.data); return json.data;
-                    } catch (e) { alert('伺服器連線失敗，請稍後重試。'); return null; }
+                        const json = await res.json(); 
+                        if (json.status !== 'success') throw new Error(json.message || json.data || '系統回應異常'); 
+                        return json.data;
+                    } catch (e) { 
+                        console.warn(`[API 請求提示 - ${act}]`, e.message);
+                        if (e.message.includes('Timeout') || e.message.includes('Failed to fetch')) {
+                            alert('☁️ Google 伺服器剛甦醒 (冷啟動)，請再點擊一次重試！');
+                        } else {
+                            alert(`⚠️ 系統提示：\n${e.message}`);
+                        }
+                        return null; 
+                    }
                     finally { isLoading.value = false; }
                 };
 
@@ -745,7 +766,6 @@
                     } finally { isLoading.value = false; }
                 };
 
-                // 🚀 V101 核心：移除硬編碼，使用後端設定之 LIFF ID 並強制 trim() 防呆
                 const liffLogin = async () => { 
                     await loadSystemData(); 
                     const currentLiffId = (sysSettings.value.liff_id || '').trim();
