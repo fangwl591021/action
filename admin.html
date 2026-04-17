@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.16.V101_Dynamic_LIFF_Trim_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -349,7 +348,7 @@
                                                 <div class="font-bold text-[#06C755] text-lg">$ {{ formatPrice(o.amount) }}</div>
                                                 <div v-if="o.pointsUsed > 0" class="text-[11px] font-bold text-red-500 mt-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 inline-block">🧧 -{{ o.pointsUsed }} 點</div>
                                             </td>
-                                            <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge whitespace-nowrap">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '已取消' : '待付款') }}</span></td>
+                                            <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge whitespace-nowrap">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '待付款') }}</span></td>
                                             <td>
                                                 <select v-model="o.attendance" @change="updateOrderAttendance(o)" class="px-3 py-1.5 border border-slate-200 rounded-md text-[13px] font-bold outline-none cursor-pointer shadow-sm transition" :class="{'bg-green-50 text-green-700 border-green-200': o.attendance === 'ATTENDED', 'bg-red-50 text-red-600 border-red-200': o.attendance === 'ABSENT', 'bg-white text-slate-500 hover:bg-slate-50': !o.attendance}">
                                                     <option value="">-- 未標記 --</option><option value="ATTENDED">🟢 已出席</option><option value="ABSENT">🔴 缺席</option>
@@ -536,7 +535,6 @@
                 </div>
             </div>
 
-            <!-- [Modal A] 報名名單 -->
             <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
                 <div class="modal-body modal-body-lg animate-fade-in flex flex-col bg-[#f8fafc]">
                     <div class="px-6 py-5 border-b flex justify-between items-center sticky top-0 bg-white z-10 shadow-sm">
@@ -584,7 +582,6 @@
                 </div>
             </div>
             
-            <!-- [Modal B] 訂單編輯 -->
             <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
                 <div class="modal-body animate-fade-in flex flex-col bg-[#f8fafc]">
                     <div class="px-6 py-5 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm">
@@ -605,7 +602,6 @@
                 </div>
             </div>
 
-            <!-- 點數手動異動彈窗 -->
             <div v-if="editingPointAction" class="modal-mask" @click.self="editingPointAction = null">
                 <div class="modal-body animate-fade-in flex flex-col bg-white">
                     <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10" :class="editingPointAction.type === 'MANUAL_ADD' ? 'bg-green-50' : 'bg-red-50'">
@@ -651,10 +647,14 @@
                 const loginError = ref('');
                 const isLiffLoading = ref(true); 
 
-                const handleLogin = () => {
+                const handleLogin = async () => {
                     if (loginForm.value.account === 'admin' && loginForm.value.password === '@1234') {
-                        isAuthenticated.value = true; loginError.value = ''; fetchData();
-                    } else { loginError.value = '您輸入的帳號或密碼不正確'; }
+                        loginError.value = ''; 
+                        isAuthenticated.value = true; 
+                        await fetchData();
+                    } else { 
+                        loginError.value = '您輸入的帳號或密碼不正確'; 
+                    }
                 };
 
                 const logout = () => { 
@@ -725,12 +725,23 @@
                     return '';
                 };
 
+                // 🚀 V102：改寫 catch 邏輯，優雅處理冷啟動 Timeout
                 const callApi = async (act, pl = {}) => {
                     isLoading.value = true;
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
-                        const json = await res.json(); if (json.status !== 'success') throw new Error(json.data); return json.data;
-                    } catch (e) { alert('伺服器連線失敗，請稍後重試。'); return null; }
+                        const json = await res.json(); 
+                        if (json.status !== 'success') throw new Error(json.message || json.data || '系統回應異常'); 
+                        return json.data;
+                    } catch (e) { 
+                        console.warn(`[API 請求提示 - ${act}]`, e.message);
+                        if (e.message.includes('Timeout') || e.message.includes('Failed to fetch')) {
+                            alert('☁️ Google 伺服器剛甦醒 (冷啟動)，請再點擊一次重試！');
+                        } else {
+                            alert(`⚠️ 系統提示：\n${e.message}`);
+                        }
+                        return null; 
+                    }
                     finally { isLoading.value = false; }
                 };
 
@@ -745,7 +756,6 @@
                     } finally { isLoading.value = false; }
                 };
 
-                // 🚀 V101 核心：移除硬編碼，使用後端設定之 LIFF ID 並強制 trim() 防呆
                 const liffLogin = async () => { 
                     await loadSystemData(); 
                     const currentLiffId = (sysSettings.value.liff_id || '').trim();
