@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.17.V115_Admin_Final -->
+    <!-- Version: 2026.04.18.V116_Admin_HubIndicator -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -140,6 +140,21 @@
                     </div>
                     
                     <div class="flex items-center gap-3 w-full md:w-auto mt-3 md:mt-0 overflow-x-auto hide-scrollbar pb-1">
+                        <!-- ✅ 紅綠燈狀態面板 -->
+                        <button @click="checkHubHealth" title="點擊重新檢測通道" class="shrink-0 flex items-center justify-center gap-2 px-3 py-2.5 border rounded-lg text-[13px] font-bold transition shadow-sm" :class="{'bg-slate-50 border-slate-200 text-slate-500': hubStatus === 'checking', 'bg-green-50 border-green-200 text-green-700': hubStatus === 'online', 'bg-red-50 border-red-200 text-red-700': hubStatus === 'offline'}">
+                            <div class="relative flex h-3 w-3">
+                                <span v-if="hubStatus === 'checking'" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+                                <span v-if="hubStatus === 'checking'" class="relative inline-flex rounded-full h-3 w-3 bg-slate-500"></span>
+
+                                <span v-if="hubStatus === 'online'" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span v-if="hubStatus === 'online'" class="relative inline-flex rounded-full h-3 w-3 bg-[#06C755]"></span>
+
+                                <span v-if="hubStatus === 'offline'" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span v-if="hubStatus === 'offline'" class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </div>
+                            <span>{{ hubStatus === 'checking' ? '檢測中' : (hubStatus === 'online' ? '通道正常' : '連線異常') }}</span>
+                        </button>
+
                         <button @click="fetchData" :disabled="isLoading" class="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-300 rounded-lg text-[13px] font-bold text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm">
                             <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i><span>重新同步</span>
                         </button>
@@ -688,6 +703,7 @@
                 });
                 
                 const isLoading = ref(false); 
+                const hubStatus = ref('checking'); // 🟢 'checking', 'online', 'offline'
                 
                 const editingCourse = ref(null); 
                 const editingOrder = ref(null); 
@@ -755,6 +771,25 @@
                     finally { isLoading.value = false; }
                 };
 
+                // 🟢 [新增] 偵測通道狀態
+                const checkHubHealth = async () => {
+                    hubStatus.value = 'checking';
+                    try {
+                        const res = await fetch(WORKER_URL + 'hub-status');
+                        if (!res.ok) throw new Error('Worker 連線失敗');
+                        const data = await res.json();
+                        if (data.allGood) {
+                            hubStatus.value = 'online';
+                        } else {
+                            hubStatus.value = 'offline';
+                            console.warn("通道異常，詳情:", data);
+                        }
+                    } catch (e) {
+                        console.error("狀態檢測失敗:", e);
+                        hubStatus.value = 'offline';
+                    }
+                };
+
                 const verifyLiffAdmin = async () => {
                     isLoading.value = true; loginError.value = '';
                     try {
@@ -807,6 +842,8 @@
                 const fetchData = async () => { 
                     const data = await callApi('ADMIN_GET_DATA'); 
                     if (data) { courses.value = data.courses || []; orders.value = data.orders || []; users.value = data.users || []; sysSettings.value = Object.assign(sysSettings.value, data.settings || {}); } 
+                    
+                    checkHubHealth(); // 同步資料時順便檢查連線狀態
                 };
 
                 const runHealthCheck = async () => { const data = await callApi('SYSTEM_HEALTH_CHECK'); if (data && data.status === 'healthy') alert('🎉 系統健康檢查通過！\n\n' + data.log.join('\n')); };
@@ -907,6 +944,7 @@
                     activeMember, activeEnrollmentCourse, checkinUrl, courseSearchQuery, courseFilterCategory, adminCategories, filteredAdminCourses,
                     orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders, sysSettings, 
                     activeMemberPoints, editingPointAction, getDiscountLabel,
+                    hubStatus, checkHubHealth, // 🟢 紅綠燈狀態與函數
                     courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []), 
                     memberOrders: computed(() => activeMember.value ? orders.value.filter(o => o.userId === activeMember.value.userId).reverse() : []),
                     courseStatsFiltered,
