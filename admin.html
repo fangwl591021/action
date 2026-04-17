@@ -322,8 +322,8 @@
                                                 <td class="text-[12px] text-slate-400 whitespace-nowrap font-mono">{{ log.createdAt }}</td>
                                                 <td><span class="text-[11px] font-bold px-1.5 py-0.5 rounded border" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-500 border-red-100'">{{ log.type.includes('ADD')||log.type.includes('EARN')?'獲得':'扣除' }}</span></td>
                                                 <td class="text-slate-600">{{ log.reason }}</td>
-                                                <td class="text-right font-bold" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'text-green-600' : 'text-red-500'">{{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{{ log.amount.toLocaleString() }}</td>
-                                                <td class="text-right font-bold text-slate-500">{{ log.balance.toLocaleString() }}</td>
+                                                <td class="text-right font-bold" :class="(log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? 'text-green-600' : 'text-red-500'">{{ (log.type==='SYSTEM_EARN' || log.type==='MANUAL_ADD') ? '+' : '-' }}{{ Number(log.amount || 0).toLocaleString() }}</td>
+                                                <td class="text-right font-bold text-slate-500">{{ Number(log.balance || 0).toLocaleString() }}</td>
                                             </tr>
                                             <tr v-if="!activeMemberPoints.logs || activeMemberPoints.logs.length === 0"><td colspan="5" class="text-center text-slate-400 py-6">無點數紀錄</td></tr>
                                         </tbody>
@@ -348,7 +348,7 @@
                                                 <div class="font-bold text-[#06C755] text-lg">$ {{ formatPrice(o.amount) }}</div>
                                                 <div v-if="o.pointsUsed > 0" class="text-[11px] font-bold text-red-500 mt-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 inline-block">🧧 -{{ o.pointsUsed }} 點</div>
                                             </td>
-                                            <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge whitespace-nowrap">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '待付款') }}</span></td>
+                                            <td><span :class="(o.status || 'PENDING') === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge whitespace-nowrap">{{ (o.status || 'PENDING') === 'PAID' ? '已完款' : ((o.status || 'PENDING') === 'CANCELLED' ? '已取消' : '待付款') }}</span></td>
                                             <td>
                                                 <select v-model="o.attendance" @change="updateOrderAttendance(o)" class="px-3 py-1.5 border border-slate-200 rounded-md text-[13px] font-bold outline-none cursor-pointer shadow-sm transition" :class="{'bg-green-50 text-green-700 border-green-200': o.attendance === 'ATTENDED', 'bg-red-50 text-red-600 border-red-200': o.attendance === 'ABSENT', 'bg-white text-slate-500 hover:bg-slate-50': !o.attendance}">
                                                     <option value="">-- 未標記 --</option><option value="ATTENDED">🟢 已出席</option><option value="ABSENT">🔴 缺席</option>
@@ -725,7 +725,6 @@
                     return '';
                 };
 
-                // 🚀 V102：改寫 catch 邏輯，優雅處理冷啟動 Timeout
                 const callApi = async (act, pl = {}) => {
                     isLoading.value = true;
                     try {
