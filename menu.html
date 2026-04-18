@@ -5,14 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器 (Rich Menu Editor)</title>
-    <!-- Version: 2026.04.18.V120_RichMenu_LocalStorage_Drawer -->
+    <!-- Version: 2026.04.18.V122_RichMenu_AdvancedStorage -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
-        /* 側邊欄收合動畫 */
         .sidebar-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
@@ -30,7 +29,6 @@
         
         <div class="flex-1 overflow-y-auto hide-scrollbar">
             <div class="p-5 space-y-5 border-b border-slate-200 bg-white">
-                <!-- 2. 增加圖文選單上傳 -->
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">1. 載入底圖 (JPG/PNG)</label>
                     <input type="file" id="image-upload" accept="image/jpeg, image/png" class="hidden">
@@ -61,14 +59,11 @@
 
     <!-- 畫布主作業區 -->
     <main class="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-100">
-        
-        <!-- 展開按鈕 (儀錶板收合時顯示) -->
         <button id="expand-btn" onclick="toggleSidebar()" class="absolute top-4 left-4 z-50 bg-white text-slate-600 hover:text-[#06C755] border border-slate-200 shadow-md rounded-lg p-2.5 transition hidden">
             <i class="fas fa-bars text-lg"></i>
         </button>
 
         <div id="menu-workspace" class="flex-1 flex flex-col items-center w-full h-full bg-slate-50 overflow-y-auto relative">
-            <!-- 頂部工具列 -->
             <div class="bg-white/90 border-b border-gray-200 w-full py-3 flex justify-between items-center px-6 sticky top-0 z-30 shadow-sm backdrop-blur-sm">
                 <div class="flex items-center space-x-4">
                     <button onclick="MenuModule.toggleDrawMode()" id="menu-draw-btn" class="px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700">開始劃定區域</button>
@@ -83,12 +78,9 @@
                 </div>
             </div>
 
-            <!-- 畫布主體 -->
             <div class="p-10 flex flex-col items-center w-full min-h-[800px]">
                 <div id="menu-canvas-container" class="bg-white p-4 rounded-2xl shadow-2xl border border-gray-200 inline-block overflow-hidden mb-8 relative min-w-[600px] min-h-[400px] flex items-center justify-center">
                     <canvas id="menu-canvas"></canvas>
-                    
-                    <!-- 預設提示 (尚未上傳圖片時) -->
                     <div id="canvas-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-50/80 pointer-events-none">
                         <i class="far fa-images text-6xl mb-4 text-slate-300"></i>
                         <p class="font-black text-lg tracking-widest text-slate-400">請從左側上傳圖文選單圖片</p>
@@ -99,24 +91,19 @@
                 </div>
             </div>
         </div>
-
     </main>
 
-    <!-- 🌟 [新增] 右側檔案庫抽屜 (Drawer) -->
+    <!-- 🌟 右側檔案庫抽屜 (Drawer) -->
     <div id="right-drawer-overlay" onclick="StorageModule.toggleDrawer()" class="hidden fixed inset-0 bg-slate-800/20 z-40 backdrop-blur-sm transition-opacity"></div>
     <aside id="right-drawer" class="fixed right-0 top-0 h-full w-[360px] bg-[#F8F9FA] shadow-[0_0_40px_rgba(0,0,0,0.1)] translate-x-full transition-transform duration-300 z-50 flex flex-col border-l border-slate-200">
-        <div class="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-white">
+        <div class="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
             <h2 class="font-black text-slate-800 text-lg"><i class="fas fa-folder-open text-orange-500 mr-2"></i>我的選單檔案庫</h2>
             <button onclick="StorageModule.toggleDrawer()" class="text-slate-400 hover:text-slate-600 transition p-2 rounded-lg hover:bg-slate-100 bg-slate-50 border border-slate-100"><i class="fas fa-chevron-right"></i></button>
         </div>
         
-        <!-- 上方：新增檔案 -->
-        <div class="p-6 bg-white border-b border-slate-200 shadow-sm z-10">
-            <label class="block text-[13px] font-bold text-slate-500 mb-2 tracking-wide uppercase">儲存當前進度</label>
-            <p class="text-[12px] text-slate-400 font-medium mb-4 leading-relaxed">這會將目前的底圖與座標資訊壓縮儲存至您的瀏覽器本地端。</p>
-            <button onclick="StorageModule.saveCurrent()" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold shadow-md hover:bg-slate-700 transition active:scale-[0.98] flex items-center justify-center gap-2">
-                <i class="fas fa-save text-[#06C755]"></i> 儲存為新檔案
-            </button>
+        <!-- 上方：儲存/編輯動作區 (由 JS 動態渲染) -->
+        <div class="p-6 bg-white border-b border-slate-200 shadow-sm shrink-0" id="drawer-action-area">
+            <!-- Dynamic Content -->
         </div>
 
         <!-- 下方：檔案列表 -->
@@ -157,18 +144,11 @@
     </div>
 
     <script>
-        // 1. 儀錶板收合邏輯
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const expandBtn = document.getElementById('expand-btn');
-            
-            if (sidebar.classList.contains('-ml-[360px]')) {
-                sidebar.classList.remove('-ml-[360px]');
-                expandBtn.classList.add('hidden');
-            } else {
-                sidebar.classList.add('-ml-[360px]');
-                expandBtn.classList.remove('hidden');
-            }
+            if (sidebar.classList.contains('-ml-[360px]')) { sidebar.classList.remove('-ml-[360px]'); expandBtn.classList.add('hidden'); } 
+            else { sidebar.classList.add('-ml-[360px]'); expandBtn.classList.remove('hidden'); }
         }
 
         function copyJsonText() {
@@ -176,12 +156,7 @@
             if (!copyText.value) return alert("請先產生 JSON");
             copyText.select();
             copyText.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(copyText.value).then(() => {
-                alert("✅ JSON 原始碼已複製成功！");
-            }).catch(() => {
-                document.execCommand("copy");
-                alert("✅ JSON 原始碼已複製成功！");
-            });
+            navigator.clipboard.writeText(copyText.value).then(() => { alert("✅ JSON 原始碼已複製成功！"); }).catch(() => { document.execCommand("copy"); alert("✅ JSON 原始碼已複製成功！"); });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -197,7 +172,10 @@
                 const reader = new FileReader();
                 reader.onload = function(f) {
                     const base64Data = f.target.result;
+                    // ★ 載入新圖片時，重置檔案庫狀態為「新檔模式」
+                    StorageModule.resetCurrentId();
                     MenuModule.load(file.name, "{}", base64Data);
+                    document.getElementById('save-filename').value = file.name.split('.')[0] || "New Rich Menu";
                 };
                 reader.readAsDataURL(file);
             });
@@ -206,7 +184,6 @@
             document.getElementById('rich-menu-chatbar').addEventListener('input', () => MenuModule.updateOutput(true));
         });
 
-        // 核心模組
         window.MenuModule = (function() {
             var canvas, isDrawingMode = false, isMouseDown = false, currentRect, startX, startY;
             var currentImgHeight = 843;
@@ -215,34 +192,24 @@
             return {
                 init: function() {
                     if (!canvas) {
-                        canvas = new fabric.Canvas('menu-canvas', { 
-                            selection: true,
-                            preserveObjectStacking: true
-                        });
+                        canvas = new fabric.Canvas('menu-canvas', { selection: true, preserveObjectStacking: true });
                         this.bindEvents();
-                        
                         var self = this;
                         window.addEventListener('keydown', (e) => {
                             if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return; 
                             if (e.key === 'Delete' || e.key === 'Backspace') {
                                 var active = canvas.getActiveObject();
-                                if (active) {
-                                    canvas.remove(active);
-                                    self.updateOutput();
-                                }
+                                if (active) { canvas.remove(active); self.updateOutput(); }
                             }
                         });
                     }
                 },
 
-                // 提供給 StorageModule 取得當前圖片
-                getCurrentBase64: function() {
-                    return savedBase64Image;
-                },
+                getCurrentBase64: function() { return savedBase64Image; },
 
                 load: function(name, jsonStr, base64) {
                     var self = this;
-                    savedBase64Image = base64; // 儲存起來供部署使用
+                    savedBase64Image = base64; 
                     var data = {};
                     try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
                     
@@ -260,10 +227,7 @@
                         canvas.setHeight(displayHeight);
 
                         fabric.Image.fromURL(base64, function(img) {
-                            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
-                                scaleX: displayWidth / img.width,
-                                scaleY: displayHeight / img.height
-                            });
+                            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { scaleX: displayWidth / img.width, scaleY: displayHeight / img.height });
                             self.importAreas(data.areas || [], displayWidth / 2500);
                         });
                     };
@@ -272,58 +236,37 @@
 
                 bindEvents: function() {
                     var self = this;
-
                     canvas.on('mouse:down', function(o) {
                         if (!isDrawingMode) return;
                         var pointer = canvas.getPointer(o.e);
                         if (canvas.findTarget(o.e)) return;
-
-                        isMouseDown = true;
-                        startX = pointer.x;
-                        startY = pointer.y;
-
+                        isMouseDown = true; startX = pointer.x; startY = pointer.y;
                         currentRect = new fabric.Rect({
                             left: startX, top: startY, width: 0, height: 0,
                             fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 2,
-                            cornerColor: '#54C061', cornerSize: 8, transparentCorners: false,
-                            hasRotatingPoint: false
+                            cornerColor: '#54C061', cornerSize: 8, transparentCorners: false, hasRotatingPoint: false
                         });
-                        
                         currentRect.action = { type: 'uri', uri: 'https://xxxxxxxxxx' };
-                        canvas.add(currentRect);
-                        canvas.setActiveObject(currentRect);
+                        canvas.add(currentRect); canvas.setActiveObject(currentRect);
                     });
 
                     canvas.on('mouse:move', function(o) {
                         if (!isDrawingMode || !isMouseDown || !currentRect) return;
                         var pointer = canvas.getPointer(o.e);
-                        var left = Math.min(startX, pointer.x);
-                        var top = Math.min(startY, pointer.y);
-                        var width = Math.abs(startX - pointer.x);
-                        var height = Math.abs(startY - pointer.y);
-
-                        currentRect.set({ left: left, top: top, width: width, height: height });
-                        canvas.renderAll();
+                        var left = Math.min(startX, pointer.x); var top = Math.min(startY, pointer.y);
+                        var width = Math.abs(startX - pointer.x); var height = Math.abs(startY - pointer.y);
+                        currentRect.set({ left: left, top: top, width: width, height: height }); canvas.renderAll();
                     });
 
                     canvas.on('mouse:up', function() {
                         if (!isDrawingMode || !isMouseDown) return;
                         isMouseDown = false;
-                        
-                        if (currentRect && (currentRect.width < 5 || currentRect.height < 5)) {
-                            canvas.remove(currentRect);
-                        } else {
-                            currentRect.setCoords();
-                        }
-                        currentRect = null;
-                        
-                        isDrawingMode = false;
+                        if (currentRect && (currentRect.width < 5 || currentRect.height < 5)) { canvas.remove(currentRect); } 
+                        else { currentRect.setCoords(); }
+                        currentRect = null; isDrawingMode = false;
                         var btn = document.getElementById('menu-draw-btn');
-                        btn.innerText = '開始劃定區域';
-                        btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700";
-                        canvas.defaultCursor = 'default';
-                        canvas.selection = true;
-
+                        btn.innerText = '開始劃定區域'; btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700";
+                        canvas.defaultCursor = 'default'; canvas.selection = true;
                         self.updateOutput();
                     });
 
@@ -336,15 +279,11 @@
                     isDrawingMode = !isDrawingMode;
                     var btn = document.getElementById('menu-draw-btn');
                     if (isDrawingMode) {
-                        btn.innerText = '請在畫布上拖曳滑鼠 (繪圖中)';
-                        btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-[#54C061] text-white shadow-md transition-all";
-                        canvas.defaultCursor = 'crosshair';
-                        canvas.selection = false;
+                        btn.innerText = '請在畫布上拖曳滑鼠 (繪圖中)'; btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-[#54C061] text-white shadow-md transition-all";
+                        canvas.defaultCursor = 'crosshair'; canvas.selection = false;
                     } else {
-                        btn.innerText = '開始劃定區域';
-                        btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700";
-                        canvas.defaultCursor = 'default';
-                        canvas.selection = true;
+                        btn.innerText = '開始劃定區域'; btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700";
+                        canvas.defaultCursor = 'default'; canvas.selection = true;
                     }
                 },
 
@@ -354,92 +293,49 @@
                     var chatBar = document.getElementById('rich-menu-chatbar')?.value || "選單";
                     
                     var areas = objects.map(function(o) {
-                        var act = o.action || {};
-                        var type = act.type || 'uri';
-                        var cleanAction = {};
-
-                        if (type === 'message') {
-                            cleanAction = { type: 'message', text: act.text || "內容文字" };
-                        } else if (type === 'uri') {
-                            cleanAction = { type: 'uri', uri: act.uri || "https://xxxxxxxxxx" };
-                        } else if (type === 'postback') {
-                            cleanAction = { type: 'postback', text: act.text || "說明文字", data: act.data || "name=keyword&keyword=xxxx" };
-                        } else if (type === 'richmenuswitch') {
-                            cleanAction = { type: 'richmenuswitch', richMenuAliasId: act.richMenuAliasId || "MENU名稱", data: act.data || "說明文字" };
-                        }
-
-                        return {
-                            bounds: {
-                                x: Math.round(o.left * scale),
-                                y: Math.round(o.top * scale),
-                                width: Math.round(o.getScaledWidth() * scale),
-                                height: Math.round(o.getScaledHeight() * scale)
-                            },
-                            action: cleanAction
-                        };
+                        var act = o.action || {}; var type = act.type || 'uri'; var cleanAction = {};
+                        if (type === 'message') { cleanAction = { type: 'message', text: act.text || "內容文字" }; } 
+                        else if (type === 'uri') { cleanAction = { type: 'uri', uri: act.uri || "https://xxxxxxxxxx" }; } 
+                        else if (type === 'postback') {
+                            cleanAction = { type: 'postback', data: act.data || "action=keyword" };
+                            if (act.text && act.text !== '0' && act.text !== '說明文字') { cleanAction.text = act.text; }
+                        } 
+                        else if (type === 'richmenuswitch') { cleanAction = { type: 'richmenuswitch', richMenuAliasId: act.richMenuAliasId || "MENU名稱", data: act.data || "action=switch" }; }
+                        return { bounds: { x: Math.round(o.left * scale), y: Math.round(o.top * scale), width: Math.round(o.getScaledWidth() * scale), height: Math.round(o.getScaledHeight() * scale) }, action: cleanAction };
                     });
 
-                    var result = {
-                        size: { width: 2500, height: currentImgHeight },
-                        selected: true,
-                        name: document.getElementById('save-filename').value || "New Rich Menu",
-                        chatBarText: chatBar,
-                        areas: areas
-                    };
-
+                    var result = { size: { width: 2500, height: currentImgHeight }, selected: true, name: document.getElementById('save-filename').value || "New Rich Menu", chatBarText: chatBar, areas: areas };
                     document.getElementById('json-output').value = JSON.stringify(result, null, 2);
-                    
-                    if (!skipRenderUI) {
-                        this.renderAreaEditor(areas);
-                    }
+                    if (!skipRenderUI) { this.renderAreaEditor(areas); }
                     this.refreshCanvasLabels();
                 },
 
                 refreshCanvasLabels: function() {
-                    var labels = canvas.getObjects('text');
-                    labels.forEach(l => canvas.remove(l));
-
+                    var labels = canvas.getObjects('text'); labels.forEach(l => canvas.remove(l));
                     var rects = canvas.getObjects('rect');
                     rects.forEach((r, idx) => {
-                        var t = new fabric.Text('#' + (idx + 1), {
-                            left: r.left + 6,
-                            top: r.top + 6,
-                            fontSize: 16,
-                            fontWeight: 'bold',
-                            fill: '#ffffff',
-                            backgroundColor: '#54C061',
-                            selectable: false,
-                            evented: false
-                        });
+                        var t = new fabric.Text('#' + (idx + 1), { left: r.left + 6, top: r.top + 6, fontSize: 16, fontWeight: 'bold', fill: '#ffffff', backgroundColor: '#54C061', selectable: false, evented: false });
                         canvas.add(t);
                     });
                     canvas.renderAll();
                 },
 
                 renderAreaEditor: function(areas) {
-                    var container = document.getElementById('editor-ui');
-                    if(!container) return;
-                    
-                    if (areas.length === 0) {
-                        container.innerHTML = '<div class="h-full flex items-center justify-center text-slate-400 text-sm font-bold italic text-center p-10">請點擊上方「開始劃定區域」<br>並在畫布上拖曳建立按鈕</div>';
-                        return;
-                    }
+                    var container = document.getElementById('editor-ui'); if(!container) return;
+                    if (areas.length === 0) { container.innerHTML = '<div class="h-full flex items-center justify-center text-slate-400 text-sm font-bold italic text-center p-10">請點擊上方「開始劃定區域」<br>並在畫布上拖曳建立按鈕</div>'; return; }
 
                     container.className = "flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar bg-[#F8F9FA]";
                     container.innerHTML = '<h3 class="text-sm font-black text-slate-700 uppercase tracking-widest border-b-2 border-slate-200 pb-2 mb-4">區域屬性設定</h3>';
                     
                     for (var idx = areas.length - 1; idx >= 0; idx--) {
-                        var area = areas[idx];
-                        var div = document.createElement('div');
+                        var area = areas[idx]; var div = document.createElement('div');
                         div.className = "p-5 bg-white rounded-xl border-2 border-slate-200 shadow-sm transition-all hover:border-[#54C061]";
-                        
                         var type = area.action.type;
                         var html = `
                             <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                                 <span class="text-sm font-black text-white bg-[#54C061] px-3 py-1 rounded-md shadow-sm">區域 #${idx+1}</span>
                                 <button onclick="MenuModule.removeArea(${idx})" class="text-sm font-bold text-rose-500 hover:text-white hover:bg-rose-500 border border-rose-500 px-3 py-1 rounded-md transition-colors">刪除</button>
                             </div>
-                            
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-bold text-slate-600 mb-1">動作類型</label>
@@ -453,211 +349,121 @@
                         `;
 
                         if (type === 'postback') {
+                            var pData = area.action.data || ""; var pText = area.action.text !== undefined ? area.action.text : "0";
+                            if (pText === "說明文字") pText = "0";
                             html += `
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-1">回傳資料 (data)</label>
-                                    <input type="text" value="${area.action.data || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="name=keyword&keyword=xxxx" oninput="MenuModule.updateAreaProp(${idx}, 'data', this.value)">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-1">說明文字 (text)</label>
-                                    <input type="text" value="${area.action.text || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none" placeholder="說明文字" oninput="MenuModule.updateAreaProp(${idx}, 'text', this.value)">
-                                </div>
+                                <div><label class="block text-sm font-bold text-slate-600 mb-1">回傳資料 (data)</label><input type="text" value="${pData}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="例如：action=keyword" oninput="MenuModule.updateAreaProp(${idx}, 'data', this.value)"></div>
+                                <div><label class="block text-sm font-bold text-slate-600 mb-1">說明文字 (text) <span class="text-xs text-slate-400 font-normal ml-1">填 0 代表隱藏不發送</span></label><input type="text" value="${pText}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none" placeholder="填 0 代表隱藏不發送" oninput="MenuModule.updateAreaProp(${idx}, 'text', this.value)"></div>
                             `;
                         } else if (type === 'richmenuswitch') {
                             html += `
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-1">目標選單別名 (richMenuAliasId)</label>
-                                    <input type="text" value="${area.action.richMenuAliasId || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="MENU名稱" oninput="MenuModule.updateAreaProp(${idx}, 'richMenuAliasId', this.value)">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-1">說明文字 (data)</label>
-                                    <input type="text" value="${area.action.data || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="說明文字" oninput="MenuModule.updateAreaProp(${idx}, 'data', this.value)">
-                                </div>
+                                <div><label class="block text-sm font-bold text-slate-600 mb-1">目標選單別名 (richMenuAliasId)</label><input type="text" value="${area.action.richMenuAliasId || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="MENU名稱" oninput="MenuModule.updateAreaProp(${idx}, 'richMenuAliasId', this.value)"></div>
+                                <div><label class="block text-sm font-bold text-slate-600 mb-1">說明文字 (data)</label><input type="text" value="${area.action.data || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="說明文字" oninput="MenuModule.updateAreaProp(${idx}, 'data', this.value)"></div>
                             `;
                         } else if (type === 'message') {
-                            html += `
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-1">內容文字 (text)</label>
-                                    <input type="text" value="${area.action.text || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none" placeholder="內容文字" oninput="MenuModule.updateAreaProp(${idx}, 'text', this.value)">
-                                </div>
-                            `;
+                            html += `<div><label class="block text-sm font-bold text-slate-600 mb-1">內容文字 (text)</label><input type="text" value="${area.action.text || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none" placeholder="內容文字" oninput="MenuModule.updateAreaProp(${idx}, 'text', this.value)"></div>`;
                         } else {
-                            html += `
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-1">超連結網址 (uri)</label>
-                                    <input type="text" value="${area.action.uri || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="https://xxxxxxxxxx" oninput="MenuModule.updateAreaProp(${idx}, 'uri', this.value)">
-                                </div>
-                            `;
+                            html += `<div><label class="block text-sm font-bold text-slate-600 mb-1">超連結網址 (uri)</label><input type="text" value="${area.action.uri || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="https://xxxxxxxxxx" oninput="MenuModule.updateAreaProp(${idx}, 'uri', this.value)"></div>`;
                         }
 
-                        html += `</div>`; 
-                        div.innerHTML = html;
-                        container.appendChild(div);
+                        html += `</div>`; div.innerHTML = html; container.appendChild(div);
                     }
                 },
 
                 updateAreaProp: function(idx, prop, val) {
-                    var objects = canvas.getObjects('rect');
-                    if(!objects[idx]) return;
-                    if(!objects[idx].action) objects[idx].action = {};
-                    
+                    var objects = canvas.getObjects('rect'); if(!objects[idx]) return; if(!objects[idx].action) objects[idx].action = {};
                     if(prop === 'type') {
-                        var old = objects[idx].action;
-                        objects[idx].action = { type: val };
-                        
+                        var old = objects[idx].action; objects[idx].action = { type: val };
                         if(val === 'uri') objects[idx].action.uri = old.uri || old.data || "";
                         else if(val === 'message') objects[idx].action.text = old.text || "";
-                        else if(val === 'postback') {
-                            objects[idx].action.data = old.data || old.uri || "";
-                            objects[idx].action.text = old.text || "";
-                        } else if(val === 'richmenuswitch') {
-                            objects[idx].action.richMenuAliasId = old.richMenuAliasId || "";
-                            objects[idx].action.data = old.data || "";
-                        }
+                        else if(val === 'postback') { objects[idx].action.data = old.data || old.uri || ""; objects[idx].action.text = (old.text !== undefined && old.text !== "說明文字") ? old.text : "0"; } 
+                        else if(val === 'richmenuswitch') { objects[idx].action.richMenuAliasId = old.richMenuAliasId || ""; objects[idx].action.data = old.data || ""; }
                         this.updateOutput(false); 
-                    } else {
-                        objects[idx].action[prop] = val;
-                        this.updateOutput(true); 
-                    }
+                    } else { objects[idx].action[prop] = val; this.updateOutput(true); }
                 },
 
                 removeArea: function(idx) {
                     var objects = canvas.getObjects('rect');
-                    if(objects[idx]) { 
-                        canvas.remove(objects[idx]); 
-                        this.updateOutput(); 
-                    }
+                    if(objects[idx]) { canvas.remove(objects[idx]); this.updateOutput(); }
                 },
 
                 importAreas: function(areas, scale) {
                     canvas.getObjects('rect').forEach(o => canvas.remove(o));
                     areas.forEach(a => {
-                        var r = new fabric.Rect({
-                            left: a.bounds.x * scale, top: a.bounds.y * scale,
-                            width: a.bounds.width * scale, height: a.bounds.height * scale,
-                            fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1,
-                            cornerColor: '#54C061', cornerSize: 8, transparentCorners: false,
-                            hasRotatingPoint: false
-                        });
-                        r.action = a.action;
-                        canvas.add(r);
+                        var r = new fabric.Rect({ left: a.bounds.x * scale, top: a.bounds.y * scale, width: a.bounds.width * scale, height: a.bounds.height * scale, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1, cornerColor: '#54C061', cornerSize: 8, transparentCorners: false, hasRotatingPoint: false });
+                        r.action = a.action; canvas.add(r);
                     });
-                    canvas.renderAll();
-                    this.updateOutput();
+                    canvas.renderAll(); this.updateOutput();
                 },
 
-                clearAreas: function() {
-                    canvas.getObjects('rect').forEach(o => canvas.remove(o));
-                    this.updateOutput();
-                },
+                clearAreas: function() { canvas.getObjects('rect').forEach(o => canvas.remove(o)); this.updateOutput(); },
 
                 applyJsonFromText: function() {
                     var input = prompt("請貼上 JSON 原始碼以更新畫布：");
-                    if (input) {
-                        try {
-                            var data = JSON.parse(input);
-                            this.importAreas(data.areas || [], canvas.getWidth() / 2500);
-                            document.getElementById('json-output').value = JSON.stringify(data, null, 2);
-                            this.updateOutput();
-                        } catch(e) { alert("JSON 格式有誤"); }
-                    }
+                    if (input) { try { var data = JSON.parse(input); this.importAreas(data.areas || [], canvas.getWidth() / 2500); document.getElementById('json-output').value = JSON.stringify(data, null, 2); this.updateOutput(); } catch(e) { alert("JSON 格式有誤"); } }
                 },
 
                 openDeployModal: function() {
-                    if (!savedBase64Image) {
-                        alert("⚠️ 請先在左側上傳「選單底圖」後，再進行部署！");
-                        return;
-                    }
-                    
+                    if (!savedBase64Image) { alert("⚠️ 請先在左側上傳「選單底圖」後，再進行部署！"); return; }
                     const modal = document.getElementById('deploy-modal');
                     const apiUrlInput = document.getElementById('deploy-api-url');
-                    
                     let defaultApiUrl = '';
-                    if (window.parent && window.parent.WORKER_URL) {
-                        defaultApiUrl = window.parent.WORKER_URL;
-                    } else {
-                        defaultApiUrl = 'https://action.fangwl591021.workers.dev/'; 
-                    }
-                    
-                    apiUrlInput.value = defaultApiUrl;
-                    modal.classList.remove('hidden');
+                    if (window.parent && window.parent.WORKER_URL) { defaultApiUrl = window.parent.WORKER_URL; } else { defaultApiUrl = 'https://action.fangwl591021.workers.dev/'; }
+                    apiUrlInput.value = defaultApiUrl; modal.classList.remove('hidden');
                 },
 
-                closeDeployModal: function() {
-                    document.getElementById('deploy-modal').classList.add('hidden');
-                },
+                closeDeployModal: function() { document.getElementById('deploy-modal').classList.add('hidden'); },
 
                 executeDeploy: async function() {
                     const apiUrl = document.getElementById('deploy-api-url').value.trim();
                     if (!apiUrl) return alert("API 網址不可為空！");
-                    
                     const btn = document.getElementById('deploy-submit-btn');
-                    const originalText = btn.innerHTML;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 部署中...';
-                    btn.disabled = true;
-                    
+                    const originalText = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 部署中...'; btn.disabled = true;
                     try {
                         const richMenuObj = JSON.parse(document.getElementById('json-output').value);
-                        
-                        const res = await fetch(apiUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                action: 'DEPLOY_RICH_MENU',
-                                payload: {
-                                    richMenuObj: richMenuObj,
-                                    imageBase64: savedBase64Image
-                                }
-                            })
-                        });
-                        
+                        const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'DEPLOY_RICH_MENU', payload: { richMenuObj: richMenuObj, imageBase64: savedBase64Image } }) });
                         const json = await res.json();
-                        if (json.status !== 'success') {
-                            throw new Error(json.message || json.data || '伺服器發生錯誤');
-                        }
-                        
+                        if (json.status !== 'success') { throw new Error(json.message || json.data || '伺服器發生錯誤'); }
                         alert("🎉 部署大成功！\n\n選單已成功安全上傳至 LINE，並自動設為所有用戶的預設選單！");
                         this.closeDeployModal();
-                        
-                    } catch (e) {
-                        console.error(e);
-                        alert("❌ 部署失敗：\n" + e.message);
-                    } finally {
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                    }
+                    } catch (e) { console.error(e); alert("❌ 部署失敗：\n" + e.message); } finally { btn.innerHTML = originalText; btn.disabled = false; }
                 }
             };
         })();
 
-        // 🌟 [新增] 本地儲存抽屜模組 (LocalStorage Storage Module)
+        // 🌟 [升級] 進階版本地儲存模組 (支援當前檔案狀態追蹤)
         window.StorageModule = (function() {
             const STORAGE_KEY = 'rich_menu_saves';
+            let currentFileId = null; // ★ 核心：追蹤當前編輯的檔案 ID
             
             function getSaves() {
                 try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
                 catch(e) { return []; }
             }
             
-            function setSaves(data) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            }
+            function setSaves(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 
             return {
+                // 給 MenuModule 重置用
+                resetCurrentId: function() {
+                    currentFileId = null;
+                    this.renderActionArea();
+                },
+
                 toggleDrawer: function() {
                     const drawer = document.getElementById('right-drawer');
                     const overlay = document.getElementById('right-drawer-overlay');
                     if (drawer.classList.contains('translate-x-full')) {
                         drawer.classList.remove('translate-x-full');
                         overlay.classList.remove('hidden');
-                        this.renderList(); // 開啟時刷新列表
+                        this.renderAll(); 
                     } else {
                         drawer.classList.add('translate-x-full');
                         overlay.classList.add('hidden');
                     }
                 },
                 
-                saveCurrent: function() {
+                saveFile: function(asNew) {
                     const base64 = MenuModule.getCurrentBase64();
                     if (!base64) return alert('⚠️ 請先在左側上傳「底圖」並設定後再進行儲存！');
                     
@@ -668,22 +474,40 @@
                     try { dataObj = JSON.parse(jsonStr); } catch(e) { return alert('JSON 格式錯誤，無法儲存'); }
                     
                     const filename = document.getElementById('save-filename').value || '未命名選單';
-                    const saves = getSaves();
+                    let saves = getSaves();
                     
                     try {
-                        const newItem = {
-                            id: Date.now().toString(),
-                            name: filename,
-                            date: new Date().toLocaleString('zh-TW', {hour12: false}),
-                            data: dataObj,
-                            image: base64
-                        };
-                        saves.unshift(newItem); // 將新檔案插在最前面
+                        if (asNew || !currentFileId) {
+                            // 另存新檔 或 全新儲存
+                            const newItem = {
+                                id: Date.now().toString(),
+                                name: filename,
+                                date: new Date().toLocaleString('zh-TW', {hour12: false}),
+                                data: dataObj,
+                                image: base64
+                            };
+                            saves.unshift(newItem); // 插入列表最上方
+                            currentFileId = newItem.id;
+                            alert('✅ 檔案已成功建立並儲存！');
+                        } else {
+                            // 更新當前檔案 (覆蓋)
+                            const idx = saves.findIndex(x => x.id === currentFileId);
+                            if (idx > -1) {
+                                saves[idx].name = filename;
+                                saves[idx].date = new Date().toLocaleString('zh-TW', {hour12: false});
+                                saves[idx].data = dataObj;
+                                saves[idx].image = base64;
+                                alert('✅ 當前選單進度已覆蓋更新！');
+                            } else {
+                                currentFileId = null;
+                                return this.saveFile(true); // 找不到就存新的
+                            }
+                        }
+                        
                         setSaves(saves);
-                        this.renderList();
-                        alert('✅ 檔案已成功安全儲存至瀏覽器！');
+                        this.renderAll();
                     } catch(e) {
-                        alert('❌ 儲存失敗！可能是您的瀏覽器儲存空間已滿，請先刪除舊檔案再試。');
+                        alert('❌ 儲存失敗！可能是瀏覽器儲存空間已滿，請先刪除舊檔案。');
                     }
                 },
                 
@@ -693,13 +517,13 @@
                     const saves = getSaves();
                     const item = saves.find(x => x.id === id);
                     if (item) {
+                        currentFileId = id; // ★ 鎖定當前檔案狀態
                         document.getElementById('save-filename').value = item.name;
                         document.getElementById('rich-menu-chatbar').value = item.data.chatBarText || '選單';
                         
-                        // 將紀錄載入畫布
                         MenuModule.load(item.name, encodeURIComponent(JSON.stringify(item.data)), item.image);
                         
-                        this.toggleDrawer(); // 關閉抽屜
+                        this.toggleDrawer(); // 關閉抽屜，回去編輯
                     }
                 },
                 
@@ -707,10 +531,58 @@
                     if(!confirm('確定要永久刪除此檔案嗎？\n(此動作無法復原)')) return;
                     let saves = getSaves();
                     saves = saves.filter(x => x.id !== id);
+                    if (currentFileId === id) currentFileId = null; // 如果刪除了當前檔案，退回新檔模式
                     setSaves(saves);
+                    this.renderAll();
+                },
+
+                renderAll: function() {
+                    this.renderActionArea();
                     this.renderList();
                 },
                 
+                // 動態渲染上方動作區
+                renderActionArea: function() {
+                    const container = document.getElementById('drawer-action-area');
+                    if(!container) return;
+
+                    if (currentFileId) {
+                        // 編輯舊檔模式
+                        const saves = getSaves();
+                        const item = saves.find(x => x.id === currentFileId);
+                        const name = item ? item.name : '未命名選單';
+
+                        container.innerHTML = `
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                <span class="text-[12px] font-bold text-green-600 tracking-wide uppercase">正在編輯現有檔案</span>
+                            </div>
+                            <p class="text-[14px] text-slate-700 font-bold mb-4 line-clamp-1 border-b border-slate-100 pb-2">${name}</p>
+                            <div class="space-y-2">
+                                <button onclick="StorageModule.saveFile(false)" class="w-full py-2.5 bg-[#06C755] text-white rounded-lg font-bold shadow-sm hover:bg-[#05b04a] transition active:scale-[0.98] flex items-center justify-center gap-2 text-[13px]">
+                                    <i class="fas fa-save"></i> 儲存 / 覆蓋此檔案
+                                </button>
+                                <button onclick="StorageModule.saveFile(true)" class="w-full py-2.5 bg-slate-50 text-slate-600 rounded-lg font-bold border border-slate-200 hover:bg-slate-100 transition active:scale-[0.98] flex items-center justify-center gap-2 text-[13px]">
+                                    <i class="fas fa-copy"></i> 另存為新檔案
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        // 全新檔案模式
+                        container.innerHTML = `
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                                <span class="text-[12px] font-bold text-slate-400 tracking-wide uppercase">新檔案模式</span>
+                            </div>
+                            <p class="text-[12px] text-slate-400 font-medium mb-4 leading-relaxed border-b border-slate-100 pb-2">這會將目前的底圖與座標資訊安全壓縮並儲存至瀏覽器中。</p>
+                            <button onclick="StorageModule.saveFile(true)" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold shadow-md hover:bg-slate-700 transition active:scale-[0.98] flex items-center justify-center gap-2 text-[14px]">
+                                <i class="fas fa-save text-[#06C755]"></i> 建立並儲存新檔
+                            </button>
+                        `;
+                    }
+                },
+
+                // 動態渲染下方列表區
                 renderList: function() {
                     const saves = getSaves();
                     const container = document.getElementById('saved-files-list');
@@ -726,17 +598,27 @@
                     
                     let html = '';
                     saves.forEach(item => {
+                        const isCurrent = (item.id === currentFileId);
+                        const borderClass = isCurrent ? 'border-[#06C755] ring-1 ring-[#06C755]/20 bg-green-50/30' : 'border-slate-200 hover:border-slate-300 bg-white';
+                        const textClass = isCurrent ? 'text-green-700' : 'text-slate-800';
+
                         html += `
-                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-orange-400 hover:shadow-md transition group relative overflow-hidden">
-                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-orange-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div class="flex justify-between items-start mb-2 pl-2">
-                                    <div class="font-black text-slate-800 text-[15px] line-clamp-1 flex-1 pr-2 tracking-tight">${item.name}</div>
-                                    <button onclick="StorageModule.deleteSave('${item.id}')" class="text-slate-300 hover:text-red-500 transition px-1" title="刪除檔案"><i class="fas fa-trash-alt"></i></button>
+                            <div class="p-4 rounded-xl shadow-sm border transition relative overflow-hidden ${borderClass}">
+                                ${isCurrent ? '<div class="absolute right-0 top-0 bg-[#06C755] text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">編輯中</div>' : ''}
+                                
+                                <div class="flex justify-between items-start mb-1 pr-6">
+                                    <div class="font-bold ${textClass} text-[14px] line-clamp-1 flex-1 tracking-tight">${item.name}</div>
                                 </div>
-                                <div class="text-[11px] font-mono text-slate-400 mb-4 pl-2"><i class="far fa-clock mr-1"></i>${item.date}</div>
-                                <button onclick="StorageModule.loadSave('${item.id}')" class="w-full py-2.5 bg-slate-50 text-orange-600 text-[13px] font-black rounded-lg border border-slate-200 group-hover:bg-orange-50 group-hover:border-orange-200 group-hover:shadow-sm transition active:scale-[0.98]">
-                                    <i class="fas fa-file-import mr-1"></i> 載入此檔案
-                                </button>
+                                <div class="text-[11px] font-mono text-slate-400 mb-3"><i class="far fa-clock mr-1"></i>${item.date}</div>
+                                
+                                <div class="flex gap-2">
+                                    <button onclick="StorageModule.loadSave('${item.id}')" class="flex-1 py-2 bg-slate-50 text-slate-600 text-[12px] font-bold rounded-lg border border-slate-200 hover:bg-slate-100 transition active:scale-[0.98] flex items-center justify-center gap-1.5" ${isCurrent ? 'disabled class="flex-1 py-2 bg-slate-100 text-slate-400 text-[12px] font-bold rounded-lg border border-slate-200 cursor-not-allowed"' : ''}>
+                                        <i class="fas fa-edit"></i> ${isCurrent ? '已載入' : '載入編輯'}
+                                    </button>
+                                    <button onclick="StorageModule.deleteSave('${item.id}')" class="w-[40px] flex items-center justify-center py-2 bg-slate-50 text-red-500 hover:text-white hover:bg-red-500 text-[12px] rounded-lg border border-slate-200 transition active:scale-[0.98]" title="刪除檔案">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
                             </div>
                         `;
                     });
