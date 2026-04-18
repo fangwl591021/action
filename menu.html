@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器 (Rich Menu Editor)</title>
-    <!-- Version: 2026.04.18.V117_RichMenu_Standalone -->
+    <!-- Version: 2026.04.18.V119_RichMenu_AutoDetect -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -73,7 +73,6 @@
                 <button onclick="MenuModule.toggleDrawMode()" id="menu-draw-btn" class="px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700">開始劃定區域</button>
                 <button onclick="MenuModule.clearAreas()" class="px-6 py-2.5 rounded-md text-sm font-bold text-rose-500 bg-white border-2 border-rose-100 transition-all hover:bg-rose-50">清空區域</button>
                 
-                <!-- ★ 修正：將 更新畫布 與 Copy JSON 按鈕放在一起 -->
                 <div class="flex items-center space-x-2 pl-4 border-l-2 border-gray-200">
                     <button onclick="MenuModule.applyJsonFromText()" class="px-8 py-2.5 rounded-md text-sm font-bold text-slate-600 bg-white border-2 border-gray-300 transition-all hover:bg-gray-50">更新畫布</button>
                     <button onclick="copyJsonText()" class="px-8 py-2.5 rounded-md text-sm font-black text-[#54C061] bg-green-50 border-2 border-[#54C061] transition-all hover:bg-green-100 uppercase shadow-sm">Copy JSON</button>
@@ -100,7 +99,7 @@
 
     </main>
 
-    <!-- 部署 Modal -->
+    <!-- 🌟 更新版：全自動偵測部署 Modal -->
     <div id="deploy-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg overflow-hidden flex flex-col">
             <div class="px-6 py-4 bg-indigo-600 flex justify-between items-center text-white">
@@ -108,21 +107,23 @@
                 <button onclick="MenuModule.closeDeployModal()" class="text-indigo-200 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
             </div>
             <div class="p-6 space-y-5 flex-1 overflow-y-auto">
-                <p class="text-sm text-slate-500 font-medium leading-relaxed">
-                    透過系統的後端通道，直接將您剛做好的圖文選單與圖片上傳至 LINE，並自動設為預設選單。
-                </p>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">系統 API 網址 (Worker URL)</label>
-                    <input type="text" id="deploy-api-url" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 text-sm font-mono bg-slate-50" placeholder="https://action...workers.dev/">
+                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-start gap-3">
+                    <i class="fas fa-shield-alt text-indigo-500 text-xl mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-indigo-800 text-sm mb-1">自動安全部署已啟用</div>
+                        <p class="text-xs text-indigo-600/80 font-medium leading-relaxed">
+                            系統將自動透過您的專屬 API 通道，向 Cloudflare 提取隱藏的 LINE 金鑰，並安全地將選單與圖片上傳至官方帳號，無需手動複製貼上。
+                        </p>
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">LINE Channel Access Token</label>
-                    <textarea id="deploy-line-token" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 text-xs font-mono bg-slate-50 h-24 resize-none" placeholder="請貼上長效型 Token..."></textarea>
+                    <label class="block text-[13px] font-bold text-slate-500 mb-1.5 ml-1">系統 API 通道 (已自動抓取)</label>
+                    <input type="text" id="deploy-api-url" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none text-[15px] font-mono bg-slate-50 text-slate-600 font-bold shadow-inner" readonly>
                 </div>
             </div>
             <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                <button onclick="MenuModule.closeDeployModal()" class="px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-200 transition">取消</button>
-                <button id="deploy-submit-btn" onclick="MenuModule.executeDeploy()" class="px-6 py-2.5 rounded-lg text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md flex items-center gap-2">
+                <button onclick="MenuModule.closeDeployModal()" class="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-200 transition">取消</button>
+                <button id="deploy-submit-btn" onclick="MenuModule.executeDeploy()" class="px-8 py-2.5 rounded-xl text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5">
                     <i class="fas fa-cloud-upload-alt"></i> 確認部署
                 </button>
             </div>
@@ -167,7 +168,6 @@
                 const file = e.target.files[0];
                 if (!file) return;
                 
-                // 隱藏預設提示字
                 const placeholder = document.getElementById('canvas-placeholder');
                 if (placeholder) placeholder.style.display = 'none';
 
@@ -179,16 +179,15 @@
                 reader.readAsDataURL(file);
             });
 
-            // 即時更新檔名與 ChatBar
             document.getElementById('save-filename').addEventListener('input', () => MenuModule.updateOutput(true));
             document.getElementById('rich-menu-chatbar').addEventListener('input', () => MenuModule.updateOutput(true));
         });
 
-        // 您提供的核心模組
+        // 核心模組
         window.MenuModule = (function() {
             var canvas, isDrawingMode = false, isMouseDown = false, currentRect, startX, startY;
             var currentImgHeight = 843;
-            var savedBase64Image = null; // ★ 儲存上傳的原始圖片
+            var savedBase64Image = null;
 
             return {
                 init: function() {
@@ -215,7 +214,7 @@
 
                 load: function(name, jsonStr, base64) {
                     var self = this;
-                    savedBase64Image = base64; // ★ 儲存起來供部署使用
+                    savedBase64Image = base64; // 儲存起來供部署使用
                     var data = {};
                     try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
                     
@@ -398,7 +397,6 @@
                     container.className = "flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar bg-[#F8F9FA]";
                     container.innerHTML = '<h3 class="text-sm font-black text-slate-700 uppercase tracking-widest border-b-2 border-slate-200 pb-2 mb-4">區域屬性設定</h3>';
                     
-                    // ★ 修正：改為反向迴圈，讓最新劃定的區域 (編號最大) 生成在最上方
                     for (var idx = areas.length - 1; idx >= 0; idx--) {
                         var area = areas[idx];
                         var div = document.createElement('div');
@@ -522,7 +520,6 @@
                     this.updateOutput();
                 },
 
-                // ★ 修正：隱藏文字框後，透過 prompt 視窗讓使用者貼上 JSON
                 applyJsonFromText: function() {
                     var input = prompt("請貼上 JSON 原始碼以更新畫布：");
                     if (input) {
@@ -535,7 +532,7 @@
                     }
                 },
 
-                // ★ 新增：部署相關功能
+                // 🌟 新增：全自動抓取通道與部署功能
                 openDeployModal: function() {
                     if (!savedBase64Image) {
                         alert("⚠️ 請先在左側上傳「選單底圖」後，再進行部署！");
@@ -545,15 +542,15 @@
                     const modal = document.getElementById('deploy-modal');
                     const apiUrlInput = document.getElementById('deploy-api-url');
                     
-                    // 自動嘗試抓取父視窗的 WORKER_URL
-                    let defaultApiUrl = localStorage.getItem('deploy_api_url') || '';
-                    if (!defaultApiUrl && window.parent && window.parent.WORKER_URL) {
+                    // 自動嘗試抓取父視窗 (admin.html) 的 WORKER_URL
+                    let defaultApiUrl = '';
+                    if (window.parent && window.parent.WORKER_URL) {
                         defaultApiUrl = window.parent.WORKER_URL;
+                    } else {
+                        defaultApiUrl = 'https://action.fangwl591021.workers.dev/'; // 備用預設值
                     }
                     
                     apiUrlInput.value = defaultApiUrl;
-                    document.getElementById('deploy-line-token').value = localStorage.getItem('deploy_line_token') || '';
-                    
                     modal.classList.remove('hidden');
                 },
 
@@ -563,16 +560,7 @@
 
                 executeDeploy: async function() {
                     const apiUrl = document.getElementById('deploy-api-url').value.trim();
-                    const token = document.getElementById('deploy-line-token').value.trim();
-                    
-                    if (!apiUrl || !token) {
-                        alert("請填寫 API 網址與 LINE Token！");
-                        return;
-                    }
-                    
-                    // 記住設定
-                    localStorage.setItem('deploy_api_url', apiUrl);
-                    localStorage.setItem('deploy_line_token', token);
+                    if (!apiUrl) return alert("API 網址不可為空！");
                     
                     const btn = document.getElementById('deploy-submit-btn');
                     const originalText = btn.innerHTML;
@@ -588,7 +576,8 @@
                             body: JSON.stringify({
                                 action: 'DEPLOY_RICH_MENU',
                                 payload: {
-                                    token: token,
+                                    // ⚠️ 這裡完全不傳 token！
+                                    // 將由強大的 Cloudflare Worker 在中途自動攔截並安全注入金鑰
                                     richMenuObj: richMenuObj,
                                     imageBase64: savedBase64Image
                                 }
@@ -600,7 +589,7 @@
                             throw new Error(json.message || json.data || '伺服器發生錯誤');
                         }
                         
-                        alert("🎉 部署大成功！\n\n選單已成功上傳至 LINE，並自動設為所有用戶的預設選單！");
+                        alert("🎉 部署大成功！\n\n選單已成功安全上傳至 LINE，並自動設為所有用戶的預設選單！");
                         this.closeDeployModal();
                         
                     } catch (e) {
