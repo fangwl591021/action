@@ -77,6 +77,7 @@
                 <div class="flex items-center space-x-2 pl-4 border-l-2 border-gray-200">
                     <button onclick="MenuModule.applyJsonFromText()" class="px-8 py-2.5 rounded-md text-sm font-bold text-slate-600 bg-white border-2 border-gray-300 transition-all hover:bg-gray-50">更新畫布</button>
                     <button onclick="copyJsonText()" class="px-8 py-2.5 rounded-md text-sm font-black text-[#54C061] bg-green-50 border-2 border-[#54C061] transition-all hover:bg-green-100 uppercase shadow-sm">Copy JSON</button>
+                    <button onclick="MenuModule.openDeployModal()" class="px-8 py-2.5 rounded-md text-sm font-black text-white bg-indigo-600 border-2 border-indigo-600 transition-all hover:bg-indigo-700 uppercase shadow-sm flex items-center gap-2"><i class="fas fa-cloud-upload-alt"></i> 上傳部署</button>
                 </div>
             </div>
 
@@ -98,6 +99,35 @@
         </div>
 
     </main>
+
+    <!-- 部署 Modal -->
+    <div id="deploy-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg overflow-hidden flex flex-col">
+            <div class="px-6 py-4 bg-indigo-600 flex justify-between items-center text-white">
+                <h3 class="font-bold text-lg"><i class="fas fa-rocket mr-2"></i>一鍵部署至 LINE 官方帳號</h3>
+                <button onclick="MenuModule.closeDeployModal()" class="text-indigo-200 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6 space-y-5 flex-1 overflow-y-auto">
+                <p class="text-sm text-slate-500 font-medium leading-relaxed">
+                    透過系統的後端通道，直接將您剛做好的圖文選單與圖片上傳至 LINE，並自動設為預設選單。
+                </p>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">系統 API 網址 (Worker URL)</label>
+                    <input type="text" id="deploy-api-url" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 text-sm font-mono bg-slate-50" placeholder="https://action...workers.dev/">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">LINE Channel Access Token</label>
+                    <textarea id="deploy-line-token" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 text-xs font-mono bg-slate-50 h-24 resize-none" placeholder="請貼上長效型 Token..."></textarea>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                <button onclick="MenuModule.closeDeployModal()" class="px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-200 transition">取消</button>
+                <button id="deploy-submit-btn" onclick="MenuModule.executeDeploy()" class="px-6 py-2.5 rounded-lg text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md flex items-center gap-2">
+                    <i class="fas fa-cloud-upload-alt"></i> 確認部署
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         // 1. 儀錶板收合邏輯
@@ -158,6 +188,7 @@
         window.MenuModule = (function() {
             var canvas, isDrawingMode = false, isMouseDown = false, currentRect, startX, startY;
             var currentImgHeight = 843;
+            var savedBase64Image = null; // ★ 儲存上傳的原始圖片
 
             return {
                 init: function() {
@@ -184,6 +215,7 @@
 
                 load: function(name, jsonStr, base64) {
                     var self = this;
+                    savedBase64Image = base64; // ★ 儲存起來供部署使用
                     var data = {};
                     try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
                     
@@ -500,6 +532,83 @@
                             document.getElementById('json-output').value = JSON.stringify(data, null, 2);
                             this.updateOutput();
                         } catch(e) { alert("JSON 格式有誤"); }
+                    }
+                },
+
+                // ★ 新增：部署相關功能
+                openDeployModal: function() {
+                    if (!savedBase64Image) {
+                        alert("⚠️ 請先在左側上傳「選單底圖」後，再進行部署！");
+                        return;
+                    }
+                    
+                    const modal = document.getElementById('deploy-modal');
+                    const apiUrlInput = document.getElementById('deploy-api-url');
+                    
+                    // 自動嘗試抓取父視窗的 WORKER_URL
+                    let defaultApiUrl = localStorage.getItem('deploy_api_url') || '';
+                    if (!defaultApiUrl && window.parent && window.parent.WORKER_URL) {
+                        defaultApiUrl = window.parent.WORKER_URL;
+                    }
+                    
+                    apiUrlInput.value = defaultApiUrl;
+                    document.getElementById('deploy-line-token').value = localStorage.getItem('deploy_line_token') || '';
+                    
+                    modal.classList.remove('hidden');
+                },
+
+                closeDeployModal: function() {
+                    document.getElementById('deploy-modal').classList.add('hidden');
+                },
+
+                executeDeploy: async function() {
+                    const apiUrl = document.getElementById('deploy-api-url').value.trim();
+                    const token = document.getElementById('deploy-line-token').value.trim();
+                    
+                    if (!apiUrl || !token) {
+                        alert("請填寫 API 網址與 LINE Token！");
+                        return;
+                    }
+                    
+                    // 記住設定
+                    localStorage.setItem('deploy_api_url', apiUrl);
+                    localStorage.setItem('deploy_line_token', token);
+                    
+                    const btn = document.getElementById('deploy-submit-btn');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 部署中...';
+                    btn.disabled = true;
+                    
+                    try {
+                        const richMenuObj = JSON.parse(document.getElementById('json-output').value);
+                        
+                        const res = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'DEPLOY_RICH_MENU',
+                                payload: {
+                                    token: token,
+                                    richMenuObj: richMenuObj,
+                                    imageBase64: savedBase64Image
+                                }
+                            })
+                        });
+                        
+                        const json = await res.json();
+                        if (json.status !== 'success') {
+                            throw new Error(json.message || json.data || '伺服器發生錯誤');
+                        }
+                        
+                        alert("🎉 部署大成功！\n\n選單已成功上傳至 LINE，並自動設為所有用戶的預設選單！");
+                        this.closeDeployModal();
+                        
+                    } catch (e) {
+                        console.error(e);
+                        alert("❌ 部署失敗：\n" + e.message);
+                    } finally {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
                     }
                 }
             };
