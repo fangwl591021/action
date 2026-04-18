@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器</title>
-    <!-- Version: 2026.04.18.V125_Full_Restore_No_SyntaxError -->
+    <!-- Version: 2026.04.18.V150_Final_Menu_Restore_Verified -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -41,11 +41,15 @@
                     <input type="text" id="rich-menu-chatbar" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="選單">
                 </div>
             </div>
-            <div id="editor-ui" class="bg-[#F8F9FA] pb-6"></div>
+            
+            <!-- ✅ 區域編輯器：恢復 image_ac2a0b.png 所示的圓角卡片 UI -->
+            <div id="editor-ui" class="bg-[#F8F9FA] pb-6 space-y-4">
+                <!-- 由 JS 動態填充 -->
+            </div>
         </div>
 
         <div class="p-5 bg-white border-t border-slate-200 shrink-0">
-            <label class="block text-sm font-bold text-slate-700 mb-2">JSON 輸出</label>
+            <label class="block text-sm font-bold text-slate-700 mb-2">JSON 輸出結果</label>
             <textarea id="json-output" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono h-24 bg-slate-50 resize-none" readonly></textarea>
         </div>
     </aside>
@@ -65,7 +69,7 @@
         <div class="p-10 flex flex-col items-center w-full h-full overflow-y-auto">
             <div id="menu-canvas-container" class="bg-white p-4 rounded-2xl shadow-2xl border border-gray-200 relative min-w-[600px] min-h-[400px] flex items-center justify-center">
                 <canvas id="menu-canvas"></canvas>
-                <div id="canvas-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-50/80 pointer-events-none"><i class="far fa-images text-6xl mb-4 text-slate-300"></i><p class="font-black text-lg tracking-widest text-slate-400">請從左側上傳底圖</p></div>
+                <div id="canvas-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-50/80 pointer-events-none"><i class="far fa-images text-6xl mb-4 text-slate-300"></i><p class="font-black text-lg tracking-widest text-slate-400">請上傳圖文選單圖片</p></div>
             </div>
         </div>
     </main>
@@ -77,8 +81,9 @@
             <h2 class="font-black text-slate-800 text-lg">選單檔案庫</h2>
             <button onclick="StorageModule.toggleDrawer()" class="text-slate-400 p-2 hover:bg-slate-50"><i class="fas fa-times"></i></button>
         </div>
-        <div class="p-6 bg-white border-b border-slate-200">
-            <button onclick="StorageModule.saveCurrent()" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold shadow-md flex items-center justify-center gap-2"><i class="fas fa-save"></i> 儲存當前進度</button>
+        <div class="p-6 bg-white border-b border-slate-200 flex gap-2">
+            <button onclick="StorageModule.saveCurrent(true)" class="flex-1 py-3 bg-slate-800 text-white rounded-xl font-bold shadow-md text-xs">儲存為新檔</button>
+            <button onclick="StorageModule.saveCurrent(false)" class="flex-1 py-3 bg-green-50 text-[#06C755] border border-[#06C755] rounded-xl font-bold text-xs">更新現有檔案</button>
         </div>
         <div class="flex-1 overflow-y-auto p-5 space-y-4" id="saved-files-list"></div>
     </aside>
@@ -87,7 +92,7 @@
     <div id="deploy-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg p-6">
             <h3 class="font-bold text-lg mb-4 text-indigo-600">確認部署至 LINE</h3>
-            <p class="text-sm text-slate-500 mb-6">系統將自動注入 API 通道金鑰並覆蓋目前官方帳號的選單。確定執行？</p>
+            <p class="text-sm text-slate-500 mb-6">這將會覆蓋 LINE OA 目前的預設圖文選單。確定執行？</p>
             <input type="text" id="deploy-api-url" class="w-full border p-3 rounded-lg bg-slate-50 font-mono text-xs mb-6" readonly>
             <div class="flex justify-end gap-3">
                 <button onclick="MenuModule.closeDeployModal()" class="px-6 py-2.5 rounded-lg text-sm font-bold text-slate-500 bg-slate-100">取消</button>
@@ -97,7 +102,6 @@
     </div>
 
     <script>
-        // 側邊欄收合
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const expandBtn = document.getElementById('expand-btn');
@@ -197,8 +201,8 @@
                 renderAreaEditor: function(areas) {
                     var container = document.getElementById('editor-ui'); container.innerHTML = '';
                     areas.forEach((a, idx) => {
-                        var div = document.createElement('div'); div.className = "p-4 mx-5 my-2 bg-white border-2 rounded-xl";
-                        div.innerHTML = `<div class='font-black mb-2 text-xs text-slate-400'>區域 #${idx+1}</div><input class='w-full border p-2 text-[13px] font-mono' value='${a.action.uri || ""}' oninput='MenuModule.updateAreaProp(${idx}, "uri", this.value)'>`;
+                        var div = document.createElement('div'); div.className = "p-5 mx-5 my-2 bg-white border border-slate-200 rounded-2xl shadow-sm";
+                        div.innerHTML = `<div class='font-black mb-2 text-xs text-slate-400 uppercase tracking-tighter'>區域 #${idx+1}</div><input class='w-full border border-slate-200 p-3 text-[14px] font-mono rounded-lg bg-slate-50 focus:bg-white' value='${a.action.uri || a.action.text || ""}' oninput='MenuModule.updateAreaProp(${idx}, "uri", this.value)'>`;
                         container.appendChild(div);
                     });
                 },
@@ -227,31 +231,36 @@
         })();
 
         window.StorageModule = (function() {
-            let currentSaves = [];
+            let currentSaves = [], currentId = null;
             return {
                 toggleDrawer: function() {
-                    const drawer = document.getElementById('right-drawer');
-                    const overlay = document.getElementById('right-drawer-overlay');
-                    if (drawer.classList.contains('translate-x-full')) {
-                        drawer.classList.remove('translate-x-full');
-                        overlay.classList.remove('hidden');
-                        this.renderList();
-                    } else {
-                        drawer.classList.add('translate-x-full');
-                        overlay.classList.add('hidden');
-                    }
+                    const d = document.getElementById('right-drawer');
+                    const o = document.getElementById('right-drawer-overlay');
+                    if (d.classList.contains('translate-x-full')) { d.classList.remove('translate-x-full'); o.classList.remove('hidden'); this.renderList(); }
+                    else { d.classList.add('translate-x-full'); o.classList.add('hidden'); }
                 },
-                saveCurrent: function() {
+                saveCurrent: function(isNew) {
                     const base64 = MenuModule.getCurrentBase64(); if(!base64) return alert('請先載入圖片');
                     const saves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]');
-                    saves.unshift({ id: Date.now(), name: document.getElementById('save-filename').value, date: new Date().toLocaleString(), data: JSON.parse(document.getElementById('json-output').value), image: base64 });
-                    localStorage.setItem('rich_menu_saves', JSON.stringify(saves.slice(0, 10)));
-                    this.renderList(); alert('已儲存至本地端');
+                    const json = JSON.parse(document.getElementById('json-output').value);
+                    const name = document.getElementById('save-filename').value;
+                    
+                    if (isNew || !currentId) {
+                        const newId = Date.now().toString();
+                        saves.unshift({ id: newId, name: name, date: new Date().toLocaleString(), data: json, image: base64 });
+                        currentId = newId;
+                    } else {
+                        const idx = saves.findIndex(x => x.id === currentId);
+                        if (idx > -1) {
+                            saves[idx] = { id: currentId, name: name, date: new Date().toLocaleString(), data: json, image: base64 };
+                        }
+                    }
+                    localStorage.setItem('rich_menu_saves', JSON.stringify(saves.slice(0, 15)));
+                    this.renderList(); alert('儲存成功');
                 },
-                // ✅ 修復：從記憶體載入，防止 onclick 語法錯誤
                 loadFromIndex: function(idx) {
-                    const item = currentSaves[idx];
-                    if(!item) return;
+                    const item = currentSaves[idx]; if(!item) return;
+                    currentId = item.id;
                     document.getElementById('save-filename').value = item.name;
                     document.getElementById('rich-menu-chatbar').value = item.data.chatBarText || "選單";
                     MenuModule.load(item.name, encodeURIComponent(JSON.stringify(item.data)), item.image);
@@ -260,12 +269,11 @@
                 renderList: function() {
                     currentSaves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]');
                     const container = document.getElementById('saved-files-list');
-                    if(!currentSaves.length) { container.innerHTML = '<div class="text-center py-10 text-slate-400">尚無紀錄</div>'; return; }
                     container.innerHTML = currentSaves.map((item, idx) => `
-                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                             <div class="font-black text-sm mb-1">${item.name}</div>
-                            <div class="text-[10px] text-slate-400 mb-3">${item.date}</div>
-                            <button onclick="StorageModule.loadFromIndex(${idx})" class="w-full py-2 bg-orange-50 text-orange-600 font-black rounded-lg border border-orange-100 text-xs">載入此選單</button>
+                            <div class="text-[11px] text-slate-400 mb-4">${item.date}</div>
+                            <button onclick="StorageModule.loadFromIndex(${idx})" class="w-full py-2.5 bg-orange-50 text-orange-600 font-black rounded-xl border border-orange-100 text-[13px]">載入此選單</button>
                         </div>
                     `).join('');
                 }
