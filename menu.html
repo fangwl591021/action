@@ -5,91 +5,116 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器</title>
-    <!-- Version: 2026.04.18.V125_Syntax_Error_Fix -->
+    <!-- Version: 2026.04.18.V125_Full_Restore_No_SyntaxError -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .sidebar-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
 </head>
 
 <body class="bg-slate-100 flex h-screen overflow-hidden text-slate-800">
 
     <!-- 左側儀錶板 -->
-    <aside id="sidebar" class="w-[360px] shrink-0 bg-white border-r border-slate-200 h-full flex flex-col relative z-40">
-        <div class="px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-            <h2 class="font-bold text-slate-800 text-[18px]">圖文選單編輯器</h2>
+    <aside id="sidebar" class="w-[360px] shrink-0 bg-[#F8F9FA] border-r border-slate-200 h-full flex flex-col sidebar-transition relative z-40 shadow-xl">
+        <div class="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white">
+            <h2 class="font-black text-slate-800 text-[17px]"><i class="fas fa-layer-group text-[#06C755] mr-2"></i>圖文選單編輯器</h2>
+            <button onclick="toggleSidebar()" class="text-slate-400 hover:text-slate-600 transition p-1.5 rounded-lg hover:bg-slate-100"><i class="fas fa-chevron-left text-lg"></i></button>
         </div>
         
-        <div class="flex-1 overflow-y-auto">
-            <div class="p-5 space-y-5 border-b border-slate-200">
+        <div class="flex-1 overflow-y-auto hide-scrollbar">
+            <div class="p-5 space-y-5 border-b border-slate-200 bg-white">
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">1. 載入底圖 (JPG/PNG)</label>
                     <input type="file" id="image-upload" accept="image/jpeg, image/png" class="hidden">
-                    <button onclick="document.getElementById('image-upload').click()" class="w-full py-3 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 rounded-xl font-bold flex items-center justify-center gap-2">上傳底圖</button>
+                    <button onclick="document.getElementById('image-upload').click()" class="w-full py-3 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm">上傳選單圖片檔</button>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">2. 選單名稱</label>
-                    <input type="text" id="save-filename" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" value="New Rich Menu">
+                    <input type="text" id="save-filename" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="New Rich Menu">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">3. 選單列文字 (ChatBar)</label>
+                    <input type="text" id="rich-menu-chatbar" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="選單">
                 </div>
             </div>
-            <div id="editor-ui" class="p-5 space-y-4"></div>
+            <div id="editor-ui" class="bg-[#F8F9FA] pb-6"></div>
         </div>
 
         <div class="p-5 bg-white border-t border-slate-200 shrink-0">
+            <label class="block text-sm font-bold text-slate-700 mb-2">JSON 輸出</label>
             <textarea id="json-output" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono h-24 bg-slate-50 resize-none" readonly></textarea>
         </div>
     </aside>
 
     <!-- 畫布區 -->
-    <main class="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto">
-        <div class="bg-white/90 border-b border-gray-200 w-full py-3 flex justify-between items-center px-6 sticky top-0 z-30 shadow-sm">
-            <button onclick="MenuModule.toggleDrawMode()" id="menu-draw-btn" class="px-8 py-2.5 rounded-md text-sm font-bold bg-slate-800 text-white">開始劃定區域</button>
-            <div class="flex gap-2">
-                <button onclick="StorageModule.toggleDrawer()" class="px-6 py-2.5 rounded-md text-sm font-bold text-orange-600 bg-orange-50 border border-orange-200 shadow-sm">雲端檔案庫</button>
-                <button onclick="MenuModule.openDeployModal()" class="px-6 py-2.5 rounded-md text-sm font-bold text-white bg-indigo-600 shadow-sm">部署至 LINE</button>
+    <main class="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-100">
+        <button id="expand-btn" onclick="toggleSidebar()" class="absolute top-4 left-4 z-50 bg-white text-slate-600 border border-slate-200 shadow-md rounded-lg p-2.5 transition hidden"><i class="fas fa-bars text-lg"></i></button>
+
+        <div class="bg-white/90 border-b border-gray-200 w-full py-3 flex justify-between items-center px-6 sticky top-0 z-30 shadow-sm backdrop-blur-sm">
+            <button onclick="MenuModule.toggleDrawMode()" id="menu-draw-btn" class="px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md">開始劃定區域</button>
+            <div class="flex items-center space-x-2">
+                <button onclick="StorageModule.toggleDrawer()" class="px-6 py-2.5 rounded-md text-sm font-black text-orange-600 bg-orange-50 border border-orange-200 shadow-sm flex items-center gap-2"><i class="fas fa-folder-open"></i> 檔案庫</button>
+                <button onclick="MenuModule.openDeployModal()" class="px-8 py-2.5 rounded-md text-sm font-black text-white bg-indigo-600 shadow-md flex items-center gap-2 ml-2">部署至 LINE</button>
             </div>
         </div>
 
-        <div class="p-10 flex flex-col items-center min-h-[800px]">
-            <div id="menu-canvas-container" class="bg-white p-4 rounded-xl shadow-2xl border border-gray-200 relative">
+        <div class="p-10 flex flex-col items-center w-full h-full overflow-y-auto">
+            <div id="menu-canvas-container" class="bg-white p-4 rounded-2xl shadow-2xl border border-gray-200 relative min-w-[600px] min-h-[400px] flex items-center justify-center">
                 <canvas id="menu-canvas"></canvas>
+                <div id="canvas-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-50/80 pointer-events-none"><i class="far fa-images text-6xl mb-4 text-slate-300"></i><p class="font-black text-lg tracking-widest text-slate-400">請從左側上傳底圖</p></div>
             </div>
         </div>
     </main>
 
-    <!-- 雲端檔案庫抽屜 -->
+    <!-- 檔案庫抽屜 -->
     <div id="right-drawer-overlay" onclick="StorageModule.toggleDrawer()" class="hidden fixed inset-0 bg-slate-800/20 z-40 backdrop-blur-sm"></div>
-    <aside id="right-drawer" class="fixed right-0 top-0 h-full w-[360px] bg-white shadow-2xl translate-x-full transition-transform duration-300 z-50 flex flex-col border-l border-slate-200">
+    <aside id="right-drawer" class="fixed right-0 top-0 h-full w-[360px] bg-[#F8F9FA] shadow-2xl translate-x-full transition-transform duration-300 z-50 flex flex-col border-l border-slate-200">
         <div class="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-white">
-            <h2 class="font-bold text-slate-800 text-lg">雲端選單檔案庫</h2>
-            <button onclick="StorageModule.toggleDrawer()" class="text-slate-400 p-2"><i class="fas fa-times"></i></button>
+            <h2 class="font-black text-slate-800 text-lg">選單檔案庫</h2>
+            <button onclick="StorageModule.toggleDrawer()" class="text-slate-400 p-2 hover:bg-slate-50"><i class="fas fa-times"></i></button>
         </div>
-        <div class="p-6 border-b" id="drawer-action-area"></div>
-        <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50" id="saved-files-list"></div>
+        <div class="p-6 bg-white border-b border-slate-200">
+            <button onclick="StorageModule.saveCurrent()" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold shadow-md flex items-center justify-center gap-2"><i class="fas fa-save"></i> 儲存當前進度</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-5 space-y-4" id="saved-files-list"></div>
     </aside>
 
     <!-- 部署 Modal -->
     <div id="deploy-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg p-6">
-            <h3 class="font-bold text-lg mb-4">確認部署</h3>
-            <p class="text-sm text-slate-500 mb-6">這將會覆蓋 LINE 官方帳號目前的預設圖文選單。確定執行？</p>
+            <h3 class="font-bold text-lg mb-4 text-indigo-600">確認部署至 LINE</h3>
+            <p class="text-sm text-slate-500 mb-6">系統將自動注入 API 通道金鑰並覆蓋目前官方帳號的選單。確定執行？</p>
+            <input type="text" id="deploy-api-url" class="w-full border p-3 rounded-lg bg-slate-50 font-mono text-xs mb-6" readonly>
             <div class="flex justify-end gap-3">
                 <button onclick="MenuModule.closeDeployModal()" class="px-6 py-2.5 rounded-lg text-sm font-bold text-slate-500 bg-slate-100">取消</button>
-                <button id="deploy-submit-btn" onclick="MenuModule.executeDeploy()" class="px-8 py-2.5 rounded-lg text-sm font-bold text-white bg-indigo-600 shadow-md">確認部署</button>
+                <button id="deploy-submit-btn" onclick="MenuModule.executeDeploy()" class="px-8 py-2.5 rounded-lg text-sm font-black text-white bg-indigo-600 shadow-md">啟動部署</button>
             </div>
         </div>
     </div>
 
     <script>
-        // 通訊輔助
+        // 側邊欄收合
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const expandBtn = document.getElementById('expand-btn');
+            if (sidebar.classList.contains('-ml-[360px]')) {
+                sidebar.classList.remove('-ml-[360px]');
+                expandBtn.classList.add('hidden');
+            } else {
+                sidebar.classList.add('-ml-[360px]');
+                expandBtn.classList.remove('hidden');
+            }
+        }
+
         const ApiHelper = {
-            getWorkerUrl: () => (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/',
             call: async (act, pl = {}) => {
                 try {
-                    const res = await fetch(ApiHelper.getWorkerUrl(), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: act, payload: pl })
-                    });
+                    const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/';
+                    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
                     const json = await res.json();
                     if (json.status !== 'success') throw new Error(json.message || '異常');
                     return json.data;
@@ -99,8 +124,7 @@
 
         window.MenuModule = (function() {
             var canvas, isDrawingMode = false, isMouseDown = false, currentRect, startX, startY;
-            var currentImgHeight = 843;
-            var savedBase64Image = null;
+            var currentImgHeight = 843, savedBase64Image = null;
 
             return {
                 init: function() {
@@ -116,7 +140,8 @@
                 getCurrentBase64: () => savedBase64Image,
                 load: function(name, jsonStr, base64) {
                     savedBase64Image = base64;
-                    var data = {}; try { data = JSON.parse(decodeURIComponent(jsonStr)); } catch(e) {}
+                    document.getElementById('canvas-placeholder').style.display = 'none';
+                    var data = {}; try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
                     var tempImg = new Image();
                     tempImg.onload = () => {
                         var ratio = tempImg.height / tempImg.width;
@@ -133,7 +158,7 @@
                     canvas.on('mouse:down', (o) => {
                         if (!isDrawingMode || canvas.findTarget(o.e)) return;
                         isMouseDown = true; var pointer = canvas.getPointer(o.e); startX = pointer.x; startY = pointer.y;
-                        currentRect = new fabric.Rect({ left: startX, top: startY, width: 0, height: 0, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#06C755', strokeWidth: 1 });
+                        currentRect = new fabric.Rect({ left: startX, top: startY, width: 0, height: 0, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1 });
                         currentRect.action = { type: 'uri', uri: 'https://' };
                         canvas.add(currentRect);
                     });
@@ -151,22 +176,29 @@
                     });
                     canvas.on('object:modified', () => this.updateOutput());
                 },
-                toggleDrawMode: function() { isDrawingMode = true; document.getElementById('menu-draw-btn').innerText = '請在畫布上拖曳...'; },
+                toggleDrawMode: function() { isDrawingMode = true; document.getElementById('menu-draw-btn').innerText = '繪製中...'; },
                 updateOutput: function() {
                     var scale = 2500 / canvas.getWidth();
                     var areas = canvas.getObjects('rect').map(o => ({
                         bounds: { x: Math.round(o.left * scale), y: Math.round(o.top * scale), width: Math.round(o.getScaledWidth() * scale), height: Math.round(o.getScaledHeight() * scale) },
                         action: o.action
                     }));
-                    var result = { size: { width: 2500, height: currentImgHeight }, selected: true, name: document.getElementById('save-filename').value, chatBarText: "選單", areas: areas };
+                    var result = { size: { width: 2500, height: currentImgHeight }, selected: true, name: document.getElementById('save-filename').value, chatBarText: document.getElementById('rich-menu-chatbar').value, areas: areas };
                     document.getElementById('json-output').value = JSON.stringify(result, null, 2);
                     this.renderAreaEditor(areas);
+                    this.refreshCanvasLabels();
+                },
+                refreshCanvasLabels: function() {
+                    canvas.getObjects('text').forEach(l => canvas.remove(l));
+                    canvas.getObjects('rect').forEach((r, idx) => {
+                        canvas.add(new fabric.Text('#' + (idx + 1), { left: r.left + 5, top: r.top + 5, fontSize: 14, fill: '#fff', backgroundColor: '#54C061', selectable: false }));
+                    });
                 },
                 renderAreaEditor: function(areas) {
                     var container = document.getElementById('editor-ui'); container.innerHTML = '';
                     areas.forEach((a, idx) => {
-                        var div = document.createElement('div'); div.className = "p-4 bg-slate-50 border rounded-lg";
-                        div.innerHTML = `<div class='font-bold mb-2'>區域 #${idx+1}</div><input class='w-full border p-2 text-xs font-mono' value='${a.action.uri || ""}' oninput='MenuModule.updateAreaProp(${idx}, "uri", this.value)'>`;
+                        var div = document.createElement('div'); div.className = "p-4 mx-5 my-2 bg-white border-2 rounded-xl";
+                        div.innerHTML = `<div class='font-black mb-2 text-xs text-slate-400'>區域 #${idx+1}</div><input class='w-full border p-2 text-[13px] font-mono' value='${a.action.uri || ""}' oninput='MenuModule.updateAreaProp(${idx}, "uri", this.value)'>`;
                         container.appendChild(div);
                     });
                 },
@@ -176,26 +208,26 @@
                 importAreas: function(areas, scale) {
                     canvas.getObjects('rect').forEach(o => canvas.remove(o));
                     areas.forEach(a => {
-                        var r = new fabric.Rect({ left: a.bounds.x * scale, top: a.bounds.y * scale, width: a.bounds.width * scale, height: a.bounds.height * scale, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#06C755', strokeWidth: 1 });
+                        var r = new fabric.Rect({ left: a.bounds.x * scale, top: a.bounds.y * scale, width: a.bounds.width * scale, height: a.bounds.height * scale, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1 });
                         r.action = a.action; canvas.add(r);
                     });
                     canvas.renderAll(); this.updateOutput();
                 },
-                openDeployModal: () => document.getElementById('deploy-modal').classList.remove('hidden'),
+                openDeployModal: () => {
+                    const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/';
+                    document.getElementById('deploy-api-url').value = url;
+                    document.getElementById('deploy-modal').classList.remove('hidden');
+                },
                 closeDeployModal: () => document.getElementById('deploy-modal').classList.add('hidden'),
                 executeDeploy: async function() {
-                    const richMenuObj = JSON.parse(document.getElementById('json-output').value);
-                    const data = await ApiHelper.call('DEPLOY_RICH_MENU', { richMenuObj: richMenuObj, imageBase64: savedBase64Image });
-                    if(data) alert('部署完成'); this.closeDeployModal();
+                    const data = await ApiHelper.call('DEPLOY_RICH_MENU', { richMenuObj: JSON.parse(document.getElementById('json-output').value), imageBase64: savedBase64Image });
+                    if(data) alert('部署大成功'); this.closeDeployModal();
                 }
             };
         })();
 
-        // 雲端儲存模組：採用索引加載法避開語法錯誤
         window.StorageModule = (function() {
-            let currentFileId = null;
-            let cloudFiles = []; // 暫存區
-
+            let currentSaves = [];
             return {
                 toggleDrawer: function() {
                     const drawer = document.getElementById('right-drawer');
@@ -203,51 +235,40 @@
                     if (drawer.classList.contains('translate-x-full')) {
                         drawer.classList.remove('translate-x-full');
                         overlay.classList.remove('hidden');
-                        this.loadList();
+                        this.renderList();
                     } else {
                         drawer.classList.add('translate-x-full');
                         overlay.classList.add('hidden');
                     }
                 },
-                loadList: async function() {
-                    const container = document.getElementById('saved-files-list');
-                    container.innerHTML = '<div class="p-10 text-center">正在同步雲端...</div>';
-                    const data = await ApiHelper.call('ADMIN_GET_RICH_MENUS');
-                    if (data) {
-                        cloudFiles = data; // 更新暫存
-                        this.renderList(data);
-                    }
+                saveCurrent: function() {
+                    const base64 = MenuModule.getCurrentBase64(); if(!base64) return alert('請先載入圖片');
+                    const saves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]');
+                    saves.unshift({ id: Date.now(), name: document.getElementById('save-filename').value, date: new Date().toLocaleString(), data: JSON.parse(document.getElementById('json-output').value), image: base64 });
+                    localStorage.setItem('rich_menu_saves', JSON.stringify(saves.slice(0, 10)));
+                    this.renderList(); alert('已儲存至本地端');
                 },
-                saveFile: async function(asNew) {
-                    const base64 = MenuModule.getCurrentBase64(); if(!base64) return alert('請先上傳底圖');
-                    const data = await ApiHelper.call('ADMIN_SAVE_RICH_MENU', {
-                        id: asNew ? null : currentFileId,
-                        name: document.getElementById('save-filename').value,
-                        configJson: document.getElementById('json-output').value,
-                        imageBase64: base64
-                    });
-                    if (data) { currentFileId = data.id; alert('已存入雲端庫'); this.loadList(); }
-                },
-                // ✅ 關鍵修復：從暫存區索引載入，不透過 onclick 傳遞大字串
-                applyFromIndex: function(idx) {
-                    const file = cloudFiles[idx];
-                    if (!file) return;
-                    currentFileId = file.id;
-                    document.getElementById('save-filename').value = file.name;
-                    MenuModule.load(file.name, encodeURIComponent(file.configJson), file.imageBase64);
+                // ✅ 修復：從記憶體載入，防止 onclick 語法錯誤
+                loadFromIndex: function(idx) {
+                    const item = currentSaves[idx];
+                    if(!item) return;
+                    document.getElementById('save-filename').value = item.name;
+                    document.getElementById('rich-menu-chatbar').value = item.data.chatBarText || "選單";
+                    MenuModule.load(item.name, encodeURIComponent(JSON.stringify(item.data)), item.image);
                     this.toggleDrawer();
                 },
-                renderList: function(list) {
+                renderList: function() {
+                    currentSaves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]');
                     const container = document.getElementById('saved-files-list');
-                    if(!list.length) { container.innerHTML = '<div class="p-10 text-center text-slate-400">雲端庫為空</div>'; return; }
-                    container.innerHTML = list.map((m, idx) => `
-                        <div class="bg-white p-4 rounded-xl border border-slate-200">
-                            <div class="font-bold text-sm mb-2">${m.name}</div>
-                            <button onclick="StorageModule.applyFromIndex(${idx})" class="w-full py-2 bg-slate-800 text-white text-xs font-bold rounded-lg shadow-sm">載入此選單</button>
+                    if(!currentSaves.length) { container.innerHTML = '<div class="text-center py-10 text-slate-400">尚無紀錄</div>'; return; }
+                    container.innerHTML = currentSaves.map((item, idx) => `
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="font-black text-sm mb-1">${item.name}</div>
+                            <div class="text-[10px] text-slate-400 mb-3">${item.date}</div>
+                            <button onclick="StorageModule.loadFromIndex(${idx})" class="w-full py-2 bg-orange-50 text-orange-600 font-black rounded-lg border border-orange-100 text-xs">載入此選單</button>
                         </div>
                     `).join('');
-                },
-                resetCurrentId: () => { currentFileId = null; }
+                }
             };
         })();
 
