@@ -5,43 +5,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.18.V134_Strict_Discipline_Restored -->
+    <!-- Version: 2026.04.18.V136_Final_Native_Restore -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         [v-cloak] { display: none !important; }
-        body { background-color: #FFFFFF; color: #334155; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; }
+        body { background-color: #FFFFFF; color: #334155; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; line-height: 1.4; }
         
-        /* 側邊欄：嚴格白底細線 */
-        .sidebar { width: 210px; background: #FFFFFF; border-right: 1px solid #F1F5F9; position: fixed; height: 100vh; z-index: 50; }
-        .sidebar-brand { padding: 16px 20px; font-size: 14px; font-weight: 800; color: #06C755; border-bottom: 1px solid #F8FAFC; }
+        /* 側邊欄：標準白底細線 220px */
+        .sidebar { width: 220px; background: #FFFFFF; border-right: 1px solid #F1F5F9; position: fixed; height: 100vh; z-index: 50; }
+        .sidebar-brand { padding: 16px 20px; font-size: 14px; color: #06C755; border-bottom: 1px solid #F8FAFC; font-weight: bold; }
         
-        /* 收合組件標籤：鎖定 11px */
-        .nav-group-header { padding: 12px 20px 4px; font-size: 11px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        /* 導覽標籤：11px */
+        .nav-group-header { padding: 12px 20px 4px; font-size: 11px; color: #94A3B8; text-transform: uppercase; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         
-        /* 選單項目：鎖定 13px */
-        .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 20px; cursor: pointer; transition: 0.1s; color: #64748B; font-weight: 600; font-size: 13px; }
-        .nav-item:hover { color: #06C755; background: #F8FAFC; }
+        /* 選單項目：13px */
+        .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 20px; cursor: pointer; transition: 0.1s; color: #64748B; font-size: 13px; border-bottom: 1px solid transparent; }
+        .nav-item:hover { background: #F8FAFC; color: #06C755; }
         .nav-active { color: #06C755; background: #F0FDF4; border-right: 2px solid #06C755; }
         
-        .main-content { margin-left: 210px; min-height: 100vh; background: #FFFFFF; }
-        .page-header { background: white; border-bottom: 1px solid #F1F5F9; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
+        .main-content { margin-left: 220px; min-height: 100vh; background: #FFFFFF; }
+        .page-header { background: #FFFFFF; border-bottom: 1px solid #F1F5F9; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
+        .page-title { font-size: 16px; color: #1E293B; font-weight: normal; }
 
-        /* 諮詢網格：鎖定高密度無影 */
-        .slot-grid { display: grid; grid-template-columns: 60px repeat(14, 1fr); gap: 1px; background: #F1F5F9; border: 1px solid #F1F5F9; }
-        .slot-header { background: #F8FAFC; padding: 6px 2px; text-align: center; border-bottom: 1px solid #F1F5F9; font-size: 10px; }
-        .slot-cell { background: white; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; }
-        .slot-time-label { background: #F8FAFC; font-weight: 700; color: #94A3B8; }
-        
-        .slot-open { background-color: #06C755 !important; color: white; }
+        /* 諮詢格點：高密度 10px */
+        .slot-grid { display: grid; grid-template-columns: 60px repeat(14, 1fr); gap: 1px; background: #E2E8F0; border: 1px solid #E2E8F0; }
+        .slot-header { background: #F8FAFC; padding: 4px 2px; text-align: center; border-bottom: 1px solid #E2E8F0; font-size: 10px; color: #64748B; }
+        .slot-cell { background: #FFFFFF; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; }
+        .slot-time-label { background: #F8FAFC; color: #94A3B8; font-weight: bold; }
+        .slot-open { background-color: #06C755 !important; color: #FFFFFF; }
         .slot-booked { background-color: #FEE2E2 !important; color: #EF4444; }
 
-        input, select { border: 1px solid #E2E8F0; padding: 4px 8px; font-size: 13px; outline: none; border-radius: 2px; background: #FFF; }
+        /* 元件規範 */
+        input, select { border: 1px solid #E2E8F0; padding: 4px 8px; font-size: 13px; outline: none; border-radius: 2px; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { background: #F8FAFC; text-align: left; padding: 8px 10px; font-size: 11px; color: #94A3B8; border-bottom: 1px solid #F1F5F9; font-weight: normal; }
-        td { padding: 8px 10px; border-bottom: 1px solid #F8FAFC; }
+        td { padding: 8px 10px; border-bottom: 1px solid #F8FAFC; color: #475569; }
         
         .status-dot { width: 5px; height: 5px; border-radius: 50%; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -51,19 +52,19 @@
 <body>
     <div id="app" v-cloak>
         
-        <!-- 登入閘門 (嚴格帳密) -->
-        <div v-if="!isAuthorized" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-6">
-            <div class="w-full max-w-[220px] space-y-4 text-center">
-                <div class="text-[#06C755] text-base font-bold mb-4">管理登入驗證</div>
-                <input type="text" v-model="loginForm.user" placeholder="管理帳號" class="w-full text-center">
-                <input type="password" v-model="loginForm.pass" placeholder="登入密碼" class="w-full text-center" @keyup.enter="handleLogin">
-                <button @click="handleLogin" class="w-full py-2 bg-slate-800 text-white text-xs font-bold">確認進入</button>
+        <!-- 入口還原：廢除所有修飾塊，回歸純白底垂直表單 -->
+        <div v-if="!isAuthorized" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
+            <div class="w-full max-w-[200px] space-y-3">
+                <div class="text-[#06C755] text-sm font-bold text-center mb-6 uppercase tracking-widest">系統登入驗證</div>
+                <input type="text" v-model="loginForm.user" placeholder="帳號" class="w-full text-center bg-slate-50 border-transparent focus:bg-white focus:border-[#E2E8F0] transition-all">
+                <input type="password" v-model="loginForm.pass" placeholder="密碼" class="w-full text-center bg-slate-50 border-transparent focus:bg-white focus:border-[#E2E8F0] transition-all" @keyup.enter="handleLogin">
+                <button @click="handleLogin" class="w-full py-2 bg-slate-800 text-white text-[11px] font-bold uppercase tracking-widest">Login</button>
             </div>
         </div>
 
         <!-- 側邊選單 -->
         <aside v-if="isAuthorized" class="sidebar flex flex-col">
-            <div class="sidebar-brand">宏學管理</div>
+            <div class="sidebar-brand">宏學系統</div>
             <nav class="flex-grow mt-2 overflow-y-auto hide-scrollbar">
                 <div class="nav-group">
                     <div @click="toggleGroup('groupA')" class="nav-group-header"><span>📦 營運中心</span><i class="fas" :class="groups.groupA ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
@@ -75,74 +76,73 @@
                     </div>
                 </div>
                 <div class="nav-group mt-2">
-                    <div @click="toggleGroup('groupB')" class="nav-group-header"><span>🛠️ 系統工具</span><i class="fas" :class="groups.groupB ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
+                    <div @click="toggleGroup('groupB')" class="nav-group-header"><span>🛠️ 營運工具</span><i class="fas" :class="groups.groupB ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
                     <div v-show="groups.groupB">
                         <div @click="view = 'richmenu'" class="nav-item" :class="{'nav-active': view === 'richmenu'}">雲端選單</div>
                         <div @click="view = 'settings'" class="nav-item" :class="{'nav-active': view === 'settings'}">全域設定</div>
                     </div>
                 </div>
             </nav>
-            <div class="p-4 border-t border-slate-50"><button @click="logout" class="text-slate-300 text-[10px] hover:text-red-500 transition">登出系統</button></div>
+            <div class="p-4 border-t border-slate-50"><button @click="logout" class="text-slate-300 text-[10px] hover:text-red-500 uppercase">Logout</button></div>
         </aside>
 
         <main v-if="isAuthorized" class="main-content">
             <header class="page-header">
-                <h2 class="text-sm font-bold text-slate-500 uppercase">{{ viewName }}</h2>
+                <h2 class="page-title">{{ viewName }}</h2>
                 <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-full border border-slate-100">
+                    <div class="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-full">
                         <div class="status-dot" :class="hubStatus.gas === 'success' ? 'bg-green-500' : 'bg-red-400'"></div><span class="text-[9px] text-slate-400">GAS</span>
                         <div class="status-dot ml-1" :class="hubStatus.line === 'success' ? 'bg-green-500' : 'bg-red-400'"></div><span class="text-[9px] text-slate-400">LINE</span>
-                        <i @click="checkHubStatus" class="fas fa-sync-alt text-[9px] text-slate-200 cursor-pointer ml-1 hover:text-[#06C755]"></i>
+                        <i @click="checkHubStatus" class="fas fa-sync-alt text-[9px] text-slate-200 cursor-pointer ml-1"></i>
                     </div>
-                    <button @click="fetchData" class="text-[11px] text-slate-400 hover:text-[#06C755] transition"><i v-if="isLoading" class="fas fa-sync fa-spin mr-1"></i>同步資料</button>
+                    <button @click="fetchData" class="text-[11px] text-slate-400 hover:text-[#06C755]"><i v-if="isLoading" class="fas fa-sync fa-spin mr-1"></i>SYNC</button>
                 </div>
             </header>
 
-            <!-- 數據總覽：極簡小卡 -->
+            <!-- 數據總覽 -->
             <div v-if="view === 'dashboard'" class="p-5 grid grid-cols-4 gap-4 animate-fade-in">
-                <div v-for="(val, label) in { '學員': users.length, '導師': teachers.length, '訂單': orders.length, '營收': '$'+totalRevenue }" class="border border-slate-100 p-3 bg-white">
-                    <div class="text-[10px] text-slate-400 font-bold mb-1">{{ label }}</div>
-                    <div class="text-lg font-black text-slate-700 font-mono">{{ val }}</div>
+                <div v-for="(val, label) in { '學員': users.length, '課程': courses.length, '導師': teachers.length, '營收': '$'+totalRevenue }" class="border border-slate-100 p-3">
+                    <div class="text-[10px] text-slate-400 mb-1">{{ label }}</div>
+                    <div class="text-lg text-slate-700 font-mono font-bold">{{ val }}</div>
                 </div>
             </div>
 
-            <!-- 預約諮詢：原生高密度 -->
+            <!-- 預約諮詢 -->
             <div v-if="view === 'consultation'" class="animate-fade-in">
                 <div class="flex border-b border-slate-100 h-[240px]">
                     <div class="w-1/3 p-5 border-r border-slate-100 overflow-y-auto">
-                        <div class="text-[11px] font-bold text-slate-800 mb-3 uppercase tracking-tighter">核准導師</div>
-                        <div class="space-y-2">
+                        <div class="text-[11px] font-bold text-slate-800 mb-3 uppercase">核准導師</div>
+                        <div class="space-y-3">
                             <select v-model="approveForm.uid" class="w-full text-xs"><option value="">-- 對象學員 --</option><option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.name }}</option></select>
                             <div class="flex gap-2 text-[10px] text-slate-400">
                                 <div class="w-1/2">租金<input type="number" v-model="approveForm.rent" class="w-full mt-1"></div>
                                 <div class="w-1/2">抽成%<input type="number" v-model="approveForm.comm" class="w-full mt-1"></div>
                             </div>
-                            <button @click="handleApproveTeacher" class="w-full py-1.5 bg-[#06C755] text-white text-[11px] font-bold">確認</button>
+                            <button @click="handleApproveTeacher" class="w-full py-1.5 bg-[#06C755] text-white text-[11px] font-bold">ACTIVATE</button>
                         </div>
                     </div>
                     <div class="w-2/3 p-5 bg-slate-50/20 overflow-y-auto">
-                        <div class="text-[11px] font-bold text-slate-800 mb-3 uppercase tracking-tighter">導師名單</div>
+                        <div class="text-[11px] font-bold text-slate-800 mb-3 uppercase">活躍導師</div>
                         <table class="text-[11px]">
-                            <thead><tr><th>導師</th><th>租金/抽成</th><th class="text-right">操作</th></tr></thead>
+                            <thead><tr><th>導師</th><th>設定</th><th class="text-right">操作</th></tr></thead>
                             <tbody>
                                 <tr v-for="t in teachers" :key="t.userId">
-                                    <td class="font-bold">{{ t.name }}</td><td class="text-slate-400 font-mono">{{ t.config.rent }}P / {{ t.config.comm }}%</td><td class="text-right"><button @click="activeTeacher = t" class="text-indigo-500 font-bold">排班</button></td>
+                                    <td class="font-bold">{{ t.name }}</td><td class="text-slate-400 font-mono">{{ t.config.rent }}P / {{ t.config.comm }}%</td><td class="text-right"><button @click="activeTeacher = t" class="text-indigo-500">排班</button></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- 排班網格：高密度、細線 -->
-                <div v-if="activeTeacher" class="p-5 bg-white animate-fade-in border-t border-[#06C755]">
+                <div v-if="activeTeacher" class="p-5 border-t border-[#06C755] bg-white animate-fade-in">
                     <div class="flex justify-between items-center mb-4">
-                        <div class="text-xs font-bold">排班設定：<span class="text-[#06C755]">{{ activeTeacher.name }}</span></div>
-                        <i @click="activeTeacher = null" class="fas fa-times text-slate-300 cursor-pointer"></i>
+                        <div class="text-xs font-bold">排班：<span class="text-[#06C755]">{{ activeTeacher.name }}</span></div>
+                        <i @click="activeTeacher = null" class="fas fa-times text-slate-200 cursor-pointer"></i>
                     </div>
                     <div class="overflow-x-auto hide-scrollbar border border-slate-100">
                         <div class="slot-grid" style="width: 1000px;">
                             <div class="slot-cell slot-time-label">日期</div>
-                            <div v-for="date in dates" :key="date.fullDate" class="slot-header"><div class="text-[8px] text-slate-400">{{ date.weekDay }}</div><div class="text-sm font-bold">{{ date.day }}</div></div>
+                            <div v-for="date in dates" :key="date.fullDate" class="slot-header"><div class="text-[8px] uppercase">{{ date.weekDay }}</div><div class="text-sm font-bold">{{ date.day }}</div></div>
                             <template v-for="time in timeSlots" :key="time">
                                 <div class="slot-cell slot-time-label">{{ time }}</div>
                                 <div v-for="date in dates" :key="date.fullDate" @click="handleToggleSlot(activeTeacher.userId, date.fullDate, time)" class="slot-cell" :class="getSlotClass(activeTeacher.userId, date.fullDate, time)">
@@ -165,8 +165,7 @@
                 </table>
             </div>
 
-            <div v-if="view === 'richmenu'" class="h-[calc(100vh-45px)]"><iframe src="menu.html" class="w-full h-full border-0"></iframe></div>
-
+            <div v-if="view === 'richmenu'" class="h-[calc(100vh-41px)]"><iframe src="menu.html" class="w-full h-full border-0"></iframe></div>
         </main>
     </div>
 
@@ -193,7 +192,7 @@
                 const groups = ref({ groupA: true, groupB: true });
 
                 const toggleGroup = (g) => { groups.value[g] = !groups.value[g]; };
-                const viewName = computed(() => ({ dashboard: '營運統計', members: '學員管理', courses: '課程管理', consultation: '預約諮詢', orders: '訂單維護', settings: '系統設定', richmenu: '雲端選單' }[view.value]));
+                const viewName = computed(() => ({ dashboard: '統計總覽', members: '學員管理', consultation: '預約諮詢', orders: '訂單維護', settings: '全域設定', richmenu: '選單部署' }[view.value]));
                 const totalRevenue = computed(() => orders.value.reduce((acc, o) => acc + (Number(o.amount) || 0), 0).toLocaleString());
 
                 const callApi = async (act, pl = {}) => {
@@ -203,15 +202,15 @@
                         const json = await res.json();
                         if (json.status !== 'success') throw new Error(json.message || '異常');
                         return json.data;
-                    } catch (e) { alert(`❌ 系統提示: ${e.message}`); return null; } finally { isLoading.value = false; }
+                    } catch (e) { alert(`ERROR: ${e.message}`); return null; } finally { isLoading.value = false; }
                 };
 
                 const handleLogin = () => { 
                     if (loginForm.value.user === 'admin' && ['@1234', '8888'].includes(loginForm.value.pass)) { 
-                        isAuthorized.value = true; localStorage.setItem('admin_auth', 'true'); fetchData(); checkHubStatus(); 
-                    } else { alert('帳密錯誤'); loginForm.value.pass = ''; } 
+                        isAuthorized.value = true; localStorage.setItem('admin_auth_v136', 'true'); fetchData(); checkHubStatus(); 
+                    } else { alert('驗證失敗'); loginForm.value.pass = ''; } 
                 };
-                const logout = () => { if(confirm('登出？')) { isAuthorized.value = false; localStorage.removeItem('admin_auth'); } };
+                const logout = () => { if(confirm('登出管理系統？')) { isAuthorized.value = false; localStorage.removeItem('admin_auth_v136'); } };
 
                 const fetchData = async () => {
                     if (!isAuthorized.value) return;
@@ -225,14 +224,13 @@
 
                 const handleApproveTeacher = async () => {
                     const target = users.value.find(u => u.userId === approveForm.value.uid);
-                    if (!confirm(`核准 ${target.name} 為導師？`)) return;
+                    if (!confirm(`核准 ${target.name} 並建立業績表？`)) return;
                     const res = await callApi('ADMIN_APPROVE_TEACHER', { teacherUid: target.userId, teacherName: target.name, rentPrice: approveForm.value.rent, commissionRate: approveForm.value.comm });
-                    if (res) { alert(res.message); fetchData(); approveForm.value.uid = ''; }
+                    if (res) { alert('導師啟用成功'); fetchData(); approveForm.value.uid = ''; }
                 };
 
                 const getSlotStatus = (uid, date, time) => { const found = slots.value.find(s => s.teacherUid === uid && s.date === date && s.time === time); return found ? found.status : 'CLOSED'; };
                 const getSlotClass = (uid, date, time) => { const status = getSlotStatus(uid, date, time); return { 'slot-open': status === 'OPEN', 'slot-booked': status === 'BOOKED' }; };
-                
                 const handleToggleSlot = async (uid, date, time) => {
                     const current = getSlotStatus(uid, date, time); if (current === 'BOOKED') return;
                     const newAction = current === 'OPEN' ? 'CLOSE' : 'OPEN';
@@ -247,7 +245,7 @@
                 onMounted(() => {
                     const today = new Date(); const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
                     for (let i = 0; i < 14; i++) { const d = new Date(today); d.setDate(today.getDate() + i); dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: dayNames[d.getDay()] }); }
-                    if (localStorage.getItem('admin_auth') === 'true') { isAuthorized.value = true; fetchData(); checkHubStatus(); }
+                    if (localStorage.getItem('admin_auth_v136') === 'true') { isAuthorized.value = true; fetchData(); checkHubStatus(); }
                 });
 
                 return { view, viewName, groups, toggleGroup, isLoading, isAuthorized, loginForm, handleLogin, logout, users, teachers, courses, orders, totalRevenue, hubStatus, checkHubStatus, activeTeacher, approveForm, handleApproveTeacher, dates, timeSlots, getSlotStatus, getSlotClass, handleToggleSlot, fetchData };
