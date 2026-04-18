@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器 (Rich Menu Editor)</title>
-    <!-- Version: 2026.04.18.V122_RichMenu_AdvancedStorage -->
+    <!-- Version: 2026.04.18.V123_RichMenu_CloudSync_Final -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,6 +13,15 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .sidebar-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* 載入中動畫 */
+        .loader-dots div { animation-timing-function: cubic-bezier(0, 1, 1, 0); }
+        .loader-dots div:nth-child(1) { left: 8px; animation: loader-dots1 0.6s infinite; }
+        .loader-dots div:nth-child(2) { left: 8px; animation: loader-dots2 0.6s infinite; }
+        .loader-dots div:nth-child(3) { left: 32px; animation: loader-dots2 0.6s infinite; }
+        .loader-dots div:nth-child(4) { left: 56px; animation: loader-dots3 0.6s infinite; }
+        @keyframes loader-dots1 { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+        @keyframes loader-dots3 { 0% { transform: scale(1); } 100% { transform: scale(0); } }
+        @keyframes loader-dots2 { 0% { transform: translate(0, 0); } 100% { transform: translate(24px, 0); } }
     </style>
 </head>
 
@@ -73,7 +82,7 @@
                 <div class="flex items-center space-x-2 pl-4">
                     <button onclick="MenuModule.applyJsonFromText()" class="px-6 py-2.5 rounded-md text-sm font-bold text-slate-600 bg-white border border-gray-300 transition-all hover:bg-gray-50"><i class="fas fa-code"></i> JSON</button>
                     <button onclick="copyJsonText()" class="px-6 py-2.5 rounded-md text-sm font-black text-[#54C061] bg-green-50 border border-[#54C061] transition-all hover:bg-green-100 shadow-sm"><i class="far fa-copy"></i> 複製</button>
-                    <button onclick="StorageModule.toggleDrawer()" class="px-6 py-2.5 rounded-md text-sm font-black text-orange-600 bg-orange-50 border border-orange-200 transition-all hover:bg-orange-100 shadow-sm flex items-center gap-2"><i class="fas fa-folder-open"></i> 檔案庫</button>
+                    <button onclick="StorageModule.toggleDrawer()" class="px-6 py-2.5 rounded-md text-sm font-black text-orange-600 bg-orange-50 border border-orange-200 transition-all hover:bg-orange-100 shadow-sm flex items-center gap-2"><i class="fas fa-cloud"></i> 雲端檔案庫</button>
                     <button onclick="MenuModule.openDeployModal()" class="px-8 py-2.5 rounded-md text-sm font-black text-white bg-indigo-600 border border-indigo-600 transition-all hover:bg-indigo-700 shadow-sm flex items-center gap-2 ml-2"><i class="fas fa-cloud-upload-alt"></i> 部署</button>
                 </div>
             </div>
@@ -93,26 +102,24 @@
         </div>
     </main>
 
-    <!-- 🌟 右側檔案庫抽屜 (Drawer) -->
+    <!-- 右側雲端檔案庫抽屜 -->
     <div id="right-drawer-overlay" onclick="StorageModule.toggleDrawer()" class="hidden fixed inset-0 bg-slate-800/20 z-40 backdrop-blur-sm transition-opacity"></div>
     <aside id="right-drawer" class="fixed right-0 top-0 h-full w-[360px] bg-[#F8F9FA] shadow-[0_0_40px_rgba(0,0,0,0.1)] translate-x-full transition-transform duration-300 z-50 flex flex-col border-l border-slate-200">
         <div class="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
-            <h2 class="font-black text-slate-800 text-lg"><i class="fas fa-folder-open text-orange-500 mr-2"></i>我的選單檔案庫</h2>
+            <h2 class="font-black text-slate-800 text-lg"><i class="fas fa-cloud text-orange-500 mr-2"></i>雲端選單檔案庫</h2>
             <button onclick="StorageModule.toggleDrawer()" class="text-slate-400 hover:text-slate-600 transition p-2 rounded-lg hover:bg-slate-100 bg-slate-50 border border-slate-100"><i class="fas fa-chevron-right"></i></button>
         </div>
         
-        <!-- 上方：儲存/編輯動作區 (由 JS 動態渲染) -->
         <div class="p-6 bg-white border-b border-slate-200 shadow-sm shrink-0" id="drawer-action-area">
-            <!-- Dynamic Content -->
+            <!-- 動作區動態渲染 -->
         </div>
 
-        <!-- 下方：檔案列表 -->
-        <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50" id="saved-files-list">
-            <!-- 透過 JS 動態渲染 -->
+        <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50 relative" id="saved-files-list">
+            <!-- 列表動態渲染 -->
         </div>
     </aside>
 
-    <!-- 全自動偵測部署 Modal -->
+    <!-- 部署 Modal -->
     <div id="deploy-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg overflow-hidden flex flex-col">
             <div class="px-6 py-4 bg-indigo-600 flex justify-between items-center text-white">
@@ -124,19 +131,17 @@
                     <i class="fas fa-shield-alt text-indigo-500 text-xl mt-0.5"></i>
                     <div>
                         <div class="font-bold text-indigo-800 text-sm mb-1">自動安全部署已啟用</div>
-                        <p class="text-xs text-indigo-600/80 font-medium leading-relaxed">
-                            系統將自動透過您的專屬 API 通道，向 Cloudflare 提取隱藏的 LINE 金鑰，並安全地將選單與圖片上傳至官方帳號，無需手動複製貼上。
-                        </p>
+                        <p class="text-xs text-indigo-600/80 font-medium leading-relaxed">系統將自動向 Cloudflare 提取隱藏的 LINE 金鑰並安全上傳選單，無須曝露機密金鑰。</p>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[13px] font-bold text-slate-500 mb-1.5 ml-1">系統 API 通道 (已自動抓取)</label>
+                    <label class="block text-[13px] font-bold text-slate-500 mb-1.5 ml-1">系統 API 通道 (自動對接)</label>
                     <input type="text" id="deploy-api-url" class="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none text-[15px] font-mono bg-slate-50 text-slate-600 font-bold shadow-inner" readonly>
                 </div>
             </div>
             <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                 <button onclick="MenuModule.closeDeployModal()" class="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-200 transition">取消</button>
-                <button id="deploy-submit-btn" onclick="MenuModule.executeDeploy()" class="px-8 py-2.5 rounded-xl text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5">
+                <button id="deploy-submit-btn" onclick="MenuModule.executeDeploy()" class="px-8 py-2.5 rounded-xl text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md flex items-center gap-2">
                     <i class="fas fa-cloud-upload-alt"></i> 確認部署
                 </button>
             </div>
@@ -155,34 +160,45 @@
             const copyText = document.getElementById("json-output");
             if (!copyText.value) return alert("請先產生 JSON");
             copyText.select();
-            copyText.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(copyText.value).then(() => { alert("✅ JSON 原始碼已複製成功！"); }).catch(() => { document.execCommand("copy"); alert("✅ JSON 原始碼已複製成功！"); });
+            navigator.clipboard.writeText(copyText.value).then(() => alert("✅ JSON 原始碼已複製！"));
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             MenuModule.init();
-
             document.getElementById('image-upload').addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const placeholder = document.getElementById('canvas-placeholder');
-                if (placeholder) placeholder.style.display = 'none';
-
+                const file = e.target.files[0]; if (!file) return;
                 const reader = new FileReader();
                 reader.onload = function(f) {
                     const base64Data = f.target.result;
-                    // ★ 載入新圖片時，重置檔案庫狀態為「新檔模式」
                     StorageModule.resetCurrentId();
                     MenuModule.load(file.name, "{}", base64Data);
                     document.getElementById('save-filename').value = file.name.split('.')[0] || "New Rich Menu";
                 };
                 reader.readAsDataURL(file);
             });
-
             document.getElementById('save-filename').addEventListener('input', () => MenuModule.updateOutput(true));
             document.getElementById('rich-menu-chatbar').addEventListener('input', () => MenuModule.updateOutput(true));
         });
+
+        // 通訊模組：自動對接 admin.html 的 Worker URL
+        const ApiHelper = {
+            getWorkerUrl: () => (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/',
+            call: async (act, pl = {}) => {
+                try {
+                    const res = await fetch(ApiHelper.getWorkerUrl(), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: act, payload: pl })
+                    });
+                    const json = await res.json();
+                    if (json.status !== 'success') throw new Error(json.message || '系統回應異常');
+                    return json.data;
+                } catch (e) {
+                    alert(`⚠️ 雲端通訊失敗：\n${e.message}`);
+                    return null;
+                }
+            }
+        };
 
         window.MenuModule = (function() {
             var canvas, isDrawingMode = false, isMouseDown = false, currentRect, startX, startY;
@@ -204,28 +220,18 @@
                         });
                     }
                 },
-
                 getCurrentBase64: function() { return savedBase64Image; },
-
                 load: function(name, jsonStr, base64) {
-                    var self = this;
-                    savedBase64Image = base64; 
-                    var data = {};
-                    try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
-                    
+                    var self = this; savedBase64Image = base64; 
+                    var data = {}; try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
                     const placeholder = document.getElementById('canvas-placeholder');
                     if (placeholder) placeholder.style.display = 'none';
-
                     var tempImg = new Image();
                     tempImg.onload = function() {
                         var ratio = tempImg.height / tempImg.width;
                         currentImgHeight = Math.round(2500 * ratio);
-                        var displayWidth = 600;
-                        var displayHeight = displayWidth * ratio;
-                        
-                        canvas.setWidth(displayWidth);
-                        canvas.setHeight(displayHeight);
-
+                        var displayWidth = 600; var displayHeight = displayWidth * ratio;
+                        canvas.setWidth(displayWidth); canvas.setHeight(displayHeight);
                         fabric.Image.fromURL(base64, function(img) {
                             canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { scaleX: displayWidth / img.width, scaleY: displayHeight / img.height });
                             self.importAreas(data.areas || [], displayWidth / 2500);
@@ -233,23 +239,19 @@
                     };
                     tempImg.src = base64;
                 },
-
                 bindEvents: function() {
                     var self = this;
                     canvas.on('mouse:down', function(o) {
                         if (!isDrawingMode) return;
-                        var pointer = canvas.getPointer(o.e);
-                        if (canvas.findTarget(o.e)) return;
+                        var pointer = canvas.getPointer(o.e); if (canvas.findTarget(o.e)) return;
                         isMouseDown = true; startX = pointer.x; startY = pointer.y;
                         currentRect = new fabric.Rect({
-                            left: startX, top: startY, width: 0, height: 0,
-                            fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 2,
-                            cornerColor: '#54C061', cornerSize: 8, transparentCorners: false, hasRotatingPoint: false
+                            left: startX, top: startY, width: 0, height: 0, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#06C755', strokeWidth: 2,
+                            cornerColor: '#06C755', cornerSize: 8, transparentCorners: false, hasRotatingPoint: false
                         });
-                        currentRect.action = { type: 'uri', uri: 'https://xxxxxxxxxx' };
+                        currentRect.action = { type: 'uri', uri: 'https://' };
                         canvas.add(currentRect); canvas.setActiveObject(currentRect);
                     });
-
                     canvas.on('mouse:move', function(o) {
                         if (!isDrawingMode || !isMouseDown || !currentRect) return;
                         var pointer = canvas.getPointer(o.e);
@@ -257,199 +259,130 @@
                         var width = Math.abs(startX - pointer.x); var height = Math.abs(startY - pointer.y);
                         currentRect.set({ left: left, top: top, width: width, height: height }); canvas.renderAll();
                     });
-
                     canvas.on('mouse:up', function() {
                         if (!isDrawingMode || !isMouseDown) return;
-                        isMouseDown = false;
-                        if (currentRect && (currentRect.width < 5 || currentRect.height < 5)) { canvas.remove(currentRect); } 
-                        else { currentRect.setCoords(); }
+                        isMouseDown = false; if (currentRect && (currentRect.width < 5 || currentRect.height < 5)) canvas.remove(currentRect); 
+                        else currentRect.setCoords();
                         currentRect = null; isDrawingMode = false;
                         var btn = document.getElementById('menu-draw-btn');
                         btn.innerText = '開始劃定區域'; btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700";
                         canvas.defaultCursor = 'default'; canvas.selection = true;
                         self.updateOutput();
                     });
-
                     canvas.on('object:modified', () => self.updateOutput(true));
                     canvas.on('object:moved', () => self.updateOutput(true));
                     canvas.on('object:scaled', () => self.updateOutput(true));
                 },
-
                 toggleDrawMode: function() {
-                    isDrawingMode = !isDrawingMode;
-                    var btn = document.getElementById('menu-draw-btn');
+                    isDrawingMode = !isDrawingMode; var btn = document.getElementById('menu-draw-btn');
                     if (isDrawingMode) {
-                        btn.innerText = '請在畫布上拖曳滑鼠 (繪圖中)'; btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-[#54C061] text-white shadow-md transition-all";
+                        btn.innerText = '請在畫布上拖曳滑鼠 (繪圖中)'; btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-[#06C755] text-white shadow-md transition-all";
                         canvas.defaultCursor = 'crosshair'; canvas.selection = false;
                     } else {
                         btn.innerText = '開始劃定區域'; btn.className = "px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700";
                         canvas.defaultCursor = 'default'; canvas.selection = true;
                     }
                 },
-
                 updateOutput: function(skipRenderUI) {
-                    var objects = canvas.getObjects('rect');
-                    var scale = 2500 / canvas.getWidth();
+                    var objects = canvas.getObjects('rect'); var scale = 2500 / canvas.getWidth();
                     var chatBar = document.getElementById('rich-menu-chatbar')?.value || "選單";
-                    
                     var areas = objects.map(function(o) {
                         var act = o.action || {}; var type = act.type || 'uri'; var cleanAction = {};
-                        if (type === 'message') { cleanAction = { type: 'message', text: act.text || "內容文字" }; } 
-                        else if (type === 'uri') { cleanAction = { type: 'uri', uri: act.uri || "https://xxxxxxxxxx" }; } 
+                        if (type === 'message') cleanAction = { type: 'message', text: act.text || "文字內容" };
+                        else if (type === 'uri') cleanAction = { type: 'uri', uri: act.uri || "https://" };
                         else if (type === 'postback') {
                             cleanAction = { type: 'postback', data: act.data || "action=keyword" };
-                            if (act.text && act.text !== '0' && act.text !== '說明文字') { cleanAction.text = act.text; }
+                            if (act.text && act.text !== '0' && act.text !== '說明文字') cleanAction.text = act.text;
                         } 
-                        else if (type === 'richmenuswitch') { cleanAction = { type: 'richmenuswitch', richMenuAliasId: act.richMenuAliasId || "MENU名稱", data: act.data || "action=switch" }; }
+                        else if (type === 'richmenuswitch') cleanAction = { type: 'richmenuswitch', richMenuAliasId: act.richMenuAliasId || "MENU", data: act.data || "switch" };
                         return { bounds: { x: Math.round(o.left * scale), y: Math.round(o.top * scale), width: Math.round(o.getScaledWidth() * scale), height: Math.round(o.getScaledHeight() * scale) }, action: cleanAction };
                     });
-
                     var result = { size: { width: 2500, height: currentImgHeight }, selected: true, name: document.getElementById('save-filename').value || "New Rich Menu", chatBarText: chatBar, areas: areas };
                     document.getElementById('json-output').value = JSON.stringify(result, null, 2);
-                    if (!skipRenderUI) { this.renderAreaEditor(areas); }
+                    if (!skipRenderUI) this.renderAreaEditor(areas);
                     this.refreshCanvasLabels();
                 },
-
                 refreshCanvasLabels: function() {
                     var labels = canvas.getObjects('text'); labels.forEach(l => canvas.remove(l));
-                    var rects = canvas.getObjects('rect');
-                    rects.forEach((r, idx) => {
-                        var t = new fabric.Text('#' + (idx + 1), { left: r.left + 6, top: r.top + 6, fontSize: 16, fontWeight: 'bold', fill: '#ffffff', backgroundColor: '#54C061', selectable: false, evented: false });
+                    canvas.getObjects('rect').forEach((r, idx) => {
+                        var t = new fabric.Text('#' + (idx + 1), { left: r.left + 6, top: r.top + 6, fontSize: 16, fontWeight: 'bold', fill: '#ffffff', backgroundColor: '#06C755', selectable: false, evented: false });
                         canvas.add(t);
                     });
                     canvas.renderAll();
                 },
-
                 renderAreaEditor: function(areas) {
                     var container = document.getElementById('editor-ui'); if(!container) return;
-                    if (areas.length === 0) { container.innerHTML = '<div class="h-full flex items-center justify-center text-slate-400 text-sm font-bold italic text-center p-10">請點擊上方「開始劃定區域」<br>並在畫布上拖曳建立按鈕</div>'; return; }
-
+                    if (areas.length === 0) { container.innerHTML = '<div class="p-10 text-center text-slate-400 text-sm font-bold italic">請點擊上方按鈕劃定區域</div>'; return; }
                     container.className = "flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar bg-[#F8F9FA]";
                     container.innerHTML = '<h3 class="text-sm font-black text-slate-700 uppercase tracking-widest border-b-2 border-slate-200 pb-2 mb-4">區域屬性設定</h3>';
-                    
                     for (var idx = areas.length - 1; idx >= 0; idx--) {
                         var area = areas[idx]; var div = document.createElement('div');
-                        div.className = "p-5 bg-white rounded-xl border-2 border-slate-200 shadow-sm transition-all hover:border-[#54C061]";
+                        div.className = "p-5 bg-white rounded-xl border-2 border-slate-200 shadow-sm transition-all hover:border-[#06C755]";
                         var type = area.action.type;
-                        var html = `
-                            <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-                                <span class="text-sm font-black text-white bg-[#54C061] px-3 py-1 rounded-md shadow-sm">區域 #${idx+1}</span>
-                                <button onclick="MenuModule.removeArea(${idx})" class="text-sm font-bold text-rose-500 hover:text-white hover:bg-rose-500 border border-rose-500 px-3 py-1 rounded-md transition-colors">刪除</button>
-                            </div>
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-1">動作類型</label>
-                                    <select class="w-full text-sm font-bold bg-slate-50 border-2 border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-[#54C061]" onchange="MenuModule.updateAreaProp(${idx}, 'type', this.value)">
-                                        <option value="uri" ${type==='uri'?'selected':''}>超連結 (URI)</option>
-                                        <option value="message" ${type==='message'?'selected':''}>文字字串 (Message)</option>
-                                        <option value="postback" ${type==='postback'?'selected':''}>回傳動作 (Postback)</option>
-                                        <option value="richmenuswitch" ${type==='richmenuswitch'?'selected':''}>選單切換 (Rich Menu Switch)</option>
-                                    </select>
-                                </div>
-                        `;
-
+                        var html = `<div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3"><span class="text-sm font-black text-white bg-[#06C755] px-3 py-1 rounded-md shadow-sm">區域 #${idx+1}</span><button onclick="MenuModule.removeArea(${idx})" class="text-sm font-bold text-rose-500 border border-rose-500 px-3 py-1 rounded-md">刪除</button></div><div class="space-y-4"><div><label class="block text-sm font-bold text-slate-600 mb-1">動作類型</label><select class="w-full text-sm font-bold bg-slate-50 border-2 border-slate-200 rounded-lg px-3 py-2.5 outline-none" onchange="MenuModule.updateAreaProp(${idx}, 'type', this.value)"><option value="uri" ${type==='uri'?'selected':''}>超連結 (URI)</option><option value="message" ${type==='message'?'selected':''}>文字訊息 (Message)</option><option value="postback" ${type==='postback'?'selected':''}>隱形指令 (Postback)</option><option value="richmenuswitch" ${type==='richmenuswitch'?'selected':''}>選單切換</option></select></div>`;
                         if (type === 'postback') {
                             var pData = area.action.data || ""; var pText = area.action.text !== undefined ? area.action.text : "0";
-                            if (pText === "說明文字") pText = "0";
-                            html += `
-                                <div><label class="block text-sm font-bold text-slate-600 mb-1">回傳資料 (data)</label><input type="text" value="${pData}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="例如：action=keyword" oninput="MenuModule.updateAreaProp(${idx}, 'data', this.value)"></div>
-                                <div><label class="block text-sm font-bold text-slate-600 mb-1">說明文字 (text) <span class="text-xs text-slate-400 font-normal ml-1">填 0 代表隱藏不發送</span></label><input type="text" value="${pText}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none" placeholder="填 0 代表隱藏不發送" oninput="MenuModule.updateAreaProp(${idx}, 'text', this.value)"></div>
-                            `;
+                            html += `<div><label class="block text-sm font-bold text-slate-600 mb-1">回傳資料 (data)</label><input type="text" value="${pData}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#06C755] outline-none font-mono" oninput="MenuModule.updateAreaProp(${idx}, 'data', this.value)"></div><div><label class="block text-sm font-bold text-slate-600 mb-1">說明文字 (填0不發送)</label><input type="text" value="${pText}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#06C755] outline-none" oninput="MenuModule.updateAreaProp(${idx}, 'text', this.value)"></div>`;
                         } else if (type === 'richmenuswitch') {
-                            html += `
-                                <div><label class="block text-sm font-bold text-slate-600 mb-1">目標選單別名 (richMenuAliasId)</label><input type="text" value="${area.action.richMenuAliasId || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="MENU名稱" oninput="MenuModule.updateAreaProp(${idx}, 'richMenuAliasId', this.value)"></div>
-                                <div><label class="block text-sm font-bold text-slate-600 mb-1">說明文字 (data)</label><input type="text" value="${area.action.data || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="說明文字" oninput="MenuModule.updateAreaProp(${idx}, 'data', this.value)"></div>
-                            `;
+                            html += `<div><label class="block text-sm font-bold text-slate-600 mb-1">目標別名 ID</label><input type="text" value="${area.action.richMenuAliasId || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#06C755] outline-none font-mono" oninput="MenuModule.updateAreaProp(${idx}, 'richMenuAliasId', this.value)"></div><div><label class="block text-sm font-bold text-slate-600 mb-1">說明文字</label><input type="text" value="${area.action.data || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#06C755] outline-none font-mono" oninput="MenuModule.updateAreaProp(${idx}, 'data', this.value)"></div>`;
                         } else if (type === 'message') {
-                            html += `<div><label class="block text-sm font-bold text-slate-600 mb-1">內容文字 (text)</label><input type="text" value="${area.action.text || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none" placeholder="內容文字" oninput="MenuModule.updateAreaProp(${idx}, 'text', this.value)"></div>`;
+                            html += `<div><label class="block text-sm font-bold text-slate-600 mb-1">內容文字</label><input type="text" value="${area.action.text || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#06C755] outline-none" oninput="MenuModule.updateAreaProp(${idx}, 'text', this.value)"></div>`;
                         } else {
-                            html += `<div><label class="block text-sm font-bold text-slate-600 mb-1">超連結網址 (uri)</label><input type="text" value="${area.action.uri || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#54C061] outline-none font-mono" placeholder="https://xxxxxxxxxx" oninput="MenuModule.updateAreaProp(${idx}, 'uri', this.value)"></div>`;
+                            html += `<div><label class="block text-sm font-bold text-slate-600 mb-1">超連結網址</label><input type="text" value="${area.action.uri || ''}" class="w-full text-sm border-2 border-slate-200 rounded-lg px-3 py-2.5 focus:border-[#06C755] outline-none font-mono" oninput="MenuModule.updateAreaProp(${idx}, 'uri', this.value)"></div>`;
                         }
-
                         html += `</div>`; div.innerHTML = html; container.appendChild(div);
                     }
                 },
-
                 updateAreaProp: function(idx, prop, val) {
                     var objects = canvas.getObjects('rect'); if(!objects[idx]) return; if(!objects[idx].action) objects[idx].action = {};
                     if(prop === 'type') {
                         var old = objects[idx].action; objects[idx].action = { type: val };
-                        if(val === 'uri') objects[idx].action.uri = old.uri || old.data || "";
+                        if(val === 'uri') objects[idx].action.uri = old.uri || "https://";
                         else if(val === 'message') objects[idx].action.text = old.text || "";
-                        else if(val === 'postback') { objects[idx].action.data = old.data || old.uri || ""; objects[idx].action.text = (old.text !== undefined && old.text !== "說明文字") ? old.text : "0"; } 
+                        else if(val === 'postback') { objects[idx].action.data = old.data || "action=keyword"; objects[idx].action.text = (old.text !== undefined && old.text !== "說明文字") ? old.text : "0"; } 
                         else if(val === 'richmenuswitch') { objects[idx].action.richMenuAliasId = old.richMenuAliasId || ""; objects[idx].action.data = old.data || ""; }
                         this.updateOutput(false); 
                     } else { objects[idx].action[prop] = val; this.updateOutput(true); }
                 },
-
-                removeArea: function(idx) {
-                    var objects = canvas.getObjects('rect');
-                    if(objects[idx]) { canvas.remove(objects[idx]); this.updateOutput(); }
-                },
-
+                removeArea: function(idx) { var objects = canvas.getObjects('rect'); if(objects[idx]) { canvas.remove(objects[idx]); this.updateOutput(); } },
                 importAreas: function(areas, scale) {
                     canvas.getObjects('rect').forEach(o => canvas.remove(o));
                     areas.forEach(a => {
-                        var r = new fabric.Rect({ left: a.bounds.x * scale, top: a.bounds.y * scale, width: a.bounds.width * scale, height: a.bounds.height * scale, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1, cornerColor: '#54C061', cornerSize: 8, transparentCorners: false, hasRotatingPoint: false });
+                        var r = new fabric.Rect({ left: a.bounds.x * scale, top: a.bounds.y * scale, width: a.bounds.width * scale, height: a.bounds.height * scale, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#06C755', strokeWidth: 1, cornerColor: '#06C755', cornerSize: 8, transparentCorners: false, hasRotatingPoint: false });
                         r.action = a.action; canvas.add(r);
                     });
                     canvas.renderAll(); this.updateOutput();
                 },
-
                 clearAreas: function() { canvas.getObjects('rect').forEach(o => canvas.remove(o)); this.updateOutput(); },
-
                 applyJsonFromText: function() {
                     var input = prompt("請貼上 JSON 原始碼以更新畫布：");
                     if (input) { try { var data = JSON.parse(input); this.importAreas(data.areas || [], canvas.getWidth() / 2500); document.getElementById('json-output').value = JSON.stringify(data, null, 2); this.updateOutput(); } catch(e) { alert("JSON 格式有誤"); } }
                 },
-
                 openDeployModal: function() {
-                    if (!savedBase64Image) { alert("⚠️ 請先在左側上傳「選單底圖」後，再進行部署！"); return; }
-                    const modal = document.getElementById('deploy-modal');
-                    const apiUrlInput = document.getElementById('deploy-api-url');
-                    let defaultApiUrl = '';
-                    if (window.parent && window.parent.WORKER_URL) { defaultApiUrl = window.parent.WORKER_URL; } else { defaultApiUrl = 'https://action.fangwl591021.workers.dev/'; }
-                    apiUrlInput.value = defaultApiUrl; modal.classList.remove('hidden');
+                    if (!savedBase64Image) { alert("⚠️ 請先上傳底圖！"); return; }
+                    document.getElementById('deploy-api-url').value = ApiHelper.getWorkerUrl();
+                    document.getElementById('deploy-modal').classList.remove('hidden');
                 },
-
                 closeDeployModal: function() { document.getElementById('deploy-modal').classList.add('hidden'); },
-
                 executeDeploy: async function() {
-                    const apiUrl = document.getElementById('deploy-api-url').value.trim();
-                    if (!apiUrl) return alert("API 網址不可為空！");
-                    const btn = document.getElementById('deploy-submit-btn');
-                    const originalText = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 部署中...'; btn.disabled = true;
+                    const btn = document.getElementById('deploy-submit-btn'); const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 部署中...'; btn.disabled = true;
                     try {
                         const richMenuObj = JSON.parse(document.getElementById('json-output').value);
-                        const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'DEPLOY_RICH_MENU', payload: { richMenuObj: richMenuObj, imageBase64: savedBase64Image } }) });
-                        const json = await res.json();
-                        if (json.status !== 'success') { throw new Error(json.message || json.data || '伺服器發生錯誤'); }
-                        alert("🎉 部署大成功！\n\n選單已成功安全上傳至 LINE，並自動設為所有用戶的預設選單！");
-                        this.closeDeployModal();
-                    } catch (e) { console.error(e); alert("❌ 部署失敗：\n" + e.message); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+                        const data = await ApiHelper.call('DEPLOY_RICH_MENU', { richMenuObj: richMenuObj, imageBase64: savedBase64Image });
+                        if (data) { alert("🎉 部署成功！已將選單設為官方帳號預設。"); this.closeDeployModal(); }
+                    } finally { btn.innerHTML = originalText; btn.disabled = false; }
                 }
             };
         })();
 
-        // 🌟 [升級] 進階版本地儲存模組 (支援當前檔案狀態追蹤)
+        // 🌟 [對接完畢] 雲端資料庫儲存模組 (Cloud DB Sync)
         window.StorageModule = (function() {
-            const STORAGE_KEY = 'rich_menu_saves';
-            let currentFileId = null; // ★ 核心：追蹤當前編輯的檔案 ID
-            
-            function getSaves() {
-                try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-                catch(e) { return []; }
-            }
-            
-            function setSaves(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+            let currentFileId = null;
+            let isSyncing = false;
 
             return {
-                // 給 MenuModule 重置用
-                resetCurrentId: function() {
-                    currentFileId = null;
-                    this.renderActionArea();
-                },
-
+                resetCurrentId: () => { currentFileId = null; StorageModule.renderActionArea(); },
                 toggleDrawer: function() {
                     const drawer = document.getElementById('right-drawer');
                     const overlay = document.getElementById('right-drawer-overlay');
@@ -462,167 +395,74 @@
                         overlay.classList.add('hidden');
                     }
                 },
-                
-                saveFile: function(asNew) {
+                saveFile: async function(asNew) {
+                    if (isSyncing) return;
                     const base64 = MenuModule.getCurrentBase64();
-                    if (!base64) return alert('⚠️ 請先在左側上傳「底圖」並設定後再進行儲存！');
-                    
-                    const jsonStr = document.getElementById('json-output').value;
-                    if (!jsonStr) return alert('沒有可儲存的 JSON 資料！');
-                    
-                    let dataObj;
-                    try { dataObj = JSON.parse(jsonStr); } catch(e) { return alert('JSON 格式錯誤，無法儲存'); }
-                    
+                    if (!base64) return alert('請先上傳底圖');
+                    const configJson = document.getElementById('json-output').value;
                     const filename = document.getElementById('save-filename').value || '未命名選單';
-                    let saves = getSaves();
                     
-                    try {
-                        if (asNew || !currentFileId) {
-                            // 另存新檔 或 全新儲存
-                            const newItem = {
-                                id: Date.now().toString(),
-                                name: filename,
-                                date: new Date().toLocaleString('zh-TW', {hour12: false}),
-                                data: dataObj,
-                                image: base64
-                            };
-                            saves.unshift(newItem); // 插入列表最上方
-                            currentFileId = newItem.id;
-                            alert('✅ 檔案已成功建立並儲存！');
-                        } else {
-                            // 更新當前檔案 (覆蓋)
-                            const idx = saves.findIndex(x => x.id === currentFileId);
-                            if (idx > -1) {
-                                saves[idx].name = filename;
-                                saves[idx].date = new Date().toLocaleString('zh-TW', {hour12: false});
-                                saves[idx].data = dataObj;
-                                saves[idx].image = base64;
-                                alert('✅ 當前選單進度已覆蓋更新！');
-                            } else {
-                                currentFileId = null;
-                                return this.saveFile(true); // 找不到就存新的
-                            }
-                        }
-                        
-                        setSaves(saves);
-                        this.renderAll();
-                    } catch(e) {
-                        alert('❌ 儲存失敗！可能是瀏覽器儲存空間已滿，請先刪除舊檔案。');
-                    }
-                },
-                
-                loadSave: function(id) {
-                    if(!confirm('載入此檔案將會【覆蓋】您目前在畫布上的所有進度，確定要載入嗎？')) return;
+                    isSyncing = true; this.renderActionArea();
                     
-                    const saves = getSaves();
-                    const item = saves.find(x => x.id === id);
-                    if (item) {
-                        currentFileId = id; // ★ 鎖定當前檔案狀態
-                        document.getElementById('save-filename').value = item.name;
-                        document.getElementById('rich-menu-chatbar').value = item.data.chatBarText || '選單';
-                        
-                        MenuModule.load(item.name, encodeURIComponent(JSON.stringify(item.data)), item.image);
-                        
-                        this.toggleDrawer(); // 關閉抽屜，回去編輯
-                    }
-                },
-                
-                deleteSave: function(id) {
-                    if(!confirm('確定要永久刪除此檔案嗎？\n(此動作無法復原)')) return;
-                    let saves = getSaves();
-                    saves = saves.filter(x => x.id !== id);
-                    if (currentFileId === id) currentFileId = null; // 如果刪除了當前檔案，退回新檔模式
-                    setSaves(saves);
-                    this.renderAll();
-                },
+                    const data = await ApiHelper.call('ADMIN_SAVE_RICH_MENU', {
+                        id: (asNew) ? null : currentFileId,
+                        name: filename,
+                        configJson: configJson,
+                        imageBase64: base64
+                    });
 
-                renderAll: function() {
-                    this.renderActionArea();
-                    this.renderList();
+                    if (data && data.success) {
+                        currentFileId = data.id;
+                        alert(`✅ 雲端${asNew ? '建立' : '更新'}成功！`);
+                        this.renderAll();
+                    }
+                    isSyncing = false; this.renderActionArea();
                 },
-                
-                // 動態渲染上方動作區
+                loadSave: function(id, name, configJson, imageBase64) {
+                    if(!confirm('載入後將覆蓋目前內容，確定嗎？')) return;
+                    currentFileId = id;
+                    document.getElementById('save-filename').value = name;
+                    MenuModule.load(name, encodeURIComponent(configJson), imageBase64);
+                    this.toggleDrawer();
+                },
+                deleteSave: async function(id) {
+                    if(!confirm('將永久刪除此雲端檔案，不可復原，確定嗎？')) return;
+                    const data = await ApiHelper.call('ADMIN_DELETE_RICH_MENU', { id: id });
+                    if (data && data.success) {
+                        if (currentFileId === id) currentFileId = null;
+                        this.renderAll();
+                    }
+                },
+                renderAll: async function() {
+                    this.renderActionArea();
+                    const listContainer = document.getElementById('saved-files-list');
+                    listContainer.innerHTML = '<div class="py-10 text-center"><i class="fas fa-circle-notch fa-spin text-orange-400"></i><p class="text-xs text-slate-400 mt-2">正在同步雲端列表...</p></div>';
+                    
+                    const menus = await ApiHelper.call('ADMIN_GET_RICH_MENUS');
+                    this.renderList(menus || []);
+                },
                 renderActionArea: function() {
                     const container = document.getElementById('drawer-action-area');
-                    if(!container) return;
-
-                    if (currentFileId) {
-                        // 編輯舊檔模式
-                        const saves = getSaves();
-                        const item = saves.find(x => x.id === currentFileId);
-                        const name = item ? item.name : '未命名選單';
-
-                        container.innerHTML = `
-                            <div class="flex items-center gap-2 mb-3">
-                                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                                <span class="text-[12px] font-bold text-green-600 tracking-wide uppercase">正在編輯現有檔案</span>
-                            </div>
-                            <p class="text-[14px] text-slate-700 font-bold mb-4 line-clamp-1 border-b border-slate-100 pb-2">${name}</p>
-                            <div class="space-y-2">
-                                <button onclick="StorageModule.saveFile(false)" class="w-full py-2.5 bg-[#06C755] text-white rounded-lg font-bold shadow-sm hover:bg-[#05b04a] transition active:scale-[0.98] flex items-center justify-center gap-2 text-[13px]">
-                                    <i class="fas fa-save"></i> 儲存 / 覆蓋此檔案
-                                </button>
-                                <button onclick="StorageModule.saveFile(true)" class="w-full py-2.5 bg-slate-50 text-slate-600 rounded-lg font-bold border border-slate-200 hover:bg-slate-100 transition active:scale-[0.98] flex items-center justify-center gap-2 text-[13px]">
-                                    <i class="fas fa-copy"></i> 另存為新檔案
-                                </button>
-                            </div>
-                        `;
-                    } else {
-                        // 全新檔案模式
-                        container.innerHTML = `
-                            <div class="flex items-center gap-2 mb-3">
-                                <span class="w-2 h-2 rounded-full bg-slate-300"></span>
-                                <span class="text-[12px] font-bold text-slate-400 tracking-wide uppercase">新檔案模式</span>
-                            </div>
-                            <p class="text-[12px] text-slate-400 font-medium mb-4 leading-relaxed border-b border-slate-100 pb-2">這會將目前的底圖與座標資訊安全壓縮並儲存至瀏覽器中。</p>
-                            <button onclick="StorageModule.saveFile(true)" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold shadow-md hover:bg-slate-700 transition active:scale-[0.98] flex items-center justify-center gap-2 text-[14px]">
-                                <i class="fas fa-save text-[#06C755]"></i> 建立並儲存新檔
-                            </button>
-                        `;
-                    }
-                },
-
-                // 動態渲染下方列表區
-                renderList: function() {
-                    const saves = getSaves();
-                    const container = document.getElementById('saved-files-list');
-                    
-                    if (saves.length === 0) {
-                        container.innerHTML = `
-                            <div class="text-center py-12 text-slate-400 font-bold text-[13px]">
-                                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 mx-auto mb-3 text-2xl"><i class="fas fa-folder-open text-slate-300"></i></div>
-                                目前沒有儲存的檔案
-                            </div>`;
+                    if (isSyncing) {
+                        container.innerHTML = '<div class="py-4 text-center text-slate-400"><i class="fas fa-spinner fa-spin mr-2"></i>雲端處理中...</div>';
                         return;
                     }
-                    
-                    let html = '';
-                    saves.forEach(item => {
-                        const isCurrent = (item.id === currentFileId);
-                        const borderClass = isCurrent ? 'border-[#06C755] ring-1 ring-[#06C755]/20 bg-green-50/30' : 'border-slate-200 hover:border-slate-300 bg-white';
-                        const textClass = isCurrent ? 'text-green-700' : 'text-slate-800';
-
-                        html += `
-                            <div class="p-4 rounded-xl shadow-sm border transition relative overflow-hidden ${borderClass}">
-                                ${isCurrent ? '<div class="absolute right-0 top-0 bg-[#06C755] text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">編輯中</div>' : ''}
-                                
-                                <div class="flex justify-between items-start mb-1 pr-6">
-                                    <div class="font-bold ${textClass} text-[14px] line-clamp-1 flex-1 tracking-tight">${item.name}</div>
-                                </div>
-                                <div class="text-[11px] font-mono text-slate-400 mb-3"><i class="far fa-clock mr-1"></i>${item.date}</div>
-                                
-                                <div class="flex gap-2">
-                                    <button onclick="StorageModule.loadSave('${item.id}')" class="flex-1 py-2 bg-slate-50 text-slate-600 text-[12px] font-bold rounded-lg border border-slate-200 hover:bg-slate-100 transition active:scale-[0.98] flex items-center justify-center gap-1.5" ${isCurrent ? 'disabled class="flex-1 py-2 bg-slate-100 text-slate-400 text-[12px] font-bold rounded-lg border border-slate-200 cursor-not-allowed"' : ''}>
-                                        <i class="fas fa-edit"></i> ${isCurrent ? '已載入' : '載入編輯'}
-                                    </button>
-                                    <button onclick="StorageModule.deleteSave('${item.id}')" class="w-[40px] flex items-center justify-center py-2 bg-slate-50 text-red-500 hover:text-white hover:bg-red-500 text-[12px] rounded-lg border border-slate-200 transition active:scale-[0.98]" title="刪除檔案">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    container.innerHTML = html;
+                    if (currentFileId) {
+                        container.innerHTML = `<div class="flex items-center gap-2 mb-2"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span><span class="text-[12px] font-bold text-green-600">正在編輯雲端檔案</span></div><div class="space-y-2"><button onclick="StorageModule.saveFile(false)" class="w-full py-2.5 bg-[#06C755] text-white rounded-lg font-bold text-[13px] flex items-center justify-center gap-2"><i class="fas fa-cloud-upload-alt"></i> 更新/覆蓋雲端</button><button onclick="StorageModule.saveFile(true)" class="w-full py-2.5 bg-slate-50 text-slate-600 rounded-lg font-bold border border-slate-200 text-[13px] flex items-center justify-center gap-2"><i class="fas fa-copy"></i> 另存雲端新檔</button></div>`;
+                    } else {
+                        container.innerHTML = `<div class="flex items-center gap-2 mb-2"><span class="w-2 h-2 rounded-full bg-slate-300"></span><span class="text-[12px] font-bold text-slate-400">尚未存檔至雲端</span></div><button onclick="StorageModule.saveFile(true)" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-2 text-[14px] shadow-md"><i class="fas fa-cloud-upload-alt text-[#06C755]"></i> 儲存至雲端資料庫</button>`;
+                    }
+                },
+                renderList: function(menus) {
+                    const container = document.getElementById('saved-files-list');
+                    if (menus.length === 0) {
+                        container.innerHTML = `<div class="text-center py-12 text-slate-300 font-bold text-[13px]"><i class="fas fa-cloud-download-alt text-4xl mb-3 opacity-20"></i><br>雲端資料庫尚無選單</div>`;
+                        return;
+                    }
+                    container.innerHTML = menus.map(m => {
+                        const isCurrent = (m.id === currentFileId);
+                        return `<div class="p-4 rounded-xl border transition relative overflow-hidden ${isCurrent ? 'border-[#06C755] bg-green-50/30' : 'border-slate-200 bg-white'}">${isCurrent ? '<div class="absolute right-0 top-0 bg-[#06C755] text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">編輯中</div>' : ''}<div class="font-bold text-[14px] line-clamp-1 mb-1 pr-6">${m.name}</div><div class="text-[10px] font-mono text-slate-400 mb-3">${m.updatedAt}</div><div class="flex gap-2"><button onclick="StorageModule.loadSave('${m.id}', '${m.name.replace(/'/g, "\\'")}', '${m.configJson.replace(/'/g, "\\'")}', '${m.imageBase64}')" class="flex-1 py-1.5 bg-slate-50 text-slate-600 text-[12px] font-bold rounded-lg border border-slate-200 flex items-center justify-center gap-1" ${isCurrent ? 'disabled class="opacity-50"' : ''}><i class="fas fa-edit"></i> 載入</button><button onclick="StorageModule.deleteSave('${m.id}')" class="w-[36px] flex items-center justify-center py-1.5 text-red-500 border border-slate-200 rounded-lg hover:bg-red-50"><i class="fas fa-trash-alt"></i></button></div></div>`;
+                    }).join('');
                 }
             };
         })();
