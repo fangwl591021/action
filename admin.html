@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.18.V116_Admin_HubIndicator -->
+    <!-- Version: 2026.04.18.V118_Admin_MenuShortcut -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -115,7 +115,13 @@
                     <div @click="view = 'courses'" class="nav-item" :class="{'nav-active': view === 'courses'}"><i class="fas fa-book w-6 text-center"></i>一般課程管理</div>
                     <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-list-check w-6 text-center"></i>訂單管理控制台</div>
                     <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-6 text-center"></i>學員會員管理</div>
+                    
                     <div @click="view = 'settings'" class="nav-item border-t border-slate-100 mt-2 pt-4" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>全域系統設定</div>
+                    <!-- 🌟 擴充工具捷徑 -->
+                    <a href="menu.html" target="_blank" class="nav-item hover:text-indigo-600 transition group">
+                        <i class="fas fa-layer-group w-6 text-center text-indigo-400 group-hover:text-indigo-600 transition"></i>圖文選單編輯器
+                        <i class="fas fa-external-link-alt ml-auto text-[10px] text-slate-300 group-hover:text-indigo-400 transition"></i>
+                    </a>
                 </nav>
                 <div class="p-4 border-t border-gray-100 space-y-2">
                     <button @click="goToFrontend" class="w-full py-2.5 bg-blue-50 border border-blue-100 rounded-lg text-sm font-bold text-blue-600 hover:bg-blue-100 transition"><i class="fas fa-mobile-alt mr-2"></i>切換前台</button>
@@ -129,7 +135,7 @@
                 <button @click="view = 'courses'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'courses' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'"><i class="fas fa-book text-xl"></i><span class="text-[10px] font-bold">課程</span></button>
                 <button @click="view = 'orders'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'orders' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'"><i class="fas fa-list-check text-xl"></i><span class="text-[10px] font-bold">訂單</span></button>
                 <button @click="view = 'members'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'members' || view === 'member_detail' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'"><i class="fas fa-users text-xl"></i><span class="text-[10px] font-bold">學員</span></button>
-                <button @click="goToFrontend" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition text-slate-400 hover:text-blue-500"><i class="fas fa-mobile-alt text-xl"></i><span class="text-[10px] font-bold">前台</span></button>
+                <button @click="view = 'settings'" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition" :class="view === 'settings' ? 'text-[#06C755]' : 'text-slate-400 hover:text-slate-500'"><i class="fas fa-cog text-xl"></i><span class="text-[10px] font-bold">設定</span></button>
             </nav>
 
             <main class="main-content relative">
@@ -388,6 +394,18 @@
 
                     <div v-if="view === 'settings'" class="p-6 animate-fade-in max-w-4xl mx-auto">
                         
+                        <!-- 🌟 [新增] 擴充工具捷徑卡片 -->
+                        <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
+                            <div class="section-title !mb-4 flex items-center gap-2 text-indigo-800 border-indigo-500">
+                                <i class="fas fa-tools"></i> 系統外部擴充工具
+                            </div>
+                            <p class="text-[14px] text-slate-500 mb-6 leading-relaxed">LINE 官方帳號 Rich Menu (圖文選單) 視覺化座標產生器，可獨立編輯並一鍵匯出 JSON 格式供 LINE 官方後台使用。</p>
+                            <a href="menu.html" target="_blank" class="inline-flex items-center justify-center gap-2 py-3 px-6 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm w-full md:w-auto">
+                                <i class="fas fa-layer-group text-lg"></i> 開啟圖文選單編輯器
+                            </a>
+                        </div>
+
                         <div class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm mb-8 relative overflow-hidden">
                             <div class="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
                             <div class="section-title !mb-4 flex items-center gap-2 text-red-700 border-red-500">
@@ -771,7 +789,7 @@
                     finally { isLoading.value = false; }
                 };
 
-                // 🟢 [新增] 偵測通道狀態
+                // 🟢 偵測通道狀態
                 const checkHubHealth = async () => {
                     hubStatus.value = 'checking';
                     try {
@@ -944,7 +962,7 @@
                     activeMember, activeEnrollmentCourse, checkinUrl, courseSearchQuery, courseFilterCategory, adminCategories, filteredAdminCourses,
                     orderSearchQuery, orderFilterCourse, orderFilterStatus, adminOrderCourses, filteredAdminOrders, sysSettings, 
                     activeMemberPoints, editingPointAction, getDiscountLabel,
-                    hubStatus, checkHubHealth, // 🟢 紅綠燈狀態與函數
+                    hubStatus, checkHubHealth,
                     courseOrders: computed(() => activeEnrollmentCourse.value ? orders.value.filter(o => o.courseId === activeEnrollmentCourse.value.id || o.courseId === activeEnrollmentCourse.value.name) : []), 
                     memberOrders: computed(() => activeMember.value ? orders.value.filter(o => o.userId === activeMember.value.userId).reverse() : []),
                     courseStatsFiltered,
