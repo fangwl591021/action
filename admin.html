@@ -4,161 +4,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>宏學管理站 (原生極簡版)</title>
-    <!-- Version: 2026.04.18.V127_Admin_Minimalist_Flow -->
+    <title>宏學管理站</title>
+    <!-- Version: 2026.04.18.V132_Strict_Credential_Native -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         [v-cloak] { display: none !important; }
-        body { background-color: #FFFFFF; color: #334155; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        body { background-color: #FFFFFF; color: #334155; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; line-height: 1.5; }
         
-        /* 側邊欄：還原為極簡白底 */
-        .sidebar { width: 240px; background: #FFFFFF; border-right: 1px solid #F1F5F9; position: fixed; height: 100vh; z-index: 50; }
-        .sidebar-brand { padding: 20px 24px; font-size: 18px; font-weight: 800; color: #06C755; border-bottom: 1px solid #F8FAFC; }
+        /* 側邊欄：純白極簡、無陰影 */
+        .sidebar { width: 200px; background: #FFFFFF; border-right: 1px solid #F1F5F9; position: fixed; height: 100vh; z-index: 50; }
+        .sidebar-brand { padding: 15px 20px; font-size: 15px; font-weight: bold; color: #06C755; border-bottom: 1px solid #F8FAFC; }
         
-        .nav-group-header { padding: 12px 24px 4px; font-size: 11px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .nav-group-header { padding: 10px 20px 4px; font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 20px; cursor: pointer; transition: 0.1s; color: #64748B; font-weight: 500; font-size: 13px; }
+        .nav-item:hover { background: #F8FAFC; color: #06C755; }
+        .nav-active { color: #06C755; background: #F0FDF4; border-right: 2px solid #06C755; }
         
-        .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 24px; cursor: pointer; transition: 0.15s; font-weight: 600; font-size: 14px; color: #64748B; border-right: 3px solid transparent; }
-        .nav-item:hover { color: #06C755; background: #F8FAFC; }
-        .nav-active { color: #06C755; background: #F0FDF4; border-right-color: #06C755; }
-        
-        .main-content { margin-left: 240px; min-height: 100vh; background: #FFFFFF; }
-        .page-header { background: white; border-bottom: 1px solid #F1F5F9; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
+        .main-content { margin-left: 200px; min-height: 100vh; }
+        .page-header { background: #FFFFFF; border-bottom: 1px solid #F1F5F9; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
 
-        /* 格狀排班表：移除厚重卡片，回歸輕量格點 */
-        .slot-grid { display: grid; grid-template-columns: 70px repeat(14, 1fr); gap: 1px; background: #F1F5F9; border: 1px solid #F1F5F9; overflow: hidden; }
-        .slot-header { background: #F8FAFC; padding: 10px 4px; text-align: center; border-bottom: 1px solid #F1F5F9; }
-        .slot-cell { background: white; height: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.1s; font-size: 12px; }
-        .slot-time-label { background: #F8FAFC; font-weight: 700; color: #64748B; }
-        
-        .slot-open { background-color: #06C755 !important; color: white; }
-        .slot-closed { background-color: #FFFFFF; color: #E2E8F0; }
+        /* 預約網格：高密度、細線 */
+        .slot-grid { display: grid; grid-template-columns: 60px repeat(14, 1fr); gap: 1px; background: #E2E8F0; border: 1px solid #E2E8F0; }
+        .slot-header { background: #F8FAFC; padding: 4px 2px; text-align: center; border-bottom: 1px solid #E2E8F0; font-size: 10px; }
+        .slot-cell { background: #FFFFFF; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; }
+        .slot-time-label { background: #F8FAFC; color: #64748B; }
+        .slot-open { background-color: #06C755 !important; color: #FFFFFF; }
         .slot-booked { background-color: #FEE2E2 !important; color: #EF4444; }
 
-        /* 紅綠燈：縮小尺寸 */
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+        input, select { border: 1px solid #E2E8F0; padding: 5px 8px; font-size: 13px; outline: none; border-radius: 2px; background: #FFF; }
+        input:focus { border-color: #06C755; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #F8FAFC; text-align: left; padding: 6px 10px; font-size: 11px; color: #94A3B8; border-bottom: 1px solid #F1F5F9; font-weight: normal; }
+        td { padding: 8px 10px; border-bottom: 1px solid #F8FAFC; color: #475569; }
+        
+        .status-dot { width: 5px; height: 5px; border-radius: 50%; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
+        button { border-radius: 2px; transition: 0.1s; font-weight: bold; }
+        .btn-green { background: #06C755; color: #FFF; padding: 5px 12px; }
+        .btn-outline { border: 1px solid #E2E8F0; color: #64748B; padding: 5px 12px; }
     </style>
 </head>
 
 <body>
     <div id="app" v-cloak>
         
-        <aside class="sidebar flex flex-col">
-            <div class="sidebar-brand">宏學系統</div>
-            
+        <!-- 登入閘門：回歸帳號密碼驗證 -->
+        <div v-if="!isAuthorized" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-6">
+            <div class="w-full max-w-[240px] space-y-4 text-center">
+                <div class="text-[#06C755] text-lg font-bold mb-4 uppercase tracking-wider">宏學管理登入</div>
+                <input type="text" v-model="loginForm.user" placeholder="管理帳號" class="w-full text-center">
+                <input type="password" v-model="loginForm.pass" placeholder="登入密碼" class="w-full text-center" @keyup.enter="handleLogin">
+                <button @click="handleLogin" class="w-full py-2.5 bg-slate-800 text-white text-xs">確認登入</button>
+            </div>
+        </div>
+
+        <!-- 側邊欄 -->
+        <aside v-if="isAuthorized" class="sidebar flex flex-col">
+            <div class="sidebar-brand">HONG XUE</div>
             <nav class="flex-grow mt-2 overflow-y-auto hide-scrollbar">
-                <!-- 群組 A: 營運中心 -->
                 <div class="nav-group">
-                    <div @click="toggleGroup('groupA')" class="nav-group-header">
-                        <span>📦 營運中心</span>
-                        <i class="fas" :class="groups.groupA ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
-                    </div>
+                    <div @click="toggleGroup('groupA')" class="nav-group-header"><span>📦 營運中心</span><i class="fas" :class="groups.groupA ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
                     <div v-show="groups.groupA">
-                        <div @click="view = 'dashboard'" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie w-4"></i>統計數據</div>
-                        <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members'}"><i class="fas fa-users w-4"></i>學員 CRM</div>
-                        <div @click="view = 'courses'" class="nav-item" :class="{'nav-active': view === 'courses'}"><i class="fas fa-book w-4"></i>課程管理</div>
-                        <div @click="view = 'consultation'" class="nav-item" :class="{'nav-active': view === 'consultation'}"><i class="fas fa-calendar-check w-4"></i>預約諮詢</div>
-                        <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-file-invoice w-4"></i>訂單維護</div>
+                        <div @click="view = 'dashboard'" class="nav-item" :class="{'nav-active': view === 'dashboard'}">數據總覽</div>
+                        <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members'}">學員 CRM</div>
+                        <div @click="view = 'courses'" class="nav-item" :class="{'nav-active': view === 'courses'}">一般課程</div>
+                        <div @click="view = 'consultation'" class="nav-item" :class="{'nav-active': view === 'consultation'}">預約諮詢</div>
+                        <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}">訂單維護</div>
                     </div>
                 </div>
-
-                <!-- 群組 B: 營運工具 -->
                 <div class="nav-group mt-2">
-                    <div @click="toggleGroup('groupB')" class="nav-group-header">
-                        <span>🛠️ 營運工具</span>
-                        <i class="fas" :class="groups.groupB ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
-                    </div>
+                    <div @click="toggleGroup('groupB')" class="nav-group-header"><span>🛠️ 系統工具</span><i class="fas" :class="groups.groupB ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
                     <div v-show="groups.groupB">
-                        <div @click="view = 'richmenu'" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-4"></i>雲端選單</div>
-                        <div @click="view = 'settings'" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-4"></i>全域設定</div>
+                        <div @click="view = 'richmenu'" class="nav-item" :class="{'nav-active': view === 'richmenu'}">雲端選單</div>
+                        <div @click="view = 'settings'" class="nav-item" :class="{'nav-active': view === 'settings'}">全域設定</div>
                     </div>
                 </div>
             </nav>
-
-            <div class="p-4 border-t border-slate-50">
-                <button @click="logout" class="w-full py-2 text-slate-400 hover:text-red-500 text-xs font-bold transition">登出系統</button>
-            </div>
+            <div class="p-4 border-t border-slate-50"><button @click="logout" class="text-slate-300 text-[10px] hover:text-red-500 uppercase">安全登出</button></div>
         </aside>
 
-        <main class="main-content">
+        <main v-if="isAuthorized" class="main-content">
             <header class="page-header">
-                <h2 class="text-base font-bold text-slate-700">{{ viewName }}</h2>
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">{{ viewName }}</h2>
                 <div class="flex items-center gap-4">
-                    <!-- 原生感檢測列 -->
-                    <div class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-                        <div class="flex items-center gap-1.5"><div class="status-dot" :class="hubStatus.gas === 'success' ? 'bg-green-500' : 'bg-red-400'"></div><span class="text-[9px] font-bold text-slate-400">GAS</span></div>
-                        <div class="flex items-center gap-1.5"><div class="status-dot" :class="hubStatus.line === 'success' ? 'bg-green-500' : 'bg-red-400'"></div><span class="text-[9px] font-bold text-slate-400">LINE</span></div>
-                        <i @click="checkHubStatus" class="fas fa-sync-alt text-[9px] text-slate-300 cursor-pointer hover:text-green-500 transition"></i>
+                    <div class="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-full">
+                        <div class="status-dot" :class="hubStatus.gas === 'success' ? 'bg-green-500' : 'bg-red-400'"></div><span class="text-[9px] text-slate-400">GAS</span>
+                        <div class="status-dot ml-1" :class="hubStatus.line === 'success' ? 'bg-green-500' : 'bg-red-400'"></div><span class="text-[9px] text-slate-400">LINE</span>
+                        <i @click="checkHubStatus" class="fas fa-sync-alt text-[9px] text-slate-200 cursor-pointer ml-1 hover:text-[#06C755]"></i>
                     </div>
-                    <button @click="fetchData" class="text-xs font-bold text-slate-500 hover:text-green-600 transition"><i v-if="isLoading" class="fas fa-sync fa-spin mr-1"></i>同步資料</button>
+                    <button @click="fetchData" class="text-[11px] text-slate-500 hover:text-[#06C755]"><i v-if="isLoading" class="fas fa-sync fa-spin mr-1"></i>同步資料</button>
                 </div>
             </header>
 
-            <!-- 數據總覽 (極簡) -->
-            <div v-if="view === 'dashboard'" class="p-6 grid grid-cols-4 gap-4 animate-fade-in">
-                <div v-for="(val, label) in { '學員': users.length, '課程': courses.length, '訂單額': '$' + totalRevenue, '導師': teachers.length }" class="border border-slate-100 p-4 rounded-lg bg-white">
-                    <div class="text-[11px] font-bold text-slate-400 mb-1">{{ label }}</div>
-                    <div class="text-xl font-black text-slate-700">{{ val }}</div>
+            <!-- 數據總覽 -->
+            <div v-if="view === 'dashboard'" class="p-5 grid grid-cols-4 gap-4 animate-fade-in">
+                <div v-for="(val, label) in { '學員': users.length, '課程': courses.length, '導師': teachers.length, '營收': '$'+totalRevenue }" class="border border-slate-100 p-3">
+                    <div class="text-[10px] text-slate-400 font-bold mb-1">{{ label }}</div>
+                    <div class="text-lg text-slate-700 font-mono font-black">{{ val }}</div>
                 </div>
             </div>
 
-            <!-- 預約諮詢：原生清單布局 -->
+            <!-- 預約諮詢：原生高密度布局 -->
             <div v-if="view === 'consultation'" class="animate-fade-in">
-                
-                <div class="flex border-b border-slate-100">
-                    <!-- 左：師資核准 -->
-                    <div class="w-1/3 p-6 border-r border-slate-100">
-                        <h3 class="text-sm font-bold text-slate-800 mb-4">核准導師入駐</h3>
-                        <div class="space-y-4">
-                            <select v-model="approveForm.uid" class="w-full border border-slate-200 rounded p-2 text-sm outline-none"><option value="">選擇學員</option><option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.name }}</option></select>
+                <div class="flex border-b border-slate-100 h-[260px]">
+                    <div class="w-1/3 p-5 border-r border-slate-100 overflow-y-auto">
+                        <div class="text-[11px] font-bold text-slate-800 mb-3 uppercase tracking-tighter">核准導師</div>
+                        <div class="space-y-3">
+                            <select v-model="approveForm.uid" class="w-full bg-slate-50 border-slate-100 text-xs"><option value="">-- 對象學員 --</option><option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.name }}</option></select>
                             <div class="flex gap-2">
-                                <div class="flex-1"><label class="text-[10px] font-bold text-slate-400">租金</label><input type="number" v-model="approveForm.rent" class="w-full border border-slate-200 rounded p-2 text-sm"></div>
-                                <div class="flex-1"><label class="text-[10px] font-bold text-slate-400">抽成%</label><input type="number" v-model="approveForm.comm" class="w-full border border-slate-200 rounded p-2 text-sm"></div>
+                                <div class="w-1/2 text-[10px] text-slate-400">租金<input type="number" v-model="approveForm.rent" class="w-full mt-1"></div>
+                                <div class="w-1/2 text-[10px] text-slate-400">抽成%<input type="number" v-model="approveForm.comm" class="w-full mt-1"></div>
                             </div>
-                            <button @click="handleApproveTeacher" class="w-full py-2.5 bg-[#06C755] text-white rounded font-bold text-sm">確認升級</button>
+                            <button @click="handleApproveTeacher" class="w-full py-1.5 bg-[#06C755] text-white text-[11px]">確認啟用</button>
                         </div>
                     </div>
-                    <!-- 右：名單 -->
-                    <div class="w-2/3 p-6 bg-slate-50/30">
-                        <h3 class="text-sm font-bold text-slate-800 mb-4">當前導師</h3>
-                        <table class="w-full text-sm">
-                            <thead class="text-[10px] text-slate-400 font-bold uppercase border-b border-slate-100">
-                                <tr><th class="text-left py-2">姓名</th><th>租金</th><th>抽成</th><th class="text-right">操作</th></tr>
-                            </thead>
+                    <div class="w-2/3 p-5 bg-slate-50/20 overflow-y-auto">
+                        <div class="text-[11px] font-bold text-slate-800 mb-3 uppercase tracking-tighter">活躍名單</div>
+                        <table class="text-[11px]">
+                            <thead><tr><th>導師</th><th class="text-center">租金/抽成</th><th class="text-right">操作</th></tr></thead>
                             <tbody>
-                                <tr v-for="t in teachers" :key="t.userId" class="border-b border-slate-50 last:border-0">
-                                    <td class="py-3 font-bold text-slate-600">{{ t.name }}</td><td class="text-center">{{ t.config.rent }}點</td><td class="text-center">{{ t.config.comm }}%</td><td class="text-right"><button @click="activeTeacher = t" class="text-indigo-600 font-bold text-xs">排班管理</button></td>
+                                <tr v-for="t in teachers" :key="t.userId">
+                                    <td class="font-bold">{{ t.name }}</td><td class="text-center text-slate-400">{{ t.config.rent }}P / {{ t.config.comm }}%</td><td class="text-right"><button @click="activeTeacher = t" class="text-indigo-500">排班</button></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- 排班網格 (懸浮層改為平鋪) -->
-                <div v-if="activeTeacher" class="p-6 border-t-4 border-green-500">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h3 class="font-bold text-slate-800">1對1 諮詢排班控制台 (導師：{{ activeTeacher.name }})</h3>
-                            <p class="text-[10px] text-slate-400 font-medium mt-1">點擊格子開啟(綠色)或關閉(白色)。紅色為已約滿。</p>
-                        </div>
-                        <button @click="activeTeacher = null" class="text-slate-300 hover:text-red-500"><i class="fas fa-times"></i></button>
+                <!-- 排班網格：極簡化 -->
+                <div v-if="activeTeacher" class="p-5 border-t border-[#06C755] bg-white animate-fade-in">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="text-xs font-bold">排班控制：<span class="text-[#06C755]">{{ activeTeacher.name }}</span></div>
+                        <i @click="activeTeacher = null" class="fas fa-times text-slate-300 cursor-pointer"></i>
                     </div>
-
-                    <div class="overflow-x-auto hide-scrollbar">
-                        <div class="slot-grid" style="width: 1200px;">
-                            <div class="slot-cell slot-time-label">預約日期</div>
-                            <div v-for="date in dates" :key="date.fullDate" class="slot-header">
-                                <div class="text-[10px] font-bold text-slate-400">{{ date.weekDay }}</div>
-                                <div class="text-[15px] font-black text-slate-700">{{ date.day }}</div>
-                            </div>
+                    <div class="overflow-x-auto hide-scrollbar border border-slate-100">
+                        <div class="slot-grid" style="width: 1000px;">
+                            <div class="slot-cell slot-time-label">日期</div>
+                            <div v-for="date in dates" :key="date.fullDate" class="slot-header"><div class="text-[8px] text-slate-400">{{ date.weekDay }}</div><div class="text-sm font-black">{{ date.day }}</div></div>
                             <template v-for="time in timeSlots" :key="time">
                                 <div class="slot-cell slot-time-label">{{ time }}</div>
                                 <div v-for="date in dates" :key="date.fullDate" @click="handleToggleSlot(activeTeacher.userId, date.fullDate, time)" class="slot-cell" :class="getSlotClass(activeTeacher.userId, date.fullDate, time)">
-                                    <i v-if="getSlotStatus(activeTeacher.userId, date.fullDate, time) === 'OPEN'" class="fas fa-check text-[10px]"></i>
-                                    <i v-if="getSlotStatus(activeTeacher.userId, date.fullDate, time) === 'BOOKED'" class="fas fa-user-lock text-[10px]"></i>
+                                    <i v-if="getSlotStatus(activeTeacher.userId, date.fullDate, time) === 'OPEN'" class="fas fa-check text-[8px]"></i>
+                                    <i v-if="getSlotStatus(activeTeacher.userId, date.fullDate, time) === 'BOOKED'" class="fas fa-lock text-[8px]"></i>
                                 </div>
                             </template>
                         </div>
@@ -166,17 +157,17 @@
                 </div>
             </div>
 
-            <!-- 學員 CRM (原生表格) -->
-            <div v-if="view === 'members'" class="p-6">
-                <table class="w-full text-left text-sm border border-slate-100">
-                    <thead class="bg-slate-50 text-[10px] font-bold text-slate-400"><tr><th class="px-4 py-3">姓名</th><th class="px-4 py-3">手機</th><th class="px-4 py-3">等級</th><th class="px-4 py-3">操作</th></tr></thead>
+            <!-- 學員 CRM -->
+            <div v-if="view === 'members'" class="p-5 animate-fade-in">
+                <table class="text-xs">
+                    <thead><tr><th>姓名</th><th>手機</th><th>等級</th><th>註冊日</th></tr></thead>
                     <tbody>
-                        <tr v-for="u in users" :key="u.userId" class="border-b border-slate-50 hover:bg-slate-50 transition"><td class="px-4 py-3 font-bold">{{ u.name }}</td><td class="px-4 py-3 font-mono">{{ u.phone }}</td><td class="px-4 py-3"><span class="px-1.5 py-0.5 bg-green-50 text-green-600 rounded text-[10px] font-bold">{{ u.memberTier }}</span></td><td class="px-4 py-3 text-indigo-600 font-bold text-xs cursor-pointer">詳細資料</td></tr>
+                        <tr v-for="u in users" :key="u.userId" class="hover:bg-slate-50"><td class="font-bold">{{ u.name }}</td><td class="font-mono text-slate-400">{{ u.phone }}</td><td><span class="text-[10px] text-[#06C755] font-bold">{{ u.memberTier }}</span></td><td class="text-slate-300 font-mono text-[10px]">{{ u.createdAt }}</td></tr>
                     </tbody>
                 </table>
             </div>
 
-            <div v-if="view === 'richmenu'" class="h-[calc(100vh-60px)]"><iframe src="menu.html" class="w-full h-full border-0"></iframe></div>
+            <div v-if="view === 'richmenu'" class="h-[calc(100vh-45px)]"><iframe src="menu.html" class="w-full h-full border-0"></iframe></div>
 
         </main>
     </div>
@@ -188,6 +179,8 @@
         createApp({
             setup() {
                 const view = ref('dashboard');
+                const isAuthorized = ref(false);
+                const loginForm = ref({ user: '', pass: '' });
                 const isLoading = ref(false);
                 const users = ref([]);
                 const teachers = ref([]);
@@ -202,7 +195,7 @@
                 const groups = ref({ groupA: true, groupB: true });
 
                 const toggleGroup = (g) => { groups.value[g] = !groups.value[g]; };
-                const viewName = computed(() => ({ dashboard: '數據統計中心', members: '學員 CRM', courses: '課程管理', consultation: '預約時段租用', orders: '訂單維護', settings: '全域設定', richmenu: '雲端選單庫' }[view.value]));
+                const viewName = computed(() => ({ dashboard: '營運統計', members: '學員管理', courses: '課程管理', consultation: '預約諮詢', orders: '訂單維護', settings: '系統設定', richmenu: '雲端選單' }[view.value]));
                 const totalRevenue = computed(() => orders.value.reduce((acc, o) => acc + (Number(o.amount) || 0), 0).toLocaleString());
 
                 const callApi = async (act, pl = {}) => {
@@ -212,23 +205,27 @@
                         const json = await res.json();
                         if (json.status !== 'success') throw new Error(json.message || '異常');
                         return json.data;
-                    } catch (e) { alert(e.message); return null; } finally { isLoading.value = false; }
+                    } catch (e) { alert(`系統提示: ${e.message}`); return null; } finally { isLoading.value = false; }
                 };
 
+                const handleLogin = () => { 
+                    if (loginForm.value.user === 'admin' && ['@1234', '8888'].includes(loginForm.value.pass)) { 
+                        isAuthorized.value = true; 
+                        localStorage.setItem('admin_auth', 'true'); 
+                        fetchData(); checkHubStatus(); 
+                    } else { alert('帳號或密碼錯誤'); loginForm.value.pass = ''; } 
+                };
+                const logout = () => { if(confirm('登出？')) { isAuthorized.value = false; localStorage.removeItem('admin_auth'); } };
+
                 const fetchData = async () => {
+                    if (!isAuthorized.value) return;
                     const data = await callApi('ADMIN_GET_DATA');
                     if (data) { users.value = data.users || []; teachers.value = data.teachers || []; courses.value = data.courses || []; orders.value = data.orders || []; }
                     const slotData = await callApi('ADMIN_GET_SLOTS');
                     if (slotData) slots.value = slotData;
                 };
 
-                const checkHubStatus = async () => {
-                    try {
-                        const res = await fetch(`${WORKER_URL}hub-status`);
-                        const json = await res.json();
-                        hubStatus.value = json;
-                    } catch (e) { console.error("狀態檢測失敗"); }
-                };
+                const checkHubStatus = async () => { try { const res = await fetch(`${WORKER_URL}hub-status`); hubStatus.value = await res.json(); } catch (e) {} };
 
                 const handleApproveTeacher = async () => {
                     const target = users.value.find(u => u.userId === approveForm.value.uid);
@@ -238,24 +235,23 @@
                 };
 
                 const getSlotStatus = (uid, date, time) => { const found = slots.value.find(s => s.teacherUid === uid && s.date === date && s.time === time); return found ? found.status : 'CLOSED'; };
-                const getSlotClass = (uid, date, time) => { const status = getSlotStatus(uid, date, time); return { 'slot-open': status === 'OPEN', 'slot-closed': status === 'CLOSED', 'slot-booked': status === 'BOOKED' }; };
+                const getSlotClass = (uid, date, time) => { const status = getSlotStatus(uid, date, time); return { 'slot-open': status === 'OPEN', 'slot-booked': status === 'BOOKED' }; };
+                
                 const handleToggleSlot = async (uid, date, time) => {
                     const current = getSlotStatus(uid, date, time); if (current === 'BOOKED') return;
                     const newAction = current === 'OPEN' ? 'CLOSE' : 'OPEN';
-                    if (newAction === 'OPEN') { const config = teachers.value.find(t => t.userId === uid).config; if (!confirm(`將從錢包扣租金 ${config.rent} 點？`)) return; }
+                    if (newAction === 'OPEN') { const config = teachers.value.find(t => t.userId === uid).config; if (!confirm(`扣除租金 ${config.rent} 點？`)) return; }
                     const res = await callApi('ADMIN_TOGGLE_SLOT', { teacherUid: uid, date, time, action: newAction });
                     if (res) fetchData();
                 };
 
-                const logout = () => { if(confirm('確定登出？')) window.location.href = 'index.html'; };
-
                 onMounted(() => {
                     const today = new Date(); const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
                     for (let i = 0; i < 14; i++) { const d = new Date(today); d.setDate(today.getDate() + i); dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: dayNames[d.getDay()] }); }
-                    fetchData(); checkHubStatus();
+                    if (localStorage.getItem('admin_auth') === 'true') { isAuthorized.value = true; fetchData(); checkHubStatus(); }
                 });
 
-                return { view, viewName, groups, toggleGroup, isLoading, users, teachers, courses, orders, totalRevenue, hubStatus, checkHubStatus, activeTeacher, approveForm, handleApproveTeacher, dates, timeSlots, getSlotStatus, getSlotClass, handleToggleSlot, fetchData, logout };
+                return { view, viewName, groups, toggleGroup, isLoading, isAuthorized, loginForm, handleLogin, logout, users, teachers, courses, orders, totalRevenue, hubStatus, checkHubStatus, activeTeacher, approveForm, handleApproveTeacher, dates, timeSlots, getSlotStatus, getSlotClass, handleToggleSlot, fetchData };
             }
         }).mount('#app');
     </script>
