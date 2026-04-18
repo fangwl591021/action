@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器 (Rich Menu Editor)</title>
-    <!-- Version: 2026.04.18.V119_RichMenu_AutoDetect -->
+    <!-- Version: 2026.04.18.V120_RichMenu_LocalStorage_Drawer -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -69,14 +69,17 @@
 
         <div id="menu-workspace" class="flex-1 flex flex-col items-center w-full h-full bg-slate-50 overflow-y-auto relative">
             <!-- 頂部工具列 -->
-            <div class="bg-white/90 border-b border-gray-200 w-full py-3 flex justify-center items-center space-x-4 sticky top-0 z-30 shadow-sm backdrop-blur-sm">
-                <button onclick="MenuModule.toggleDrawMode()" id="menu-draw-btn" class="px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700">開始劃定區域</button>
-                <button onclick="MenuModule.clearAreas()" class="px-6 py-2.5 rounded-md text-sm font-bold text-rose-500 bg-white border-2 border-rose-100 transition-all hover:bg-rose-50">清空區域</button>
+            <div class="bg-white/90 border-b border-gray-200 w-full py-3 flex justify-between items-center px-6 sticky top-0 z-30 shadow-sm backdrop-blur-sm">
+                <div class="flex items-center space-x-4">
+                    <button onclick="MenuModule.toggleDrawMode()" id="menu-draw-btn" class="px-10 py-2.5 rounded-md text-sm font-black bg-slate-800 text-white shadow-md transition-all hover:bg-slate-700">開始劃定區域</button>
+                    <button onclick="MenuModule.clearAreas()" class="px-6 py-2.5 rounded-md text-sm font-bold text-rose-500 bg-white border-2 border-rose-100 transition-all hover:bg-rose-50">清空區域</button>
+                </div>
                 
-                <div class="flex items-center space-x-2 pl-4 border-l-2 border-gray-200">
-                    <button onclick="MenuModule.applyJsonFromText()" class="px-8 py-2.5 rounded-md text-sm font-bold text-slate-600 bg-white border-2 border-gray-300 transition-all hover:bg-gray-50">更新畫布</button>
-                    <button onclick="copyJsonText()" class="px-8 py-2.5 rounded-md text-sm font-black text-[#54C061] bg-green-50 border-2 border-[#54C061] transition-all hover:bg-green-100 uppercase shadow-sm">Copy JSON</button>
-                    <button onclick="MenuModule.openDeployModal()" class="px-8 py-2.5 rounded-md text-sm font-black text-white bg-indigo-600 border-2 border-indigo-600 transition-all hover:bg-indigo-700 uppercase shadow-sm flex items-center gap-2"><i class="fas fa-cloud-upload-alt"></i> 上傳部署</button>
+                <div class="flex items-center space-x-2 pl-4">
+                    <button onclick="MenuModule.applyJsonFromText()" class="px-6 py-2.5 rounded-md text-sm font-bold text-slate-600 bg-white border border-gray-300 transition-all hover:bg-gray-50"><i class="fas fa-code"></i> JSON</button>
+                    <button onclick="copyJsonText()" class="px-6 py-2.5 rounded-md text-sm font-black text-[#54C061] bg-green-50 border border-[#54C061] transition-all hover:bg-green-100 shadow-sm"><i class="far fa-copy"></i> 複製</button>
+                    <button onclick="StorageModule.toggleDrawer()" class="px-6 py-2.5 rounded-md text-sm font-black text-orange-600 bg-orange-50 border border-orange-200 transition-all hover:bg-orange-100 shadow-sm flex items-center gap-2"><i class="fas fa-folder-open"></i> 檔案庫</button>
+                    <button onclick="MenuModule.openDeployModal()" class="px-8 py-2.5 rounded-md text-sm font-black text-white bg-indigo-600 border border-indigo-600 transition-all hover:bg-indigo-700 shadow-sm flex items-center gap-2 ml-2"><i class="fas fa-cloud-upload-alt"></i> 部署</button>
                 </div>
             </div>
 
@@ -99,7 +102,30 @@
 
     </main>
 
-    <!-- 🌟 更新版：全自動偵測部署 Modal -->
+    <!-- 🌟 [新增] 右側檔案庫抽屜 (Drawer) -->
+    <div id="right-drawer-overlay" onclick="StorageModule.toggleDrawer()" class="hidden fixed inset-0 bg-slate-800/20 z-40 backdrop-blur-sm transition-opacity"></div>
+    <aside id="right-drawer" class="fixed right-0 top-0 h-full w-[360px] bg-[#F8F9FA] shadow-[0_0_40px_rgba(0,0,0,0.1)] translate-x-full transition-transform duration-300 z-50 flex flex-col border-l border-slate-200">
+        <div class="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-white">
+            <h2 class="font-black text-slate-800 text-lg"><i class="fas fa-folder-open text-orange-500 mr-2"></i>我的選單檔案庫</h2>
+            <button onclick="StorageModule.toggleDrawer()" class="text-slate-400 hover:text-slate-600 transition p-2 rounded-lg hover:bg-slate-100 bg-slate-50 border border-slate-100"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        
+        <!-- 上方：新增檔案 -->
+        <div class="p-6 bg-white border-b border-slate-200 shadow-sm z-10">
+            <label class="block text-[13px] font-bold text-slate-500 mb-2 tracking-wide uppercase">儲存當前進度</label>
+            <p class="text-[12px] text-slate-400 font-medium mb-4 leading-relaxed">這會將目前的底圖與座標資訊壓縮儲存至您的瀏覽器本地端。</p>
+            <button onclick="StorageModule.saveCurrent()" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold shadow-md hover:bg-slate-700 transition active:scale-[0.98] flex items-center justify-center gap-2">
+                <i class="fas fa-save text-[#06C755]"></i> 儲存為新檔案
+            </button>
+        </div>
+
+        <!-- 下方：檔案列表 -->
+        <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50" id="saved-files-list">
+            <!-- 透過 JS 動態渲染 -->
+        </div>
+    </aside>
+
+    <!-- 全自動偵測部署 Modal -->
     <div id="deploy-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg overflow-hidden flex flex-col">
             <div class="px-6 py-4 bg-indigo-600 flex justify-between items-center text-white">
@@ -145,7 +171,6 @@
             }
         }
 
-        // 複製 JSON 功能
         function copyJsonText() {
             const copyText = document.getElementById("json-output");
             if (!copyText.value) return alert("請先產生 JSON");
@@ -159,11 +184,9 @@
             });
         }
 
-        // DOM 載入後綁定上傳事件與模組
         document.addEventListener('DOMContentLoaded', () => {
             MenuModule.init();
 
-            // 圖片上傳解析邏輯
             document.getElementById('image-upload').addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -212,12 +235,20 @@
                     }
                 },
 
+                // 提供給 StorageModule 取得當前圖片
+                getCurrentBase64: function() {
+                    return savedBase64Image;
+                },
+
                 load: function(name, jsonStr, base64) {
                     var self = this;
                     savedBase64Image = base64; // 儲存起來供部署使用
                     var data = {};
                     try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
                     
+                    const placeholder = document.getElementById('canvas-placeholder');
+                    if (placeholder) placeholder.style.display = 'none';
+
                     var tempImg = new Image();
                     tempImg.onload = function() {
                         var ratio = tempImg.height / tempImg.width;
@@ -532,7 +563,6 @@
                     }
                 },
 
-                // 🌟 新增：全自動抓取通道與部署功能
                 openDeployModal: function() {
                     if (!savedBase64Image) {
                         alert("⚠️ 請先在左側上傳「選單底圖」後，再進行部署！");
@@ -542,12 +572,11 @@
                     const modal = document.getElementById('deploy-modal');
                     const apiUrlInput = document.getElementById('deploy-api-url');
                     
-                    // 自動嘗試抓取父視窗 (admin.html) 的 WORKER_URL
                     let defaultApiUrl = '';
                     if (window.parent && window.parent.WORKER_URL) {
                         defaultApiUrl = window.parent.WORKER_URL;
                     } else {
-                        defaultApiUrl = 'https://action.fangwl591021.workers.dev/'; // 備用預設值
+                        defaultApiUrl = 'https://action.fangwl591021.workers.dev/'; 
                     }
                     
                     apiUrlInput.value = defaultApiUrl;
@@ -576,8 +605,6 @@
                             body: JSON.stringify({
                                 action: 'DEPLOY_RICH_MENU',
                                 payload: {
-                                    // ⚠️ 這裡完全不傳 token！
-                                    // 將由強大的 Cloudflare Worker 在中途自動攔截並安全注入金鑰
                                     richMenuObj: richMenuObj,
                                     imageBase64: savedBase64Image
                                 }
@@ -599,6 +626,121 @@
                         btn.innerHTML = originalText;
                         btn.disabled = false;
                     }
+                }
+            };
+        })();
+
+        // 🌟 [新增] 本地儲存抽屜模組 (LocalStorage Storage Module)
+        window.StorageModule = (function() {
+            const STORAGE_KEY = 'rich_menu_saves';
+            
+            function getSaves() {
+                try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+                catch(e) { return []; }
+            }
+            
+            function setSaves(data) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            }
+
+            return {
+                toggleDrawer: function() {
+                    const drawer = document.getElementById('right-drawer');
+                    const overlay = document.getElementById('right-drawer-overlay');
+                    if (drawer.classList.contains('translate-x-full')) {
+                        drawer.classList.remove('translate-x-full');
+                        overlay.classList.remove('hidden');
+                        this.renderList(); // 開啟時刷新列表
+                    } else {
+                        drawer.classList.add('translate-x-full');
+                        overlay.classList.add('hidden');
+                    }
+                },
+                
+                saveCurrent: function() {
+                    const base64 = MenuModule.getCurrentBase64();
+                    if (!base64) return alert('⚠️ 請先在左側上傳「底圖」並設定後再進行儲存！');
+                    
+                    const jsonStr = document.getElementById('json-output').value;
+                    if (!jsonStr) return alert('沒有可儲存的 JSON 資料！');
+                    
+                    let dataObj;
+                    try { dataObj = JSON.parse(jsonStr); } catch(e) { return alert('JSON 格式錯誤，無法儲存'); }
+                    
+                    const filename = document.getElementById('save-filename').value || '未命名選單';
+                    const saves = getSaves();
+                    
+                    try {
+                        const newItem = {
+                            id: Date.now().toString(),
+                            name: filename,
+                            date: new Date().toLocaleString('zh-TW', {hour12: false}),
+                            data: dataObj,
+                            image: base64
+                        };
+                        saves.unshift(newItem); // 將新檔案插在最前面
+                        setSaves(saves);
+                        this.renderList();
+                        alert('✅ 檔案已成功安全儲存至瀏覽器！');
+                    } catch(e) {
+                        alert('❌ 儲存失敗！可能是您的瀏覽器儲存空間已滿，請先刪除舊檔案再試。');
+                    }
+                },
+                
+                loadSave: function(id) {
+                    if(!confirm('載入此檔案將會【覆蓋】您目前在畫布上的所有進度，確定要載入嗎？')) return;
+                    
+                    const saves = getSaves();
+                    const item = saves.find(x => x.id === id);
+                    if (item) {
+                        document.getElementById('save-filename').value = item.name;
+                        document.getElementById('rich-menu-chatbar').value = item.data.chatBarText || '選單';
+                        
+                        // 將紀錄載入畫布
+                        MenuModule.load(item.name, encodeURIComponent(JSON.stringify(item.data)), item.image);
+                        
+                        this.toggleDrawer(); // 關閉抽屜
+                    }
+                },
+                
+                deleteSave: function(id) {
+                    if(!confirm('確定要永久刪除此檔案嗎？\n(此動作無法復原)')) return;
+                    let saves = getSaves();
+                    saves = saves.filter(x => x.id !== id);
+                    setSaves(saves);
+                    this.renderList();
+                },
+                
+                renderList: function() {
+                    const saves = getSaves();
+                    const container = document.getElementById('saved-files-list');
+                    
+                    if (saves.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-12 text-slate-400 font-bold text-[13px]">
+                                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 mx-auto mb-3 text-2xl"><i class="fas fa-folder-open text-slate-300"></i></div>
+                                目前沒有儲存的檔案
+                            </div>`;
+                        return;
+                    }
+                    
+                    let html = '';
+                    saves.forEach(item => {
+                        html += `
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-orange-400 hover:shadow-md transition group relative overflow-hidden">
+                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-orange-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div class="flex justify-between items-start mb-2 pl-2">
+                                    <div class="font-black text-slate-800 text-[15px] line-clamp-1 flex-1 pr-2 tracking-tight">${item.name}</div>
+                                    <button onclick="StorageModule.deleteSave('${item.id}')" class="text-slate-300 hover:text-red-500 transition px-1" title="刪除檔案"><i class="fas fa-trash-alt"></i></button>
+                                </div>
+                                <div class="text-[11px] font-mono text-slate-400 mb-4 pl-2"><i class="far fa-clock mr-1"></i>${item.date}</div>
+                                <button onclick="StorageModule.loadSave('${item.id}')" class="w-full py-2.5 bg-slate-50 text-orange-600 text-[13px] font-black rounded-lg border border-slate-200 group-hover:bg-orange-50 group-hover:border-orange-200 group-hover:shadow-sm transition active:scale-[0.98]">
+                                    <i class="fas fa-file-import mr-1"></i> 載入此檔案
+                                </button>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
                 }
             };
         })();
