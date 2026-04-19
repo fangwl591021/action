@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION 會員中心</title>
-    <!-- Version: 2026.04.19.V178_Final_Restore_Speed_And_UI -->
+    <!-- Version: 2026.04.19.V179_Fix_GatewayUrl_Undefined_Error -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -55,7 +55,7 @@
         </transition>
 
         <!-- ========================================== -->
-        <!-- 📝 註冊頁面 (攔截未註冊者要求填寫) -->
+        <!-- 📝 註冊頁面 -->
         <!-- ========================================== -->
         <div v-else-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in">
             <div class="header-fixed justify-start gap-4">
@@ -123,7 +123,6 @@
                         </div>
                     </div>
 
-                    <!-- 分類標籤 -->
                     <div class="bg-white sticky top-[56px] z-30 border-b border-[#EEEEEE] pt-1 pb-2 shadow-sm">
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-2">
                             <button @click="activeCategory = 'ALL'" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors" :class="activeCategory === 'ALL' ? 'bg-[#111111] text-white' : 'bg-[#F4F5F7] text-[#555555]'">全部</button>
@@ -147,6 +146,7 @@
                                 </div>
                             </div>
                         </div>
+                        <div v-if="!filteredCourses.length" class="text-center py-20 text-[#AAAAAA] font-bold text-[14px]">目前分類尚無課程</div>
                     </div>
                 </div>
 
@@ -233,13 +233,13 @@
 
             <!-- 底部導覽列 -->
             <nav class="bottom-nav">
-                <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home' || view === 'courseDetail' || view === 'booking'}"><i class="fas fa-compass"></i><span>探索</span></div>
+                <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home' || view === 'courseDetail'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
                 <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile' || view === 'teacherConsole'}"><i class="fas fa-user"></i><span>我的</span></div>
             </nav>
         </div>
 
-        <!-- 🚀 像素級還原：銀行匯款回報彈窗 ( z-[100] 最上層) -->
+        <!-- 🚀 像素級還原：銀行匯款回報彈窗 -->
         <div v-if="showRemittanceModal" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-6 backdrop-blur-sm animate-fade-in">
             <div class="bg-white rounded-[32px] w-full max-w-sm p-8 shadow-2xl relative overflow-hidden">
                 <h3 class="text-xl font-black text-[#111111] mb-2">銀行匯款回報</h3>
@@ -258,8 +258,15 @@
         <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-0 bg-white z-[60] flex flex-col h-full w-full overflow-hidden animate-fade-in">
             <div class="header-fixed !bg-transparent !border-none !absolute !top-0 !w-full justify-between"><button @click="view = 'home'" class="w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center backdrop-blur-md active:scale-90 transition"><i class="fas fa-arrow-left"></i></button></div>
             <div class="flex-1 overflow-y-auto hide-scrollbar pb-24">
-                <div class="w-full aspect-[4/3] bg-[#F4F5F7] relative"><img v-if="selectedCourse.image" :src="selectedCourse.image" class="w-full h-full object-cover"></div>
+                <div class="w-full aspect-[4/3] bg-[#F4F5F7] relative shrink-0">
+                    <img v-if="selectedCourse.image" :src="selectedCourse.image" class="w-full h-full object-cover">
+                    <div v-else class="absolute inset-0 flex items-center justify-center text-[#AAAAAA]"><i class="fas fa-book-open text-3xl"></i></div>
+                </div>
                 <div class="p-6">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="bg-[#f0fdf4] text-[#06C755] text-[11px] font-bold px-2 py-0.5 rounded">{{ selectedCourse.type }}</span>
+                        <span v-if="selectedCourse.discountRule !== 'NONE'" class="bg-orange-50 text-orange-600 text-[11px] font-bold px-2 py-0.5 rounded">紅包折抵適用</span>
+                    </div>
                     <h2 class="text-2xl font-black text-[#111111] leading-snug mb-4">{{ selectedCourse.name }}</h2>
                     <div class="text-[15px] text-[#555555] leading-relaxed whitespace-pre-wrap font-medium">{{ selectedCourse.description }}</div>
                 </div>
@@ -270,15 +277,19 @@
             </div>
         </div>
 
-        <form ref="newebpayForm" :action="paymentData.GatewayUrl" method="POST" class="hidden">
-            <input type="hidden" name="MerchantID" :value="paymentData.MerchantID"><input type="hidden" name="TradeInfo" :value="paymentData.TradeInfo"><input type="hidden" name="TradeSha" :value="paymentData.TradeSha"><input type="hidden" name="Version" :value="paymentData.Version">
+        <!-- 💰 藍新金流表單 (修正：增加 v-if 並匯出變數) -->
+        <form v-if="paymentData && paymentData.GatewayUrl" ref="newebpayForm" :action="paymentData.GatewayUrl" method="POST" class="hidden">
+            <input type="hidden" name="MerchantID" :value="paymentData.MerchantID">
+            <input type="hidden" name="TradeInfo" :value="paymentData.TradeInfo">
+            <input type="hidden" name="TradeSha" :value="paymentData.TradeSha">
+            <input type="hidden" name="Version" :value="paymentData.Version">
         </form>
     </div>
 
     <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v178';
+        const CACHE_VERSION = 'v179';
 
         createApp({
             setup() {
@@ -286,7 +297,8 @@
                 const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null }); const userPoints = ref({ balance: 0 }); const sysSettings = ref({});
                 const courses = ref([]); const myOrders = ref([]); const selectedCourse = ref(null);
                 const regForm = ref({ name: '', gender: '女', birthday: '', phone: '', industry: '', address: '', referrerCode: '' });
-                const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null); const paymentData = ref({});
+                const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null); 
+                const paymentData = ref({}); const newebpayForm = ref(null); // ✅ 確保金流變數定義
                 const teacherSlots = ref([]); const dates = ref([]); const selectedDate = ref(''); const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
                 const teacherSettingsForm = ref({ price: 0, acceptPoints: false, maxPoints: 0 }); const draftOpenSlots = ref([]); const draftCloseSlots = ref([]);
                 const activeCategory = ref('ALL');
@@ -298,7 +310,6 @@
                     } catch (e) { alert(e.message); return null; }
                 };
 
-                // ⚡ 秒進快取系統 (Restore from V171)
                 const loadFromCache = (uid) => {
                     try {
                         const cSets = localStorage.getItem(`sets_${CACHE_VERSION}`); if (cSets) sysSettings.value = JSON.parse(cSets);
@@ -314,7 +325,6 @@
                     const today = new Date(); const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
                     for (let i = 0; i < 30; i++) { const d = new Date(today); d.setDate(today.getDate() + i); dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: dayNames[d.getDay()], isWeekend: d.getDay()===0||d.getDay()===6 }); }
                     selectedDate.value = dates.value[0].fullDate;
-
                     try {
                         loadFromCache(null);
                         const settings = await callApi('GET_SETTINGS');
@@ -326,7 +336,6 @@
                         }
                         const uid = liffProfile.value.userId; loadFromCache(uid);
                         if (courses.value.length > 0) isGlobalLoading.value = false;
-
                         const [checkRes, cData, oData, pData] = await Promise.all([ callApi('CHECK_USER'), callApi('GET_COURSES'), callApi('GET_USER_ORDERS'), callApi('GET_USER_POINTS') ]);
                         if (checkRes) userStatus.value = checkRes; if (cData) courses.value = cData; if (oData) myOrders.value = oData; if (pData) userPoints.value = pData;
                         localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes)); localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
@@ -334,17 +343,11 @@
                     } catch (e) { isGlobalLoading.value = false; }
                 };
 
-                const navigateTo = (t) => {
-                    if ((t === 'profile' || t === 'orders') && !userStatus.value.registered) {
-                        alert('請先註冊會員以解鎖此功能。'); view.value = 'register'; return;
-                    }
-                    view.value = t; window.scrollTo(0,0);
-                };
-
-                const startBooking = () => { if (!userStatus.value.registered) { view.value = 'register'; return; } alert('進入報名...'); };
+                const navigateTo = (t) => { if ((t === 'profile' || t === 'orders') && !userStatus.value.registered) { alert('請先註冊。'); view.value = 'register'; return; } view.value = t; window.scrollTo(0,0); };
                 const openCourseDetail = (c) => { selectedCourse.value = c; view.value = 'courseDetail'; };
                 const openRemittanceModal = (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; };
                 
+                const startBooking = () => { if (!userStatus.value.registered) { view.value = 'register'; return; } alert('進入報名...'); };
                 const enterTeacherConsole = async () => {
                     isLoading.value = true; const conf = JSON.parse(userStatus.value.info?.adminNote || '{}');
                     teacherSettingsForm.value = { price: conf.price || 0, acceptPoints: conf.acceptPoints || false, maxPoints: conf.maxPoints || 0 };
@@ -370,7 +373,7 @@
                 };
                 const submitDrafts = async () => {
                     isLoading.value = true; const res = await callApi('ADMIN_BATCH_TOGGLE_SLOTS', { teacherUid: liffProfile.value.userId, draftOpen: draftOpenSlots.value, draftClose: draftCloseSlots.value });
-                    if (res && res.success) { alert('✅ 排班結算完成'); window.location.reload(); } isLoading.value = false;
+                    if (res && res.success) { alert('✅ 結算完成'); window.location.reload(); } isLoading.value = false;
                 };
 
                 const submitRegistration = async () => {
@@ -390,6 +393,7 @@
                     isGlobalLoading, loadingText, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceModal, remittanceInput,
                     openCourseDetail, startBooking, openRemittanceModal, navigateTo, dates, selectedDate, timeSlots, teacherConfig: computed(()=>JSON.parse(userStatus.value.info?.adminNote || '{}')), enterTeacherConsole, getSlotStyle, getSlotLocalStatus, handleTeacherToggleSlot,
                     teacherSettingsForm, saveTeacherSettings, draftOpenSlots, draftCloseSlots, clearDrafts: () => { draftOpenSlots.value = []; draftCloseSlots.value = []; }, submitDrafts, submitRegistration, submitRemittance,
+                    paymentData, newebpayForm, // ✅ 匯出金流變數，解決 undefined 報錯
                     formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(),
                     getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
                     categories: computed(() => [...new Set(courses.value.filter(c => c.isPublished !== false).map(c => c.type).filter(Boolean))]),
