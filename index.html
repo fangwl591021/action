@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION 會員中心</title>
-    <!-- Version: 2026.04.19.V188_Final_Source_Corrected -->
+    <!-- Version: 2026.04.19.V189_Final_UI_Restoration -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,7 +13,7 @@
     <style>
         [v-cloak] { display: none !important; }
         body { background-color: #F4F5F7; color: #111111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
-        .native-card { background: #ffffff; padding: 16px; margin-bottom: 8px; }
+        .native-card { background: #ffffff; padding: 16px; margin-bottom: 8px; border-bottom: 1px solid #EEEEEE; }
         .btn-primary { background-color: #06C755; color: white; font-weight: 700; padding: 14px 20px; border-radius: 12px; text-align: center; font-size: 16px; width: 100%; transition: transform 0.1s; }
         .btn-primary:active { transform: scale(0.98); }
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top: 1px solid #EEEEEE; display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); z-index: 50; }
@@ -30,9 +30,9 @@
         
         <transition name="fade">
             <div v-if="isGlobalLoading" class="fixed inset-0 bg-[#06C755] z-[100] flex flex-col items-center justify-center text-center text-white">
-                <h1 class="text-4xl font-black mb-1 uppercase">人生ACTION</h1>
+                <h1 class="text-4xl font-black mb-1 uppercase tracking-widest">人生ACTION</h1>
                 <div class="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin mt-6"></div>
-                <div class="text-xs font-bold mt-4 opacity-80">{{ loadingText }}</div>
+                <div class="text-xs font-bold mt-4 opacity-80 uppercase">Life Action System</div>
             </div>
         </transition>
 
@@ -61,7 +61,6 @@
                         </div>
                     </div>
 
-                    <!-- 分類標籤列 (修復版) -->
                     <div class="bg-white sticky top-[56px] z-30 border-b border-[#EEEEEE] pt-1 pb-2 shadow-sm">
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-2">
                             <button @click="activeCategory = 'ALL'" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-all" :class="activeCategory === 'ALL' ? 'bg-[#111111] text-white' : 'bg-[#F4F5F7] text-[#555555]'">全部</button>
@@ -81,6 +80,7 @@
                             </div>
                         </div>
                     </div>
+                    <div v-if="!filteredCourses.length" class="text-center py-20 text-slate-400 font-bold">目前無此類別課程</div>
                 </div>
 
                 <div v-if="view === 'profile'" class="animate-fade-in bg-white min-h-screen">
@@ -113,9 +113,9 @@
                         <div class="font-bold text-slate-800 mb-2">{{ getCourseName(o.courseId) }}</div>
                         <div class="text-[#06C755] font-black text-lg">$ {{ formatPrice(o.amount) }}</div>
                     </div>
+                    <div v-if="!myOrders.length" class="text-center py-20 text-slate-400 font-bold">目前無紀錄</div>
                 </div>
 
-                <!-- 👨‍🏫 導師排班中控台 -->
                 <div v-if="view === 'teacherConsole'" class="animate-fade-in bg-[#F4F5F7] min-h-screen pb-32">
                     <div class="header-fixed z-[70] shadow-sm"><button @click="view = 'profile'" class="text-[#111111] p-2"><i class="fas fa-arrow-left"></i></button><h2 class="text-[17px] font-bold text-[#111111]">導師排班</h2></div>
                     <div class="p-5 grid grid-cols-3 gap-3">
@@ -141,13 +141,13 @@
         <div v-else-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in p-6">
             <div class="text-center mt-10 mb-8">
                 <div class="w-20 h-20 rounded-full bg-slate-100 mx-auto mb-4 border overflow-hidden"><img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover"></div>
-                <div class="font-bold text-lg">歡迎來到人生ACTION</div>
+                <div class="font-bold text-lg tracking-widest">歡迎來到人生ACTION</div>
                 <p class="text-xs text-slate-500 mt-2">請完成資料填寫，解鎖會員權限與點數</p>
             </div>
             <div class="space-y-4">
-                <div><label class="native-label text-xs">真實姓名</label><input type="text" v-model="regForm.name" class="native-input" placeholder="姓名"></div>
-                <div><label class="native-label text-xs">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input" placeholder="09xxxxxxxx"></div>
-                <div><label class="native-label text-xs">收件地址</label><input type="text" v-model="regForm.address" class="native-input" placeholder="收件資訊"></div>
+                <div><label class="native-label text-xs font-bold text-slate-400">真實姓名</label><input type="text" v-model="regForm.name" class="native-input" placeholder="請輸入中文全名"></div>
+                <div><label class="native-label text-xs font-bold text-slate-400">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input font-mono" placeholder="09xxxxxxxx"></div>
+                <div><label class="native-label text-xs font-bold text-slate-400">收件地址</label><input type="text" v-model="regForm.address" class="native-input" placeholder="寄送資料使用"></div>
                 <button @click="submitRegistration" :disabled="isLoading" class="btn-primary mt-6">確認送出並綁定 LINE</button>
             </div>
         </div>
@@ -156,7 +156,7 @@
     <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v188'; // ✅ V188 強制重整
+        const CACHE_VERSION = 'v189'; 
 
         createApp({
             setup() {
@@ -164,13 +164,12 @@
                 const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null }); const userPoints = ref({ balance: 0 }); const sysSettings = ref({});
                 const courses = ref([]); const myOrders = ref([]); const selectedCourse = ref(null);
                 const regForm = ref({ name: '', phone: '', address: '' });
-                const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null);
                 const paymentData = ref({}); const newebpayForm = ref(null);
                 const teacherSlots = ref([]); const dates = ref([]); const selectedDate = ref(''); const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
-                const teacherSettingsForm = ref({ price: 0, acceptPoints: false, maxPoints: 0 }); const draftOpenSlots = ref([]); const draftCloseSlots = ref([]);
+                const teacherSettingsForm = ref({ price: 0, acceptPoints: false }); const draftOpenSlots = ref([]); const draftCloseSlots = ref([]);
                 const activeCategory = ref('ALL');
 
-                // ✅ 響應式：移至 setup 主體
+                // ✅ 響應式邏輯 (移至 setup 主體)
                 const categories = computed(() => {
                     const pub = courses.value.filter(c => c.isPublished !== false);
                     return [...new Set(pub.map(c => c.type).filter(Boolean))];
@@ -182,11 +181,22 @@
                     return pub.filter(c => c.type === activeCategory.value);
                 });
 
-                const callApi = async (act, pl = {}, silent = false) => {
+                const callApi = async (act, pl = {}, sil = false) => {
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value }) });
                         const json = await res.json(); if (json.status !== 'success') throw new Error(json.message); return json.data;
-                    } catch (e) { if(!silent) console.error("API Error: " + act, e.message); return null; }
+                    } catch (e) { if(!sil) console.error("API Error: " + act, e.message); return null; }
+                };
+
+                const syncLocal = (uid) => {
+                    try {
+                        const cSets = localStorage.getItem(`sets_${CACHE_VERSION}`); if (cSets) sysSettings.value = JSON.parse(cSets);
+                        const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) courses.value = JSON.parse(cCs);
+                        if (uid) {
+                            const cU = localStorage.getItem(`u_${uid}_${CACHE_VERSION}`); if (cU) userStatus.value = JSON.parse(cU);
+                            const cP = localStorage.getItem(`p_${uid}_${CACHE_VERSION}`); if (cP) userPoints.value = JSON.parse(cP);
+                        }
+                    } catch(e) {}
                 };
 
                 const initApp = async () => {
@@ -195,35 +205,41 @@
                     selectedDate.value = dates.value[0].fullDate;
 
                     try {
+                        syncLocal(null);
                         const sets = await callApi('GET_SETTINGS', {}, true);
                         if (sets) {
-                            sysSettings.value = sets;
+                            sysSettings.value = sets; localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets));
                             await liff.init({ liffId: sets.liff_id });
-                            if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+                            if (!liff.isLoggedIn()) { liff.login(); return; }
                             liffProfile.value = await liff.getProfile();
                         }
                         const uid = liffProfile.value.userId; 
+                        syncLocal(uid);
+                        if (courses.value.length > 0) isGlobalLoading.value = false;
+
                         const [checkRes, cData, oData, pData] = await Promise.all([ callApi('CHECK_USER', {}, true), callApi('GET_COURSES', {}, true), callApi('GET_USER_ORDERS', {}, true), callApi('GET_USER_POINTS', {}, true) ]);
                         if (checkRes) userStatus.value = checkRes; 
                         if (cData) courses.value = cData;
                         if (oData) myOrders.value = oData; 
                         if (pData) userPoints.value = pData;
+                        
+                        if(uid) {
+                            localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes));
+                            localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(pData));
+                            localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
+                        }
                         isGlobalLoading.value = false;
                     } catch (e) { isGlobalLoading.value = false; }
                 };
 
                 const navigateTo = (t) => { if ((t === 'profile' || t === 'orders') && !userStatus.value.registered) { view.value = 'register'; return; } view.value = t; window.scrollTo(0,0); };
-                const openCourseDetail = (c) => { selectedCourse.value = c; view.value = 'courseDetail'; };
                 const enterTeacherConsole = async () => { isLoading.value = true; const slotsRes = await callApi('ADMIN_GET_SLOTS'); if (slotsRes) teacherSlots.value = slotsRes.filter(s => s.teacherUid === liffProfile.value.userId); view.value = 'teacherConsole'; isLoading.value = false; };
-                const saveTeacherSettings = async () => { isLoading.value = true; if(await callApi('UPDATE_TEACHER_CONFIG', teacherSettingsForm.value)) alert('✅ 儲存成功'); isLoading.value = false; };
                 const getSlotLocalStatus = (t) => { const s = teacherSlots.value.find(x => x.date === selectedDate.value && x.time === t); return s ? s.status : 'CLOSED'; };
                 const getSlotStyle = (t) => {
-                    const date = selectedDate.value;
-                    if (draftOpenSlots.value.some(x => x.date === date && x.time === t)) return 'bg-green-50 border-[#06C755] border-dashed';
-                    if (draftCloseSlots.value.some(x => x.date === date && x.time === t)) return 'bg-slate-100 line-through';
+                    if (draftOpenSlots.value.some(x => x.date === selectedDate.value && x.time === t)) return 'bg-green-50 border-[#06C755] border-dashed';
+                    if (draftCloseSlots.value.some(x => x.date === selectedDate.value && x.time === t)) return 'bg-slate-100 line-through';
                     const s = getSlotLocalStatus(t);
-                    if (s === 'OPEN') return 'bg-[#DCFCE7] text-[#166534] border-[#86EFAC]';
-                    return 'bg-white border-[#DDDDDD]'; 
+                    return s === 'OPEN' ? 'bg-[#DCFCE7] text-[#166534] border-[#86EFAC]' : 'bg-white border-[#DDDDDD]'; 
                 };
                 const handleTeacherToggleSlot = (t) => {
                     const s = getSlotLocalStatus(t);
@@ -244,9 +260,9 @@
                 onMounted(() => { initApp(); });
 
                 return { 
-                    isGlobalLoading, loadingText, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceModal, remittanceInput,
-                    openCourseDetail, navigateTo, dates, selectedDate, timeSlots, teacherConfig: computed(()=>JSON.parse(userStatus.value.info?.adminNote || '{}')), enterTeacherConsole, getSlotStyle, getSlotLocalStatus, handleTeacherToggleSlot,
-                    teacherSettingsForm, saveTeacherSettings, draftOpenSlots, draftCloseSlots, clearDrafts: () => { draftOpenSlots.value = []; draftCloseSlots.value = []; }, submitDrafts, submitRegistration,
+                    isGlobalLoading, loadingText, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm,
+                    navigateTo, dates, selectedDate, timeSlots, teacherConfig: computed(()=>JSON.parse(userStatus.value.info?.adminNote || '{}')), enterTeacherConsole, getSlotStyle, getSlotLocalStatus, handleTeacherToggleSlot,
+                    teacherSettingsForm, draftOpenSlots, draftCloseSlots, clearDrafts: () => { draftOpenSlots.value = []; draftCloseSlots.value = []; }, submitDrafts, submitRegistration,
                     paymentData, newebpayForm, formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(), getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
                     categories, filteredCourses, activeCategory
                 };
