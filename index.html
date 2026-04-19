@@ -5,23 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION 會員中心</title>
-    <!-- Version: 2026.04.19.V184_Category_And_Performance_Restore -->
+    <!-- Version: 2026.04.19.V178_Final_Restore_Speed_And_UI -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         [v-cloak] { display: none !important; }
-        body { background-color: #F4F5F7; color: #111111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+        body { background-color: #F4F5F7; color: #111111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
         
         .native-card { background: #ffffff; padding: 16px; margin-bottom: 8px; }
-        .native-title { font-size: 16px; font-weight: 700; color: #111111; line-height: 1.4; margin-bottom: 4px; }
+        .native-title { font-size: 17px; font-weight: 700; color: #111111; line-height: 1.4; margin-bottom: 4px; }
+        .native-desc { font-size: 13px; color: #888888; line-height: 1.5; }
         
         .btn-primary { background-color: #06C755; color: white; font-weight: 700; padding: 14px 20px; border-radius: 12px; text-align: center; font-size: 16px; width: 100%; transition: transform 0.1s; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.5; background-color: #A5A5A5; pointer-events: none; }
         
         .native-input { width: 100%; border: none; background-color: #F4F5F7; border-radius: 10px; padding: 14px 16px; font-size: 15px; outline: none; color: #111111; }
         .native-input:focus { background-color: #EAECEF; }
+        .native-label { font-size: 13px; font-weight: 700; color: #555555; margin-bottom: 6px; display: block; padding-left: 2px; }
 
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top: 1px solid #EEEEEE; display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); z-index: 50; }
         .nav-item { flex: 1; padding: 12px 0; text-align: center; color: #AAAAAA; font-size: 10px; font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
@@ -31,7 +34,7 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .header-fixed { position: sticky; top: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); z-index: 40; border-bottom: 1px solid #EEEEEE; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
         
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.4s ease; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
 </head>
@@ -41,24 +44,56 @@
         
         <!-- 🟢 品牌啟動封面 (Splash Screen) -->
         <transition name="fade">
-            <div v-if="isGlobalLoading" class="fixed inset-0 bg-[#06C755] z-[100] flex flex-col items-center justify-center text-center">
+            <div v-if="isGlobalLoading" class="fixed inset-0 bg-[#06C755] z-[100] flex flex-col items-center justify-center">
                 <div class="mb-6 flex flex-col items-center">
                     <h1 class="text-white text-4xl font-black tracking-widest mb-1">人生ACTION</h1>
-                    <div class="text-[#f0fdf4] text-xs font-bold tracking-widest opacity-80 uppercase">Life Action System</div>
+                    <div class="text-[#f0fdf4] text-xs font-bold tracking-widest opacity-80">LIFE ACTION SYSTEM</div>
                 </div>
                 <div class="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-                <div class="text-white/90 font-bold text-xs mt-6 tracking-widest">{{ loadingText }}</div>
+                <div class="text-white/90 font-bold text-xs tracking-widest mt-6 bg-black/10 px-4 py-1.5 rounded-full">{{ loadingText }}</div>
             </div>
         </transition>
 
         <!-- ========================================== -->
+        <!-- 📝 註冊頁面 (攔截未註冊者要求填寫) -->
+        <!-- ========================================== -->
+        <div v-else-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in">
+            <div class="header-fixed justify-start gap-4">
+                <button @click="view = 'home'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-lg"></i></button>
+                <h1 class="text-[17px] font-bold text-[#111111]">建立學員資料</h1>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 space-y-5 pb-32">
+                <div class="text-center mb-6">
+                    <div class="w-20 h-20 rounded-full bg-[#F4F5F7] mx-auto mb-3 overflow-hidden border border-slate-100">
+                        <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
+                        <i v-else class="fas fa-user text-3xl text-[#AAAAAA] mt-6"></i>
+                    </div>
+                    <div class="font-bold text-[#111111] text-lg">{{ liffProfile.displayName }}</div>
+                    <div class="text-xs text-[#888888] mt-1">請花一分鐘完善資料，解鎖完整報名與會員功能</div>
+                </div>
+                <div><label class="native-label">真實姓名</label><input type="text" v-model="regForm.name" class="native-input" placeholder="請輸入中文全名"></div>
+                <div class="flex gap-4">
+                    <div class="flex-1"><label class="native-label">性別</label><select v-model="regForm.gender" class="native-input appearance-none"><option value="男">男性</option><option value="女">女性</option></select></div>
+                    <div class="flex-1"><label class="native-label">生日</label><input type="date" v-model="regForm.birthday" class="native-input"></div>
+                </div>
+                <div><label class="native-label">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input font-mono" placeholder="09xxxxxxxx"></div>
+                <div><label class="native-label">所屬業種</label><input type="text" v-model="regForm.industry" class="native-input" placeholder="例如：科技業、自由業..."></div>
+                <div><label class="native-label">通訊地址</label><input type="text" v-model="regForm.address" class="native-input" placeholder="寄送發票使用"></div>
+                <div v-if="regForm.referrerCode" class="bg-green-50 p-4 rounded-xl border border-green-100 flex items-start gap-3">
+                    <i class="fas fa-gift text-[#06C755] mt-0.5"></i>
+                    <div><div class="text-[13px] font-bold text-[#111111] mb-1">已套用專屬推薦碼</div><div class="text-[12px] text-green-700 font-mono">{{ regForm.referrerCode }}</div></div>
+                </div>
+                <div class="pt-4 pb-8"><button @click="submitRegistration" :disabled="isLoading" class="btn-primary">確認送出並綁定 LINE</button></div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
         <!-- 🏠 主系統架構 -->
         <!-- ========================================== -->
-        <div v-if="view !== 'register'" class="flex flex-col h-screen overflow-hidden">
-            
+        <div v-else class="flex flex-col h-screen overflow-hidden">
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
-                <!-- 🌟 課程探索首頁 (恢復分類) -->
+                <!-- 🌟 課程探索首頁 -->
                 <div v-if="view === 'home'" class="animate-fade-in relative">
                     <div class="header-fixed z-40">
                         <div class="font-black text-[#111111] text-[18px] tracking-wide">人生ACTION</div>
@@ -67,7 +102,6 @@
                             <i v-else class="fas fa-user text-[#AAAAAA] text-sm mt-[6px] w-full text-center block"></i>
                         </div>
                     </div>
-
                     <div class="bg-white pb-3">
                         <div class="w-full aspect-[21/9] bg-[#06C755] relative">
                             <img v-if="sysSettings.banner_image" :src="sysSettings.banner_image" class="w-full h-full object-cover">
@@ -89,135 +123,126 @@
                         </div>
                     </div>
 
-                    <!-- ✅ 恢復分類標籤 (核心修復) -->
+                    <!-- 分類標籤 -->
                     <div class="bg-white sticky top-[56px] z-30 border-b border-[#EEEEEE] pt-1 pb-2 shadow-sm">
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-2">
-                            <button @click="activeCategory = 'ALL'" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-all" :class="activeCategory === 'ALL' ? 'bg-[#111111] text-white' : 'bg-[#F4F5F7] text-[#555555]'">全部</button>
-                            <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-all" :class="activeCategory === cat ? 'bg-[#111111] text-white' : 'bg-[#F4F5F7] text-[#555555]'">{{ cat }}</button>
+                            <button @click="activeCategory = 'ALL'" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors" :class="activeCategory === 'ALL' ? 'bg-[#111111] text-white' : 'bg-[#F4F5F7] text-[#555555]'">全部</button>
+                            <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors" :class="activeCategory === cat ? 'bg-[#111111] text-white' : 'bg-[#F4F5F7] text-[#555555]'">{{ cat }}</button>
                         </div>
                     </div>
 
-                    <div class="px-4 mt-3 mb-6 grid grid-cols-2 gap-3">
-                        <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="bg-white rounded-xl overflow-hidden shadow-sm border border-[#EEEEEE] flex flex-col cursor-pointer active:scale-[0.98] transition">
-                            <div class="w-full aspect-[4/3] bg-[#F4F5F7] shrink-0">
-                                <img v-if="c.image" :src="c.image" class="w-full h-full object-cover">
-                                <div v-else class="absolute inset-0 flex items-center justify-center text-[#AAAAAA]"><i class="fas fa-book-open text-2xl"></i></div>
-                            </div>
-                            <div class="p-3 flex-1 flex flex-col justify-between">
-                                <div class="text-[14px] font-bold text-[#111111] line-clamp-2 leading-snug">{{ c.name }}</div>
-                                <div class="flex justify-between items-end mt-3">
-                                    <div class="text-[10px] text-[#AAAAAA] font-bold uppercase">{{ c.id }}</div>
-                                    <div class="text-[15px] font-black text-[#111111]">${{ formatPrice(c.price) }}</div>
+                    <div class="px-4 mt-3 mb-6">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="bg-white rounded-xl overflow-hidden shadow-sm border border-[#EEEEEE] cursor-pointer active:scale-[0.98] transition flex flex-col">
+                                <div class="w-full aspect-[4/3] bg-[#F4F5F7] relative shrink-0">
+                                    <img v-if="c.image" :src="c.image" class="w-full h-full object-cover">
+                                    <div v-else class="absolute inset-0 flex items-center justify-center text-[#AAAAAA]"><i class="fas fa-book-open text-3xl"></i></div>
+                                </div>
+                                <div class="p-3 flex flex-col justify-between flex-1">
+                                    <div class="text-[14px] font-bold text-[#111111] leading-snug line-clamp-2 mb-1.5">{{ c.name }}</div>
+                                    <div class="flex justify-between items-center mt-auto">
+                                        <div class="text-[11px] text-[#AAAAAA]">{{ c.enrolled }}/{{ c.capacity }} 人</div>
+                                        <div class="text-[15px] font-black text-[#111111]">${{ formatPrice(c.price) }}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div v-if="!filteredCourses.length" class="text-center py-20 text-[#AAAAAA] font-bold">目前無此類別課程</div>
                 </div>
 
                 <!-- 🌟 我的紀錄 -->
                 <div v-if="view === 'orders'" class="animate-fade-in">
                     <div class="header-fixed justify-center"><h2 class="text-[17px] font-bold text-[#111111]">歷史報名紀錄</h2></div>
-                    <div class="pt-2 pb-20">
+                    <div class="pt-2">
                         <div v-for="o in myOrders" :key="o.orderId" class="native-card">
                             <div class="flex justify-between items-start mb-3">
-                                <div class="text-[12px] font-mono font-bold text-[#AAAAAA]">{{ o.orderId }}</div>
-                                <div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="o.status==='PAID'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'">{{ o.status==='PAID'?'已付款':(o.status==='CANCELLED'?'已取消':'待付款') }}</div>
+                                <div class="text-[13px] font-mono font-bold text-[#555555]">{{ o.orderId }}</div>
+                                <div class="px-2 py-1 rounded-md text-[11px] font-bold" :class="o.status === 'PAID' ? 'bg-[#DCFCE7] text-[#166534]' : (o.status === 'CANCELLED' ? 'bg-[#F1F5F9]' : 'bg-[#FEF3C7]')">{{ o.status==='PAID'?'已完成付款':(o.status==='CANCELLED'?'已取消':'等待付款') }}</div>
                             </div>
                             <div class="native-title !text-[15px]">{{ getCourseName(o.courseId) }}</div>
-                            <div class="text-[#06C755] font-black text-[17px] mb-4">$ {{ formatPrice(o.amount) }}</div>
-                            <div v-if="o.status === 'PENDING'" class="flex gap-2 border-t pt-3">
+                            <div class="text-[#06C755] font-black text-[16px] mb-4">$ {{ formatPrice(o.amount) }}</div>
+                            <div v-if="o.status === 'PENDING'" class="flex gap-2 border-t border-[#EEEEEE] pt-3">
                                 <button @click="openRemittanceModal(o)" class="flex-1 py-2.5 rounded-lg bg-[#111111] text-white text-[13px] font-bold active:scale-95 transition">回報後五碼</button>
                             </div>
                         </div>
-                        <div v-if="!myOrders.length" class="text-center py-20 text-[#AAAAAA] font-bold">您尚未有任何報名紀錄</div>
                     </div>
                 </div>
 
                 <!-- 🌟 我的檔案 -->
                 <div v-if="view === 'profile'" class="animate-fade-in bg-white min-h-screen">
-                    <div class="header-fixed justify-between"><h2 class="text-[17px] font-bold text-[#111111]">學員檔案</h2><span class="text-[#06C755] font-bold text-[12px] bg-[#f0fdf4] px-2 py-1 rounded border">{{ userStatus.info?.memberTier || '一般會員' }}</span></div>
+                    <div class="header-fixed justify-between">
+                        <h2 class="text-[17px] font-bold text-[#111111]">學員檔案</h2>
+                        <span class="text-[#06C755] font-bold text-[13px] bg-[#f0fdf4] px-2 py-1 rounded border border-green-100">{{ userStatus.info?.memberTier || '一般會員' }}</span>
+                    </div>
                     <div class="p-6">
                         <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg mb-8 relative overflow-hidden">
-                            <div class="text-[13px] text-slate-300 font-bold mb-1 tracking-tight">紅包帳戶餘額</div>
-                            <div class="text-4xl font-black mb-6 tracking-tighter">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
-                            <button @click="dailyCheckin" class="w-full py-2.5 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-bold active:scale-95 transition border border-white/10 backdrop-blur-sm">每日登入領紅包</button>
+                            <i class="fas fa-wallet absolute right-[-20px] bottom-[-20px] text-[100px] text-white/5"></i>
+                            <div class="text-[13px] text-slate-300 font-bold mb-1">可折抵紅包餘額</div>
+                            <div class="text-4xl font-black mb-4">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
+                            <button @click="dailyCheckin" class="w-full py-2.5 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 backdrop-blur-md border border-white/10 active:scale-95"><i class="fas fa-calendar-check"></i> 每日登入領紅包</button>
                         </div>
                         <div v-if="userStatus.info?.memberTier === '專業導師'" class="mb-8">
-                            <button @click="enterTeacherConsole" class="w-full py-4 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-2xl text-[14px] font-black active:bg-indigo-100 transition flex items-center justify-between px-5"><span><i class="fas fa-chalkboard-teacher mr-3"></i>進入導師排班中控台</span><i class="fas fa-chevron-right text-xs"></i></button>
+                            <button @click="enterTeacherConsole" class="w-full py-3.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-2xl text-[14px] font-bold active:bg-indigo-100 transition flex items-center justify-between px-5"><span class="flex items-center gap-3"><i class="fas fa-chalkboard-teacher text-lg"></i> 進入導師排班中控台</span><i class="fas fa-chevron-right text-xs"></i></button>
                         </div>
-                        <div class="space-y-6">
-                            <div class="flex justify-between items-center py-3 border-b"><span class="text-[14px] text-slate-500 font-bold">真實姓名</span><span class="font-black text-slate-800 text-base">{{ userStatus.info?.name }}</span></div>
-                            <div class="flex justify-between items-center py-3 border-b"><span class="text-[14px] text-slate-500 font-bold">聯絡手機</span><span class="font-mono font-bold text-slate-800">{{ userStatus.info?.phone }}</span></div>
+                        <div class="space-y-4 mb-8">
+                            <div class="flex justify-between items-center py-3 border-b border-slate-100"><span class="text-[14px] text-slate-500 font-bold">真實姓名</span><span class="text-[15px] text-slate-800 font-black">{{ userStatus.info?.name }}</span></div>
+                            <div class="flex justify-between items-center py-3 border-b border-slate-100"><span class="text-[14px] text-slate-500 font-bold">聯絡手機</span><span class="text-[15px] text-slate-800 font-mono font-bold">{{ userStatus.info?.phone }}</span></div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 👨‍🏫 導師排班中控台 -->
                 <div v-if="view === 'teacherConsole'" class="animate-fade-in bg-[#F4F5F7] min-h-screen">
-                    <div class="header-fixed z-[70] shadow-sm"><button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left"></i></button><h2 class="text-[17px] font-bold text-[#111111]">導師排班中控台</h2></div>
+                    <div class="header-fixed z-[70] shadow-sm"><button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-lg"></i></button><h2 class="text-[17px] font-bold text-[#111111]">導師排班中控台</h2></div>
                     <div class="flex-1 overflow-y-auto pb-32">
-                        <!-- 收費設定 -->
-                        <div class="bg-white px-5 py-5 mb-2 shadow-sm border-b">
+                        <div class="bg-white px-5 py-5 mb-2 shadow-sm border-b border-[#EEEEEE]">
                             <div class="space-y-4">
-                                <div><label class="text-[12px] font-bold text-slate-500 mb-1.5 block">單次諮詢定價 (元)</label><input type="number" v-model.number="teacherSettingsForm.price" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 font-black text-lg outline-none focus:border-[#06C755]"></div>
+                                <div><label class="text-[12px] font-bold text-slate-500 mb-1.5 block">單次諮詢定價 (元)</label><input type="number" v-model.number="teacherSettingsForm.price" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 font-black text-lg text-slate-800 outline-none focus:border-[#06C755]"></div>
                                 <div class="flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                    <div class="text-[14px] font-bold text-slate-800">接受紅包折抵</div>
+                                    <div><div class="text-[14px] font-bold text-slate-800">接受紅包折抵</div></div>
                                     <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" v-model="teacherSettingsForm.acceptPoints" class="sr-only peer"><div class="w-11 h-6 bg-slate-300 rounded-full peer-checked:bg-[#06C755] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div></label>
                                 </div>
-                                <button @click="saveTeacherSettings" :disabled="isLoading" class="btn-primary !py-3">儲存收費設定</button>
+                                <div v-if="teacherSettingsForm.acceptPoints" class="animate-fade-in"><label class="text-[12px] font-bold text-slate-500 mb-1.5 block">最高折抵點數 (點)</label><input type="number" v-model.number="teacherSettingsForm.maxPoints" class="w-full bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 font-black text-lg text-red-500 outline-none"></div>
+                                <button @click="saveTeacherSettings" :disabled="isLoading" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition">儲存設定</button>
                             </div>
                         </div>
-                        <!-- 排班月曆與網格 -->
-                        <div class="bg-white px-4 pt-5 pb-5 shadow-sm border-b">
+                        <div class="bg-white px-4 pt-5 pb-5 shadow-sm border-b border-[#EEEEEE]">
                             <div class="flex overflow-x-auto hide-scrollbar gap-2 pb-2">
-                                <div v-for="d in dates" :key="d.fullDate" @click="selectedDate = d.fullDate" class="shrink-0 w-[54px] h-[64px] rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer" :class="selectedDate === d.fullDate ? 'bg-[#06C755] border-[#06C755] text-white shadow-md shadow-green-100' : 'bg-white border-[#EEEEEE] text-[#555555]'">
+                                <div v-for="d in dates" :key="d.fullDate" @click="selectedDate = d.fullDate" class="shrink-0 w-[54px] h-[64px] rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer" :class="selectedDate === d.fullDate ? 'bg-[#06C755] border-[#06C755] text-white shadow-md' : 'bg-white border-[#EEEEEE] text-[#555555]'">
                                     <div class="text-[11px] font-bold">{{ d.weekDay }}</div><div class="text-[18px] font-black">{{ d.day }}</div>
                                 </div>
                             </div>
                         </div>
                         <div class="p-5 grid grid-cols-3 gap-3">
-                            <button v-for="t in timeSlots" :key="t" @click="handleTeacherToggleSlot(t)" :disabled="isLoading" class="relative h-[48px] rounded-xl font-bold text-[14px] border transition-all flex items-center justify-center" :class="getSlotStyle(t)">
+                            <button v-for="t in timeSlots" :key="t" @click="handleTeacherToggleSlot(t)" :disabled="isLoading" class="relative h-[48px] rounded-xl font-bold text-[15px] border transition-all flex items-center justify-center" :class="getSlotStyle(t)">
                                 {{ t }}
-                                <i v-if="getSlotLocalStatus(t)==='OPEN' && !draftCloseSlots.some(s=>s.date===selectedDate && s.time===t)" class="fas fa-check-circle absolute -top-1.5 -right-1.5 text-green-500 bg-white rounded-full text-[15px] shadow-sm"></i>
-                                <i v-if="getSlotLocalStatus(t)==='BOOKED'" class="fas fa-lock absolute -top-1.5 -right-1.5 text-red-500 bg-white rounded-full text-[12px] p-0.5 shadow-sm"></i>
+                                <i v-if="getSlotLocalStatus(t)==='OPEN' && !draftCloseSlots.some(s=>s.date===selectedDate && s.time===t)" class="fas fa-check-circle absolute -top-1.5 -right-1.5 text-green-500 bg-white rounded-full text-[16px]"></i>
+                                <i v-if="getSlotLocalStatus(t)==='BOOKED'" class="fas fa-lock absolute -top-1.5 -right-1.5 text-red-500 bg-white rounded-full text-[14px]"></i>
                             </button>
                         </div>
                     </div>
-                    <!-- 批次結算列 -->
                     <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#EEEEEE] p-4 pb-[calc(16px+env(safe-area-inset-bottom))] z-[80] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-                        <div v-if="draftOpenSlots.length === 0 && draftCloseSlots.length === 0" class="flex items-center justify-between">
-                            <div class="text-[12px] font-bold text-[#AAAAAA]">點擊時段進行批次排班</div>
-                            <div class="text-[14px] font-bold text-red-500"><i class="fas fa-wallet mr-1"></i>可用: {{ (userPoints.balance || 0).toLocaleString() }} 點</div>
-                        </div>
+                        <div v-if="draftOpenSlots.length === 0 && draftCloseSlots.length === 0" class="flex items-center justify-between"><div class="text-[12px] font-bold text-[#AAAAAA]">點擊時段進行批次排班</div><div class="text-[14px] font-bold text-red-500">可用: {{ (userPoints.balance || 0).toLocaleString() }} 點</div></div>
                         <div v-else class="flex items-center justify-between animate-fade-in">
-                            <div>
-                                <div class="text-[11px] font-bold text-[#555555]"><span v-if="draftOpenSlots.length" class="mr-1">新開 {{ draftOpenSlots.length }}</span><span v-if="draftCloseSlots.length">關閉 {{ draftCloseSlots.length }}</span>時段</div>
-                                <div class="text-[16px] font-black text-red-500 mt-0.5">扣 {{ (draftOpenSlots.length * (teacherConfig.rent || 0)).toLocaleString() }} 點</div>
-                            </div>
-                            <div class="flex gap-2">
-                                <button @click="clearDrafts" class="px-4 py-2 rounded-xl bg-[#F4F5F7] text-[#555555] font-bold text-[14px] active:scale-95 transition">取消</button>
-                                <button @click="submitDrafts" :disabled="isLoading" class="px-6 py-2 rounded-xl bg-[#06C755] text-white font-bold text-[14px] shadow-md flex items-center active:scale-95 transition"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-1.5"></i>結算</button>
-                            </div>
+                            <div><div class="text-[11px] font-bold text-[#555555]"><span v-if="draftOpenSlots.length">新開 {{ draftOpenSlots.length }}</span><span v-if="draftCloseSlots.length">關閉 {{ draftCloseSlots.length }}</span></div><div class="text-[16px] font-black text-red-500">扣 {{ (draftOpenSlots.length * (teacherConfig.rent || 0)).toLocaleString() }} 點</div></div>
+                            <div class="flex gap-2"><button @click="clearDrafts" class="px-4 py-2 rounded-xl bg-[#F4F5F7] text-[#555555] font-bold text-[14px]">取消</button><button @click="submitDrafts" :disabled="isLoading" class="px-5 py-2 rounded-xl bg-[#06C755] text-white font-bold text-[14px]">確認結算</button></div>
                         </div>
                     </div>
                 </div>
             </main>
 
-            <!-- 底部固定導覽列 -->
+            <!-- 底部導覽列 -->
             <nav class="bottom-nav">
-                <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home' || view === 'courseDetail'}"><i class="fas fa-compass"></i><span>探索</span></div>
+                <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home' || view === 'courseDetail' || view === 'booking'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
                 <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile' || view === 'teacherConsole'}"><i class="fas fa-user"></i><span>我的</span></div>
             </nav>
         </div>
 
-        <!-- ========================================== -->
-        <!-- 🚀 像素級還原：銀行匯款回報彈窗 ( z-[200] 頂層) -->
-        <!-- ========================================== -->
-        <div v-if="showRemittanceModal" class="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-6 backdrop-blur-sm animate-fade-in">
+        <!-- 🚀 像素級還原：銀行匯款回報彈窗 ( z-[100] 最上層) -->
+        <div v-if="showRemittanceModal" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-6 backdrop-blur-sm animate-fade-in">
             <div class="bg-white rounded-[32px] w-full max-w-sm p-8 shadow-2xl relative overflow-hidden">
-                <h3 class="text-xl font-black text-[#111111] mb-2 tracking-tight">銀行匯款回報</h3>
+                <h3 class="text-xl font-black text-[#111111] mb-2">銀行匯款回報</h3>
                 <p class="text-[13px] text-slate-500 font-medium leading-relaxed mb-6">請輸入您轉帳帳號的後五碼，以便財務人員進行對帳核銷。</p>
                 <div class="bg-[#F4F5F7] rounded-2xl p-5 mb-8">
                     <input type="text" v-model="remittanceInput" class="w-full bg-transparent text-center font-mono text-2xl font-black tracking-[0.5em] text-slate-400 outline-none" maxlength="5" placeholder="12345">
@@ -229,72 +254,52 @@
             </div>
         </div>
 
-        <!-- 📝 註冊頁面 (全螢幕蓋版) -->
-        <div v-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in">
-            <div class="header-fixed justify-start gap-4"><button @click="view = 'home'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left"></i></button><h1 class="text-[17px] font-bold text-[#111111]">建立學員資料</h1></div>
-            <div class="flex-1 overflow-y-auto p-6 space-y-5 pb-32">
-                <div class="text-center mb-6">
-                    <div class="w-20 h-20 rounded-full bg-[#F4F5F7] mx-auto mb-3 overflow-hidden border border-slate-100"><img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover"></div>
-                    <div class="font-bold text-[#111111] text-lg">{{ liffProfile.displayName }}</div>
-                    <div class="text-[13px] text-[#888888] mt-1">請完善資料解鎖完整報名與點數功能</div>
-                </div>
-                <div><label class="native-label text-xs font-bold text-slate-400 mb-1 block">真實姓名</label><input type="text" v-model="regForm.name" class="native-input" placeholder="請輸入中文全名"></div>
-                <div><label class="native-label text-xs font-bold text-slate-400 mb-1 block">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input font-mono" placeholder="09xxxxxxxx"></div>
-                <div><label class="native-label text-xs font-bold text-slate-400 mb-1 block">收件地址 (發票/講義)</label><input type="text" v-model="regForm.address" class="native-input" placeholder="寄送資料使用"></div>
-                <div class="pt-6"><button @click="submitRegistration" :disabled="isLoading" class="btn-primary">確認送出並綁定 LINE</button></div>
-            </div>
-        </div>
-
         <!-- 課程詳情覆蓋層 -->
         <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-0 bg-white z-[60] flex flex-col h-full w-full overflow-hidden animate-fade-in">
-            <div class="header-fixed !bg-transparent !border-none !absolute !top-0 !w-full justify-between"><button @click="view = 'home'" class="w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center backdrop-blur-md active:scale-90 transition shadow-sm"><i class="fas fa-arrow-left"></i></button></div>
+            <div class="header-fixed !bg-transparent !border-none !absolute !top-0 !w-full justify-between"><button @click="view = 'home'" class="w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center backdrop-blur-md active:scale-90 transition"><i class="fas fa-arrow-left"></i></button></div>
             <div class="flex-1 overflow-y-auto hide-scrollbar pb-24">
-                <div class="w-full aspect-[4/3] bg-[#F4F5F7] relative shrink-0"><img v-if="selectedCourse.image" :src="selectedCourse.image" class="w-full h-full object-cover"></div>
+                <div class="w-full aspect-[4/3] bg-[#F4F5F7] relative"><img v-if="selectedCourse.image" :src="selectedCourse.image" class="w-full h-full object-cover"></div>
                 <div class="p-6">
-                    <div class="flex items-center gap-2 mb-3"><span class="bg-[#f0fdf4] text-[#06C755] text-[10px] font-bold px-2 py-0.5 rounded uppercase">{{ selectedCourse.type }}</span></div>
                     <h2 class="text-2xl font-black text-[#111111] leading-snug mb-4">{{ selectedCourse.name }}</h2>
-                    <div class="text-[15px] text-[#555555] leading-relaxed whitespace-pre-wrap font-medium border-t pt-5 border-slate-100">{{ selectedCourse.description || '暫無詳細說明' }}</div>
+                    <div class="text-[15px] text-[#555555] leading-relaxed whitespace-pre-wrap font-medium">{{ selectedCourse.description }}</div>
                 </div>
             </div>
-            <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#EEEEEE] p-4 pb-[calc(16px+env(safe-area-inset-bottom))] flex items-center justify-between z-[70] shadow-lg">
-                <div><div class="text-[11px] text-[#AAAAAA] font-bold mb-0.5">課程費用</div><div class="text-2xl font-black text-[#06C755]">$ {{ formatPrice(selectedCourse.price) }}</div></div>
-                <div class="w-[60%]"><button @click="startBooking" class="btn-primary shadow-lg shadow-green-100">立即報名</button></div>
+            <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#EEEEEE] p-4 pb-[calc(16px+env(safe-area-inset-bottom))] flex items-center justify-between z-[70]">
+                <div><div class="text-[11px] text-[#AAAAAA] font-bold">課程費用</div><div class="text-2xl font-black text-[#06C755]">$ {{ formatPrice(selectedCourse.price) }}</div></div>
+                <div class="w-[60%]"><button @click="startBooking" class="btn-primary">立即報名</button></div>
             </div>
         </div>
 
-        <!-- 💰 藍新金流表單 -->
-        <form v-if="paymentData && paymentData.GatewayUrl" ref="newebpayForm" :action="paymentData.GatewayUrl" method="POST" class="hidden">
+        <form ref="newebpayForm" :action="paymentData.GatewayUrl" method="POST" class="hidden">
             <input type="hidden" name="MerchantID" :value="paymentData.MerchantID"><input type="hidden" name="TradeInfo" :value="paymentData.TradeInfo"><input type="hidden" name="TradeSha" :value="paymentData.TradeSha"><input type="hidden" name="Version" :value="paymentData.Version">
         </form>
-
     </div>
 
     <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v184';
+        const CACHE_VERSION = 'v178';
 
         createApp({
             setup() {
-                const isGlobalLoading = ref(true); const loadingText = ref('載入系統資料...'); const view = ref('home'); const isLoading = ref(false);
+                const isGlobalLoading = ref(true); const loadingText = ref('載入系統環境...'); const view = ref('home'); const isLoading = ref(false);
                 const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null }); const userPoints = ref({ balance: 0 }); const sysSettings = ref({});
                 const courses = ref([]); const myOrders = ref([]); const selectedCourse = ref(null);
-                const regForm = ref({ name: '', phone: '', address: '', referrerCode: '' });
-                const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null);
-                const paymentData = ref({}); const newebpayForm = ref(null);
+                const regForm = ref({ name: '', gender: '女', birthday: '', phone: '', industry: '', address: '', referrerCode: '' });
+                const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null); const paymentData = ref({});
                 const teacherSlots = ref([]); const dates = ref([]); const selectedDate = ref(''); const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
                 const teacherSettingsForm = ref({ price: 0, acceptPoints: false, maxPoints: 0 }); const draftOpenSlots = ref([]); const draftCloseSlots = ref([]);
                 const activeCategory = ref('ALL');
 
-                const callApi = async (act, pl = {}, silent = false) => {
+                const callApi = async (act, pl = {}) => {
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value }) });
                         const json = await res.json(); if (json.status !== 'success') throw new Error(json.message); return json.data;
-                    } catch (e) { if(!silent) console.error("API Error: " + act, e.message); return null; }
+                    } catch (e) { alert(e.message); return null; }
                 };
 
-                // ⚡ 秒進快取系統
-                const syncLocal = (uid) => {
+                // ⚡ 秒進快取系統 (Restore from V171)
+                const loadFromCache = (uid) => {
                     try {
                         const cSets = localStorage.getItem(`sets_${CACHE_VERSION}`); if (cSets) sysSettings.value = JSON.parse(cSets);
                         const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) courses.value = JSON.parse(cCs);
@@ -311,32 +316,35 @@
                     selectedDate.value = dates.value[0].fullDate;
 
                     try {
-                        syncLocal(null);
-                        const sets = await callApi('GET_SETTINGS', {}, true);
-                        if (sets) {
-                            sysSettings.value = sets; localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets));
-                            await liff.init({ liffId: sets.liff_id });
+                        loadFromCache(null);
+                        const settings = await callApi('GET_SETTINGS');
+                        if (settings) {
+                            sysSettings.value = settings; localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(settings));
+                            await liff.init({ liffId: settings.liff_id });
                             if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
                             liffProfile.value = await liff.getProfile();
                         }
-                        const uid = liffProfile.value.userId; 
-                        syncLocal(uid);
+                        const uid = liffProfile.value.userId; loadFromCache(uid);
                         if (courses.value.length > 0) isGlobalLoading.value = false;
 
-                        // 靜默同步
-                        const [checkRes, cData, oData, pData] = await Promise.all([ callApi('CHECK_USER', {}, true), callApi('GET_COURSES', {}, true), callApi('GET_USER_ORDERS', {}, true), callApi('GET_USER_POINTS', {}, true) ]);
+                        const [checkRes, cData, oData, pData] = await Promise.all([ callApi('CHECK_USER'), callApi('GET_COURSES'), callApi('GET_USER_ORDERS'), callApi('GET_USER_POINTS') ]);
                         if (checkRes) userStatus.value = checkRes; if (cData) courses.value = cData; if (oData) myOrders.value = oData; if (pData) userPoints.value = pData;
-                        
-                        if(uid) {
-                            localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes));
-                            localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(pData));
-                            localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
-                        }
+                        localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes)); localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
                         isGlobalLoading.value = false;
                     } catch (e) { isGlobalLoading.value = false; }
                 };
 
-                const navigateTo = (t) => { if ((t === 'profile' || t === 'orders') && !userStatus.value.registered) { view.value = 'register'; return; } view.value = t; window.scrollTo(0,0); };
+                const navigateTo = (t) => {
+                    if ((t === 'profile' || t === 'orders') && !userStatus.value.registered) {
+                        alert('請先註冊會員以解鎖此功能。'); view.value = 'register'; return;
+                    }
+                    view.value = t; window.scrollTo(0,0);
+                };
+
+                const startBooking = () => { if (!userStatus.value.registered) { view.value = 'register'; return; } alert('進入報名...'); };
+                const openCourseDetail = (c) => { selectedCourse.value = c; view.value = 'courseDetail'; };
+                const openRemittanceModal = (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; };
+                
                 const enterTeacherConsole = async () => {
                     isLoading.value = true; const conf = JSON.parse(userStatus.value.info?.adminNote || '{}');
                     teacherSettingsForm.value = { price: conf.price || 0, acceptPoints: conf.acceptPoints || false, maxPoints: conf.maxPoints || 0 };
@@ -344,19 +352,18 @@
                     view.value = 'teacherConsole'; isLoading.value = false;
                 };
 
-                const saveTeacherSettings = async () => { isLoading.value = true; if(await callApi('UPDATE_TEACHER_CONFIG', teacherSettingsForm.value)) alert('✅ 收費設定已儲存'); isLoading.value = false; };
+                const saveTeacherSettings = async () => { isLoading.value = true; if(await callApi('UPDATE_TEACHER_CONFIG', teacherSettingsForm.value)) alert('✅ 儲存成功'); isLoading.value = false; };
                 const getSlotLocalStatus = (t) => { const s = teacherSlots.value.find(x => x.date === selectedDate.value && x.time === t); return s ? s.status : 'CLOSED'; };
                 const getSlotStyle = (t) => {
-                    const date = selectedDate.value;
-                    if (draftOpenSlots.value.some(x => x.date === date && x.time === t)) return 'bg-green-50 text-[#06C755] border-[#06C755] border-2 border-dashed';
-                    if (draftCloseSlots.value.some(x => x.date === date && x.time === t)) return 'bg-slate-100 text-slate-400 border-slate-300 line-through';
+                    if (draftOpenSlots.value.some(x => x.date === selectedDate.value && x.time === t)) return 'bg-green-50 text-[#06C755] border-[#06C755] border-2 border-dashed';
+                    if (draftCloseSlots.value.some(x => x.date === selectedDate.value && x.time === t)) return 'bg-slate-100 text-slate-400 border-slate-300 line-through';
                     const s = getSlotLocalStatus(t);
                     if (s === 'OPEN') return 'bg-[#DCFCE7] text-[#166534] border-[#86EFAC]';
                     if (s === 'BOOKED') return 'bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5] opacity-80';
                     return 'bg-white text-[#555555] border-[#DDDDDD]'; 
                 };
                 const handleTeacherToggleSlot = (t) => {
-                    const status = getSlotLocalStatus(t); if (status === 'BOOKED') return;
+                    const status = getSlotLocalStatus(t); if (status === 'BOOKED') return alert('此時段已被預約');
                     const oIdx = draftOpenSlots.value.findIndex(x => x.date === selectedDate.value && x.time === t); if (oIdx > -1) { draftOpenSlots.value.splice(oIdx, 1); return; }
                     const cIdx = draftCloseSlots.value.findIndex(x => x.date === selectedDate.value && x.time === t); if (cIdx > -1) { draftCloseSlots.value.splice(cIdx, 1); return; }
                     if (status === 'OPEN') draftCloseSlots.value.push({ date: selectedDate.value, time: t }); else draftOpenSlots.value.push({ date: selectedDate.value, time: t });
@@ -369,17 +376,13 @@
                 const submitRegistration = async () => {
                     if (!regForm.value.name || !regForm.value.phone) return alert('請填寫完整資訊');
                     isLoading.value = true; const res = await callApi('REGISTER_USER', { userId: liffProfile.value.userId, ...regForm.value });
-                    if (res) window.location.reload(); isLoading.value = false;
+                    if (res) { alert('✅ 歡迎加入！'); window.location.reload(); } isLoading.value = false;
                 };
 
                 const submitRemittance = async () => {
                     isLoading.value = true; const res = await callApi('UPDATE_MY_ORDER', { orderId: currentOrderForRemit.value.orderId, userId: liffProfile.value.userId, remittance: remittanceInput.value });
-                    if (res) { alert('✅ 匯款資料已成功提交'); showRemittanceModal.value = false; window.location.reload(); } isLoading.value = false;
+                    if (res) { alert('✅ 提交成功'); showRemittanceModal.value = false; window.location.reload(); } isLoading.value = false;
                 };
-
-                const startBooking = () => { if (!userStatus.value.registered) { view.value = 'register'; return; } alert('進入報名與紅包折抵結帳...'); };
-                const openCourseDetail = (c) => { selectedCourse.value = c; view.value = 'courseDetail'; };
-                const openRemittanceModal = (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; };
 
                 onMounted(() => { initApp(); });
 
@@ -387,9 +390,10 @@
                     isGlobalLoading, loadingText, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceModal, remittanceInput,
                     openCourseDetail, startBooking, openRemittanceModal, navigateTo, dates, selectedDate, timeSlots, teacherConfig: computed(()=>JSON.parse(userStatus.value.info?.adminNote || '{}')), enterTeacherConsole, getSlotStyle, getSlotLocalStatus, handleTeacherToggleSlot,
                     teacherSettingsForm, saveTeacherSettings, draftOpenSlots, draftCloseSlots, clearDrafts: () => { draftOpenSlots.value = []; draftCloseSlots.value = []; }, submitDrafts, submitRegistration, submitRemittance,
-                    paymentData, newebpayForm, formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(), getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
+                    formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(),
+                    getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
                     categories: computed(() => [...new Set(courses.value.filter(c => c.isPublished !== false).map(c => c.type).filter(Boolean))]),
-                    filteredCourses: computed(() => activeCategory.value === 'ALL' ? courses.value.filter(c => c.isPublished !== false) : courses.value.filter(c => c.isPublished !== false && c.type === activeCategory.value)),
+                    filteredCourses: computed(() => { const p = courses.value.filter(c => c.isPublished !== false); return activeCategory.value === 'ALL' ? p : p.filter(c => c.type === activeCategory.value); }),
                     activeCategory
                 };
             }
