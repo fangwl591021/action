@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>現場簽到系統</title>
-    <!-- Version: 2026.04.15.V66_Standalone_Teacher_Checkin -->
+    <!-- Version: 2026.04.19.V67_Error_Field_Fix -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -167,7 +167,7 @@
                             }) 
                         });
                         const json = await res.json();
-                        if (json.status !== 'success') throw new Error(json.data);
+                        if (json.status !== 'success') throw new Error(json.message || '系統異常');
                         
                         courseName.value = json.data.courseName;
                         orders.value = json.data.orders;
@@ -204,7 +204,7 @@
                             }) 
                         });
                         const json = await res.json();
-                        if (json.status !== 'success') throw new Error(json.data);
+                        if (json.status !== 'success') throw new Error(json.message || '系統異常');
                         
                         if(newStatus === 'ATTENDED') showToast('✅ 已標記出席');
                         else if(newStatus === 'ABSENT') showToast('🔴 已標記缺席');
