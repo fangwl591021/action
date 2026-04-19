@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>宏學會員中心</title>
-    <!-- Version: 2026.04.18.V163_Native_Feed_Categories_Restored -->
+    <title>人生ACTION 會員中心</title>
+    <!-- Version: 2026.04.18.V164_Brand_Action_Grid_Restored -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -102,20 +102,20 @@
                 <!-- 🌟 首頁視圖 -->
                 <div v-if="view === 'home'" class="animate-fade-in relative">
                     
-                    <!-- ✅ 補回：頂部 Header (含右上角頭貼) -->
+                    <!-- ✅ Header：品牌名稱改為 人生ACTION -->
                     <div class="header-fixed z-40">
-                        <div class="font-black text-[#111111] text-[18px] tracking-wide">宏學系統</div>
+                        <div class="font-black text-[#111111] text-[18px] tracking-wide">人生ACTION</div>
                         <div @click="view = 'profile'" class="w-8 h-8 rounded-full overflow-hidden bg-[#F4F5F7] border border-slate-200 cursor-pointer shadow-sm active:scale-95 transition">
                             <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
                             <i v-else class="fas fa-user text-[#AAAAAA] text-sm mt-[6px] w-full text-center block"></i>
                         </div>
                     </div>
 
-                    <!-- Banner -->
+                    <!-- ✅ Banner：無圖時顯示綠色底與 人生ACTION -->
                     <div class="bg-white pb-3">
-                        <div class="w-full aspect-[21/9] bg-[#F4F5F7] relative">
+                        <div class="w-full aspect-[21/9] bg-[#06C755] relative">
                             <img v-if="sysSettings.banner_image" :src="sysSettings.banner_image" class="w-full h-full object-cover">
-                            <div v-else class="absolute inset-0 flex items-center justify-center text-[#AAAAAA] text-sm font-bold">宏學系統</div>
+                            <div v-else class="absolute inset-0 flex items-center justify-center text-white text-xl font-black tracking-widest">人生ACTION</div>
                         </div>
                         
                         <!-- 三大金剛鍵 -->
@@ -142,7 +142,7 @@
                         </div>
                     </div>
 
-                    <!-- ✅ 補回：分類標籤 (Sticky 吸頂) -->
+                    <!-- 分類標籤 (Sticky 吸頂) -->
                     <div class="bg-white sticky top-[56px] z-30 border-b border-[#EEEEEE] pt-1 pb-2 shadow-sm">
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-2">
                             <button @click="activeCategory = 'ALL'" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors" :class="activeCategory === 'ALL' ? 'bg-[#111111] text-white' : 'bg-[#F4F5F7] text-[#555555]'">全部</button>
@@ -150,25 +150,26 @@
                         </div>
                     </div>
 
-                    <!-- 課程列表 (Native Feed Style) -->
-                    <div class="mt-2">
-                        <!-- ✅ 這裡改跑 filteredCourses -->
-                        <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="native-card cursor-pointer active:bg-[#F9FAFB] transition">
-                            <div class="flex gap-4">
-                                <div class="w-[100px] h-[100px] rounded-xl bg-[#F4F5F7] shrink-0 overflow-hidden relative">
+                    <!-- ✅ 課程列表：恢復為「一排 2 個」的網格設計 (Grid Layout) -->
+                    <div class="px-4 mt-3 mb-6">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="bg-white rounded-xl overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-[#EEEEEE] cursor-pointer active:scale-[0.98] transition flex flex-col">
+                                <div class="w-full aspect-[4/3] bg-[#F4F5F7] relative shrink-0">
                                     <img v-if="c.image" :src="c.image" class="w-full h-full object-cover">
-                                    <div v-else class="absolute inset-0 flex items-center justify-center text-[#AAAAAA]"><i class="fas fa-book-open"></i></div>
-                                    <div v-if="!c.isRegistrationOpen" class="absolute top-0 left-0 w-full bg-black/60 text-white text-[10px] font-bold text-center py-0.5">即將推出</div>
+                                    <div v-else class="absolute inset-0 flex items-center justify-center text-[#AAAAAA]"><i class="fas fa-book-open text-3xl"></i></div>
+                                    <div v-if="!c.isRegistrationOpen" class="absolute top-0 left-0 w-full bg-black/60 text-white text-[11px] font-bold text-center py-1">即將推出</div>
                                 </div>
-                                <div class="flex flex-col justify-between flex-1 py-0.5">
+                                <div class="p-3 flex flex-col justify-between flex-1">
                                     <div>
-                                        <div class="text-[11px] font-bold text-[#06C755] mb-1">{{ c.type }}</div>
-                                        <div class="native-title line-clamp-2">{{ c.name }}</div>
-                                        <div class="native-meta mt-1"><i class="far fa-calendar-alt w-3 text-center"></i> {{ c.startDate }} 起</div>
+                                        <div class="text-[11px] font-bold text-[#06C755] mb-1 line-clamp-1">{{ c.type }}</div>
+                                        <div class="text-[14px] font-bold text-[#111111] leading-snug line-clamp-2 mb-1.5">{{ c.name }}</div>
                                     </div>
-                                    <div class="flex justify-between items-end mt-2">
-                                        <div class="text-[11px] text-[#AAAAAA] font-medium">{{ c.enrolled }}/{{ c.capacity }} 人</div>
-                                        <div class="text-[16px] font-black text-[#111111]">${{ formatPrice(c.price) }}</div>
+                                    <div class="mt-2">
+                                        <div class="text-[11px] text-[#888888] font-medium mb-1"><i class="far fa-calendar-alt mr-1"></i>{{ c.startDate.substring(5) }} 起</div>
+                                        <div class="flex justify-between items-center mt-1.5">
+                                            <div class="text-[11px] text-[#AAAAAA] font-medium">{{ c.enrolled }}/{{ c.capacity }} 人</div>
+                                            <div class="text-[15px] font-black text-[#111111]">${{ formatPrice(c.price) }}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -417,7 +418,7 @@
                 const regForm = ref({ name: '', gender: '女', birthday: '', phone: '', industry: '', address: '', referrerCode: '' });
                 const bookingForm = ref({ pointsUsed: 0, note: '' });
                 
-                // ✅ 分類邏輯補回
+                // ✅ 分類邏輯
                 const activeCategory = ref('ALL');
                 
                 // 彈窗與金流
@@ -492,7 +493,7 @@
                     isLoading.value = false;
                 };
 
-                // ✅ 課程過濾邏輯補回
+                // ✅ 課程過濾邏輯
                 const publishedCourses = computed(() => courses.value.filter(c => c.isPublished !== false));
                 const categories = computed(() => [...new Set(publishedCourses.value.map(c => c.type).filter(Boolean))]);
                 const filteredCourses = computed(() => {
@@ -603,7 +604,7 @@
                     publishedCourses, getCourseName, getCourseConfig, formatPrice,
                     openRemittanceModal, submitRemittance, cancelMyOrder, retryPayment, dailyCheckin,
                     paymentData, newebpayForm,
-                    activeCategory, categories, filteredCourses // ✅ 輸出分類過濾變數
+                    activeCategory, categories, filteredCourses
                 };
             }
         }).mount('#app');
