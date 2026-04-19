@@ -220,48 +220,48 @@
 
             <nav class="bottom-nav">
                 <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home' || view === 'courseDetail' || view === 'booking'}"><i class="fas fa-compass"></i><span>探索</span></div>
-                <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
-                <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile' || view === 'teacherConsole'}"><i class="fas fa-user"></i><span>我的</span></div>
-            </nav>
-        </div>
-
-        <div v-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in">
-            <div class="header-fixed justify-start gap-4">
-                <button @click="view = 'home'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-lg"></i></button>
-                <h1 class="text-[17px] font-bold text-[#111111]">建立學員資料</h1>
+                <div class="p-5 pb-32">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="text-[14px] font-bold text-[#111111]">{{ selectedDate }} <span class="text-[#AAAAAA] text-[12px] ml-1">排班狀況</span></div>
+                        <div class="text-[11px] font-bold flex gap-3">
+                            <span class="flex items-center gap-1 text-[#166534]"><i class="fas fa-check-circle text-green-500"></i> 開放</span>
+                            <span class="flex items-center gap-1 text-[#991B1B]"><i class="fas fa-lock text-red-500"></i> 已約</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-3">
+                        <button v-for="t in timeSlots" :key="t" @click="handleTeacherToggleSlot(t)" :disabled="isLoading"
+                                class="relative h-[48px] rounded-xl font-bold text-[15px] border transition-all active:scale-95 flex items-center justify-center"
+                                :class="getSlotStyle(t)">
+                            {{ t }}
+                            <i v-if="getSlotLocalStatus(t) === 'OPEN' && !draftCloseSlots.some(s => s.date === selectedDate && s.time === t)" class="fas fa-check-circle absolute -top-1.5 -right-1.5 text-green-500 bg-white rounded-full text-[16px] shadow-sm"></i>
+                            <i v-if="getSlotLocalStatus(t) === 'BOOKED'" class="fas fa-lock absolute -top-1.5 -right-1.5 text-red-500 bg-white rounded-full text-[14px] p-0.5 shadow-sm"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="flex-1 overflow-y-auto p-6 space-y-5 pb-32">
-                <div class="text-center mb-6">
-                    <div class="w-20 h-20 rounded-full bg-[#F4F5F7] mx-auto mb-3 overflow-hidden border border-slate-100">
-                        <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
-                        <i v-else class="fas fa-user text-3xl text-[#AAAAAA] mt-6"></i>
-                    </div>
-                    <div class="font-bold text-[#111111] text-lg">{{ liffProfile.displayName }}</div>
-                    <div class="text-xs text-[#888888] mt-1">請花一分鐘完善資料，解鎖完整報名與會員功能</div>
+            
+            <!-- ✅ 全新批次結算狀態列 -->
+            <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#EEEEEE] p-4 pb-[calc(16px+env(safe-area-inset-bottom))] z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+                <div v-if="draftOpenSlots.length === 0 && draftCloseSlots.length === 0" class="flex items-center justify-between">
+                    <div class="text-[12px] font-bold text-[#AAAAAA]">點擊時段進行勾選排班</div>
+                    <div class="text-[14px] font-bold text-red-500"><i class="fas fa-wallet mr-1"></i>剩餘: {{ userPoints.balance.toLocaleString() }} 點</div>
                 </div>
-
-                <div><label class="native-label">真實姓名</label><input type="text" v-model="regForm.name" class="native-input" placeholder="請輸入中文全名"></div>
-                <div class="flex gap-4">
-                    <div class="flex-1"><label class="native-label">性別</label><select v-model="regForm.gender" class="native-input appearance-none"><option value="男">男性</option><option value="女">女性</option></select></div>
-                    <div class="flex-1"><label class="native-label">生日</label><input type="date" v-model="regForm.birthday" class="native-input"></div>
-                </div>
-                <div><label class="native-label">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input font-mono" placeholder="09xxxxxxxx"></div>
-                <div><label class="native-label">所屬業種</label><input type="text" v-model="regForm.industry" class="native-input" placeholder="例如：科技業、自由業..."></div>
-                <div><label class="native-label">通訊地址</label><input type="text" v-model="regForm.address" class="native-input" placeholder="寄送講義或發票使用"></div>
-                
-                <div v-if="regForm.referrerCode" class="bg-green-50 p-4 rounded-xl border border-green-100 flex items-start gap-3">
-                    <i class="fas fa-gift text-[#06C755] mt-0.5"></i>
+                <div v-else class="flex items-center justify-between">
                     <div>
-                        <div class="text-[13px] font-bold text-[#111111] mb-1">已套用專屬推薦碼</div>
-                        <div class="text-[12px] text-green-700 font-mono">{{ regForm.referrerCode }}</div>
+                        <div class="text-[11px] font-bold text-[#555555]">
+                            <span v-if="draftOpenSlots.length" class="mr-1">開 {{ draftOpenSlots.length }}</span>
+                            <span v-if="draftCloseSlots.length">關 {{ draftCloseSlots.length }}</span>
+                            時段
+                        </div>
+                        <div class="text-[16px] font-black text-red-500 mt-0.5">扣 {{ (draftOpenSlots.length * (teacherConfig.rent || 0)).toLocaleString() }} 點</div>
                     </div>
-                </div>
-                
-                <div class="pt-4 pb-8">
-                    <button @click="submitRegistration" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100">
-                        <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>
-                        {{ isLoading ? '處理中...' : '確認送出並綁定 LINE' }}
-                    </button>
+                    <div class="flex gap-2">
+                        <button @click="clearDrafts" class="px-4 py-2 rounded-xl bg-[#F4F5F7] text-[#555555] font-bold text-[14px] active:bg-[#EAECEF]">取消</button>
+                        <button @click="submitDrafts" :disabled="isLoading" class="px-5 py-2 rounded-xl bg-[#06C755] text-white font-bold text-[14px] shadow-md active:scale-95 transition flex items-center">
+                            <i v-if="isLoading" class="fas fa-spinner fa-spin mr-1.5"></i>{{ isLoading ? '結算中' : '確認結算' }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -382,7 +382,6 @@
             
             <div class="flex-1 overflow-y-auto pb-32">
                 
-                <!-- 💰 導師自訂收費面板 -->
                 <div class="bg-white px-5 py-5 mb-2 shadow-sm border-b border-[#EEEEEE]">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-[15px] font-black text-slate-800"><i class="fas fa-hand-holding-usd text-[#06C755] mr-2"></i>諮詢收費與折抵設定</h3>
@@ -412,13 +411,11 @@
                     </div>
                 </div>
 
-                <!-- 排班操作區 -->
                 <div class="bg-white px-4 pt-5 pb-5 shadow-sm border-b border-[#EEEEEE]">
                     <div class="flex items-center justify-between mb-4 px-1">
                         <span class="text-[13px] font-bold text-[#555555]">系統抽成: <span class="text-indigo-600">{{ teacherConfig.comm }}%</span></span>
                         <span class="text-[13px] font-bold text-[#555555]">開班租金: <span class="text-red-500 font-black text-base">{{ teacherConfig.rent }} 點</span></span>
                     </div>
-                    <!-- 30 天橫向滑動日曆 -->
                     <div class="flex overflow-x-auto hide-scrollbar gap-2 pb-2">
                         <div v-for="d in dates" :key="d.fullDate" @click="selectedDate = d.fullDate" 
                              class="shrink-0 w-[54px] h-[64px] rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer"
@@ -496,7 +493,6 @@
                 const paymentData = ref({});
                 const newebpayForm = ref(null);
 
-                // SaaS 導師排班與設定
                 const teacherSlots = ref([]);
                 const dates = ref([]); 
                 const selectedDate = ref('');
@@ -506,8 +502,12 @@
                     catch(e) { return { rent: 0, comm: 0, price: 0, acceptPoints: false, maxPoints: 0 }; }
                 });
                 
-                // ✅ 導師自訂收費表單
                 const teacherSettingsForm = ref({ price: 0, acceptPoints: false, maxPoints: 0 });
+
+                // ✅ 新增草稿陣列
+                const draftOpenSlots = ref([]);
+                const draftCloseSlots = ref([]);
+                const clearDrafts = () => { draftOpenSlots.value = []; draftCloseSlots.value = []; };
 
                 const generateDates = () => {
                     const today = new Date(); const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
@@ -721,11 +721,9 @@
                     if(res && res.success) { alert(res.message); userPoints.value.balance = res.newBalance; saveToCache(liffProfile.value.userId); }
                 };
 
-                // 👨‍🏫 導師排班與收費設定核心邏輯
                 const enterTeacherConsole = async () => {
                     isLoading.value = true;
                     
-                    // 載入目前設定至表單
                     const conf = teacherConfig.value;
                     teacherSettingsForm.value = {
                         price: conf.price || 0,
@@ -736,18 +734,17 @@
                     const slotsRes = await callApi('ADMIN_GET_SLOTS');
                     if (slotsRes) teacherSlots.value = slotsRes.filter(s => s.teacherUid === liffProfile.value.userId);
                     
+                    clearDrafts(); // 進入時清空草稿
                     view.value = 'teacherConsole';
                     window.scrollTo(0,0);
                     isLoading.value = false;
                 };
 
-                // ✅ 儲存導師自訂收費設定
                 const saveTeacherSettings = async () => {
                     isLoading.value = true;
                     const res = await callApi('UPDATE_TEACHER_CONFIG', teacherSettingsForm.value);
                     if (res && res.success) {
                         alert('✅ 收費設定已成功儲存！');
-                        // 於本地端更新緩存，無須重整畫面
                         if(userStatus.value.info) {
                             let currentConf = {};
                             try { currentConf = JSON.parse(userStatus.value.info.adminNote || '{}'); } catch(e) {}
@@ -767,6 +764,10 @@
                 };
 
                 const getSlotStyle = (time) => {
+                    const date = selectedDate.value;
+                    if (draftOpenSlots.value.some(s => s.date === date && s.time === time)) return 'bg-green-50 text-[#06C755] border-[#06C755] border-2 shadow-sm border-dashed';
+                    if (draftCloseSlots.value.some(s => s.date === date && s.time === time)) return 'bg-slate-100 text-slate-400 border-slate-300 line-through opacity-70';
+
                     const status = getSlotLocalStatus(time);
                     if (status === 'OPEN') return 'bg-[#DCFCE7] text-[#166534] border-[#86EFAC] shadow-sm';
                     if (status === 'BOOKED') return 'bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5] opacity-80';
@@ -779,31 +780,50 @@
 
                     if (currentStatus === 'BOOKED') return alert('此時段已被學員預約，無法取消！');
 
-                    const action = currentStatus === 'OPEN' ? 'CLOSE' : 'OPEN';
-                    const rent = teacherConfig.value.rent || 0;
+                    // 切換選取狀態
+                    const openIdx = draftOpenSlots.value.findIndex(s => s.date === date && s.time === time);
+                    if (openIdx > -1) { draftOpenSlots.value.splice(openIdx, 1); return; }
 
-                    if (action === 'OPEN') {
-                        if (rent > 0) {
-                            if (userPoints.value.balance < rent) return alert(`餘額不足！開啟需扣除系統租金 ${rent} 點紅包。`);
-                            if (!confirm(`開啟此時段將扣除租金 ${rent} 點，確定開啟？`)) return;
-                        }
-                    } else {
-                        if (!confirm(`確定要關閉此時段的預約嗎？`)) return;
+                    const closeIdx = draftCloseSlots.value.findIndex(s => s.date === date && s.time === time);
+                    if (closeIdx > -1) { draftCloseSlots.value.splice(closeIdx, 1); return; }
+
+                    if (currentStatus === 'OPEN') draftCloseSlots.value.push({ date, time });
+                    else draftOpenSlots.value.push({ date, time });
+                };
+
+                const submitDrafts = async () => {
+                    const rent = teacherConfig.value.rent || 0;
+                    const totalCost = draftOpenSlots.value.length * rent;
+
+                    if (totalCost > 0 && userPoints.value.balance < totalCost) {
+                        return alert(`餘額不足！共需扣除 ${totalCost} 點，但您目前僅有 ${userPoints.value.balance} 點。`);
                     }
 
+                    if (!confirm(`確定送出排班異動？\n開啟：${draftOpenSlots.value.length} 個\n關閉：${draftCloseSlots.value.length} 個\n共扣：${totalCost} 點`)) return;
+
                     isLoading.value = true;
-                    const res = await callApi('ADMIN_TOGGLE_SLOT', { teacherUid: liffProfile.value.userId, date, time, action });
+                    const res = await callApi('ADMIN_BATCH_TOGGLE_SLOTS', {
+                        teacherUid: liffProfile.value.userId,
+                        draftOpen: draftOpenSlots.value,
+                        draftClose: draftCloseSlots.value
+                    });
 
                     if (res && res.success) {
-                        const slotIdx = teacherSlots.value.findIndex(s => s.date === date && s.time === time);
-                        if (action === 'OPEN') {
-                            if (rent > 0) userPoints.value.balance -= rent;
-                            if (slotIdx > -1) teacherSlots.value[slotIdx].status = 'OPEN';
-                            else teacherSlots.value.push({ teacherUid: liffProfile.value.userId, date, time, status: 'OPEN' });
-                        } else {
-                            if (slotIdx > -1) teacherSlots.value[slotIdx].status = 'CLOSED';
+                        alert('✅ 排班結算完成！');
+                        if (totalCost > 0) {
+                            userPoints.value.balance -= totalCost;
+                            saveToCache(liffProfile.value.userId);
                         }
-                        saveToCache(liffProfile.value.userId); 
+                        draftOpenSlots.value.forEach(slot => {
+                            const idx = teacherSlots.value.findIndex(s => s.date === slot.date && s.time === slot.time);
+                            if (idx > -1) teacherSlots.value[idx].status = 'OPEN';
+                            else teacherSlots.value.push({ teacherUid: liffProfile.value.userId, date: slot.date, time: slot.time, status: 'OPEN' });
+                        });
+                        draftCloseSlots.value.forEach(slot => {
+                            const idx = teacherSlots.value.findIndex(s => s.date === slot.date && s.time === slot.time);
+                            if (idx > -1) teacherSlots.value[idx].status = 'CLOSED';
+                        });
+                        clearDrafts();
                     }
                     isLoading.value = false;
                 };
@@ -819,8 +839,8 @@
                     paymentData, newebpayForm,
                     activeCategory, categories, filteredCourses, navigateTo,
                     dates, selectedDate, timeSlots, teacherConfig, enterTeacherConsole, getSlotStyle, getSlotLocalStatus, handleTeacherToggleSlot,
-                    // ✅ 匯出設定表單與儲存函數
-                    teacherSettingsForm, saveTeacherSettings
+                    teacherSettingsForm, saveTeacherSettings,
+                    draftOpenSlots, draftCloseSlots, clearDrafts, submitDrafts // ✅ 匯出變數
                 };
             }
         }).mount('#app');
