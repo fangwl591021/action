@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION 會員中心</title>
-    <!-- Version: 2026.04.19.V186_Absolute_Category_Restore -->
+    <!-- Version: 2026.04.19.V187_Reactivity_Restored -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,6 +19,7 @@
         
         .btn-primary { background-color: #06C755; color: white; font-weight: 700; padding: 14px 20px; border-radius: 12px; text-align: center; font-size: 16px; width: 100%; transition: transform 0.1s; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.5; background-color: #A5A5A5; pointer-events: none; }
         
         .native-input { width: 100%; border: none; background-color: #F4F5F7; border-radius: 10px; padding: 14px 16px; font-size: 15px; outline: none; color: #111111; }
         .native-input:focus { background-color: #EAECEF; }
@@ -53,7 +54,6 @@
 
         <!-- 🏠 主系統架構 -->
         <div v-if="view !== 'register'" class="flex flex-col h-screen overflow-hidden">
-            
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
                 <!-- 🌟 課程探索首頁 -->
@@ -87,7 +87,7 @@
                         </div>
                     </div>
 
-                    <!-- ✅ 恢復分類標籤列 (V186 強制重整) -->
+                    <!-- ✅ 恢復分類標籤列 -->
                     <div class="bg-white sticky top-[56px] z-30 border-b border-[#EEEEEE] pt-1 pb-2 shadow-sm">
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-2">
                             <button @click="activeCategory = 'ALL'" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-all" :class="activeCategory === 'ALL' ? 'bg-[#111111] text-white' : 'bg-[#F4F5F7] text-[#555555]'">全部</button>
@@ -104,7 +104,6 @@
                             </div>
                             <div class="p-3 flex-1 flex flex-col justify-between">
                                 <div>
-                                    <!-- ✅ 補回課程內的小標籤 -->
                                     <span class="bg-[#f0fdf4] text-[#06C755] text-[10px] font-bold px-1.5 py-0.5 rounded uppercase mb-1.5 inline-block">{{ c.type }}</span>
                                     <div class="text-[14px] font-bold text-[#111111] line-clamp-2 leading-snug">{{ c.name }}</div>
                                 </div>
@@ -145,7 +144,7 @@
                     <div class="p-6">
                         <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg mb-8 relative overflow-hidden">
                             <div class="text-[13px] text-slate-300 font-bold mb-1 tracking-tight">紅包帳戶餘額</div>
-                            <div class="text-4xl font-black mb-6 tracking-tighter">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
+                            <div class="text-3xl font-black mb-6 tracking-tighter">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
                             <button @click="dailyCheckin" class="w-full py-2.5 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-bold active:scale-95 transition border border-white/10 backdrop-blur-sm">每日登入領紅包</button>
                         </div>
                         <div v-if="userStatus.info?.memberTier === '專業導師'" class="mb-8">
@@ -215,7 +214,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- 🚀 像素級還原：銀行匯款回報彈窗 ( z-[200] 頂層) -->
+        <!-- 🚀 像素級還原：銀行匯款回報彈窗 -->
         <!-- ========================================== -->
         <div v-if="showRemittanceModal" class="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-6 backdrop-blur-sm animate-fade-in">
             <div class="bg-white rounded-[32px] w-full max-w-sm p-8 shadow-2xl relative overflow-hidden">
@@ -231,8 +230,8 @@
             </div>
         </div>
 
-        <!-- 📝 註冊頁面 (Overlay) -->
-        <div v-else-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in">
+        <!-- 📝 註冊頁面 (全螢幕蓋版) -->
+        <div v-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in">
             <div class="header-fixed justify-start gap-4"><button @click="view = 'home'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left"></i></button><h1 class="text-[17px] font-bold text-[#111111]">建立學員資料</h1></div>
             <div class="flex-1 overflow-y-auto p-6 space-y-5 pb-32">
                 <div class="text-center mb-6">
@@ -273,7 +272,7 @@
     <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v186'; // ✅ V186 強制重整快取
+        const CACHE_VERSION = 'v187'; 
 
         createApp({
             setup() {
@@ -286,6 +285,19 @@
                 const teacherSlots = ref([]); const dates = ref([]); const selectedDate = ref(''); const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
                 const teacherSettingsForm = ref({ price: 0, acceptPoints: false, maxPoints: 0 }); const draftOpenSlots = ref([]); const draftCloseSlots = ref([]);
                 const activeCategory = ref('ALL');
+
+                // ✅ 將 computed 移出 return 物件，移至 setup 主體內 (核心修復)
+                const categories = computed(() => {
+                    const published = courses.value.filter(c => c.isPublished !== false);
+                    const types = published.map(c => c.type).filter(Boolean);
+                    return [...new Set(types)];
+                });
+
+                const filteredCourses = computed(() => {
+                    const published = courses.value.filter(c => c.isPublished !== false);
+                    if (activeCategory.value === 'ALL') return published;
+                    return published.filter(c => c.type === activeCategory.value);
+                });
 
                 const callApi = async (act, pl = {}, silent = false) => {
                     try {
@@ -324,7 +336,15 @@
                         if (courses.value.length > 0) isGlobalLoading.value = false;
 
                         const [checkRes, cData, oData, pData] = await Promise.all([ callApi('CHECK_USER', {}, true), callApi('GET_COURSES', {}, true), callApi('GET_USER_ORDERS', {}, true), callApi('GET_USER_POINTS', {}, true) ]);
-                        if (checkRes) userStatus.value = checkRes; if (cData) courses.value = cData; if (oData) myOrders.value = oData; if (pData) userPoints.value = pData;
+                        
+                        if (checkRes) userStatus.value = checkRes; 
+                        if (cData) {
+                            courses.value = cData;
+                            // 🚀 偵錯日誌：確認後端回傳的分類資料
+                            console.log('課程 type 清單:', cData.map(c => c.type));
+                        }
+                        if (oData) myOrders.value = oData; 
+                        if (pData) userPoints.value = pData;
                         
                         if(uid) {
                             localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes));
@@ -376,7 +396,7 @@
                     if (res) { alert('✅ 匯款資料已成功提交'); showRemittanceModal.value = false; window.location.reload(); } isLoading.value = false;
                 };
 
-                const startBooking = () => { if (!userStatus.value.registered) { view.value = 'register'; return; } alert('進入報名流程...'); };
+                const startBooking = () => { if (!userStatus.value.registered) { view.value = 'register'; return; } alert('進入報名與紅包折抵流程...'); };
                 const openCourseDetail = (c) => { selectedCourse.value = c; view.value = 'courseDetail'; };
                 const openRemittanceModal = (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; };
 
@@ -387,15 +407,9 @@
                     openCourseDetail, startBooking, openRemittanceModal, navigateTo, dates, selectedDate, timeSlots, teacherConfig: computed(()=>JSON.parse(userStatus.value.info?.adminNote || '{}')), enterTeacherConsole, getSlotStyle, getSlotLocalStatus, handleTeacherToggleSlot,
                     teacherSettingsForm, saveTeacherSettings, draftOpenSlots, draftCloseSlots, clearDrafts: () => { draftOpenSlots.value = []; draftCloseSlots.value = []; }, submitDrafts, submitRegistration, submitRemittance,
                     paymentData, newebpayForm, formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(), getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
-                    categories: computed(() => {
-                        const published = courses.value.filter(c => c.isPublished !== false);
-                        return [...new Set(published.map(c => c.type).filter(Boolean))];
-                    }),
-                    filteredCourses: computed(() => {
-                        const published = courses.value.filter(c => c.isPublished !== false);
-                        if (activeCategory.value === 'ALL') return published;
-                        return published.filter(c => c.type === activeCategory.value);
-                    }),
+                    // ✅ 匯出已修正的屬性
+                    categories,
+                    filteredCourses,
                     activeCategory
                 };
             }
