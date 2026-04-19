@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION 會員中心</title>
-    <!-- Version: 2026.04.19.V200_Profile_Editing_Enabled -->
+    <!-- Version: 2026.04.20.V201_Fixed_5_Categories -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -99,9 +99,9 @@
                         </div>
                     </div>
 
+                    <!-- 固定 5 個標籤分類 -->
                     <div class="bg-white sticky top-[64px] z-30 border-b border-[#F0F0F0] py-3">
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-2">
-                            <button @click="activeCategory = 'ALL'" class="shrink-0 px-5 py-2 rounded-full text-[14px] font-bold transition-all" :class="activeCategory === 'ALL' ? 'bg-[#111111] text-white shadow-md' : 'bg-[#F4F5F7] text-[#666666]'">全部</button>
                             <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" class="shrink-0 px-5 py-2 rounded-full text-[14px] font-bold transition-all" :class="activeCategory === cat ? 'bg-[#111111] text-white shadow-md' : 'bg-[#F4F5F7] text-[#666666]'">{{ cat }}</button>
                         </div>
                     </div>
@@ -122,6 +122,9 @@
                                     <div class="text-[17px] font-black text-[#111111]">${{ formatPrice(c.price) }}</div>
                                 </div>
                             </div>
+                        </div>
+                        <div v-if="filteredCourses.length === 0" class="col-span-2 text-center py-10 text-slate-400 font-bold">
+                            此分類目前沒有可報名的項目
                         </div>
                     </div>
                 </div>
@@ -170,6 +173,7 @@
                         <!-- 唯讀模式 -->
                         <div v-if="!isEditingProfile" class="space-y-1 animate-fade-in">
                             <div class="profile-row"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div>
+                            <div class="profile-row"><span class="profile-label">目前等級</span><span class="profile-value text-[#06C755]">{{ userStatus.info?.memberTier || '一般會員' }}</span></div>
                             <div class="profile-row"><span class="profile-label">性別</span><span class="profile-value">{{ userStatus.info?.gender || '未填寫' }}</span></div>
                             <div class="profile-row"><span class="profile-label">出生年月日</span><span class="profile-value font-mono">{{ userStatus.info?.birthday || '未填寫' }}</span></div>
                             <div class="profile-row"><span class="profile-label">聯絡手機</span><span class="profile-value font-mono">{{ userStatus.info?.phone }}</span></div>
@@ -230,7 +234,7 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v200';
+        const CACHE_VERSION = 'v201';
 
         createApp({
             setup() {
@@ -245,7 +249,10 @@
                 const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
 
                 const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null);
-                const activeCategory = ref('ALL');
+                
+                // 固定 5 個分類標籤，預設為「一般」
+                const predefinedCategories = ['一般', '一般會員', '喚醒階段會員', '蛻變階段會員', '完整階段會員'];
+                const activeCategory = ref('一般');
 
                 const callApi = async (act, pl = {}, silent = false) => {
                     try {
@@ -360,8 +367,11 @@
                     navigateTo, dailyCheckin, submitRegistration,
                     formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(),
                     getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
-                    categories: computed(() => [...new Set(courses.value.filter(c => c.isPublished !== false).map(c => c.type).filter(Boolean))]),
-                    filteredCourses: computed(() => activeCategory.value === 'ALL' ? courses.value.filter(c => c.isPublished !== false) : courses.value.filter(c => c.isPublished !== false && c.type === activeCategory.value)),
+                    
+                    // 固定為 5 個指定標籤
+                    categories: predefinedCategories,
+                    // 過濾目前選擇的標籤，並且必須是上架的課程
+                    filteredCourses: computed(() => courses.value.filter(c => c.isPublished !== false && c.type === activeCategory.value)),
                     activeCategory
                 };
             }
