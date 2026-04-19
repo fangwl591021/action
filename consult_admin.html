@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>預約排班中控台</title>
+    <!-- Version: 2026.04.19.V205_Standalone_Consult_Engine -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [v-cloak] { display: none !important; }
+        body { background-color: #F8FAFC; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .slot-grid { display: grid; grid-template-columns: 80px repeat(30, 1fr); gap: 1px; background: #e2e8f0; }
+        .slot-cell { background: white; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
+        .slot-open { background-color: #dcfce7 !important; color: #166534; font-weight: 800; }
+        .slot-booked { background-color: #fee2e2 !important; color: #991b1b; }
+        .slot-time-label { background: #f8fafc; font-weight: 700; color: #64748b; }
+        .btn-green { background-color: #06C755; color: white; font-weight: 700; padding: 12px 24px; border-radius: 8px; transition: 0.2s; }
+        .input-field { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; font-size: 14px; outline: none; }
+        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    </style>
+</head>
+
+<body class="p-0">
+    <div id="app" v-cloak class="min-h-screen flex flex-col">
+        
+        <header class="bg-white border-b p-5 flex justify-between items-center sticky top-0 z-40 shadow-sm">
+            <div class="flex items-center gap-4">
+                <a href="./admin.html" class="text-slate-400 hover:text-slate-600"><i class="fas fa-arrow-left text-xl"></i></a>
+                <h1 class="text-xl font-black">預約排班中控台 <span class="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded ml-2">獨立模組</span></h1>
+            </div>
+            <div class="flex gap-2">
+                <button @click="showApproveModal = true" class="px-4 py-2 text-xs font-bold bg-white border rounded-lg shadow-sm hover:bg-slate-50"><i class="fas fa-user-plus mr-1"></i>核准新導師</button>
+                <button @click="fetchData" class="px-4 py-2 text-xs font-bold text-slate-600 bg-white border rounded-lg shadow-sm"><i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i></button>
+            </div>
+        </header>
+
+        <main class="flex-grow flex overflow-hidden">
+            <!-- 導師列表 -->
+            <aside class="w-64 bg-white border-r overflow-y-auto">
+                <div v-for="t in teachers" :key="t.userId" @click="activeTeacher = t" class="p-4 border-b cursor-pointer transition" :class="activeTeacher?.userId === t.userId ? 'bg-green-50 border-r-4 border-r-[#06C755]' : 'hover:bg-slate-50'">
+                    <div class="font-bold text-slate-800">{{ t.name }}</div>
+                    <div class="text-[11px] text-slate-400 mt-1">合約: {{ t.config.rent }}P / {{ t.config.comm }}%</div>
+                </div>
+            </aside>
+
+            <!-- 排班網格 -->
+            <section class="flex-1 p-6 relative overflow-auto bg-[#F8FAFC]">
+                <div v-if="!activeTeacher" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300">
+                    <i class="fas fa-chalkboard-teacher text-6xl mb-4"></i>
+                    <span class="font-bold">請點擊左側導師開始排班</span>
+                </div>
+                <div v-else>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-black text-slate-700">導師：{{ activeTeacher.name }}</h2>
+                        <div class="flex gap-2">
+                            <button v-if="hasDrafts" @click="clearDrafts" class="text-slate-400 font-bold text-sm px-3">取消變動</button>
+                            <button v-if="hasDrafts" @click="submitDrafts" :disabled="isLoading" class="btn-green">確認結算 ({{ totalDraftCost }}點)</button>
+                            <button @click="openSysConfig(activeTeacher)" class="p-2 text-slate-300 hover:text-indigo-600 transition"><i class="fas fa-cog text-lg"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="slot-grid" style="width: 2500px;">
+                            <div class="slot-cell slot-time-label sticky left-0 z-10 border-r">時段</div>
+                            <div v-for="d in dates" :key="d.fullDate" class="slot-cell bg-slate-50 font-black border-b text-slate-500">{{ d.day }} ({{ d.weekDay }})</div>
+                            <template v-for="time in timeSlots" :key="time">
+                                <div class="slot-cell slot-time-label sticky left-0 z-10 border-r border-b">{{ time }}</div>
+                                <div v-for="d in dates" :key="d.fullDate" @click="handleToggleSlot(d.fullDate, time)" class="slot-cell border-b border-r" :class="getSlotStyle(d.fullDate, time)">
+                                    <i v-if="getSlotStatus(d.fullDate, time) === 'OPEN'" class="fas fa-check text-[10px]"></i>
+                                    <i v-if="getSlotStatus(d.fullDate, time) === 'BOOKED'" class="fas fa-lock text-[10px]"></i>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 核准彈窗 -->
+        <div v-if="showApproveModal" class="modal-mask" @click.self="showApproveModal = false">
+            <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+                <h3 class="font-black text-lg mb-6">核准新導師權限</h3>
+                <div class="space-y-4">
+                    <div><label class="text-xs font-bold text-slate-400">選擇學員</label>
+                        <select v-model="approveForm.uid" class="input-field mt-1">
+                            <option v-for="u in allUsers" :key="u.userId" :value="u.userId">{{ u.name }}</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs font-bold text-slate-400">時段租金(點)</label><input type="number" v-model.number="approveForm.rent" class="input-field"></div>
+                        <div><label class="text-xs font-bold text-slate-400">平台抽成(%)</label><input type="number" v-model.number="approveForm.comm" class="input-field"></div>
+                    </div>
+                </div>
+                <div class="mt-8 flex gap-3"><button @click="showApproveModal = false" class="flex-1 py-3 text-slate-400 font-bold">取消</button><button @click="handleApprove" :disabled="isLoading" class="flex-1 btn-green">確認開通</button></div>
+            </div>
+        </div>
+
+        <!-- 合約設定彈窗 -->
+        <div v-if="editingSysConfig" class="modal-mask" @click.self="editingSysConfig = null">
+            <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+                <h3 class="font-black text-lg text-indigo-600 mb-2">系統合約設定</h3>
+                <p class="text-xs text-slate-400 mb-6">導師：{{ editingSysConfig.name }}</p>
+                <div class="space-y-4">
+                    <div><label class="text-xs font-bold text-slate-500">時段租金 (開班扣點)</label><input type="number" v-model.number="editingSysConfig.rent" class="input-field font-bold"></div>
+                    <div><label class="text-xs font-bold text-slate-500">平台抽成 (%)</label><input type="number" v-model.number="editingSysConfig.comm" class="input-field font-bold"></div>
+                </div>
+                <div class="mt-8 flex gap-3"><button @click="editingSysConfig = null" class="flex-1 py-3 text-slate-400 font-bold">取消</button><button @click="saveSysConfig" :disabled="isLoading" class="flex-1 bg-indigo-600 text-white rounded-lg font-bold">更新參數</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+        const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
+        createApp({
+            setup() {
+                const isLoading = ref(false); const teachers = ref([]); const allUsers = ref([]); const slots = ref([]);
+                const activeTeacher = ref(null); const draftOpen = ref([]); const draftClose = ref([]);
+                const showApproveModal = ref(false); const editingSysConfig = ref(null);
+                const approveForm = ref({ uid: '', rent: 50, comm: 10 });
+                const dates = ref([]); const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+
+                const callApi = async (act, pl = {}) => {
+                    isLoading.value = true;
+                    try {
+                        const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
+                        const json = await res.json(); if (json.status !== 'success') throw new Error(json.message); return json.data;
+                    } catch (e) { alert(`❌ 錯誤: ${e.message}`); return null; } finally { isLoading.value = false; }
+                };
+
+                const fetchData = async () => {
+                    const data = await callApi('ADMIN_GET_DATA');
+                    if (data) { teachers.value = data.teachers; allUsers.value = data.users; }
+                    const slotData = await callApi('ADMIN_GET_SLOTS');
+                    if (slotData) slots.value = slotData;
+                };
+
+                const getStatus = (uid, date, time) => { const found = slots.value.find(s => s.teacherUid === uid && s.date === date && s.time === time); return found ? found.status : 'CLOSED'; };
+                const handleToggleSlot = (date, time) => {
+                    const uid = activeTeacher.value.userId; const status = getStatus(uid, date, time); if (status === 'BOOKED') return;
+                    const oIdx = draftOpen.value.findIndex(s => s.date === date && s.time === time); const cIdx = draftClose.value.findIndex(s => s.date === date && s.time === time);
+                    if (oIdx > -1) { draftOpen.value.splice(oIdx, 1); return; } if (cIdx > -1) { draftClose.value.splice(cIdx, 1); return; }
+                    if (status === 'OPEN') draftClose.value.push({ uid, date, time }); else draftOpen.value.push({ uid, date, time });
+                };
+
+                onMounted(() => {
+                    const today = new Date(); const names = ['日', '一', '二', '三', '四', '五', '六'];
+                    for (let i = 0; i < 30; i++) { const d = new Date(today); d.setDate(today.getDate() + i); dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: names[d.getDay()] }); }
+                    fetchData();
+                });
+
+                return {
+                    isLoading, teachers, allUsers, slots, activeTeacher, draftOpen, draftClose, showApproveModal, editingSysConfig, approveForm, dates, timeSlots,
+                    fetchData, getSlotStatus: getStatus, handleToggleSlot,
+                    getSlotStyle: (date, time) => {
+                        if (draftOpen.value.some(s => s.date === date && s.time === time)) return 'bg-green-50 text-[#06C755] border-[#06C755] border-dashed';
+                        if (draftClose.value.some(s => s.date === date && s.time === time)) return 'bg-slate-100 text-slate-300 line-through opacity-50';
+                        const s = getStatus(activeTeacher.value?.userId, date, time);
+                        if (s === 'OPEN') return 'bg-[#DCFCE7] text-[#166534] border-[#86EFAC]';
+                        if (s === 'BOOKED') return 'bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5] cursor-not-allowed';
+                        return 'bg-white text-[#CBD5E1]';
+                    },
+                    hasDrafts: computed(() => draftOpen.value.length || draftClose.value.length),
+                    totalDraftCost: computed(() => draftOpen.value.length * (activeTeacher.value?.config.rent || 0)),
+                    clearDrafts: () => { draftOpen.value = []; draftClose.value = []; },
+                    submitDrafts: async () => { const res = await callApi('ADMIN_BATCH_TOGGLE_SLOTS', { teacherUid: activeTeacher.value.userId, draftOpen: draftOpen.value, draftClose: draftClose.value }); if (res) { alert('✅ 結算成功'); draftOpen.value = []; draftClose.value = []; fetchData(); } },
+                    handleApprove: async () => { const target = allUsers.value.find(u => u.userId === approveForm.value.uid); if(await callApi('ADMIN_APPROVE_TEACHER', { teacherUid: target.userId, teacherName: target.name, rentPrice: approveForm.value.rent, commissionRate: approveForm.value.comm })) { alert('✅ 成功'); showApproveModal.value = false; fetchData(); } },
+                    openSysConfig: (t) => editingSysConfig.value = { uid: t.userId, name: t.name, rent: t.config.rent, comm: t.config.comm },
+                    saveSysConfig: async () => { const cfg = editingSysConfig.value; if(await callApi('ADMIN_APPROVE_TEACHER', { teacherUid: cfg.uid, teacherName: cfg.name, rentPrice: cfg.rent, commissionRate: cfg.comm })) { alert('✅ 更新成功'); editingSysConfig.value = null; fetchData(); } }
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
