@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION 會員中心</title>
-    <!-- Version: 2026.04.19.V171_Fix_Registration_Blocker_And_DB_ID -->
+    <!-- Version: 2026.04.19.V172_Teacher_Console_30Days_Added -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -58,16 +58,14 @@
         </transition>
 
         <!-- ========================================== -->
-        <!-- 🏠 主系統架構 (開放全區瀏覽，拆除阻擋門) -->
+        <!-- 🏠 主系統架構 (開放全區瀏覽) -->
         <!-- ========================================== -->
         <div v-else class="flex flex-col h-screen overflow-hidden">
             
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
-                <!-- 🌟 首頁視圖 (所有人皆可見) -->
+                <!-- 🌟 首頁視圖 -->
                 <div v-if="view === 'home'" class="animate-fade-in relative">
-                    
-                    <!-- Header -->
                     <div class="header-fixed z-40">
                         <div class="font-black text-[#111111] text-[18px] tracking-wide">人生ACTION</div>
                         <div @click="navigateTo('profile')" class="w-8 h-8 rounded-full overflow-hidden bg-[#F4F5F7] border border-slate-200 cursor-pointer shadow-sm active:scale-95 transition">
@@ -76,14 +74,12 @@
                         </div>
                     </div>
 
-                    <!-- Banner -->
                     <div class="bg-white pb-3">
                         <div class="w-full aspect-[21/9] bg-[#06C755] relative">
                             <img v-if="sysSettings.banner_image" :src="sysSettings.banner_image" class="w-full h-full object-cover">
                             <div v-else class="absolute inset-0 flex items-center justify-center text-white text-xl font-black tracking-widest">人生ACTION</div>
                         </div>
                         
-                        <!-- 三大金剛鍵 (加入權限導航防呆) -->
                         <div class="flex px-4 pt-4 gap-3">
                             <div @click="navigateTo('profile')" class="flex-1 bg-[#F4F5F7] rounded-2xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer active:bg-[#EAECEF] transition">
                                 <i class="fas fa-id-badge text-[20px] text-[#111111] mb-1"></i>
@@ -99,7 +95,6 @@
                             </a>
                         </div>
                         
-                        <!-- 社群導流 -->
                         <div class="flex justify-center gap-6 pt-4 pb-2">
                             <a v-if="sysSettings.link_fb" :href="sysSettings.link_fb" target="_blank" class="w-10 h-10 rounded-full bg-[#F4F5F7] flex items-center justify-center text-[#1877F2] text-xl active:bg-[#EAECEF] transition"><i class="fab fa-facebook-f"></i></a>
                             <a v-if="sysSettings.link_ig" :href="sysSettings.link_ig" target="_blank" class="w-10 h-10 rounded-full bg-[#F4F5F7] flex items-center justify-center text-[#E4405F] text-xl active:bg-[#EAECEF] transition"><i class="fab fa-instagram"></i></a>
@@ -107,7 +102,6 @@
                         </div>
                     </div>
 
-                    <!-- 分類標籤 (Sticky 吸頂) -->
                     <div class="bg-white sticky top-[56px] z-30 border-b border-[#EEEEEE] pt-1 pb-2 shadow-sm">
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-2">
                             <button @click="activeCategory = 'ALL'" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors" :class="activeCategory === 'ALL' ? 'bg-[#111111] text-white' : 'bg-[#F4F5F7] text-[#555555]'">全部</button>
@@ -115,7 +109,6 @@
                         </div>
                     </div>
 
-                    <!-- 課程列表網格設計 -->
                     <div class="px-4 mt-3 mb-6">
                         <div class="grid grid-cols-2 gap-3">
                             <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="bg-white rounded-xl overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-[#EEEEEE] cursor-pointer active:scale-[0.98] transition flex flex-col">
@@ -143,7 +136,7 @@
                     </div>
                 </div>
 
-                <!-- 我的報名紀錄 -->
+                <!-- 🌟 報名紀錄 -->
                 <div v-if="view === 'orders'" class="animate-fade-in">
                     <div class="header-fixed justify-center"><h2 class="text-[17px] font-bold text-[#111111]">歷史報名紀錄</h2></div>
                     <div class="pt-2">
@@ -182,7 +175,7 @@
                     </div>
                 </div>
 
-                <!-- 我的檔案 -->
+                <!-- 🌟 我的檔案 -->
                 <div v-if="view === 'profile'" class="animate-fade-in bg-white min-h-screen">
                     <div class="header-fixed justify-between z-40">
                         <h2 class="text-[17px] font-bold text-[#111111]">學員檔案</h2>
@@ -196,6 +189,14 @@
                             <div class="text-4xl font-black mb-4">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
                             <button @click="dailyCheckin" class="w-full py-2.5 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 backdrop-blur-md border border-white/10 active:scale-95">
                                 <i class="fas fa-calendar-check"></i> 每日登入領紅包
+                            </button>
+                        </div>
+
+                        <!-- 👨‍🏫 SaaS 導師專屬入口 -->
+                        <div v-if="userStatus.info?.memberTier === '專業導師'" class="mb-8">
+                            <button @click="enterTeacherConsole" class="w-full py-3.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-2xl text-[14px] font-bold active:bg-indigo-100 transition flex items-center justify-between px-5">
+                                <span class="flex items-center gap-3"><i class="fas fa-chalkboard-teacher text-lg"></i> 進入導師排班中控台</span>
+                                <i class="fas fa-chevron-right text-xs"></i>
                             </button>
                         </div>
 
@@ -389,7 +390,57 @@
             </div>
         </div>
 
-        <!-- ✅ 藍新金流隱藏表單 -->
+        <!-- ========================================== -->
+        <!-- 👨‍🏫 導師排班專屬中控台 (SaaS 行動版) -->
+        <!-- ========================================== -->
+        <div v-if="view === 'teacherConsole'" class="fixed inset-0 bg-[#F4F5F7] z-[60] flex flex-col h-full w-full overflow-hidden animate-fade-in">
+            <div class="header-fixed z-[70] shadow-sm">
+                <button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-lg"></i></button>
+                <h2 class="text-[17px] font-bold text-[#111111]">導師排班中控台</h2>
+            </div>
+            
+            <div class="bg-white px-4 pt-4 pb-3 shadow-sm z-10 border-b border-[#EEEEEE]">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-[13px] font-bold text-[#555555]">系統抽成: <span class="text-indigo-600">{{ teacherConfig.comm }}%</span></span>
+                    <span class="text-[13px] font-bold text-[#555555]">時段租金: <span class="text-red-500 font-black text-base">{{ teacherConfig.rent }} 點</span></span>
+                </div>
+                <!-- 30 天橫向滑動日曆 -->
+                <div class="flex overflow-x-auto hide-scrollbar gap-2 pb-1">
+                    <div v-for="d in dates" :key="d.fullDate" @click="selectedDate = d.fullDate" 
+                         class="shrink-0 w-[54px] h-[64px] rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer"
+                         :class="selectedDate === d.fullDate ? 'bg-[#06C755] border-[#06C755] text-white shadow-md shadow-green-100' : 'bg-white border-[#EEEEEE] text-[#555555] active:bg-slate-50'">
+                        <div class="text-[11px] font-bold" :class="selectedDate === d.fullDate ? 'text-white/90' : (d.isWeekend ? 'text-red-400' : 'text-[#AAAAAA]')">{{ d.weekDay }}</div>
+                        <div class="text-[18px] font-black mt-0.5">{{ d.day }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-5 pb-32">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="text-[14px] font-bold text-[#111111]">{{ selectedDate }} <span class="text-[#AAAAAA] text-[12px] ml-1">排班狀況</span></div>
+                    <div class="text-[11px] font-bold flex gap-3">
+                        <span class="flex items-center gap-1 text-[#166534]"><i class="fas fa-check-circle text-green-500"></i> 開放</span>
+                        <span class="flex items-center gap-1 text-[#991B1B]"><i class="fas fa-lock text-red-500"></i> 已約</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-3">
+                    <button v-for="t in timeSlots" :key="t" @click="handleTeacherToggleSlot(t)" :disabled="isLoading"
+                            class="relative h-[48px] rounded-xl font-bold text-[15px] border transition-all active:scale-95 flex items-center justify-center"
+                            :class="getSlotStyle(t)">
+                        {{ t }}
+                        <i v-if="getSlotLocalStatus(t) === 'OPEN'" class="fas fa-check-circle absolute -top-1.5 -right-1.5 text-green-500 bg-white rounded-full text-[16px] shadow-sm"></i>
+                        <i v-if="getSlotLocalStatus(t) === 'BOOKED'" class="fas fa-lock absolute -top-1.5 -right-1.5 text-red-500 bg-white rounded-full text-[14px] p-0.5 shadow-sm"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-[#EEEEEE] p-4 pb-[calc(16px+env(safe-area-inset-bottom))] flex items-center justify-between z-20">
+                <div class="text-[12px] font-bold text-[#AAAAAA]">點擊空白時段即可開啟預約</div>
+                <div class="text-[12px] font-bold text-red-500"><i class="fas fa-wallet mr-1"></i>剩餘: {{ userPoints.balance.toLocaleString() }} 點</div>
+            </div>
+        </div>
+
         <form ref="newebpayForm" :action="paymentData.GatewayUrl" method="POST" class="hidden">
             <input type="hidden" name="MerchantID" :value="paymentData.MerchantID">
             <input type="hidden" name="TradeInfo" :value="paymentData.TradeInfo">
@@ -430,6 +481,25 @@
                 const paymentData = ref({});
                 const newebpayForm = ref(null);
 
+                // ✅ SaaS 導師排班專屬變數 (30天)
+                const teacherSlots = ref([]);
+                const dates = ref([]); 
+                const selectedDate = ref('');
+                const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+                const teacherConfig = computed(() => {
+                    try { return JSON.parse(userStatus.value.info?.adminNote || '{}'); } 
+                    catch(e) { return { rent: 0, comm: 0 }; }
+                });
+
+                const generateDates = () => {
+                    const today = new Date(); const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+                    for (let i = 0; i < 30; i++) {
+                        const d = new Date(today); d.setDate(today.getDate() + i);
+                        dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: dayNames[d.getDay()], isWeekend: d.getDay()===0||d.getDay()===6 });
+                    }
+                    if(dates.value.length > 0) selectedDate.value = dates.value[0].fullDate;
+                };
+
                 const callApi = async (act, pl = {}) => {
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value }) });
@@ -443,21 +513,17 @@
                     try {
                         const cSets = localStorage.getItem(`sysSettings_${CACHE_VERSION}`);
                         if (cSets) sysSettings.value = JSON.parse(cSets);
-                        
                         const cCourses = localStorage.getItem(`courses_${CACHE_VERSION}`);
                         if (cCourses) courses.value = JSON.parse(cCourses);
-
                         if (uid) {
                             const cUser = localStorage.getItem(`userStatus_${uid}_${CACHE_VERSION}`);
                             if (cUser) userStatus.value = JSON.parse(cUser);
-                            
                             const cOrders = localStorage.getItem(`myOrders_${uid}_${CACHE_VERSION}`);
                             if (cOrders) myOrders.value = JSON.parse(cOrders);
-
                             const cPoints = localStorage.getItem(`userPoints_${uid}_${CACHE_VERSION}`);
                             if (cPoints) userPoints.value = JSON.parse(cPoints);
                         }
-                    } catch(e) { console.log('Cache read error'); }
+                    } catch(e) {}
                 };
 
                 const saveToCache = (uid) => {
@@ -471,6 +537,7 @@
                 };
 
                 const initApp = async () => {
+                    generateDates();
                     try {
                         const urlParams = new URLSearchParams(window.location.search);
                         const refCode = urlParams.get('ref');
@@ -493,8 +560,7 @@
                         if (liffId) {
                             await liff.init({ liffId: liffId });
                             if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
-                            const profile = await liff.getProfile();
-                            liffProfile.value = profile;
+                            liffProfile.value = await liff.getProfile();
                         } else {
                             liffProfile.value = { userId: 'U_TEST_USER_' + Date.now(), displayName: '測試用戶', pictureUrl: '' };
                         }
@@ -504,27 +570,16 @@
 
                         if (courses.value.length > 0) {
                             isGlobalLoading.value = false; 
-                            if (targetCourseId) {
-                                const tc = courses.value.find(c => c.id === targetCourseId);
-                                if (tc) openCourseDetail(tc);
-                            }
+                            if (targetCourseId) { const tc = courses.value.find(c => c.id === targetCourseId); if (tc) openCourseDetail(tc); }
                         }
 
                         loadingText.value = '同步最新資料...';
-                        
                         const [checkRes, cData, oData, pData, settings] = await Promise.all([
-                            callApi('CHECK_USER'),
-                            callApi('GET_COURSES'),
-                            callApi('GET_USER_ORDERS'),
-                            callApi('GET_USER_POINTS'),
-                            callApi('GET_SETTINGS')
+                            callApi('CHECK_USER'), callApi('GET_COURSES'), callApi('GET_USER_ORDERS'), callApi('GET_USER_POINTS'), callApi('GET_SETTINGS')
                         ]);
 
                         if (settings) sysSettings.value = settings;
-                        if (checkRes) {
-                            userStatus.value = checkRes;
-                            if (!checkRes.registered && refCode) regForm.value.referrerCode = refCode;
-                        }
+                        if (checkRes) { userStatus.value = checkRes; if (!checkRes.registered && refCode) regForm.value.referrerCode = refCode; }
                         if (cData) courses.value = cData;
                         if (oData) myOrders.value = oData;
                         if (pData) userPoints.value = pData;
@@ -533,10 +588,7 @@
 
                         if (isGlobalLoading.value) {
                             isGlobalLoading.value = false;
-                            if (targetCourseId) {
-                                const tc = courses.value.find(c => c.id === targetCourseId);
-                                if (tc) openCourseDetail(tc);
-                            }
+                            if (targetCourseId) { const tc = courses.value.find(c => c.id === targetCourseId); if (tc) openCourseDetail(tc); }
                         }
 
                     } catch (e) {
@@ -548,12 +600,9 @@
                 const navigateTo = (targetView) => {
                     if ((targetView === 'profile' || targetView === 'orders') && !userStatus.value.registered) {
                         alert('請先花一分鐘建立學員資料，即可解鎖專屬會員功能喔！');
-                        view.value = 'register';
-                        window.scrollTo(0,0);
-                        return;
+                        view.value = 'register'; window.scrollTo(0,0); return;
                     }
-                    view.value = targetView;
-                    window.scrollTo(0,0);
+                    view.value = targetView; window.scrollTo(0,0);
                 };
 
                 const submitRegistration = async () => {
@@ -568,6 +617,7 @@
                     isLoading.value = false;
                 };
 
+                // 課程過濾邏輯
                 const publishedCourses = computed(() => courses.value.filter(c => c.isPublished !== false));
                 const categories = computed(() => [...new Set(publishedCourses.value.map(c => c.type).filter(Boolean))]);
                 const filteredCourses = computed(() => {
@@ -582,14 +632,8 @@
                 const openCourseDetail = (c) => { selectedCourse.value = c; view.value = 'courseDetail'; window.scrollTo(0,0); };
                 
                 const startBooking = () => { 
-                    if (!userStatus.value.registered) {
-                        alert('報名課程前，請先花一分鐘完成會員註冊喔！');
-                        view.value = 'register';
-                        return;
-                    }
-                    bookingForm.value = { pointsUsed: 0, note: '' }; 
-                    view.value = 'booking'; 
-                    window.scrollTo(0,0); 
+                    if (!userStatus.value.registered) { alert('報名課程前，請先完成會員註冊喔！'); view.value = 'register'; return; }
+                    bookingForm.value = { pointsUsed: 0, note: '' }; view.value = 'booking'; window.scrollTo(0,0); 
                 };
 
                 const maxDiscountPoints = computed(() => {
@@ -600,9 +644,7 @@
                     if (rule === 'RULE_A') rate = Number(sysSettings.value.discount_rate_a || 20) / 100;
                     else if (rule === 'RULE_B') rate = Number(sysSettings.value.discount_rate_b || 50) / 100;
                     else if (rule === 'RULE_C') rate = Number(sysSettings.value.discount_rate_c || 100) / 100;
-                    
-                    const maxAllowed = Math.floor(price * rate);
-                    return Math.min(maxAllowed, userPoints.value.balance);
+                    return Math.min(Math.floor(price * rate), userPoints.value.balance);
                 });
 
                 const isTierAllowed = computed(() => {
@@ -625,37 +667,20 @@
                 const retryPayment = async (order) => {
                     isLoading.value = true;
                     try {
-                        const rawPayload = { orderId: order.orderId, userId: liffProfile.value.userId, notifyUrl: WORKER_URL + '?action=NEWEBPAY_NOTIFY', returnUrl: window.location.href };
-                        const res = await callApi('GET_PAYMENT_PAYLOAD', rawPayload);
-                        if(res && res.TradeInfo) {
-                            paymentData.value = res;
-                            await Vue.nextTick(); 
-                            if (newebpayForm.value) newebpayForm.value.submit();
-                        } else {
-                            throw new Error('金流封包取得失敗，請稍後再試');
-                        }
-                    } catch(e) { 
-                        alert('跳轉失敗：' + e.message); 
-                        isLoading.value = false; 
-                    }
+                        const res = await callApi('GET_PAYMENT_PAYLOAD', { orderId: order.orderId, userId: liffProfile.value.userId, notifyUrl: WORKER_URL + '?action=NEWEBPAY_NOTIFY', returnUrl: window.location.href });
+                        if(res && res.TradeInfo) { paymentData.value = res; await Vue.nextTick(); if (newebpayForm.value) newebpayForm.value.submit(); } 
+                        else throw new Error('金流封包取得失敗，請稍後再試');
+                    } catch(e) { alert('跳轉失敗：' + e.message); isLoading.value = false; }
                 };
 
                 const processRegistration = async () => {
                     if (!confirm('確定要送出報名嗎？')) return;
                     isLoading.value = true;
-                    const payload = {
-                        courseId: selectedCourse.value.id, courseName: selectedCourse.value.name,
-                        userId: liffProfile.value.userId, name: userStatus.value.info.name, phone: userStatus.value.info.phone,
-                        pointsUsed: bookingForm.value.pointsUsed, amount: finalPrice.value, note: bookingForm.value.note
-                    };
+                    const payload = { courseId: selectedCourse.value.id, courseName: selectedCourse.value.name, userId: liffProfile.value.userId, name: userStatus.value.info.name, phone: userStatus.value.info.phone, pointsUsed: bookingForm.value.pointsUsed, amount: finalPrice.value, note: bookingForm.value.note };
                     const res = await callApi('REGISTER', payload);
                     if (res && res.success) {
                         alert('✅ 報名已送出！');
-                        if (res.isFree || res.isRemittance) {
-                            window.location.reload();
-                        } else if (res.orderId) {
-                            await retryPayment({ orderId: res.orderId, courseId: selectedCourse.value.id });
-                        }
+                        if (res.isFree || res.isRemittance) window.location.reload(); else if (res.orderId) await retryPayment({ orderId: res.orderId, courseId: selectedCourse.value.id });
                     }
                     isLoading.value = false;
                 };
@@ -679,6 +704,63 @@
                     if(res && res.success) { alert(res.message); userPoints.value.balance = res.newBalance; saveToCache(liffProfile.value.userId); }
                 };
 
+                // ✅ 導師排班核心邏輯
+                const enterTeacherConsole = async () => {
+                    isLoading.value = true;
+                    const slotsRes = await callApi('ADMIN_GET_SLOTS');
+                    if (slotsRes) teacherSlots.value = slotsRes.filter(s => s.teacherUid === liffProfile.value.userId);
+                    view.value = 'teacherConsole';
+                    window.scrollTo(0,0);
+                    isLoading.value = false;
+                };
+
+                const getSlotLocalStatus = (time) => {
+                    const slot = teacherSlots.value.find(s => s.date === selectedDate.value && s.time === time);
+                    return slot ? slot.status : 'CLOSED';
+                };
+
+                const getSlotStyle = (time) => {
+                    const status = getSlotLocalStatus(time);
+                    if (status === 'OPEN') return 'bg-[#DCFCE7] text-[#166534] border-[#86EFAC] shadow-sm';
+                    if (status === 'BOOKED') return 'bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5] opacity-80';
+                    return 'bg-white text-[#555555] border-[#DDDDDD]'; // CLOSED
+                };
+
+                const handleTeacherToggleSlot = async (time) => {
+                    const date = selectedDate.value;
+                    const currentStatus = getSlotLocalStatus(time);
+
+                    if (currentStatus === 'BOOKED') return alert('此時段已被學員預約，無法取消！');
+
+                    const action = currentStatus === 'OPEN' ? 'CLOSE' : 'OPEN';
+                    const rent = teacherConfig.value.rent || 0;
+
+                    if (action === 'OPEN') {
+                        if (rent > 0) {
+                            if (userPoints.value.balance < rent) return alert(`餘額不足！開啟需扣除系統租金 ${rent} 點紅包。`);
+                            if (!confirm(`開啟此時段將扣除租金 ${rent} 點，確定開啟？`)) return;
+                        }
+                    } else {
+                        if (!confirm(`確定要關閉此時段的預約嗎？`)) return;
+                    }
+
+                    isLoading.value = true;
+                    const res = await callApi('ADMIN_TOGGLE_SLOT', { teacherUid: liffProfile.value.userId, date, time, action });
+
+                    if (res && res.success) {
+                        const slotIdx = teacherSlots.value.findIndex(s => s.date === date && s.time === time);
+                        if (action === 'OPEN') {
+                            if (rent > 0) userPoints.value.balance -= rent;
+                            if (slotIdx > -1) teacherSlots.value[slotIdx].status = 'OPEN';
+                            else teacherSlots.value.push({ teacherUid: liffProfile.value.userId, date, time, status: 'OPEN' });
+                        } else {
+                            if (slotIdx > -1) teacherSlots.value[slotIdx].status = 'CLOSED';
+                        }
+                        saveToCache(liffProfile.value.userId); // 更新快取餘額
+                    }
+                    isLoading.value = false;
+                };
+
                 onMounted(() => { initApp(); });
 
                 return { 
@@ -688,7 +770,9 @@
                     publishedCourses, getCourseName, getCourseConfig, formatPrice,
                     openRemittanceModal, submitRemittance, cancelMyOrder, retryPayment, dailyCheckin,
                     paymentData, newebpayForm,
-                    activeCategory, categories, filteredCourses, navigateTo 
+                    activeCategory, categories, filteredCourses, navigateTo,
+                    // ✅ 導師排班匯出變數
+                    dates, selectedDate, timeSlots, teacherConfig, enterTeacherConsole, getSlotStyle, getSlotLocalStatus, handleTeacherToggleSlot
                 };
             }
         }).mount('#app');
