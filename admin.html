@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.19.V173_Admin_Consultation_30Days -->
+    <!-- Version: 2026.04.19.V174_Teacher_Custom_Pricing_Admin -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -39,7 +39,6 @@
         .status-pill-paid { background-color: #DCFCE7; color: #166534; }
         .status-pill-waiting { background-color: #FEF3C7; color: #92400E; }
 
-        /* ✅ 擴充為 30 天的 Grid 排版 */
         .slot-grid { display: grid; grid-template-columns: 80px repeat(30, 1fr); gap: 1px; background: #e2e8f0; border-radius: 8px; overflow: hidden; margin: 0 24px 24px; }
         .slot-cell { background: white; height: 44px; display: flex; items-center; justify-content: center; cursor: pointer; font-size: 13px; }
         .slot-open { background-color: #dcfce7 !important; color: #166534; font-weight: 800; }
@@ -244,7 +243,7 @@
                     </div>
                 </div>
 
-                <!-- 🌟 預約諮詢 (管理員版 30天) -->
+                <!-- 🌟 預約諮詢 (管理員版) -->
                 <div v-if="view === 'consultation'" class="p-6 animate-fade-in space-y-6">
                     <div class="flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div class="w-1/3 p-6 border-r border-slate-100 bg-slate-50/20">
@@ -252,15 +251,43 @@
                             <div class="space-y-4 mt-4">
                                 <select v-model="approveForm.uid" class="input-field"><option value="">-- 選擇學員 --</option><option v-for="u in users" :key="u.userId" :value="u.userId">{{ u.name }}</option></select>
                                 <div class="flex gap-4">
-                                    <div class="flex-1"><label class="text-xs font-bold text-slate-400">時段租金</label><input type="number" v-model="approveForm.rent" class="input-field mt-1 font-bold text-slate-700"></div>
-                                    <div class="flex-1"><label class="text-xs font-bold text-slate-400">抽成%</label><input type="number" v-model="approveForm.comm" class="input-field mt-1 font-bold text-slate-700"></div>
+                                    <div class="flex-1"><label class="text-xs font-bold text-slate-400">時段租金 (扣點)</label><input type="number" v-model="approveForm.rent" class="input-field mt-1 font-bold text-slate-700"></div>
+                                    <div class="flex-1"><label class="text-xs font-bold text-slate-400">平台抽成%</label><input type="number" v-model="approveForm.comm" class="input-field mt-1 font-bold text-slate-700"></div>
                                 </div>
                                 <button @click="handleApproveTeacher" :disabled="!approveForm.uid || isLoading" class="w-full py-3.5 bg-[#06C755] text-white rounded-lg font-bold shadow-md transition disabled:opacity-50">啟動導師分表模式</button>
                             </div>
                         </div>
                         <div class="w-2/3 p-6">
                             <h3 class="section-title">目前活躍導師</h3>
-                            <table class="admin-table mt-4 !min-w-0 w-full"><thead><tr><th>姓名</th><th>設定</th><th class="text-right">排班</th></tr></thead><tbody><tr v-for="t in teachers" :key="t.userId"><td>{{ t.name }}</td><td class="text-slate-500 font-mono">{{ t.config.rent }}P / {{ t.config.comm }}%</td><td class="text-right"><button @click="activeTeacher = t" class="text-indigo-600 font-bold">排班設定</button></td></tr></tbody></table>
+                            <!-- ✅ 加入導師自訂定價與折抵的顯示 -->
+                            <table class="admin-table mt-4 !min-w-0 w-full">
+                                <thead>
+                                    <tr>
+                                        <th>導師姓名</th>
+                                        <th>系統抽成設定</th>
+                                        <th>導師自訂收費</th>
+                                        <th class="text-right">排班</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="t in teachers" :key="t.userId">
+                                        <td class="font-bold text-slate-800">{{ t.name }}</td>
+                                        <td>
+                                            <span class="bg-indigo-50 text-indigo-700 font-mono text-xs px-2 py-1 rounded border border-indigo-100">
+                                                {{ t.config.rent }}P / {{ t.config.comm }}%
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="font-black text-[#06C755] text-lg">$ {{ formatPrice(t.config.price || 0) }}</div>
+                                            <div v-if="t.config.acceptPoints" class="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded inline-block mt-1 border border-red-100">
+                                                最高可抵 {{ t.config.maxPoints || 0 }} 點
+                                            </div>
+                                            <div v-else class="text-xs font-bold text-slate-400 mt-1">不接受折抵</div>
+                                        </td>
+                                        <td class="text-right"><button @click="activeTeacher = t" class="text-blue-600 font-bold hover:underline bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm transition active:scale-95">排班控制</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                     
@@ -270,7 +297,6 @@
                             <i @click="activeTeacher = null" class="fas fa-times text-slate-300 cursor-pointer text-xl hover:text-red-500 transition"></i>
                         </div>
                         <div class="overflow-x-auto border border-slate-100 rounded-lg pb-2">
-                            <!-- ✅ 擴展至 30 天 -->
                             <div class="slot-grid !m-0" style="width: 2500px;">
                                 <div class="slot-cell slot-time-label sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">日期</div>
                                 <div v-for="date in dates" :key="date.fullDate" class="slot-header text-center py-2 bg-slate-50">
@@ -434,7 +460,6 @@
                 
                 const editingCourse = ref(null);
 
-                // ✅ 改為 30 天
                 const dates = ref([]); 
                 const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
                 const approveForm = ref({ uid: '', rent: 50, comm: 10 });
@@ -604,7 +629,6 @@
 
                 onMounted(() => {
                     const today = new Date(); const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
-                    // ✅ Admin 也改為生成 30 天的排班表
                     for (let i = 0; i < 30; i++) { 
                         const d = new Date(today); d.setDate(today.getDate() + i); 
                         dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: dayNames[d.getDay()] }); 
