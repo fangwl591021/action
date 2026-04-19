@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.18.V167_Course_Modal_UI_Pixel_Perfect -->
+    <!-- Version: 2026.04.18.V168_Course_Modal_Perfect_Restore_With_Upload -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -267,18 +267,17 @@
         <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null"><div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-md shadow-2xl"><h3 class="text-lg font-bold mb-6">訂單狀態維護</h3><div class="space-y-4"><div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field font-bold"><option value="PENDING">⏳ 待付款</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option></select></div><div><label class="input-label">實收金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field text-[#06C755] font-bold"></div><div><label class="input-label">管理員備註</label><textarea v-model="editingOrder.note" class="input-field min-h-[100px] resize-none"></textarea></div><div class="flex gap-3 pt-4"><button @click="editingOrder = null" class="flex-1 py-3 bg-slate-100 text-slate-500 rounded-lg font-bold">取消</button><button @click="saveOrderUpdate" class="flex-1 py-3 bg-slate-800 text-white rounded-lg font-bold shadow-md">確認更新</button></div></div></div></div>
         <div v-if="editingPointAction" class="modal-mask" @click.self="editingPointAction = null"><div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-sm shadow-2xl"><h3 class="text-lg font-bold mb-6 flex items-center gap-2" :class="editingPointAction.type==='MANUAL_ADD'?'text-green-600':'text-red-600'"><i class="fas fa-wallet"></i> 手動調整紅包</h3><div class="space-y-5"><div><label class="input-label text-slate-400">異動金額 (點)</label><input type="number" v-model.number="editingPointAction.amount" class="input-field text-2xl font-black text-center" placeholder="0"></div><div><label class="input-label text-slate-400">原因</label><input type="text" v-model="editingPointAction.reason" class="input-field font-bold" placeholder="原因說明"></div><div class="flex gap-3 pt-4"><button @click="editingPointAction = null" class="flex-1 py-3 bg-slate-100 rounded-lg font-bold">取消</button><button @click="submitPointAction" :disabled="isLoading" class="flex-1 py-3 text-white rounded-lg font-bold shadow-md active:scale-95 transition" :class="editingPointAction.type==='MANUAL_ADD'?'bg-[#06C755]':'bg-red-500'">送出變更</button></div></div></div></div>
 
-        <!-- ✅ 課程編輯彈窗 (完全依照截圖 image_365743.png 像素級復刻 UI) -->
+        <!-- ✅ 課程編輯彈窗 (像素級還原截圖設計，並加入本機上傳按鈕) -->
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
-            <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[800px] !rounded-xl">
-                <!-- Header -->
-                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+            <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[800px] !rounded-xl bg-white">
+                <!-- 純淨白底 Header -->
+                <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
                     <h3 class="text-[17px] font-black text-slate-800">{{ editingCourse.id.startsWith('NEW_') ? '新增課程設定' : '編輯課程設定' }}</h3>
                     <button @click="editingCourse = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
                 </div>
                 
-                <!-- Body -->
+                <!-- Body (移除灰底，改為純淨白) -->
                 <div class="p-6 overflow-y-auto max-h-[75vh] bg-white custom-scrollbar">
-                    <!-- 基本資訊 (精準復刻一排兩個的 Grid 排版) -->
                     <div class="grid grid-cols-2 gap-x-5 gap-y-4">
                         <div class="col-span-2">
                             <label class="block text-[13px] font-bold text-[#555555] mb-1.5">課程名稱</label>
@@ -316,41 +315,58 @@
                             <label class="block text-[13px] font-bold text-[#555555] mb-1.5">授課導師</label>
                             <input type="text" v-model="editingCourse.instructor" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[15px] text-slate-800 outline-none focus:border-[#06C755]" placeholder="有慈老師">
                         </div>
+                        
+                        <!-- ✅ 補回專屬的壓縮上傳機制 -->
                         <div class="col-span-2">
-                            <label class="block text-[13px] font-bold text-[#555555] mb-1.5">封面圖片網址 (可空)</label>
-                            <input type="text" v-model="editingCourse.image" class="w-full border rounded-lg px-3 py-2.5 text-[13px] font-mono text-[#888888] outline-none focus:border-[#06C755] transition-colors" :class="editingCourse.image ? 'border-[#06C755]' : 'border-slate-300'" placeholder="data:image/webp;base64,...">
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-[13px] font-bold text-[#555555] mb-1.5">課程詳細介紹 (支援換行)</label>
-                            <textarea v-model="editingCourse.description" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] text-slate-700 outline-none focus:border-[#06C755] h-32 resize-none leading-relaxed"></textarea>
+                            <div class="flex justify-between items-end mb-1.5">
+                                <label class="block text-[13px] font-bold text-[#555555]">封面圖片網址 (可空)</label>
+                                <button @click="$refs.courseImgInput.click()" class="text-[12px] bg-slate-100 text-slate-600 px-3 py-1 rounded hover:bg-slate-200 font-bold transition">本機上傳圖片</button>
+                            </div>
+                            <input type="text" v-model="editingCourse.image" class="w-full border rounded-lg px-3 py-2.5 text-[13px] font-mono text-[#888888] outline-none transition-colors" :class="editingCourse.image ? 'border-[#06C755] bg-green-50/10' : 'border-slate-300'" placeholder="data:image/webp;base64,...">
+                            <input type="file" ref="courseImgInput" class="hidden" accept="image/*" @change="handleCourseImageUpload">
                         </div>
                         
-                        <!-- 進階設定 (維持純淨視覺，隱藏於分隔線下) -->
-                        <div class="col-span-2 border-t border-slate-100 mt-2 pt-5">
-                            <h4 class="text-[14px] font-black text-slate-800 mb-4"><i class="fas fa-sliders-h mr-2 text-[#06C755]"></i>進階設定 (權限與金流)</h4>
+                        <div class="col-span-2">
+                            <label class="block text-[13px] font-bold text-[#555555] mb-1.5">課程詳細介紹 (支援換行)</label>
+                            <textarea v-model="editingCourse.description" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] text-slate-700 outline-none focus:border-[#06C755] h-32 resize-none leading-relaxed custom-scrollbar"></textarea>
+                        </div>
+                        
+                        <!-- ✅ 進階設定 (還原截圖中的純淨視覺與原生藍色勾選框) -->
+                        <div class="col-span-2 border-t border-slate-100 mt-4 pt-5">
+                            <h4 class="text-[15px] font-black text-slate-800 mb-4 flex items-center">
+                                <i class="fas fa-sliders-h text-[#06C755] mr-2"></i>進階設定 (權限與金流)
+                            </h4>
                             <div class="grid grid-cols-2 gap-x-5 gap-y-4">
                                 <div>
                                     <label class="block text-[13px] font-bold text-[#555555] mb-1.5">上架狀態 (前台顯示)</label>
-                                    <select v-model="editingCourse.isPublished" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] font-bold text-slate-800 outline-none focus:border-[#06C755]"><option :value="true">🟢 公開上架</option><option :value="false">🔴 隱藏下架</option></select>
+                                    <select v-model="editingCourse.isPublished" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] font-bold text-slate-800 outline-none focus:border-[#06C755]">
+                                        <option :value="true">🟢 公開上架</option><option :value="false">🔴 隱藏下架</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-[13px] font-bold text-[#555555] mb-1.5">報名狀態 (開放購買)</label>
-                                    <select v-model="editingCourse.isRegistrationOpen" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] font-bold text-slate-800 outline-none focus:border-[#06C755]"><option :value="true">✅ 開放報名</option><option :value="false">⏸️ 暫停/即將推出</option></select>
+                                    <select v-model="editingCourse.isRegistrationOpen" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] font-bold text-slate-800 outline-none focus:border-[#06C755]">
+                                        <option :value="true">✅ 開放報名</option><option :value="false">⏸️ 暫停/即將推出</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-[13px] font-bold text-[#555555] mb-1.5">紅包折抵規則</label>
-                                    <select v-model="editingCourse.discountRule" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] font-bold text-slate-800 outline-none focus:border-[#06C755]"><option value="NONE">❌ 不可折抵 (全額付現)</option><option value="RULE_A">🟡 20% 折抵</option><option value="RULE_B">🟠 50% 折抵</option><option value="RULE_C">🟢 100% 全額折抵</option></select>
+                                    <select v-model="editingCourse.discountRule" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] font-bold text-slate-800 outline-none focus:border-[#06C755]">
+                                        <option value="NONE">❌ 不可折抵 (全額付現)</option><option value="RULE_A">🟡 20% 折抵</option><option value="RULE_B">🟠 50% 折抵</option><option value="RULE_C">🟢 100% 全額折抵</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-[13px] font-bold text-[#555555] mb-1.5">收款方式限制</label>
-                                    <select v-model="editingCourse.paymentMethod" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] font-bold text-slate-800 outline-none focus:border-[#06C755]"><option value="ALL">全部 (刷卡+匯款)</option><option value="NEWEBPAY">僅限線上刷卡</option><option value="REMITTANCE">僅限銀行匯款</option></select>
+                                    <select v-model="editingCourse.paymentMethod" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[14px] font-bold text-slate-800 outline-none focus:border-[#06C755]">
+                                        <option value="ALL">全部 (刷卡+匯款)</option><option value="NEWEBPAY">僅限線上刷卡</option><option value="REMITTANCE">僅限銀行匯款</option>
+                                    </select>
                                 </div>
-                                <div class="col-span-2 mt-1">
+                                <div class="col-span-2 mt-2">
                                     <label class="block text-[13px] font-bold text-[#555555] mb-2">允許報名的會員等級 (未勾選者無法購買此課)</label>
-                                    <div class="flex flex-wrap gap-2.5">
-                                        <label v-for="t in ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師']" class="flex items-center gap-2 cursor-pointer bg-[#F8FAFC] px-3 py-2 rounded-lg border border-slate-200 hover:border-[#06C755] transition">
-                                            <input type="checkbox" v-model="editingCourse.targetTiers" :value="t" class="w-4 h-4 text-[#06C755] rounded focus:ring-[#06C755]">
-                                            <span class="font-bold text-slate-700 text-[13px]">{{ t }}</span>
+                                    <div class="flex flex-wrap gap-4 mt-2">
+                                        <label v-for="t in ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師']" class="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" v-model="editingCourse.targetTiers" :value="t" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                            <span class="font-bold text-slate-700 text-[14px]">{{ t }}</span>
                                         </label>
                                     </div>
                                 </div>
@@ -360,9 +376,9 @@
                 </div>
                 
                 <!-- Bottom Bar -->
-                <div class="px-6 py-4 border-t border-slate-100 bg-white flex justify-end items-center gap-4 rounded-b-xl">
-                    <button @click="editingCourse = null" class="text-[15px] font-bold text-[#555555] hover:text-[#111111] px-4 transition-colors">取消返回</button>
-                    <button @click="saveCourse" :disabled="isLoading" class="bg-[#06C755] text-white text-[15px] font-bold rounded-lg px-6 py-2.5 hover:bg-[#05b04a] active:scale-95 transition flex items-center">
+                <div class="px-6 py-4 bg-white flex justify-end items-center gap-4 rounded-b-xl border-t border-slate-50">
+                    <button @click="editingCourse = null" class="text-[14px] font-bold text-[#555555] hover:text-[#111111] px-4 transition-colors">取消返回</button>
+                    <button @click="saveCourse" :disabled="isLoading" class="bg-[#06C755] text-white text-[14px] font-bold rounded-lg px-6 py-2.5 hover:bg-[#05b04a] active:scale-95 transition flex items-center">
                         <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ isLoading ? '儲存中...' : '確認儲存課程' }}
                     </button>
                 </div>
@@ -461,6 +477,21 @@
                     }; reader.readAsDataURL(file);
                 };
 
+                // ✅ 課程專用圖片壓縮上傳
+                const handleCourseImageUpload = (e) => {
+                    const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image(); img.onload = () => {
+                            const canvas = document.createElement('canvas'); const MAX_WIDTH = 800; let width = img.width; let height = img.height;
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } canvas.width = width; canvas.height = height;
+                            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); let quality = 0.7; let b64 = canvas.toDataURL('image/webp', quality);
+                            while (b64.length > 48000 && quality > 0.3) { quality -= 0.1; b64 = canvas.toDataURL('image/webp', quality); }
+                            if (b64.length > 49500) { alert('❌ 圖片過大，請手動縮小解析度後再上傳。'); return; }
+                            if(editingCourse.value) { editingCourse.value.image = b64; }
+                        }; img.src = event.target.result;
+                    }; reader.readAsDataURL(file);
+                };
+
                 const checkHubHealth = async () => { try { const res = await fetch(`${WORKER_URL}hub-status`); const json = await res.json(); hubStatus.value = json.allGood ? 'online' : 'offline'; } catch (e) { hubStatus.value = 'offline'; } };
                 const runHealthCheck = async () => { const res = await callApi('SYSTEM_HEALTH_CHECK'); if(res) alert('✅ 健檢完成：\n'+res.log.join('\n')); };
                 const triggerBackup = async () => { if(confirm('立即備份？')) { const res = await callApi('ADMIN_TRIGGER_BACKUP'); if(res) alert('✅ '+res.message); } };
@@ -498,7 +529,6 @@
                 const generateCheckinLink = async (course) => { if (await callApi('ADMIN_SET_CHECKIN_PWD', { courseId: course.id, checkinPwd: course.checkinPwd })) alert('密碼已儲存'); };
                 const syncToCalendar = async (c) => { if(confirm('同步至日曆？')) { await callApi('ADMIN_SYNC_CALENDAR', { courseId: c.id }); alert('請求已發出'); } };
 
-                // ✅ 課程管理核心功能歸位
                 const openNewCourseModal = () => {
                     editingCourse.value = {
                         id: 'NEW_' + Date.now(), name: '', type: '一般', timeSlotType: '', startDate: '', endDate: '', price: 0, capacity: 10, enrolled: 0,
@@ -559,8 +589,7 @@
                     getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && (o.status || 'PENDING') === 'PENDING').length, activeEnrollmentCourse, openEnrollments, 
                     courseOrders: computed(()=>activeEnrollmentCourse.value?orders.value.filter(o=>o.courseId===activeEnrollmentCourse.value.id || o.courseId===activeEnrollmentCourse.value.name):[]), 
                     updateOrderAttendance, generateCheckinLink, openOrderEditModal, editingOrder, saveOrderUpdate, syncToCalendar, 
-                    // ✅ 匯出課程管理功能
-                    editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse 
+                    editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse, handleCourseImageUpload 
                 };
             }
         }).mount('#app');
