@@ -297,7 +297,17 @@
                     <div v-if="activeTeacher" class="bg-white border border-slate-200 p-6 rounded-xl shadow-sm mx-6 mb-10 animate-fade-in">
                         <div class="flex justify-between items-center mb-6">
                             <div class="text-base font-bold text-slate-700">1對1 排班控制 (30天)：<span class="text-[#06C755]">{{ activeTeacher.name }}</span></div>
-                            <i @click="activeTeacher = null" class="fas fa-times text-slate-300 cursor-pointer text-xl hover:text-red-500 transition"></i>
+                            
+                            <!-- ✅ 批次結算工具列 -->
+                            <div class="flex items-center gap-4">
+                                <div v-if="draftOpenSlots.length || draftCloseSlots.length" class="text-sm font-bold animate-fade-in flex items-center bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
+                                    <span class="text-[#555555] mr-3">新增: {{ draftOpenSlots.length }} / 關閉: {{ draftCloseSlots.length }}</span>
+                                    <span class="text-red-500 mr-4">共扣導師: {{ (draftOpenSlots.length * (activeTeacher.config.rent || 0)).toLocaleString() }} 點</span>
+                                    <button @click="clearDrafts" class="text-slate-500 bg-white hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg mr-2 transition">取消</button>
+                                    <button @click="submitDrafts" :disabled="isLoading" class="bg-[#06C755] hover:bg-[#05b04a] text-white px-4 py-1.5 rounded-lg shadow-sm transition active:scale-95"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-1"></i>確認結算</button>
+                                </div>
+                                <i @click="activeTeacher = null" class="fas fa-times text-slate-300 cursor-pointer text-xl hover:text-red-500 transition ml-2"></i>
+                            </div>
                         </div>
                         <div class="overflow-x-auto border border-slate-100 rounded-lg pb-2">
                             <div class="slot-grid !m-0" style="width: 2500px;">
@@ -308,8 +318,8 @@
                                 </div>
                                 <template v-for="time in timeSlots" :key="time">
                                     <div class="slot-cell slot-time-label sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">{{ time }}</div>
-                                    <div v-for="date in dates" :key="date.fullDate" @click="handleToggleSlot(activeTeacher.userId, date.fullDate, time)" class="slot-cell" :class="getSlotClass(activeTeacher.userId, date.fullDate, time)">
-                                        <i v-if="getSlotStatus(activeTeacher.userId, date.fullDate, time) === 'OPEN'" class="fas fa-check text-[10px]"></i>
+                                    <div v-for="date in dates" :key="date.fullDate" @click="handleToggleSlot(activeTeacher.userId, date.fullDate, time)" class="slot-cell border" :class="getSlotStyle(activeTeacher.userId, date.fullDate, time)">
+                                        <i v-if="getSlotStatus(activeTeacher.userId, date.fullDate, time) === 'OPEN' && !isDraftClose(activeTeacher.userId, date.fullDate, time)" class="fas fa-check text-[10px]"></i>
                                         <i v-if="getSlotStatus(activeTeacher.userId, date.fullDate, time) === 'BOOKED'" class="fas fa-lock text-[10px]"></i>
                                     </div>
                                 </template>
@@ -469,7 +479,7 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted, watch } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
 
         createApp({
@@ -486,7 +496,13 @@
                 const editingOrder = ref(null);
                 
                 const editingCourse = ref(null);
-                const editingSysConfig = ref(null); // ✅ 新增：用來控制系統抽成編輯彈窗
+                const editingSysConfig = ref(null); 
+
+                // ✅ 批次排班狀態
+                const draftOpenSlots = ref([]);
+                const draftCloseSlots = ref([]);
+                const clearDrafts = () => { draftOpenSlots.value = []; draftCloseSlots.value = []; };
+                watch(activeTeacher, () => { clearDrafts(); }); // 切換老師時清空
 
                 const dates = ref([]); 
                 const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
@@ -581,12 +597,53 @@
                 const submitPointAction = async () => { if(await callApi('ADMIN_MANAGE_POINTS', { uid: activeMember.value.userId, ...editingPointAction.value, operator: 'Admin' })) { alert('點數異動成功'); editingPointAction.value = null; openMemberDetail(activeMember.value); } };
 
                 const getSlotStatus = (uid, date, time) => { const found = slots.value.find(s => s.teacherUid === uid && s.date === date && s.time === time); return found ? found.status : 'CLOSED'; };
-                const getSlotClass = (uid, date, time) => { const status = getSlotStatus(uid, date, time); return { 'slot-open': status === 'OPEN', 'slot-booked': status === 'BOOKED' }; };
+                
+                const isDraftOpen = (uid, date, time) => draftOpenSlots.value.some(s => s.uid === uid && s.date === date && s.time === time);
+                const isDraftClose = (uid, date, time) => draftCloseSlots.value.some(s => s.uid === uid && s.date === date && s.time === time);
+
+                const getSlotStyle = (uid, date, time) => {
+                    if (isDraftOpen(uid, date, time)) return 'bg-green-50 text-[#06C755] border-[#06C755] border shadow-sm border-dashed';
+                    if (isDraftClose(uid, date, time)) return 'bg-slate-100 text-slate-400 border-slate-300 line-through opacity-70';
+                    
+                    const status = getSlotStatus(uid, date, time);
+                    if (status === 'OPEN') return 'bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] shadow-sm';
+                    if (status === 'BOOKED') return 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] opacity-80 cursor-not-allowed';
+                    return 'bg-white text-[#555555] border border-[#e2e8f0]'; 
+                };
+
                 const handleToggleSlot = async (uid, date, time) => {
-                    const current = getSlotStatus(uid, date, time); if (current === 'BOOKED') return;
-                    const newAction = current === 'OPEN' ? 'CLOSE' : 'OPEN';
-                    if (newAction === 'OPEN') { const config = teachers.value.find(t => t.userId === uid).config; if (config.rent > 0 && !confirm(`扣除租金 ${config.rent} 點？`)) return; }
-                    if(await callApi('ADMIN_TOGGLE_SLOT', { teacherUid: uid, date, time, action: newAction })) fetchData();
+                    const currentStatus = getSlotStatus(uid, date, time);
+                    if (currentStatus === 'BOOKED') return alert('此時段已被預約，無法取消！');
+
+                    const openIdx = draftOpenSlots.value.findIndex(s => s.uid === uid && s.date === date && s.time === time);
+                    if (openIdx > -1) { draftOpenSlots.value.splice(openIdx, 1); return; }
+
+                    const closeIdx = draftCloseSlots.value.findIndex(s => s.uid === uid && s.date === date && s.time === time);
+                    if (closeIdx > -1) { draftCloseSlots.value.splice(closeIdx, 1); return; }
+
+                    if (currentStatus === 'OPEN') draftCloseSlots.value.push({ uid, date, time });
+                    else draftOpenSlots.value.push({ uid, date, time });
+                };
+
+                const submitDrafts = async () => {
+                    if (!activeTeacher.value) return;
+                    const uid = activeTeacher.value.userId;
+                    const rent = activeTeacher.value.config.rent || 0;
+                    const totalCost = draftOpenSlots.value.length * rent;
+
+                    if (!confirm(`確定要為 ${activeTeacher.value.name} 送出排班異動嗎？\n新增：${draftOpenSlots.value.length} 個時段\n關閉：${draftCloseSlots.value.length} 個時段\n該導師將被扣除：${totalCost} 點紅包`)) return;
+
+                    isLoading.value = true;
+                    const res = await callApi('ADMIN_BATCH_TOGGLE_SLOTS', { teacherUid: uid, draftOpen: draftOpenSlots.value, draftClose: draftCloseSlots.value });
+
+                    if (res && res.success) {
+                        alert('✅ 批次排班結算完成！');
+                        fetchData(); 
+                        clearDrafts();
+                    } else {
+                        alert('❌ 結算失敗，可能導師餘額不足');
+                    }
+                    isLoading.value = false;
                 };
 
                 const handleApproveTeacher = async () => {
@@ -690,14 +747,14 @@
                     isAuthenticated, loginForm, view, currentViewName, groups, toggleGroup, isLoading, logout, handleLogin, fetchData, hubStatus, checkHubHealth, runHealthCheck, triggerBackup, 
                     users, teachers, courses, orders, totalRevenue, activeTeacher, approveForm, dates, timeSlots, activeMember, openMemberDetail, saveMemberDetail, saveSettings, handleBannerUpload, 
                     sysSettings, courseStatsFiltered, formatPrice: p=>Number(String(p).replace(/[^0-9.]/g,"")).toLocaleString(), getCourseName: id=>courses.value.find(c=>c.id===id || c.name===id)?.name||id, 
-                    activeMemberPoints, openPointActionModal, editingPointAction, submitPointAction, getSlotStatus, getSlotClass, handleToggleSlot, handleApproveTeacher,
+                    activeMemberPoints, openPointActionModal, editingPointAction, submitPointAction, getSlotStatus, getSlotStyle, isDraftClose, handleToggleSlot, handleApproveTeacher,
                     adminCategories, courseFilterCategory, courseSearchQuery, filteredAdminCourses, getCoursePaidCount: id => orders.value.filter(o => (o.courseId === id) && o.status === 'PAID').length, 
                     getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && (o.status || 'PENDING') === 'PENDING').length, activeEnrollmentCourse, openEnrollments, 
                     courseOrders: computed(()=>activeEnrollmentCourse.value?orders.value.filter(o=>o.courseId===activeEnrollmentCourse.value.id || o.courseId===activeEnrollmentCourse.value.name):[]), 
                     updateOrderAttendance, generateCheckinLink, openOrderEditModal, editingOrder, saveOrderUpdate, syncToCalendar, 
                     editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse, handleCourseImageUpload,
-                    // ✅ 匯出設定視窗變數
-                    editingSysConfig, openSysConfigModal, saveSysConfig
+                    editingSysConfig, openSysConfigModal, saveSysConfig,
+                    draftOpenSlots, draftCloseSlots, clearDrafts, submitDrafts // ✅ 匯出變數
                 };
             }
         }).mount('#app');
