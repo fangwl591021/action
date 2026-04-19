@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.19.V174_Teacher_Custom_Pricing_Admin -->
+    <!-- Version: 2026.04.19.V175_Teacher_Sys_Config_Editable -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -259,7 +259,6 @@
                         </div>
                         <div class="w-2/3 p-6">
                             <h3 class="section-title">目前活躍導師</h3>
-                            <!-- ✅ 加入導師自訂定價與折抵的顯示 -->
                             <table class="admin-table mt-4 !min-w-0 w-full">
                                 <thead>
                                     <tr>
@@ -273,9 +272,13 @@
                                     <tr v-for="t in teachers" :key="t.userId">
                                         <td class="font-bold text-slate-800">{{ t.name }}</td>
                                         <td>
-                                            <span class="bg-indigo-50 text-indigo-700 font-mono text-xs px-2 py-1 rounded border border-indigo-100">
-                                                {{ t.config.rent }}P / {{ t.config.comm }}%
-                                            </span>
+                                            <!-- ✅ 加入編輯按鈕，讓管理員能隨時修改抽成設定 -->
+                                            <div class="flex items-center gap-3">
+                                                <span class="bg-indigo-50 text-indigo-700 font-mono text-xs px-2 py-1 rounded border border-indigo-100">
+                                                    {{ t.config.rent }}P / {{ t.config.comm }}%
+                                                </span>
+                                                <button @click="openSysConfigModal(t)" class="text-slate-400 hover:text-indigo-600 transition" title="編輯抽成與租金"><i class="fas fa-edit"></i></button>
+                                            </div>
                                         </td>
                                         <td>
                                             <div class="font-black text-[#06C755] text-lg">$ {{ formatPrice(t.config.price || 0) }}</div>
@@ -326,6 +329,30 @@
         <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null"><div class="modal-body modal-body-lg animate-fade-in"><div class="px-6 py-5 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm"><h3 class="text-lg font-bold text-slate-800">{{ activeEnrollmentCourse.name }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400 text-3xl"><i class="fas fa-times"></i></button></div><div class="flex-grow overflow-y-auto p-8"><div class="bg-blue-50 p-6 rounded-xl border border-blue-200 mb-8 flex items-center gap-6 shadow-sm"><div class="flex-grow"><label class="text-xs font-bold text-blue-600 mb-1.5 block uppercase tracking-wider">導師簽到管理密碼</label><input type="text" v-model="activeEnrollmentCourse.checkinPwd" class="input-field border-blue-300 bg-white font-mono font-bold" placeholder="請設定密碼"></div><button @click="generateCheckinLink(activeEnrollmentCourse)" class="bg-blue-600 text-white px-8 py-3.5 rounded-lg font-bold mt-5 shadow-lg hover:bg-blue-700 transition">更新密碼</button></div><table class="admin-table !m-0 !min-w-full"><thead><tr class="bg-slate-50"><th>姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>出席標記</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId" class="border-b last:border-0"><td class="font-bold text-slate-800">{{ o.name }}</td><td class="font-mono text-sm text-slate-500">{{ o.phone }}</td><td class="font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付' }}</span></td><td><select v-model="o.attendance" @change="updateOrderAttendance(o)" class="input-field !py-1.5 !text-xs w-28 font-black"><option value="">未標記</option><option value="ATTENDED">出席</option><option value="ABSENT">缺席</option></select></td></tr></tbody></table></div></div></div>
         <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null"><div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-md shadow-2xl"><h3 class="text-lg font-bold mb-6">訂單狀態維護</h3><div class="space-y-4"><div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field font-bold"><option value="PENDING">⏳ 待付款</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option></select></div><div><label class="input-label">實收金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field text-[#06C755] font-bold"></div><div><label class="input-label">管理員備註</label><textarea v-model="editingOrder.note" class="input-field min-h-[100px] resize-none"></textarea></div><div class="flex gap-3 pt-4"><button @click="editingOrder = null" class="flex-1 py-3 bg-slate-100 text-slate-500 rounded-lg font-bold">取消</button><button @click="saveOrderUpdate" class="flex-1 py-3 bg-slate-800 text-white rounded-lg font-bold shadow-md">確認更新</button></div></div></div></div>
         <div v-if="editingPointAction" class="modal-mask" @click.self="editingPointAction = null"><div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-sm shadow-2xl"><h3 class="text-lg font-bold mb-6 flex items-center gap-2" :class="editingPointAction.type==='MANUAL_ADD'?'text-green-600':'text-red-600'"><i class="fas fa-wallet"></i> 手動調整紅包</h3><div class="space-y-5"><div><label class="input-label text-slate-400">異動金額 (點)</label><input type="number" v-model.number="editingPointAction.amount" class="input-field text-2xl font-black text-center" placeholder="0"></div><div><label class="input-label text-slate-400">原因</label><input type="text" v-model="editingPointAction.reason" class="input-field font-bold" placeholder="原因說明"></div><div class="flex gap-3 pt-4"><button @click="editingPointAction = null" class="flex-1 py-3 bg-slate-100 rounded-lg font-bold">取消</button><button @click="submitPointAction" :disabled="isLoading" class="flex-1 py-3 text-white rounded-lg font-bold shadow-md active:scale-95 transition" :class="editingPointAction.type==='MANUAL_ADD'?'bg-[#06C755]':'bg-red-500'">送出變更</button></div></div></div></div>
+
+        <!-- ✅ 新增：導師系統抽成設定維護彈窗 -->
+        <div v-if="editingSysConfig" class="modal-mask" @click.self="editingSysConfig = null">
+            <div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-sm shadow-2xl">
+                <h3 class="text-lg font-bold mb-6 flex items-center text-indigo-700"><i class="fas fa-sliders-h mr-2"></i>系統抽成與租金設定</h3>
+                <div class="text-[13px] font-bold text-slate-500 mb-4">導師：{{ editingSysConfig.name }}</div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="input-label">時段租金 (開班扣點)</label>
+                        <input type="number" v-model.number="editingSysConfig.rent" class="input-field font-bold text-slate-700">
+                    </div>
+                    <div>
+                        <label class="input-label">平台抽成 (%)</label>
+                        <input type="number" v-model.number="editingSysConfig.comm" class="input-field font-bold text-slate-700">
+                    </div>
+                    <div class="flex gap-3 pt-4">
+                        <button @click="editingSysConfig = null" class="flex-1 py-3 bg-slate-100 text-slate-500 rounded-lg font-bold hover:bg-slate-200 transition">取消</button>
+                        <button @click="saveSysConfig" :disabled="isLoading" class="flex-1 py-3 bg-indigo-600 text-white rounded-lg font-bold shadow-md hover:bg-indigo-700 active:scale-95 transition">
+                            <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認更新
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[800px] !rounded-xl bg-white">
@@ -459,6 +486,7 @@
                 const editingOrder = ref(null);
                 
                 const editingCourse = ref(null);
+                const editingSysConfig = ref(null); // ✅ 新增：用來控制系統抽成編輯彈窗
 
                 const dates = ref([]); 
                 const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
@@ -575,6 +603,28 @@
                     }
                 };
 
+                // ✅ 開啟系統抽成設定視窗
+                const openSysConfigModal = (t) => {
+                    editingSysConfig.value = { uid: t.userId, name: t.name, rent: t.config.rent, comm: t.config.comm };
+                };
+
+                // ✅ 儲存系統抽成設定
+                const saveSysConfig = async () => {
+                    isLoading.value = true;
+                    const res = await callApi('ADMIN_APPROVE_TEACHER', { 
+                        teacherUid: editingSysConfig.value.uid, 
+                        teacherName: editingSysConfig.value.name, 
+                        rentPrice: editingSysConfig.value.rent, 
+                        commissionRate: editingSysConfig.value.comm 
+                    });
+                    if (res && res.success) { 
+                        alert('✅ 系統抽成設定已更新！'); 
+                        editingSysConfig.value = null; 
+                        fetchData(); 
+                    }
+                    isLoading.value = false;
+                };
+
                 const updateOrderAttendance = async (o) => { await callApi('ADMIN_UPDATE_ORDER', { orderId: o.orderId, attendance: o.attendance }); };
                 const openEnrollments = (c) => { activeEnrollmentCourse.value = c; };
                 const openOrderEditModal = (o) => { editingOrder.value = {...o}; };
@@ -645,7 +695,9 @@
                     getCoursePendingCount: id => orders.value.filter(o => (o.courseId === id) && (o.status || 'PENDING') === 'PENDING').length, activeEnrollmentCourse, openEnrollments, 
                     courseOrders: computed(()=>activeEnrollmentCourse.value?orders.value.filter(o=>o.courseId===activeEnrollmentCourse.value.id || o.courseId===activeEnrollmentCourse.value.name):[]), 
                     updateOrderAttendance, generateCheckinLink, openOrderEditModal, editingOrder, saveOrderUpdate, syncToCalendar, 
-                    editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse, handleCourseImageUpload 
+                    editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse, handleCourseImageUpload,
+                    // ✅ 匯出設定視窗變數
+                    editingSysConfig, openSysConfigModal, saveSysConfig
                 };
             }
         }).mount('#app');
