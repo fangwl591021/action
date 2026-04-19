@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION 會員中心</title>
-    <!-- Version: 2026.04.19.V169_Performance_Cache_And_Splash_Screen -->
+    <!-- Version: 2026.04.19.V171_Fix_Registration_Blocker_And_DB_ID -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,34 +14,29 @@
         [v-cloak] { display: none !important; }
         body { background-color: #F4F5F7; color: #111111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
         
-        /* 原生資訊流風格：消除生硬邊框，使用微陰影與背景色差 */
         .native-card { background: #ffffff; padding: 16px; margin-bottom: 8px; }
         .native-title { font-size: 17px; font-weight: 700; color: #111111; line-height: 1.4; margin-bottom: 4px; }
         .native-desc { font-size: 13px; color: #888888; line-height: 1.5; }
         .native-meta { font-size: 12px; color: #AAAAAA; display: flex; align-items: center; gap: 4px; }
         
-        /* 綠色主按鈕：圓角飽滿 */
         .btn-primary { background-color: #06C755; color: white; font-weight: 700; padding: 14px 20px; border-radius: 12px; text-align: center; font-size: 16px; width: 100%; transition: transform 0.1s; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .btn-primary:active { transform: scale(0.98); }
         .btn-primary:disabled { opacity: 0.5; background-color: #A5A5A5; pointer-events: none; }
         
         .btn-secondary { background-color: #F4F5F7; color: #111111; font-weight: 700; padding: 14px 20px; border-radius: 12px; text-align: center; font-size: 16px; width: 100%; }
         
-        /* 輸入框：原生感 */
         .native-input { width: 100%; border: none; background-color: #F4F5F7; border-radius: 10px; padding: 14px 16px; font-size: 15px; outline: none; color: #111111; }
         .native-input:focus { background-color: #EAECEF; }
         .native-label { font-size: 13px; font-weight: 700; color: #555555; margin-bottom: 6px; display: block; padding-left: 2px; }
 
-        /* 底部導覽列固定 */
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top: 1px solid #EEEEEE; display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); z-index: 50; }
-        .nav-item { flex: 1; padding: 12px 0; text-align: center; color: #AAAAAA; font-size: 10px; font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .nav-item { flex: 1; padding: 12px 0; text-align: center; color: #AAAAAA; font-size: 10px; font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
         .nav-active { color: #06C755; }
         .nav-item i { font-size: 20px; }
 
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .header-fixed { position: sticky; top: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); z-index: 40; border-bottom: 1px solid #EEEEEE; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
         
-        /* ✅ 封面淡出動畫 */
         .fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
@@ -50,7 +45,7 @@
 <body>
     <div id="app" v-cloak class="max-w-md mx-auto min-h-screen bg-[#F4F5F7] pb-[env(safe-area-inset-bottom)] relative">
         
-        <!-- ✅ 全新品牌啟動封面 (Splash Screen) -->
+        <!-- 全新品牌啟動封面 (Splash Screen) -->
         <transition name="fade">
             <div v-if="isGlobalLoading" class="fixed inset-0 bg-[#06C755] z-[100] flex flex-col items-center justify-center">
                 <div class="mb-6 flex flex-col items-center">
@@ -63,59 +58,19 @@
         </transition>
 
         <!-- ========================================== -->
-        <!-- 📝 註冊頁面 (尚未註冊時顯示) -->
-        <!-- ========================================== -->
-        <div v-else-if="!userStatus.registered" class="bg-white min-h-screen flex flex-col">
-            <div class="header-fixed justify-center">
-                <h1 class="text-[17px] font-bold text-[#111111]">建立學員資料</h1>
-            </div>
-            <div class="p-6 space-y-5 flex-1">
-                <div class="text-center mb-6">
-                    <div class="w-20 h-20 rounded-full bg-[#F4F5F7] mx-auto mb-3 overflow-hidden border border-slate-100">
-                        <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
-                        <i v-else class="fas fa-user text-3xl text-[#AAAAAA] mt-6"></i>
-                    </div>
-                    <div class="font-bold text-[#111111] text-lg">{{ liffProfile.displayName }}</div>
-                    <div class="text-xs text-[#888888] mt-1">請完善資料以解鎖系統完整功能</div>
-                </div>
-
-                <div><label class="native-label">真實姓名</label><input type="text" v-model="regForm.name" class="native-input" placeholder="請輸入中文全名"></div>
-                <div class="flex gap-4">
-                    <div class="flex-1"><label class="native-label">性別</label><select v-model="regForm.gender" class="native-input appearance-none"><option value="男">男性</option><option value="女">女性</option></select></div>
-                    <div class="flex-1"><label class="native-label">生日</label><input type="date" v-model="regForm.birthday" class="native-input"></div>
-                </div>
-                <div><label class="native-label">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input font-mono" placeholder="09xxxxxxxx"></div>
-                <div><label class="native-label">所屬業種</label><input type="text" v-model="regForm.industry" class="native-input" placeholder="例如：科技業、自由業..."></div>
-                <div><label class="native-label">通訊地址</label><input type="text" v-model="regForm.address" class="native-input" placeholder="寄送講義或發票使用"></div>
-                
-                <div v-if="regForm.referrerCode" class="bg-green-50 p-4 rounded-xl border border-green-100 flex items-start gap-3">
-                    <i class="fas fa-gift text-[#06C755] mt-0.5"></i>
-                    <div>
-                        <div class="text-[13px] font-bold text-[#111111] mb-1">已套用專屬推薦碼</div>
-                        <div class="text-[12px] text-green-700 font-mono">{{ regForm.referrerCode }}</div>
-                    </div>
-                </div>
-                
-                <div class="pt-4 pb-8">
-                    <button @click="submitRegistration" class="btn-primary">確認送出並綁定 LINE</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- 🏠 主系統架構 (已註冊) -->
+        <!-- 🏠 主系統架構 (開放全區瀏覽，拆除阻擋門) -->
         <!-- ========================================== -->
         <div v-else class="flex flex-col h-screen overflow-hidden">
             
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
-                <!-- 🌟 首頁視圖 -->
+                <!-- 🌟 首頁視圖 (所有人皆可見) -->
                 <div v-if="view === 'home'" class="animate-fade-in relative">
                     
                     <!-- Header -->
                     <div class="header-fixed z-40">
                         <div class="font-black text-[#111111] text-[18px] tracking-wide">人生ACTION</div>
-                        <div @click="view = 'profile'" class="w-8 h-8 rounded-full overflow-hidden bg-[#F4F5F7] border border-slate-200 cursor-pointer shadow-sm active:scale-95 transition">
+                        <div @click="navigateTo('profile')" class="w-8 h-8 rounded-full overflow-hidden bg-[#F4F5F7] border border-slate-200 cursor-pointer shadow-sm active:scale-95 transition">
                             <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
                             <i v-else class="fas fa-user text-[#AAAAAA] text-sm mt-[6px] w-full text-center block"></i>
                         </div>
@@ -128,13 +83,13 @@
                             <div v-else class="absolute inset-0 flex items-center justify-center text-white text-xl font-black tracking-widest">人生ACTION</div>
                         </div>
                         
-                        <!-- 三大金剛鍵 -->
+                        <!-- 三大金剛鍵 (加入權限導航防呆) -->
                         <div class="flex px-4 pt-4 gap-3">
-                            <div @click="view = 'profile'" class="flex-1 bg-[#F4F5F7] rounded-2xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer active:bg-[#EAECEF] transition">
+                            <div @click="navigateTo('profile')" class="flex-1 bg-[#F4F5F7] rounded-2xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer active:bg-[#EAECEF] transition">
                                 <i class="fas fa-id-badge text-[20px] text-[#111111] mb-1"></i>
                                 <span class="text-[12px] font-bold text-[#555555]">我的檔案</span>
                             </div>
-                            <div @click="view = 'orders'" class="flex-1 bg-[#F4F5F7] rounded-2xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer active:bg-[#EAECEF] transition">
+                            <div @click="navigateTo('orders')" class="flex-1 bg-[#F4F5F7] rounded-2xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer active:bg-[#EAECEF] transition">
                                 <i class="fas fa-clipboard-list text-[20px] text-[#111111] mb-1"></i>
                                 <span class="text-[12px] font-bold text-[#555555]">報名紀錄</span>
                             </div>
@@ -208,7 +163,6 @@
                                 <span v-if="o.pointsUsed > 0" class="text-[11px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">紅包折抵 {{ o.pointsUsed }} 點</span>
                             </div>
 
-                            <!-- PENDING 狀態的操作區 -->
                             <div v-if="o.status === 'PENDING'" class="flex gap-2 border-t border-[#EEEEEE] pt-3">
                                 <button @click="cancelMyOrder(o)" class="flex-1 py-2.5 rounded-lg border border-[#DDDDDD] text-[13px] font-bold text-[#555555] active:bg-[#F4F5F7] transition">取消報名</button>
                                 
@@ -236,7 +190,6 @@
                     </div>
                     
                     <div class="p-6">
-                        <!-- 紅包餘額卡片 -->
                         <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg mb-8 relative overflow-hidden">
                             <i class="fas fa-wallet absolute right-[-20px] bottom-[-20px] text-[100px] text-white/5"></i>
                             <div class="text-[13px] text-slate-300 font-bold mb-1">可折抵紅包餘額</div>
@@ -246,7 +199,6 @@
                             </button>
                         </div>
 
-                        <!-- 個資區塊 -->
                         <div class="space-y-4 mb-8">
                             <div class="flex justify-between items-center py-3 border-b border-slate-100">
                                 <span class="text-[14px] text-slate-500 font-bold">真實姓名</span>
@@ -262,7 +214,6 @@
                             </div>
                         </div>
 
-                        <!-- 專屬推薦碼 -->
                         <div class="bg-[#F4F5F7] p-5 rounded-2xl text-center">
                             <div class="text-[13px] font-bold text-slate-500 mb-2">🎁 邀請好友賺紅包</div>
                             <div class="text-[22px] font-black text-[#06C755] font-mono tracking-widest mb-4">{{ userStatus.info?.referralCode }}</div>
@@ -276,16 +227,60 @@
 
             <!-- 底部導覽列 -->
             <nav class="bottom-nav">
-                <div @click="view = 'home'" class="nav-item" :class="{'nav-active': view === 'home' || view === 'courseDetail' || view === 'booking'}"><i class="fas fa-compass"></i><span>探索</span></div>
-                <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
-                <div @click="view = 'profile'" class="nav-item" :class="{'nav-active': view === 'profile'}"><i class="fas fa-user"></i><span>我的</span></div>
+                <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home' || view === 'courseDetail' || view === 'booking'}"><i class="fas fa-compass"></i><span>探索</span></div>
+                <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
+                <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile'}"><i class="fas fa-user"></i><span>我的</span></div>
             </nav>
         </div>
 
         <!-- ========================================== -->
-        <!-- 蓋版層：課程詳情 (Full Screen) -->
+        <!-- 蓋版層：註冊頁面 (攔截未註冊者要求填寫) -->
         <!-- ========================================== -->
-        <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-0 bg-white z-[60] flex flex-col h-full w-full overflow-hidden">
+        <div v-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in">
+            <div class="header-fixed justify-start gap-4">
+                <button @click="view = 'home'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-lg"></i></button>
+                <h1 class="text-[17px] font-bold text-[#111111]">建立學員資料</h1>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 space-y-5 pb-32">
+                <div class="text-center mb-6">
+                    <div class="w-20 h-20 rounded-full bg-[#F4F5F7] mx-auto mb-3 overflow-hidden border border-slate-100">
+                        <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
+                        <i v-else class="fas fa-user text-3xl text-[#AAAAAA] mt-6"></i>
+                    </div>
+                    <div class="font-bold text-[#111111] text-lg">{{ liffProfile.displayName }}</div>
+                    <div class="text-xs text-[#888888] mt-1">請花一分鐘完善資料，解鎖完整報名與會員功能</div>
+                </div>
+
+                <div><label class="native-label">真實姓名</label><input type="text" v-model="regForm.name" class="native-input" placeholder="請輸入中文全名"></div>
+                <div class="flex gap-4">
+                    <div class="flex-1"><label class="native-label">性別</label><select v-model="regForm.gender" class="native-input appearance-none"><option value="男">男性</option><option value="女">女性</option></select></div>
+                    <div class="flex-1"><label class="native-label">生日</label><input type="date" v-model="regForm.birthday" class="native-input"></div>
+                </div>
+                <div><label class="native-label">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input font-mono" placeholder="09xxxxxxxx"></div>
+                <div><label class="native-label">所屬業種</label><input type="text" v-model="regForm.industry" class="native-input" placeholder="例如：科技業、自由業..."></div>
+                <div><label class="native-label">通訊地址</label><input type="text" v-model="regForm.address" class="native-input" placeholder="寄送講義或發票使用"></div>
+                
+                <div v-if="regForm.referrerCode" class="bg-green-50 p-4 rounded-xl border border-green-100 flex items-start gap-3">
+                    <i class="fas fa-gift text-[#06C755] mt-0.5"></i>
+                    <div>
+                        <div class="text-[13px] font-bold text-[#111111] mb-1">已套用專屬推薦碼</div>
+                        <div class="text-[12px] text-green-700 font-mono">{{ regForm.referrerCode }}</div>
+                    </div>
+                </div>
+                
+                <div class="pt-4 pb-8">
+                    <button @click="submitRegistration" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100">
+                        <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>
+                        {{ isLoading ? '處理中...' : '確認送出並綁定 LINE' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 蓋版層：課程詳情 (任何人皆可看) -->
+        <!-- ========================================== -->
+        <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-0 bg-white z-[60] flex flex-col h-full w-full overflow-hidden animate-fade-in">
             <div class="header-fixed !bg-transparent !border-none !absolute !top-0 !w-full justify-between">
                 <button @click="view = 'home'" class="w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center backdrop-blur-md active:scale-90 transition"><i class="fas fa-arrow-left"></i></button>
             </div>
@@ -328,8 +323,8 @@
         <!-- ========================================== -->
         <!-- 蓋版層：報名填單與紅包折抵 -->
         <!-- ========================================== -->
-        <div v-if="view === 'booking' && selectedCourse" class="fixed inset-0 bg-[#F4F5F7] z-[60] flex flex-col h-full w-full overflow-hidden">
-            <div class="header-fixed z-[70]">
+        <div v-if="view === 'booking' && selectedCourse" class="fixed inset-0 bg-[#F4F5F7] z-[70] flex flex-col h-full w-full overflow-hidden animate-fade-in">
+            <div class="header-fixed z-[80]">
                 <button @click="view = 'courseDetail'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-lg"></i></button>
                 <h2 class="text-[17px] font-bold text-[#111111]">確認報名內容</h2>
             </div>
@@ -373,7 +368,7 @@
                 </div>
             </div>
             
-            <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#EEEEEE] p-4 pb-[calc(16px+env(safe-area-inset-bottom))] z-[70]">
+            <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#EEEEEE] p-4 pb-[calc(16px+env(safe-area-inset-bottom))] z-[80]">
                 <button @click="processRegistration" :disabled="!isTierAllowed || isLoading" class="btn-primary shadow-lg shadow-green-100">
                     <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>
                     {{ isLoading ? '處理中...' : '確認報名' }}
@@ -407,7 +402,7 @@
     <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v2'; // 快取版本控制
+        const CACHE_VERSION = 'v2';
 
         createApp({
             setup() {
@@ -425,12 +420,10 @@
                 const myOrders = ref([]);
                 const selectedCourse = ref(null);
                 
-                // 表單區
                 const regForm = ref({ name: '', gender: '女', birthday: '', phone: '', industry: '', address: '', referrerCode: '' });
                 const bookingForm = ref({ pointsUsed: 0, note: '' });
                 const activeCategory = ref('ALL');
                 
-                // 彈窗與金流
                 const showRemittanceModal = ref(false);
                 const remittanceInput = ref('');
                 const currentOrderForRemit = ref(null);
@@ -446,7 +439,6 @@
                     } catch (e) { console.error('系統提示: ' + e.message); return null; }
                 };
 
-                // ⚡ 邊緣快取機制 (Edge Caching) ⚡
                 const loadFromCache = (uid) => {
                     try {
                         const cSets = localStorage.getItem(`sysSettings_${CACHE_VERSION}`);
@@ -484,10 +476,8 @@
                         const refCode = urlParams.get('ref');
                         const targetCourseId = urlParams.get('courseId');
 
-                        // 1. 先嘗試載入本機快取設定 (無須等待網路)
                         loadFromCache(null);
 
-                        // 2. 獲取 LIFF ID (有快取秒過，無快取才呼叫 API)
                         let liffId = localStorage.getItem('liff_id_cache');
                         if (!liffId) {
                             loadingText.value = '連線至伺服器...';
@@ -499,7 +489,6 @@
                             }
                         }
 
-                        // 3. 啟動 LIFF 取得身份
                         loadingText.value = '驗證身份中...';
                         if (liffId) {
                             await liff.init({ liffId: liffId });
@@ -511,12 +500,9 @@
                         }
 
                         const uid = liffProfile.value.userId;
-
-                        // 4. 載入該使用者的完整個人快取
                         loadFromCache(uid);
 
-                        // ⚡ 快取秒進判斷：如果有註冊紀錄且有課程資料，直接關閉封面！(0.1秒體驗)
-                        if (userStatus.value.registered && courses.value.length > 0) {
+                        if (courses.value.length > 0) {
                             isGlobalLoading.value = false; 
                             if (targetCourseId) {
                                 const tc = courses.value.find(c => c.id === targetCourseId);
@@ -524,33 +510,30 @@
                             }
                         }
 
-                        // 5. 靜默同步 (Background Sync) - 併發執行，不卡畫面
                         loadingText.value = '同步最新資料...';
                         
-                        const pCheck = callApi('CHECK_USER');
-                        const pCourses = callApi('GET_COURSES');
-                        const pOrders = callApi('GET_USER_ORDERS');
-                        const pPoints = callApi('GET_USER_POINTS');
-                        const pSets = callApi('GET_SETTINGS');
+                        const [checkRes, cData, oData, pData, settings] = await Promise.all([
+                            callApi('CHECK_USER'),
+                            callApi('GET_COURSES'),
+                            callApi('GET_USER_ORDERS'),
+                            callApi('GET_USER_POINTS'),
+                            callApi('GET_SETTINGS')
+                        ]);
 
-                        // 並行請求大幅縮短等待時間
-                        const [checkRes, cData, oData, pData, settings] = await Promise.all([pCheck, pCourses, pOrders, pPoints, pSets]);
-
-                        // 更新畫面資料 (Vue 雙向綁定會自動無縫更新)
                         if (settings) sysSettings.value = settings;
-                        if (checkRes) userStatus.value = checkRes;
+                        if (checkRes) {
+                            userStatus.value = checkRes;
+                            if (!checkRes.registered && refCode) regForm.value.referrerCode = refCode;
+                        }
                         if (cData) courses.value = cData;
                         if (oData) myOrders.value = oData;
                         if (pData) userPoints.value = pData;
 
-                        // 更新快取
                         saveToCache(uid);
 
-                        // 如果快取沒能擋下封面 (初次登入或快取被清)，此時關閉封面
                         if (isGlobalLoading.value) {
                             isGlobalLoading.value = false;
-                            if (!checkRes.registered && refCode) regForm.value.referrerCode = refCode;
-                            if (checkRes.registered && targetCourseId) {
+                            if (targetCourseId) {
                                 const tc = courses.value.find(c => c.id === targetCourseId);
                                 if (tc) openCourseDetail(tc);
                             }
@@ -562,19 +545,29 @@
                     }
                 };
 
+                const navigateTo = (targetView) => {
+                    if ((targetView === 'profile' || targetView === 'orders') && !userStatus.value.registered) {
+                        alert('請先花一分鐘建立學員資料，即可解鎖專屬會員功能喔！');
+                        view.value = 'register';
+                        window.scrollTo(0,0);
+                        return;
+                    }
+                    view.value = targetView;
+                    window.scrollTo(0,0);
+                };
+
                 const submitRegistration = async () => {
                     if (!regForm.value.name || !regForm.value.phone) return alert('姓名與手機為必填欄位');
                     isLoading.value = true;
                     const res = await callApi('REGISTER_USER', { userId: liffProfile.value.userId, ...regForm.value });
                     if (res && res.success) { 
                         alert('✅ 註冊成功，歡迎加入！'); 
-                        localStorage.removeItem(`userStatus_${liffProfile.value.userId}_${CACHE_VERSION}`); // 清除舊狀態快取
+                        localStorage.removeItem(`userStatus_${liffProfile.value.userId}_${CACHE_VERSION}`);
                         window.location.reload(); 
                     }
                     isLoading.value = false;
                 };
 
-                // 課程過濾邏輯
                 const publishedCourses = computed(() => courses.value.filter(c => c.isPublished !== false));
                 const categories = computed(() => [...new Set(publishedCourses.value.map(c => c.type).filter(Boolean))]);
                 const filteredCourses = computed(() => {
@@ -587,7 +580,17 @@
                 const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString();
 
                 const openCourseDetail = (c) => { selectedCourse.value = c; view.value = 'courseDetail'; window.scrollTo(0,0); };
-                const startBooking = () => { bookingForm.value = { pointsUsed: 0, note: '' }; view.value = 'booking'; window.scrollTo(0,0); };
+                
+                const startBooking = () => { 
+                    if (!userStatus.value.registered) {
+                        alert('報名課程前，請先花一分鐘完成會員註冊喔！');
+                        view.value = 'register';
+                        return;
+                    }
+                    bookingForm.value = { pointsUsed: 0, note: '' }; 
+                    view.value = 'booking'; 
+                    window.scrollTo(0,0); 
+                };
 
                 const maxDiscountPoints = computed(() => {
                     if (!selectedCourse.value) return 0;
@@ -604,7 +607,7 @@
 
                 const isTierAllowed = computed(() => {
                     if (!selectedCourse.value || !selectedCourse.value.targetTiers) return true;
-                    const myTier = userStatus.value.info?.memberTier || '一般會員';
+                    const myTier = userStatus.value.info?.memberTier || '一般會員'; 
                     return selectedCourse.value.targetTiers.includes(myTier) || myTier === '專業導師';
                 });
 
@@ -685,7 +688,7 @@
                     publishedCourses, getCourseName, getCourseConfig, formatPrice,
                     openRemittanceModal, submitRemittance, cancelMyOrder, retryPayment, dailyCheckin,
                     paymentData, newebpayForm,
-                    activeCategory, categories, filteredCourses
+                    activeCategory, categories, filteredCourses, navigateTo 
                 };
             }
         }).mount('#app');
