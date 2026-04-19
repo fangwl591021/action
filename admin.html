@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.19.V207_Native_Layout_Restored -->
+    <!-- Version: 2026.04.19.V208_Native_Full_Restore -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,194 +14,243 @@
         [v-cloak] { display: none !important; }
         body { background-color: #F8FAFC; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        /* 側邊欄：空間解放 */
-        .sidebar { width: 220px; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 50; }
-        .sidebar-brand { padding: 20px 24px; font-size: 20px; font-weight: 800; color: #06C755; letter-spacing: -0.5px; }
-        .nav-item { display: flex; align-items: center; gap: 10px; padding: 12px 24px; cursor: pointer; color: #64748b; font-weight: 600; font-size: 14px; transition: 0.1s; }
-        .nav-active { background-color: #f0fdf4; color: #06C755; border-right: 3px solid #06C755; }
+        /* 側邊欄：空間解放，原生風格 */
+        .sidebar { width: 220px; background: white; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 50; }
+        .sidebar-brand { padding: 20px 24px; font-size: 22px; font-weight: 800; color: #06C755; letter-spacing: -0.5px; }
+        .nav-group-header { padding: 14px 24px 6px; font-size: 14px; font-weight: 800; color: #06C755; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 24px; cursor: pointer; transition: 0.2s; color: #64748b; font-weight: 600; font-size: 16px; border-right: 4px solid transparent; }
+        .nav-active { background-color: #f0fdf4; color: #06C755; border-right: 4px solid #06C755; }
         
-        /* 主區域 */
+        /* 主內容：滿版空間 */
         .main-content { margin-left: 220px; min-width: 0; flex: 1; }
-        .page-header { background: white; border-bottom: 1px solid #e2e8f0; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
+        .page-header { background: white; border-bottom: 1px solid #e2e8f0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
         
-        /* 表格：高密度數據 */
-        .admin-table { width: 100%; border-collapse: collapse; background: white; }
-        .admin-table thead th { padding: 10px 16px; background: #f8fafc; font-size: 12px; font-weight: 700; color: #94a3b8; text-align: left; border-bottom: 1px solid #e2e8f0; text-transform: uppercase; }
-        .admin-table tbody td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        /* 高密度表格 */
+        .admin-table-container { background: white; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; overflow-x: auto; }
+        .admin-table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        .admin-table thead th { padding: 12px 16px; background: #f8fafc; font-size: 13px; font-weight: 700; color: #64748b; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+        .admin-table tbody td { padding: 16px; font-size: 14px; vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
 
-        .btn-green { background-color: #06C755; color: white; font-weight: 700; padding: 8px 16px; border-radius: 6px; font-size: 13px; }
-        .input-field { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 14px; outline: none; background: #fff; font-weight: 600; }
-        .input-field:focus { border-color: #06C755; }
+        .btn-green-main { background-color: #06C755; color: white; font-weight: 700; padding: 10px 20px; border-radius: 8px; transition: 0.2s; text-align: center; }
+        .input-label { font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 4px; display: block; }
+        .input-field { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; font-size: 15px; outline: none; background: #fff; font-weight: 600; }
+        .input-field:focus { border-color: #06C755; box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.1); }
+        .section-title { font-size: 16px; font-weight: 700; color: #1e293b; border-left: 4px solid #06C755; padding-left: 10px; margin-bottom: 16px; }
 
-        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .modal-body { background: white; width: 100%; max-width: 960px; border-radius: 12px; display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        .scroll-y { overflow-y: auto; }
-        .scroll-y::-webkit-scrollbar { width: 4px; }
-        .scroll-y::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .status-badge { font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+        .bg-paid { background-color: #DCFCE7; color: #166534; }
+        .bg-pending { background-color: #FEF3C7; color: #92400E; }
+
+        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .modal-body { background: white; width: 100%; max-width: 960px; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); max-height: 92vh; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 
 <body>
     <div id="app" v-cloak>
-        <!-- 登入驗證 -->
+        
+        <!-- 登入介面 -->
         <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
-            <div class="max-w-[320px] w-full bg-white rounded-xl shadow-sm p-8 border border-slate-200">
-                <div class="sidebar-brand !p-0 mb-6 text-center">人生ACTION</div>
+            <div class="max-w-[340px] w-full bg-white rounded-2xl shadow-sm p-10 border border-slate-200">
+                <div class="sidebar-brand !p-0 mb-8 text-center">人生ACTION</div>
                 <div class="space-y-4">
-                    <input type="text" v-model="loginForm.account" placeholder="帳號" class="input-field text-center">
-                    <input type="password" v-model="loginForm.password" placeholder="密碼" class="input-field text-center" @keyup.enter="handleLogin">
-                    <button @click="handleLogin" class="w-full py-3 bg-slate-800 text-white rounded-lg font-bold">登入系統</button>
+                    <input type="text" v-model="loginForm.account" placeholder="管理帳號" class="input-field text-center">
+                    <input type="password" v-model="loginForm.password" placeholder="登入密碼" class="input-field text-center" @keyup.enter="handleLogin">
+                    <button @click="handleLogin" class="w-full py-3.5 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700 transition">進入後台系統</button>
                 </div>
             </div>
         </div>
 
         <div v-else class="flex min-h-screen">
-            <!-- 📁 側邊導航 -->
+            <!-- 📁 側邊導覽 -->
             <aside class="sidebar">
-                <div class="sidebar-brand">人生ACTION</div>
-                <nav class="flex-grow overflow-y-auto">
-                    <div @click="view = 'dashboard'" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-home w-4"></i>數據總覽</div>
-                    <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-user-circle w-4"></i>學員 CRM</div>
-                    <div @click="view = 'courses'" class="nav-item" :class="{'nav-active': view === 'courses'}"><i class="fas fa-book w-4"></i>課程維護</div>
-                    <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-list-alt w-4"></i>全站訂單</div>
-                    <div class="border-t my-2 mx-4"></div>
-                    <a href="./consult_admin.html" class="nav-item text-indigo-600"><i class="fas fa-calendar-alt w-4"></i>預約排班系統</a>
-                    <div @click="view = 'richmenu'" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-th-large w-4"></i>圖文選單</div>
-                    <div @click="view = 'settings'" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-4"></i>系統設定</div>
+                <div class="sidebar-brand">宏學管理站</div>
+                <nav class="flex-grow mt-2 overflow-y-auto custom-scrollbar">
+                    <div class="nav-group mb-2">
+                        <div @click="toggleGroup('groupA')" class="nav-group-header"><span>📦 營運中心</span><i class="fas" :class="groups.groupA ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
+                        <div v-show="groups.groupA">
+                            <div @click="view = 'dashboard'" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie w-6"></i>營運統計</div>
+                            <div @click="view = 'calendar'" class="nav-item" :class="{'nav-active': view === 'calendar'}"><i class="far fa-calendar-alt w-6"></i>日曆檢視</div>
+                            <div @click="view = 'members'" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-6"></i>學員 CRM</div>
+                            <div @click="view = 'courses'" class="nav-item" :class="{'nav-active': view === 'courses'}"><i class="fas fa-book w-6"></i>課程管理</div>
+                            <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt w-6"></i>訂單維護</div>
+                        </div>
+                    </div>
+                    <div class="nav-group mt-2 border-t border-slate-50 pt-2">
+                        <div @click="toggleGroup('groupB')" class="nav-group-header"><span>🛠️ 營運工具</span><i class="fas" :class="groups.groupB ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
+                        <div v-show="groups.groupB">
+                            <a href="./consult_admin.html" class="nav-item text-indigo-600 font-bold"><i class="fas fa-calendar-check w-6"></i>預約排班系統</a>
+                            <div @click="view = 'richmenu'" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6"></i>圖文選單</div>
+                            <div @click="view = 'settings'" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6"></i>系統設定</div>
+                        </div>
+                    </div>
                 </nav>
-                <div class="p-4 border-t"><button @click="logout" class="text-xs font-bold text-slate-400">登出管理</button></div>
+                <div class="p-4 border-t border-gray-100"><button @click="logout" class="w-full py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-400 hover:bg-slate-50">登出管理站</button></div>
             </aside>
 
-            <main class="main-content">
+            <main class="main-content relative">
                 <header class="page-header">
-                    <h2 class="text-lg font-bold text-slate-700">{{ currentViewName }}</h2>
-                    <div class="flex gap-2">
-                        <button @click="fetchData" class="px-3 py-1.5 border rounded-md text-xs font-bold bg-white hover:bg-slate-50"><i class="fas fa-sync-alt mr-1" :class="{'fa-spin': isLoading}"></i>同步</button>
-                        <button v-if="view === 'dashboard'" @click="triggerBackup" class="px-3 py-1.5 border rounded-md text-xs font-bold bg-blue-50 text-blue-600">備份</button>
+                    <h2 class="text-xl font-bold text-slate-800">{{ currentViewName }}</h2>
+                    <div class="flex items-center gap-3">
+                        <button @click="fetchData" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-bold bg-white hover:bg-slate-50 shadow-sm"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>同步資料</button>
+                        <button @click="triggerBackup" class="px-4 py-2 border border-blue-200 rounded-lg text-sm font-bold text-blue-700 bg-blue-50 shadow-sm">資料備份</button>
                     </div>
                 </header>
 
-                <!-- 1. 營運統計 -->
+                <!-- 📊 數據總覽 -->
                 <div v-if="view === 'dashboard'" class="p-6 animate-fade-in">
                     <div class="grid grid-cols-4 gap-4 mb-6">
-                        <div v-for="(val, label) in statsSummary" class="bg-white p-4 border rounded-lg shadow-sm">
-                            <div class="text-[11px] font-bold text-slate-400 uppercase mb-1">{{ label }}</div>
-                            <div class="text-xl font-black text-slate-800">{{ val }}</div>
+                        <div v-for="(val, label) in { '實收總額': '$'+totalRevenue, '系統會員': users.length, '上架課程': courses.length, '待處訂單': orders.filter(o=>o.status==='PENDING').length }" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="text-[12px] font-bold text-slate-400 uppercase mb-1">{{ label }}</div>
+                            <div class="text-2xl font-black text-slate-800">{{ val }}</div>
                         </div>
                     </div>
-                    <div class="border rounded-lg overflow-hidden">
+                    <div class="admin-table-container">
                         <table class="admin-table">
-                            <thead><tr><th>課程名稱</th><th>報名</th><th>待收</th><th class="text-right">實收</th></tr></thead>
+                            <thead><tr><th>服務項目</th><th class="text-center">報名數</th><th>待收</th><th class="text-[#06C755]">實收</th></tr></thead>
                             <tbody>
                                 <tr v-for="c in courseStats" :key="c.id">
-                                    <td class="font-bold">{{ c.name }}</td><td>{{ c.totalOrders }}</td><td class="text-orange-500 font-bold">$ {{ c.pendingAmount.toLocaleString() }}</td><td class="text-right text-[#06C755] font-black">$ {{ c.paidAmount.toLocaleString() }}</td>
+                                    <td class="font-bold text-slate-700">{{ c.name }}</td><td class="text-center font-bold">{{ c.totalOrders }}</td><td class="text-orange-500 font-bold">$ {{ c.pendingAmount.toLocaleString() }}</td><td class="text-[#06C755] font-black">$ {{ c.paidAmount.toLocaleString() }}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- 2. 學員 CRM -->
+                <!-- 👥 學員 CRM -->
                 <div v-if="view === 'members'" class="animate-fade-in">
-                    <div class="p-4 border-b bg-white flex gap-4">
-                        <input type="text" v-model="memberSearch" placeholder="搜尋學員..." class="input-field max-w-xs">
+                    <div class="p-4 border-b bg-white"><input type="text" v-model="memberSearch" placeholder="搜尋姓名或電話..." class="input-field max-w-sm"></div>
+                    <div class="admin-table-container">
+                        <table class="admin-table">
+                            <thead><tr><th>姓名</th><th>聯絡手機</th><th>會員等級</th><th>註冊日</th><th class="text-right">操作</th></tr></thead>
+                            <tbody>
+                                <tr v-for="u in filteredMembers" :key="u.userId">
+                                    <td class="font-bold">{{ u.name }}</td><td class="font-mono text-slate-500">{{ u.phone }}</td>
+                                    <td><span class="bg-green-50 text-[#06C755] px-2.5 py-1 rounded text-[11px] font-bold border border-green-100">{{ u.memberTier }}</span></td>
+                                    <td class="text-xs text-slate-400 font-mono">{{ u.createdAt }}</td>
+                                    <td class="text-right"><button @click="openMemberDetail(u)" class="text-blue-600 font-bold hover:underline">CRM 檔案室</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <table class="admin-table">
-                        <thead><tr><th>姓名</th><th>手機</th><th>等級</th><th>註冊日</th><th class="text-right">操作</th></tr></thead>
-                        <tbody>
-                            <tr v-for="u in filteredMembers" :key="u.userId">
-                                <td class="font-bold">{{ u.name }}</td><td class="font-mono">{{ u.phone }}</td>
-                                <td><span class="bg-green-50 text-[#06C755] px-2 py-0.5 rounded text-[11px] font-bold">{{ u.memberTier }}</span></td>
-                                <td class="text-xs text-slate-400">{{ u.createdAt }}</td>
-                                <td class="text-right"><button @click="openMemberDetail(u)" class="text-blue-600 font-bold">CRM 檔案</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
 
-                <!-- 3. 全站訂單 -->
-                <div v-if="view === 'orders'" class="animate-fade-in">
-                    <table class="admin-table">
-                        <thead><tr><th>訂單號</th><th>項目</th><th>學員</th><th>金額</th><th>狀態</th><th class="text-right">維護</th></tr></thead>
-                        <tbody>
-                            <tr v-for="o in orders" :key="o.orderId">
-                                <td class="font-mono text-[11px] text-slate-400">{{ o.orderId }}</td><td class="font-bold">{{ getCourseName(o.courseId) }}</td><td>{{ o.name }}</td><td class="font-black text-[#06C755]">${{ formatPrice(o.amount) }}</td>
-                                <td><span :class="o.status==='PAID'?'text-green-600':'text-orange-500'" class="font-bold text-xs">{{ o.status }}</span></td>
-                                <td class="text-right"><button @click="openOrderEdit(o)" class="text-blue-600 font-bold">維護</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 4. 課程維護 -->
+                <!-- 🏫 課程維護 -->
                 <div v-if="view === 'courses'" class="animate-fade-in">
                     <div class="p-4 border-b bg-white flex justify-between">
-                        <input type="text" v-model="courseSearch" placeholder="搜尋課程..." class="input-field max-w-xs">
-                        <button @click="openNewCourse" class="btn-green">+ 新增課程</button>
+                        <input type="text" v-model="courseSearch" placeholder="搜尋課程名稱或 ID..." class="input-field max-w-sm">
+                        <button @click="openNewCourse" class="btn-green-main px-6">+ 新增課程項目</button>
                     </div>
-                    <table class="admin-table">
-                        <thead><tr><th>ID/名稱</th><th>標籤</th><th>價格</th><th>招生</th><th class="text-right">操作</th></tr></thead>
-                        <tbody>
-                            <tr v-for="c in filteredCourses" :key="c.id">
-                                <td><div class="font-bold">{{ c.name }}</div><div class="text-[10px] text-slate-400 uppercase">{{ c.id }}</div></td>
-                                <td><span class="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[11px] font-bold">{{ c.type }}</span></td>
-                                <td class="font-black text-[#06C755]">$ {{ formatPrice(c.price) }}</td>
-                                <td class="text-xs font-bold">{{ c.enrolled }} / {{ c.capacity }}</td>
-                                <td class="text-right"><button @click="openEditCourse(c)" class="text-blue-600 font-bold">編輯設定</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 5. 系統設定 -->
-                <div v-if="view === 'settings'" class="p-8 max-w-3xl animate-fade-in space-y-6">
-                    <div class="bg-white p-6 border rounded-xl">
-                        <div class="font-bold mb-4">首頁 Banner (WebP)</div>
-                        <div class="w-full aspect-[21/9] bg-slate-50 border rounded-lg overflow-hidden mb-4"><img v-if="sysSettings.banner_image" :src="sysSettings.banner_image" class="w-full h-full object-cover"></div>
-                        <input type="file" @change="handleBannerUpload" class="text-sm">
-                    </div>
-                    <div class="bg-white p-6 border rounded-xl grid grid-cols-2 gap-4">
-                        <div class="col-span-2 font-bold mb-2">系統核心參數</div>
-                        <div><label class="text-xs text-slate-400">LIFF ID</label><input type="text" v-model="sysSettings.liff_id" class="input-field font-mono"></div>
-                        <div><label class="text-xs text-slate-400">打卡獎勵</label><input type="number" v-model="sysSettings.reward_daily" class="input-field"></div>
-                        <div class="col-span-2"><label class="text-xs text-slate-400">LINE OA 連結</label><input type="text" v-model="sysSettings.link_lineoa" class="input-field"></div>
-                        <button @click="saveSettings" class="col-span-2 btn-green !py-3">儲存並同步至雲端</button>
+                    <div class="admin-table-container">
+                        <table class="admin-table">
+                            <thead><tr><th>課程 ID/內容名稱</th><th>分類標籤</th><th>定價</th><th>招生狀況</th><th class="text-right">維護</th></tr></thead>
+                            <tbody>
+                                <tr v-for="c in filteredCourses" :key="c.id">
+                                    <td><div class="font-bold text-slate-700">{{ c.name }}</div><div class="text-[10px] text-slate-400 font-mono uppercase">{{ c.id }}</div></td>
+                                    <td><span class="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[11px] font-bold border border-indigo-100">{{ c.type }}</span></td>
+                                    <td><div class="font-black text-[#06C755]">$ {{ formatPrice(c.price) }}</div></td>
+                                    <td><div class="text-sm font-bold text-slate-600">{{ c.enrolled }} / {{ c.capacity }} 人</div></td>
+                                    <td class="text-right">
+                                        <div class="flex justify-end gap-5">
+                                            <i class="far fa-copy text-slate-300 hover:text-slate-600 cursor-pointer" @click="copyCourse(c)"></i>
+                                            <button @click="openEditCourse(c)" class="text-blue-600 font-bold hover:underline">編輯設定</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- 圖文選單設計 -->
-                <div v-if="view === 'richmenu'" class="h-[calc(100vh-60px)]"><iframe src="./menu.html" class="w-full h-full border-0"></iframe></div>
+                <!-- 🛒 全站訂單 -->
+                <div v-if="view === 'orders'" class="animate-fade-in">
+                    <div class="admin-table-container">
+                        <table class="admin-table">
+                            <thead><tr><th>訂單號 / 建立日</th><th>課程項目</th><th>學員姓名</th><th>收費金額</th><th>目前狀態</th><th class="text-right">系統操作</th></tr></thead>
+                            <tbody>
+                                <tr v-for="o in orders" :key="o.orderId">
+                                    <td><div class="font-mono text-[11px] text-slate-400">{{ o.orderId }}</div><div class="text-xs font-bold text-slate-600">{{ o.createdAt }}</div></td>
+                                    <td class="font-bold text-slate-700">{{ getCourseName(o.courseId) }}</td>
+                                    <td>{{ o.name }}</td>
+                                    <td><div class="font-black text-[#06C755]">$ {{ formatPrice(o.amount) }}</div></td>
+                                    <td><span :class="o.status==='PAID'?'bg-paid':'bg-pending'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付款' }}</span></td>
+                                    <td class="text-right"><button @click="openOrderEdit(o)" class="text-blue-600 font-bold hover:underline">訂單維護</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ⚙️ 系統設定 -->
+                <div v-if="view === 'settings'" class="p-10 max-w-4xl mx-auto space-y-8 animate-fade-in">
+                    <div class="bg-white p-8 rounded-xl border border-slate-200">
+                        <h3 class="section-title">頂部橫幅 (Banner) 視覺管理</h3>
+                        <div class="w-full aspect-[21/9] bg-slate-50 border rounded-lg overflow-hidden mb-6 flex items-center justify-center">
+                            <img v-if="sysSettings.banner_image" :src="sysSettings.banner_image" class="w-full h-full object-cover">
+                            <span v-else class="text-slate-300 font-bold">尚未上傳橫幅</span>
+                        </div>
+                        <input type="file" @change="handleBannerUpload" class="text-sm text-slate-400">
+                        <p class="text-[11px] text-slate-400 mt-2">※ 系統會自動壓縮為 WebP 格式以優化載入速度。</p>
+                    </div>
+                    <div class="bg-white p-8 rounded-xl border border-slate-200">
+                        <h3 class="section-title">系統核心參數設定</h3>
+                        <div class="grid grid-cols-2 gap-6 mb-8">
+                            <div class="col-span-2"><label class="input-label">主系統 LIFF ID</label><input type="text" v-model="sysSettings.liff_id" class="input-field font-mono"></div>
+                            <div><label class="input-label">註冊紅包 (點)</label><input type="number" v-model="sysSettings.reward_register" class="input-field"></div>
+                            <div><label class="input-label">打卡紅包 (點)</label><input type="number" v-model="sysSettings.reward_daily" class="input-field"></div>
+                            <div class="col-span-2"><label class="input-label">LINE OA 客服連結</label><input type="text" v-model="sysSettings.link_lineoa" class="input-field"></div>
+                        </div>
+                        <button @click="saveSettings" class="btn-green-main w-full py-4 shadow-lg shadow-green-100">確認儲存並同步雲端參數</button>
+                    </div>
+                </div>
+
+                <!-- 📅 日曆檢視 / 🖼️ 圖文選單 (維持 Iframe) -->
+                <div v-if="view === 'calendar'" class="h-[calc(100vh-100px)] p-6"><iframe :src="sysSettings.calendar_src || 'https://calendar.google.com/calendar/embed?src=d520827238c2b24019161ca57ab925b277a8bce619a1dc2775bf780ed7308b74@group.calendar.google.com&ctz=Asia/Taipei'" width="100%" height="100%" frameborder="0" scrolling="no"></iframe></div>
+                <div v-if="view === 'richmenu'" class="h-[calc(100vh-73px)]"><iframe src="./menu.html" class="w-full h-full border-0"></iframe></div>
+
             </main>
         </div>
 
-        <!-- 🚀 第一層彈窗：學員 CRM 檔案室 -->
+        <!-- ========================================== -->
+        <!-- 🚀 第一層彈窗：學員 CRM 檔案室 (恢復深度) -->
+        <!-- ========================================== -->
         <div v-if="activeMember" class="modal-mask" @click.self="activeMember = null">
             <div class="modal-body">
-                <div class="p-5 border-b flex justify-between items-center bg-white">
-                    <h3 class="font-bold">學員 CRM 檔案：{{ activeMember.name }}</h3>
-                    <button @click="activeMember = null" class="text-slate-400 text-xl">&times;</button>
+                <div class="px-6 py-4 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm">
+                    <h3 class="font-black text-slate-800">學員 CRM 檔案：{{ activeMember.name }}</h3>
+                    <button @click="activeMember = null" class="text-slate-300 text-3xl">&times;</button>
                 </div>
-                <div class="scroll-y p-6 grid grid-cols-12 gap-6">
-                    <div class="col-span-7 space-y-4">
+                <div class="flex-grow overflow-y-auto custom-scrollbar p-8 grid grid-cols-12 gap-10">
+                    <div class="col-span-7 space-y-6">
+                        <h4 class="section-title">身分與權限設定</h4>
                         <div class="grid grid-cols-2 gap-4">
-                            <div><label class="text-xs font-bold text-slate-400">姓名</label><input type="text" v-model="activeMember.name" class="input-field"></div>
-                            <div><label class="text-xs font-bold text-slate-400">等級</label><select v-model="activeMember.memberTier" class="input-field"><option v-for="t in memberTiers" :value="t">{{t}}</option></select></div>
-                            <div><label class="text-xs font-bold text-slate-400">手機</label><input type="tel" v-model="activeMember.phone" class="input-field"></div>
-                            <div><label class="text-xs font-bold text-slate-400">性別</label><select v-model="activeMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div>
-                            <div><label class="text-xs font-bold text-slate-400">生日</label><input type="date" v-model="activeMember.birthday" class="input-field"></div>
-                            <div><label class="text-xs font-bold text-slate-400">業種</label><input type="text" v-model="activeMember.industry" class="input-field"></div>
-                            <div class="col-span-2"><label class="text-xs font-bold text-slate-400">地址</label><input type="text" v-model="activeMember.address" class="input-field"></div>
-                            <div class="col-span-2"><label class="text-xs font-bold text-slate-400">管理員備註</label><textarea v-model="activeMember.adminNote" class="input-field h-24 font-normal"></textarea></div>
+                            <div class="col-span-2"><label class="input-label">真實姓名</label><input type="text" v-model="activeMember.name" class="input-field"></div>
+                            <div><label class="input-label">目前等級</label><select v-model="activeMember.memberTier" class="input-field"><option v-for="t in memberTiers" :value="t">{{t}}</option></select></div>
+                            <div><label class="input-label">聯絡手機</label><input type="tel" v-model="activeMember.phone" class="input-field font-mono"></div>
+                            <div><label class="input-label">性別</label><select v-model="activeMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div>
+                            <div><label class="input-label">出生年月日</label><input type="date" v-model="activeMember.birthday" class="input-field"></div>
+                            <div class="col-span-2"><label class="input-label">從事業種</label><input type="text" v-model="activeMember.industry" class="input-field"></div>
+                            <div class="col-span-2"><label class="input-label">通訊地址</label><input type="text" v-model="activeMember.address" class="input-field"></div>
+                            <div class="col-span-2"><label class="input-label">管理員個案備註</label><textarea v-model="activeMember.adminNote" class="input-field h-24 resize-none font-normal"></textarea></div>
                         </div>
-                        <button @click="saveMemberDetail" class="btn-green w-full !py-3">儲存變更</button>
+                        <button @click="saveMemberDetail" :disabled="isLoading" class="btn-green-main w-full py-4 shadow-lg">儲存學員檔案</button>
                     </div>
-                    <div class="col-span-5 border-l pl-6">
-                        <div class="text-xs font-bold text-slate-400 mb-2">點數餘額：<span class="text-red-500 font-black">{{ (activeMemberPoints.balance || 0).toLocaleString() }}</span></div>
-                        <div class="flex gap-2 mb-4"><button @click="openPointAction('MANUAL_ADD')" class="flex-1 py-1 bg-green-50 text-green-600 rounded font-bold text-xs">贈點</button><button @click="openPointAction('MANUAL_DEDUCT')" class="flex-1 py-1 bg-red-50 text-red-600 rounded font-bold text-xs">扣點</button></div>
-                        <div class="text-[11px] border rounded bg-slate-50 scroll-y h-[280px]">
-                            <div v-for="log in activeMemberPoints.logs" :key="log.logId" class="p-2 border-b flex justify-between">
-                                <div><div class="font-bold">{{ log.reason }}</div><div class="text-slate-400">{{ log.createdAt }}</div></div>
-                                <div :class="log.type.includes('ADD')?'text-green-600':'text-red-500'">{{ log.type.includes('ADD')?'+':'-' }}{{ log.amount }}</div>
+                    <div class="col-span-5 flex flex-col">
+                        <h4 class="section-title">紅包點數流水</h4>
+                        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6 text-center">
+                            <div class="text-xs font-bold text-slate-400 mb-1">目前餘額</div>
+                            <div class="text-4xl font-black text-red-500">{{ (activeMemberPoints.balance || 0).toLocaleString() }} <span class="text-sm text-slate-400">P</span></div>
+                            <div class="flex gap-2 mt-5">
+                                <button @click="openPointAction('MANUAL_ADD')" class="flex-1 py-2.5 bg-green-50 text-green-700 rounded-lg text-xs font-black border border-green-100">手動贈點</button>
+                                <button @click="openPointAction('MANUAL_DEDUCT')" class="flex-1 py-2.5 bg-red-50 text-red-700 rounded-lg text-xs font-black border border-red-100">手動扣點</button>
+                            </div>
+                        </div>
+                        <div class="flex-grow overflow-y-auto custom-scrollbar border rounded-lg bg-white h-[300px]">
+                            <div v-for="log in activeMemberPoints.logs" :key="log.logId" class="p-3 border-b flex justify-between items-center text-[12px]">
+                                <div><div class="font-bold text-slate-700">{{ log.reason }}</div><div class="text-slate-400">{{ log.createdAt }}</div></div>
+                                <div class="font-black" :class="log.type.includes('ADD')?'text-green-600':'text-red-500'">{{ log.type.includes('ADD')?'+':'-' }}{{ log.amount }}</div>
                             </div>
                         </div>
                     </div>
@@ -209,50 +258,73 @@
             </div>
         </div>
 
-        <!-- 🚀 第二層彈窗：課程維護 (26 欄位) -->
+        <!-- ========================================== -->
+        <!-- 🚀 第二層彈窗：課程維護 (恢復 26 欄位深度) -->
+        <!-- ========================================== -->
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
-            <div class="modal-body">
-                <div class="p-5 border-b flex justify-between bg-white"><h3 class="font-bold">課程設定維護</h3><button @click="editingCourse = null" class="text-slate-400 text-xl">&times;</button></div>
-                <div class="scroll-y p-6 grid grid-cols-2 gap-4">
-                    <div class="col-span-2"><label class="text-xs font-bold text-slate-400">課程名稱</label><input type="text" v-model="editingCourse.name" class="input-field"></div>
-                    <div><label class="text-xs font-bold text-slate-400">標籤</label><input type="text" v-model="editingCourse.type" class="input-field"></div>
-                    <div><label class="text-xs font-bold text-slate-400">定價</label><input type="number" v-model="editingCourse.price" class="input-field"></div>
-                    <div><label class="text-xs font-bold text-slate-400">招生上限</label><input type="number" v-model="editingCourse.capacity" class="input-field"></div>
-                    <div><label class="text-xs font-bold text-slate-400">授課導師</label><input type="text" v-model="editingCourse.instructor" class="input-field"></div>
-                    <div><label class="text-xs font-bold text-slate-400">開課日期</label><input type="date" v-model="editingCourse.startDate" class="input-field"></div>
-                    <div><label class="text-xs font-bold text-slate-400">結業日期</label><input type="date" v-model="editingCourse.endDate" class="input-field"></div>
-                    <div class="col-span-2"><label class="text-xs font-bold text-slate-400">描述</label><textarea v-model="editingCourse.description" class="input-field h-20 font-normal"></textarea></div>
-                    <div class="col-span-2 bg-slate-50 p-4 rounded grid grid-cols-2 gap-4 border">
-                        <div><label class="text-xs font-bold text-slate-400">紅包規則</label><select v-model="editingCourse.discountRule" class="input-field"><option value="NONE">不可折抵</option><option value="RULE_A">20%</option><option value="RULE_B">50%</option><option value="RULE_C">100%</option></select></div>
-                        <div><label class="text-xs font-bold text-slate-400">上架狀態</label><select v-model="editingCourse.isPublished" class="input-field"><option :value="true">🟢 上架中</option><option :value="false">🔴 已隱藏</option></select></div>
+            <div class="modal-body custom-scrollbar">
+                <div class="px-6 py-4 border-b flex justify-between bg-white sticky top-0 z-10 shadow-sm"><h3 class="font-black">課程進階設定：{{ editingCourse.name || '新項目' }}</h3><button @click="editingCourse = null" class="text-slate-300 text-3xl">&times;</button></div>
+                <div class="p-8 space-y-10">
+                    <div class="grid grid-cols-2 gap-5">
+                        <div class="col-span-2"><label class="input-label">課程名稱 (B)</label><input type="text" v-model="editingCourse.name" class="input-field"></div>
+                        <div><label class="input-label">分類標籤 (M)</label><input type="text" v-model="editingCourse.type" class="input-field"></div>
+                        <div><label class="input-label">課程定價 (E)</label><input type="number" v-model.number="editingCourse.price" class="input-field text-[#06C755] font-black"></div>
+                        <div><label class="input-label">開始日期 (C)</label><input type="date" v-model="editingCourse.startDate" class="input-field"></div>
+                        <div><label class="input-label">結束日期 (D)</label><input type="date" v-model="editingCourse.endDate" class="input-field"></div>
+                        <div><label class="input-label">招生上限 (F)</label><input type="number" v-model.number="editingCourse.capacity" class="input-field"></div>
+                        <div><label class="input-label">授課導師 (Q)</label><input type="text" v-model="editingCourse.instructor" class="input-field"></div>
+                        <div class="col-span-2"><label class="input-label">封面圖 URL (U)</label><input type="text" v-model="editingCourse.image" class="input-field font-mono text-xs text-slate-400"></div>
+                        <div class="col-span-2"><label class="input-label">詳細介紹說明 (S)</label><textarea v-model="editingCourse.description" class="input-field h-32 resize-none font-normal leading-relaxed"></textarea></div>
+                    </div>
+                    <div class="bg-slate-50 p-6 rounded-2xl space-y-6 border border-slate-200">
+                        <h4 class="font-black text-sm text-slate-500 uppercase tracking-widest"><i class="fas fa-shield-alt mr-2"></i>系統權限與紅包規則</h4>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div><label class="input-label">紅包折抵規則 (X)</label><select v-model="editingCourse.discountRule" class="input-field"><option value="NONE">❌ 不可折抵</option><option value="RULE_A">🟡 20% 折抵</option><option value="RULE_B">🟠 50% 折抵</option><option value="RULE_C">🟢 100% 折抵</option></select></div>
+                            <div><label class="input-label">金流收款限制 (Y)</label><select v-model="editingCourse.paymentMethod" class="input-field"><option value="ALL">全部 (刷卡+匯款)</option><option value="NEWEBPAY">僅限刷卡</option><option value="REMITTANCE">僅限匯款</option></select></div>
+                            <div><label class="input-label">上架狀態 (V)</label><select v-model="editingCourse.isPublished" class="input-field"><option :value="true">🟢 公開上架</option><option :value="false">🔴 隱藏下架</option></select></div>
+                            <div><label class="input-label">報名開關 (W)</label><select v-model="editingCourse.isRegistrationOpen" class="input-field"><option :value="true">✅ 開放報名</option><option :value="false">⏸️ 暫停報名</option></select></div>
+                            <div class="col-span-2">
+                                <label class="input-label mb-2">允許報名之會員等級 (Z)</label>
+                                <div class="flex flex-wrap gap-4">
+                                    <label v-for="t in memberTiers" :key="t" class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border text-sm font-bold cursor-pointer hover:border-[#06C755] transition shadow-sm">
+                                        <input type="checkbox" v-model="editingCourse.targetTiers" :value="t" class="w-4 h-4 rounded text-[#06C755] focus:ring-[#06C755]"> {{ t }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="p-4 border-t bg-slate-50 text-right"><button @click="saveCourse" class="btn-green px-12">儲存更新</button></div>
+                <div class="p-6 border-t bg-slate-50 flex justify-end gap-3"><button @click="editingCourse = null" class="px-6 py-2 text-slate-400 font-bold">取消</button><button @click="saveCourse" :disabled="isLoading" class="btn-green-main px-12 shadow-lg">儲存課程更新</button></div>
             </div>
         </div>
 
-        <!-- 🚀 第三層彈窗：點數異動 -->
+        <!-- ========================================== -->
+        <!-- 🚀 第三層彈窗：點數與訂單維護 (全功能補回) -->
+        <!-- ========================================== -->
         <div v-if="pointAction" class="modal-mask" @click.self="pointAction = null">
-            <div class="modal-body !max-w-xs p-6">
-                <div class="font-bold mb-4 text-center">{{ pointAction.type==='MANUAL_ADD'?'手動贈點':'手動扣點' }}</div>
-                <input type="number" v-model="pointAction.amount" class="input-field text-center text-xl mb-4" placeholder="點數">
-                <input type="text" v-model="pointAction.reason" class="input-field mb-4" placeholder="原因">
-                <button @click="submitPointAction" class="btn-green w-full">執行</button>
-            </div>
-        </div>
-
-        <!-- 🚀 第四層彈窗：訂單維護 -->
-        <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
-            <div class="modal-body !max-w-md p-6">
-                <div class="font-bold mb-4">訂單細節維護</div>
-                <div class="space-y-4">
-                    <select v-model="editingOrder.status" class="input-field"><option value="PENDING">⌛ 待付</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option></select>
-                    <input type="number" v-model="editingOrder.amount" class="input-field" placeholder="實收金額">
-                    <textarea v-model="editingOrder.note" class="input-field h-24 font-normal" placeholder="備註"></textarea>
-                    <button @click="saveOrderUpdate" class="btn-green w-full">儲存</button>
+            <div class="modal-body !max-w-sm p-10 text-center">
+                <h3 class="font-black text-xl mb-6" :class="pointAction.type==='MANUAL_ADD'?'text-green-600':'text-red-600'">{{ pointAction.type==='MANUAL_ADD'?'手動贈送點數':'手動扣除點數' }}</h3>
+                <div class="space-y-5">
+                    <div><label class="input-label">異動點數額</label><input type="number" v-model.number="pointAction.amount" class="input-field text-center text-3xl font-black text-slate-800"></div>
+                    <div><label class="input-label">異動事由說明</label><input type="text" v-model="pointAction.reason" class="input-field" placeholder="例如：活動贈送"></div>
+                    <button @click="submitPointAction" :disabled="isLoading || !pointAction.amount" class="w-full py-4 rounded-xl text-white font-black shadow-lg transition" :class="pointAction.type==='MANUAL_ADD'?'bg-green-500 hover:bg-green-600':'bg-red-500 hover:bg-red-600'">確認執行變更</button>
                 </div>
             </div>
         </div>
+
+        <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
+            <div class="modal-body !max-w-md p-8">
+                <h3 class="font-black text-xl mb-8">訂單詳細維護</h3>
+                <div class="space-y-6">
+                    <div><label class="input-label">付款狀態狀態</label><select v-model="editingOrder.status" class="input-field font-black"><option value="PENDING">⌛ 待付款</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option></select></div>
+                    <div><label class="input-label">實收金額 (點/元)</label><input type="number" v-model.number="editingOrder.amount" class="input-field text-[#06C755] font-black"></div>
+                    <div><label class="input-label">管理員備註</label><textarea v-model="editingOrder.note" class="input-field h-24 resize-none font-normal" placeholder="對帳訊息或學員特殊狀況..."></textarea></div>
+                    <div><label class="input-label">出席標記</label><select v-model="editingOrder.attendance" class="input-field"><option value="">未標記</option><option value="ATTENDED">已出席</option><option value="ABSENT">缺席</option></select></div>
+                </div>
+                <div class="mt-10 flex gap-4"><button @click="editingOrder = null" class="flex-1 py-3.5 font-bold text-slate-400">取消</button><button @click="saveOrderUpdate" :disabled="isLoading" class="flex-1 btn-green-main !py-3.5 shadow-lg">確認更新訂單</button></div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -265,21 +337,25 @@
                 const loginForm = ref({ account: '', password: '' });
                 const view = ref('dashboard');
                 const isLoading = ref(false);
+                const groups = ref({ groupA: true, groupB: true });
 
+                // Data Store
                 const users = ref([]); const orders = ref([]); const courses = ref([]); const sysSettings = ref({});
                 const memberSearch = ref(''); const courseSearch = ref('');
+                
+                // Modal States
                 const activeMember = ref(null); const activeMemberPoints = ref({ balance: 0, logs: [] });
                 const editingCourse = ref(null); const editingOrder = ref(null); const pointAction = ref(null);
+                const activeEnrollmentCourse = ref(null);
+
                 const memberTiers = ['一般會員', '喚醒階段會員', '蛻變階段會員', '完整階段會員', '專業導師'];
 
                 const callApi = async (act, pl = {}) => {
                     isLoading.value = true;
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
-                        const json = await res.json();
-                        if (json.status !== 'success') throw new Error(json.message);
-                        return json.data;
-                    } catch (e) { alert(`❌ API 錯誤: ${e.message}`); return null; }
+                        const json = await res.json(); if (json.status !== 'success') throw new Error(json.message); return json.data;
+                    } catch (e) { alert(`❌ 伺服器錯誤: ${e.message}`); return null; }
                     finally { isLoading.value = false; }
                 };
 
@@ -300,30 +376,77 @@
                     if (pts) activeMemberPoints.value = pts;
                 };
 
+                const openEditCourse = (c) => {
+                    let data = JSON.parse(JSON.stringify(c));
+                    if (typeof data.targetTiers === 'string') { try { data.targetTiers = JSON.parse(data.targetTiers); } catch(e) { data.targetTiers = []; } }
+                    if (!Array.isArray(data.targetTiers)) data.targetTiers = [];
+                    editingCourse.value = data;
+                };
+
+                const saveMemberDetail = async () => {
+                    if (await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value })) {
+                        alert('✅ 學員檔案儲存成功'); activeMember.value = null; fetchData();
+                    }
+                };
+
+                const saveCourse = async () => {
+                    if (!editingCourse.value.name) return alert('請輸入名稱');
+                    if (await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) {
+                        alert('✅ 課程更新成功'); editingCourse.value = null; fetchData();
+                    }
+                };
+
+                const copyCourse = async (c) => {
+                    if (!confirm(`確定複製「${c.name}」？`)) return;
+                    let copy = JSON.parse(JSON.stringify(c));
+                    copy.id = 'NEW_COPY_' + Date.now();
+                    copy.name += ' (複製)';
+                    copy.enrolled = 0;
+                    if (await callApi('ADMIN_UPDATE_COURSE', copy)) fetchData();
+                };
+
+                const saveOrderUpdate = async () => {
+                    if (await callApi('ADMIN_UPDATE_ORDER', editingOrder.value)) {
+                        alert('✅ 訂單維護成功'); editingOrder.value = null; fetchData();
+                    }
+                };
+
+                const handleBannerUpload = (e) => {
+                    const file = e.target.files[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = 1200; canvas.height = 1200 * (img.height/img.width);
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            sysSettings.value.banner_image = canvas.toDataURL('image/webp', 0.7);
+                            alert('✅ Banner 預覽已就緒，請點擊同步儲存。');
+                        };
+                        img.src = ev.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                };
+
                 onMounted(() => { if (isAuthenticated.value) fetchData(); });
 
                 return {
-                    isAuthenticated, loginForm, view, isLoading, fetchData, memberTiers,
-                    handleLogin: () => { if (loginForm.value.account === 'admin' && ['@1234', '8888'].includes(loginForm.value.password)) { isAuthenticated.value = true; localStorage.setItem('admin_auth_v156', 'true'); fetchData(); } else { alert('帳密錯誤'); } },
+                    isAuthenticated, loginForm, view, isLoading, groups, toggleGroup: (g) => groups.value[g] = !groups.value[g],
+                    fetchData, memberTiers,
+                    handleLogin: () => { if (loginForm.value.account === 'admin' && ['@1234', '8888'].includes(loginForm.value.password)) { isAuthenticated.value = true; localStorage.setItem('admin_auth_v156', 'true'); fetchData(); } else { alert('驗證失敗'); } },
                     logout: () => { isAuthenticated.value = false; localStorage.removeItem('admin_auth_v156'); },
-                    currentViewName: computed(() => ({ dashboard: '數據總覽', courses: '課程維護', members: '學員 CRM', orders: '全站訂單', settings: '系統設定', richmenu: '圖文選單' }[view.value])),
+                    currentViewName: computed(() => ({ dashboard: '營運數據總覽', courses: '課程服務維護中心', members: '學員 CRM 名冊', orders: '全站訂單維護', settings: '系統參數設定', richmenu: '圖文選單設計', calendar: '近期課程日曆' }[view.value])),
                     users, orders, courses, sysSettings, memberSearch, courseSearch, activeMember, activeMemberPoints, editingCourse, editingOrder, pointAction,
                     filteredMembers: computed(() => users.value.filter(u => !memberSearch.value || u.name.includes(memberSearch.value) || u.phone.includes(memberSearch.value))),
                     filteredCourses: computed(() => courses.value.filter(c => !courseSearch.value || c.name.toLowerCase().includes(courseSearch.value.toLowerCase()))),
-                    statsSummary: computed(() => ({ '實收': `$${orders.value.reduce((acc, o) => acc + (o.status === 'PAID' ? Number(o.amount) : 0), 0).toLocaleString()}`, '學員': users.value.length, '課程': courses.value.length, '待處': orders.value.filter(o => o.status === 'PENDING').length })),
-                    courseStats: computed(() => courses.value.map(c => { const cOrders = orders.value.filter(o => o.courseId === c.id || o.courseId === c.name); let paid = 0, pending = 0; cOrders.forEach(o => { if (o.status === 'PAID') paid += Number(o.amount); else if (o.status !== 'CANCELLED') pending += Number(o.amount); }); return { id: c.id, name: c.name, totalOrders: cOrders.length, paidAmount: paid, pendingAmount: pending }; }).filter(c => c.totalOrders > 0)),
-                    openMemberDetail, saveMemberDetail: async () => { if (await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value })) { alert('成功'); activeMember.value = null; fetchData(); } },
-                    openPointAction: (type) => { pointAction.value = { type, amount: '', reason: '' }; },
-                    submitPointAction: async () => { if (await callApi('ADMIN_MANAGE_POINTS', { uid: activeMember.value.userId, ...pointAction.value, operator: 'Admin' })) { pointAction.value = null; openMemberDetail(activeMember.value); fetchData(); } },
-                    openEditCourse: (c) => { let data = { ...c }; if (typeof data.targetTiers === 'string') { try { data.targetTiers = JSON.parse(data.targetTiers); } catch(e) { data.targetTiers = []; } } editingCourse.value = data; },
-                    openNewCourse: () => editingCourse.value = { id: 'NEW_'+Date.now(), name: '', price: 0, type: '一般', capacity: 10, enrolled: 0 },
-                    saveCourse: async () => { if (await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) { editingCourse.value = null; fetchData(); } },
-                    openOrderEdit: (o) => { editingOrder.value = { ...o }; },
-                    saveOrderUpdate: async () => { if (await callApi('ADMIN_UPDATE_ORDER', editingOrder.value)) { editingOrder.value = null; fetchData(); } },
-                    saveSettings: async () => { if (await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value)) alert('已同步'); },
-                    handleBannerUpload: (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); canvas.width = 1200; canvas.height = 1200 * (img.height/img.width); const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); sysSettings.value.banner_image = canvas.toDataURL('image/webp', 0.7); }; img.src = ev.target.result; }; reader.readAsDataURL(file); },
+                    totalRevenue: computed(() => orders.value.reduce((acc, o) => acc + (o.status === 'PAID' ? Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0 : 0), 0).toLocaleString()),
+                    courseStats: computed(() => courses.value.map(c => { const cOrders = orders.value.filter(o => o.courseId === c.id || o.courseId === c.name); let paid = 0, pending = 0; cOrders.forEach(o => { const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0; if (o.status === 'PAID') paid += amt; else if (o.status !== 'CANCELLED') pending += amt; }); return { id: c.id, name: c.name, totalOrders: cOrders.length, paidAmount: paid, pendingAmount: pending }; }).filter(c => c.totalOrders > 0)),
+                    openMemberDetail, saveMemberDetail, openPointAction: (t) => pointAction.value = { type: t, amount: '', reason: '' }, submitPointAction: async () => { if (await callApi('ADMIN_MANAGE_POINTS', { uid: activeMember.value.userId, ...pointAction.value, operator: 'Admin' })) { pointAction.value = null; openMemberDetail(activeMember.value); fetchData(); } },
+                    openEditCourse, openNewCourse: () => editingCourse.value = { id: 'NEW_'+Date.now(), name: '', price: 0, type: '一般', capacity: 10, enrolled: 0, targetTiers: [], isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL' }, saveCourse, copyCourse,
+                    openOrderEdit: (o) => editingOrder.value = { ...o }, saveOrderUpdate, saveSettings: async () => { if (await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value)) alert('✅ 雲端同步完成'); }, handleBannerUpload,
                     formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(), getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
-                    triggerBackup: async () => { if(confirm('立即備份？')) { const res = await callApi('ADMIN_TRIGGER_BACKUP'); if(res) alert('✅ '+res.message); } }
+                    triggerBackup: async () => { if(confirm('啟動雲端自動備份？')) { const res = await callApi('ADMIN_TRIGGER_BACKUP'); if(res) alert('✅ '+res.message); } }
                 };
             }
         }).mount('#app');
