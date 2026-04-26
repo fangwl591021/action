@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.20.V219_Smart_Filter_And_Truncate -->
+    <!-- Version: 2026.04.26.V229_Bulletproof_LIFF_Init -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -290,7 +290,7 @@
                 </div>
                 <div class="space-y-5">
                     <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">真實姓名</label><input type="text" v-model="regForm.name" class="native-input border border-slate-200 bg-white" placeholder="請輸入中文全名"></div>
-                    <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">性別</label><select v-model="regForm.gender" class="native-input border border-slate-200 bg-white"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
+                    <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">性別</label><select v-model="regForm.gender" class="native-input border border-slate-200 bg-white"><option value="">請選擇</option><option value="男">男</option><option value="女">男</option></select></div>
                     <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="regForm.birthday" class="native-input border border-slate-200 bg-white"></div>
                     <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input font-mono border border-slate-200 bg-white" placeholder="09xxxxxxxx"></div>
                     <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="regForm.industry" class="native-input border border-slate-200 bg-white" placeholder="您的職業或專長"></div>
@@ -305,8 +305,8 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        // ⚠️ 強制更新 Cache Version
-        const CACHE_VERSION = 'v220';
+        // ⚠️ 強制更新 Cache Version，斷開所有舊快取干擾
+        const CACHE_VERSION = 'v229_Force_ID';
 
         createApp({
             setup() {
@@ -329,7 +329,7 @@
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {} }) });
                         const json = await res.json(); 
                         if (json.status !== 'success') throw new Error(json.message); 
-                        if (act === 'GET_SETTINGS' && (!json.data || Object.keys(json.data).length === 0)) throw new Error("後端設定為空");
+                        // v229 放寬設定檔為空的限制，不拋出錯誤
                         return json.data;
                     } catch (e) { if(!silent) alert("API Error: " + e.message); return null; }
                 };
@@ -349,14 +349,26 @@
                     hasInitError.value = false;
                     try {
                         syncLocal(null);
+                        
+                        // 先嘗試取得雲端設定
                         const rawSets = await callApi('GET_SETTINGS', {}, true);
-                        if (rawSets) {
+                        if (rawSets && Object.keys(rawSets).length > 0) {
                             let sets = {}; Object.keys(rawSets).forEach(k => sets[k.toLowerCase()] = rawSets[k]);
-                            sysSettings.value = sets; localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets));
+                            sysSettings.value = sets; 
+                            localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets));
                         }
-                        const finalLiffId = sysSettings.value.liff_id;
+                        
+                        // 🛑 【核心修正】: 如果雲端沒有設定 liff_id，絕對不拋錯，強制使用截圖中的正確 ID！
+                        let finalLiffId = '';
+                        if (sysSettings.value && sysSettings.value.liff_id) {
+                            finalLiffId = sysSettings.value.liff_id.trim();
+                        } else {
+                            finalLiffId = '2009130603-vTHzV1LW'; // 總監確認過的正確 ID
+                        }
+
                         if (!finalLiffId) throw new Error('無法取得連線參數');
                         
+                        // 啟動 LIFF 模組
                         await liff.init({ liffId: finalLiffId });
                         if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
                         
@@ -382,7 +394,11 @@
                             localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
                         }
                         isGlobalLoading.value = false;
-                    } catch (e) { console.error("Init Error", e); loadingText.value = "系統初始化失敗"; hasInitError.value = true; }
+                    } catch (e) { 
+                        console.error("Init Error", e); 
+                        loadingText.value = "系統初始化失敗：" + e.message; 
+                        hasInitError.value = true; 
+                    }
                 };
 
                 const navigateTo = (t) => {
