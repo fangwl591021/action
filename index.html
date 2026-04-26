@@ -459,13 +459,12 @@
                     filteredCourses: computed(() => {
                         return courses.value.filter(c => {
                             if (c.isPublished === false) return false;
-                            const searchTarget = (c.name || '') + ' ' + (c.type || '');
+                            
+                            if (activeCategory.value === 'ALL') return true;
                             if (activeCategory.value === '一般') {
-                                return !['一般會員', '喚醒階段', '蛻變階段', '完整階段'].some(k => searchTarget.includes(k));
-                            } else {
-                                const key = activeCategory.value.replace('會員', ''); 
-                                return searchTarget.includes(key);
+                                return !c.type || c.type === '一般';
                             }
+                            return c.type === activeCategory.value;
                         });
                     })
                 };
