@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器</title>
-    <!-- Version: 2026.04.26.V128_Upload_R2_Integrated -->
+    <!-- Version: 2026.04.26.V129_Strict_Validation_Error_Catch -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -31,8 +31,8 @@
                     <input type="file" id="image-upload" accept="image/jpeg, image/png" class="hidden">
                     <button onclick="document.getElementById('image-upload').click()" class="w-full py-3 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95">上傳選單圖片檔</button>
                 </div>
-                <div><label class="block text-sm font-bold text-slate-700 mb-1">2. 選單名稱</label><input type="text" id="save-filename" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="New Rich Menu"></div>
-                <div><label class="block text-sm font-bold text-slate-700 mb-1">3. 選單列文字 (ChatBar)</label><input type="text" id="rich-menu-chatbar" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="選單"></div>
+                <div><label class="block text-sm font-bold text-slate-700 mb-1">2. 選單名稱</label><input type="text" id="save-filename" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="New Rich Menu" maxlength="300"></div>
+                <div><label class="block text-sm font-bold text-slate-700 mb-1">3. 選單列文字 (ChatBar)</label><input type="text" id="rich-menu-chatbar" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="選單" maxlength="14" placeholder="最多 14 個字"></div>
             </div>
             
             <!-- ✅ 區域動作編輯器 -->
@@ -76,7 +76,36 @@
 
     <script>
         function toggleSidebar() { const s = document.getElementById('sidebar'); const e = document.getElementById('expand-btn'); if (s.classList.contains('-ml-[360px]')) { s.classList.remove('-ml-[360px]'); e.classList.add('hidden'); } else { s.classList.add('-ml-[360px]'); e.classList.remove('hidden'); } }
-        const ApiHelper = { call: async (act, pl = {}) => { try { const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) }); const json = await res.json(); if (json.status !== 'success') throw new Error(json.message || '異常'); return json.data; } catch (e) { alert(e.message); return null; } } };
+        
+        // 🚀 核心升級：精準報錯機制，若發生異常會吐出白話文與詳細錯誤
+        const ApiHelper = { 
+            call: async (act, pl = {}) => { 
+                try { 
+                    const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; 
+                    const res = await fetch(url, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ action: act, payload: pl }) 
+                    }); 
+                    
+                    const text = await res.text();
+                    let json;
+                    try {
+                        json = JSON.parse(text);
+                    } catch(e) {
+                        throw new Error(`伺服器回傳了無效的格式！\n\n【可能的原因】\n1. Google Apps Script 尚未部署或更新版本\n2. GAS 的「誰可以存取」未設定為「任何人」\n3. LINE API 金鑰錯誤\n\n【伺服器原始回應節錄】\n${text.substring(0, 150)}...`);
+                    }
+
+                    if (json.status !== 'success') {
+                        throw new Error(json.message || '後端執行失敗，但沒有提供具體錯誤訊息 (status != success)。請檢查後端日誌。');
+                    }
+                    return json.data; 
+                } catch (e) { 
+                    alert("⚠️ 執行失敗：\n\n" + e.message); 
+                    return null; 
+                } 
+            } 
+        };
 
         window.MenuModule = (function() {
             var canvas, isDrawingMode = false, isMouseDown = false, currentRect, startX, startY, currentImgHeight = 843, savedBase64Image = null;
@@ -85,7 +114,6 @@
                     canvas = new fabric.Canvas('menu-canvas', { selection: true }); 
                     this.bindEvents(); 
                     
-                    // 🚀 核心升級：整合 R2 上傳與圖片自動壓縮機制
                     document.getElementById('image-upload').addEventListener('change', (e) => { 
                         const file = e.target.files[0]; 
                         if (!file) return; 
@@ -104,7 +132,6 @@
                                 const ctx = cvs.getContext('2d');
                                 ctx.drawImage(img, 0, 0);
 
-                                // LINE 要求圖片須小於 1MB，啟動品質壓縮檢測
                                 let quality = 0.9;
                                 let b64 = cvs.toDataURL('image/jpeg', quality);
                                 while (b64.length > 1000000 && quality > 0.3) {
@@ -118,16 +145,15 @@
                                 }
 
                                 try {
-                                    // 背景上傳至 R2 空間
                                     const res = await ApiHelper.call('UPLOAD_IMAGE', { imageBase64: b64 });
                                     if (res && res.url) {
-                                        // 成功上傳後，使用 base64 載入前端畫布，確保畫布操作不被 CORS 阻擋
                                         MenuModule.load(file.name, "{}", b64);
                                     } else {
                                         throw new Error('R2 URL 回傳失敗');
                                     }
                                 } catch (err) {
-                                    alert('上傳發生異常: ' + err.message);
+                                    // 即使上傳失敗，依然讓前端可編輯，避免卡死
+                                    MenuModule.load(file.name, "{}", b64);
                                 } finally {
                                     btn.innerHTML = origHtml; btn.disabled = false;
                                 }
@@ -187,17 +213,42 @@
                 openDeployModal: () => { document.getElementById('deploy-api-url').value = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; document.getElementById('deploy-modal').classList.remove('hidden'); },
                 closeDeployModal: () => document.getElementById('deploy-modal').classList.add('hidden'),
                 
+                // 🚀 核心升級：部署前嚴格防呆，防止空值送到 LINE API
                 executeDeploy: async function() { 
+                    const menuObjStr = document.getElementById('json-output').value;
+                    if (!menuObjStr || menuObjStr === '{}') return alert('請先上傳底圖並劃定至少一個區域！');
+                    
+                    const menuObj = JSON.parse(menuObjStr);
+                    
+                    // 防呆 1：基本資訊檢查
+                    if (!menuObj.name) return alert('【檢查失敗】左側「選單名稱」不可為空！');
+                    if (!menuObj.chatBarText) return alert('【檢查失敗】左側「選單列文字」不可為空！');
+                    if (!menuObj.areas || menuObj.areas.length === 0) return alert('【檢查失敗】請至少在畫面上劃定一個熱區！');
+                    
+                    // 防呆 2：區域內容嚴格檢查 (只要一格沒填，LINE 就會擋掉)
+                    for (let i = 0; i < menuObj.areas.length; i++) {
+                        const action = menuObj.areas[i].action;
+                        if (action.type === 'message' && !action.text) return alert(`【檢查失敗】區域 #${i+1} 尚未填寫「傳送文字」內容！`);
+                        if (action.type === 'uri' && !action.uri) return alert(`【檢查失敗】區域 #${i+1} 尚未填寫「開啟網址」連結！`);
+                        if (action.type === 'postback' && !action.data) return alert(`【檢查失敗】區域 #${i+1} 尚未填寫「回傳指令」！`);
+                    }
+
+                    // 防呆 3：強制將高度鎖定在 LINE 的標準規格，避免比例不符被退件
+                    const h = menuObj.size.height;
+                    if (Math.abs(h - 1686) < 100) menuObj.size.height = 1686;
+                    else if (Math.abs(h - 843) < 100) menuObj.size.height = 843;
+                    else return alert(`【檢查失敗】您上傳的圖片比例不符合 LINE 規範！\n\n目前尺寸為：2500x${h}\nLINE 規定必須為：2500x1686 (大選單) 或 2500x843 (小選單)\n\n請重新裁切圖片後上傳。`);
+
                     const btn = document.getElementById('deploy-submit-btn');
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>部署中...';
                     btn.disabled = true;
                     
                     try {
                         const data = await ApiHelper.call('DEPLOY_RICH_MENU', { 
-                            menuObject: JSON.parse(document.getElementById('json-output').value), 
+                            menuObject: menuObj, 
                             image: savedBase64Image 
                         }); 
-                        if(data) alert('✅ 部署成功！請至 LINE OA 查看。'); 
+                        if(data) alert('✅ 部署成功！請至 LINE 官方帳號查看最新選單。'); 
                         this.closeDeployModal(); 
                     } finally {
                         btn.innerHTML = '啟動部署';
