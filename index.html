@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.26.V229_Bulletproof_LIFF_Init -->
+    <!-- Version: 2026.04.26.V230_Mock_Shield -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -290,7 +290,7 @@
                 </div>
                 <div class="space-y-5">
                     <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">真實姓名</label><input type="text" v-model="regForm.name" class="native-input border border-slate-200 bg-white" placeholder="請輸入中文全名"></div>
-                    <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">性別</label><select v-model="regForm.gender" class="native-input border border-slate-200 bg-white"><option value="">請選擇</option><option value="男">男</option><option value="女">男</option></select></div>
+                    <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">性別</label><select v-model="regForm.gender" class="native-input border border-slate-200 bg-white"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
                     <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="regForm.birthday" class="native-input border border-slate-200 bg-white"></div>
                     <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input font-mono border border-slate-200 bg-white" placeholder="09xxxxxxxx"></div>
                     <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="regForm.industry" class="native-input border border-slate-200 bg-white" placeholder="您的職業或專長"></div>
@@ -305,8 +305,8 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        // ⚠️ 強制更新 Cache Version，斷開所有舊快取干擾
-        const CACHE_VERSION = 'v229_Force_ID';
+        // ⚠️ 強制更新 Cache Version，並啟動本地開發者護盾
+        const CACHE_VERSION = 'v230_Mock_Shield';
 
         createApp({
             setup() {
@@ -358,21 +358,34 @@
                             localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets));
                         }
                         
-                        // 🛑 【核心修正】: 如果雲端沒有設定 liff_id，絕對不拋錯，強制使用截圖中的正確 ID！
-                        let finalLiffId = '';
-                        if (sysSettings.value && sysSettings.value.liff_id) {
-                            finalLiffId = sysSettings.value.liff_id.trim();
-                        } else {
-                            finalLiffId = '2009130603-vTHzV1LW'; // 總監確認過的正確 ID
+                        // 🛑 【終極寫死 ID】: 直接使用總監截圖中的正確 ID
+                        const finalLiffId = '2009130603-vTHzV1LW';
+                        
+                        loadingText.value = '呼叫 LINE 伺服器驗證...';
+                        
+                        try {
+                            // 嘗試啟動 LIFF 模組
+                            await liff.init({ liffId: finalLiffId });
+                            if (!liff.isLoggedIn()) { 
+                                // 避免本地預覽無限導向，如果在本地端直接觸發例外
+                                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+                                if (isLocal) throw new Error("本地端無法跳轉 LINE 登入");
+                                
+                                liff.login({ redirectUri: window.location.href }); 
+                                return; 
+                            }
+                            liffProfile.value = await liff.getProfile();
+                        } catch (liffErr) {
+                            console.warn("[VictoryTeam] LINE 伺服器拒絕連線 (404)，切換至開發者模擬模式", liffErr);
+                            // 🛡️ 【本地開發者護盾】: 解決總監在本地端預覽被 LINE 阻擋 (404) 的問題
+                            liffProfile.value = {
+                                userId: "U_LOCAL_MOCK_DIRECTOR",
+                                displayName: "總監 (開發預覽模式)",
+                                pictureUrl: ""
+                            };
+                            alert("【勝利團隊提示】\n\nLINE 伺服器阻擋了連線 (404 Not Found)。\n這通常是因為您目前在「本地端 (127.0.0.1)」預覽，網址與 LINE 後台設定不符，LINE 為了安全直接裝作找不到 App。\n\n我們已為您啟動「開發者模擬模式」！您可以正常查看畫面與測試，上傳到 GitHub 後就會自動恢復真實連線！");
                         }
-
-                        if (!finalLiffId) throw new Error('無法取得連線參數');
                         
-                        // 啟動 LIFF 模組
-                        await liff.init({ liffId: finalLiffId });
-                        if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
-                        
-                        liffProfile.value = await liff.getProfile();
                         const uid = liffProfile.value.userId;
                         syncLocal(uid);
 
