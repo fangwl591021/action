@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.20.V183_Smart_Truncate -->
+    <!-- Version: 2026.04.26.V184_Silent_Error_Handling -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -136,7 +136,6 @@
                             <thead class="bg-slate-50"><tr><th>課程服務名稱</th><th class="text-center">報名數</th><th>應收</th><th class="text-orange-600">待收</th><th class="text-[#06C755]">實收</th></tr></thead>
                             <tbody>
                                 <tr v-for="c in courseStatsFiltered" :key="c.id">
-                                    <!-- ✅ 截斷：報表上的名字太長，只顯示第一行 -->
                                     <td class="font-bold text-slate-700 text-base max-w-[250px] truncate" :title="c.name">{{ c.name.split('\n')[0] }}</td>
                                     <td class="text-center text-lg font-black text-slate-600">{{ c.totalOrders }}</td>
                                     <td class="text-base font-bold text-slate-500">$ {{ c.totalExpected.toLocaleString() }}</td>
@@ -178,7 +177,7 @@
                     </div>
                 </div>
 
-                <!-- 🚀 3. 課程管理 -->
+                <!-- 3. 課程管理 -->
                 <div v-if="view === 'courses'" class="animate-fade-in">
                     <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
                         <div class="flex gap-3">
@@ -204,7 +203,6 @@
                             <tbody>
                                 <tr v-for="c in filteredAdminCourses" :key="c.id">
                                     <td>
-                                        <!-- ✅ 截斷：後台列表也只顯示第一行，避免撐高表格 -->
                                         <div class="font-bold text-slate-800 text-[15px] mb-1" :title="c.name">{{ c.name.split('\n')[0] }}</div>
                                         <div class="text-slate-500 text-xs mb-1.5">時段：{{ c.timeSlotType || '未填寫' }}</div>
                                         <span class="tag-gray font-mono">{{ c.id }}</span>
@@ -539,14 +537,21 @@
                     }).filter(c => c.totalOrders > 0);
                 });
 
-                const callApi = async (act, pl = {}) => {
+                // 勝利團隊修正：加入 silent 靜默模式，防止無腦彈窗
+                const callApi = async (act, pl = {}, silent = false) => {
                     isLoading.value = true;
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
                         const json = await res.json();
                         if (json.status !== 'success') throw new Error(json.message || '系統異常');
                         return json.data;
-                    } catch (e) { alert(`❌ 錯誤: ${e.message}`); return null; } finally { isLoading.value = false; }
+                    } catch (e) {
+                        if (!silent) alert(`❌ 錯誤: ${e.message}`);
+                        else console.warn(`API Error (${act}):`, e.message); // 靜默記錄在背景
+                        return null;
+                    } finally {
+                        isLoading.value = false;
+                    }
                 };
 
                 const handleLogin = () => { if (loginForm.value.account === 'admin' && ['@1234', '8888'].includes(loginForm.value.password)) { isAuthenticated.value = true; localStorage.setItem('admin_auth_v156', 'true'); fetchData(); checkHubHealth(); } else { alert('帳密錯誤'); } };
@@ -554,9 +559,10 @@
 
                 const fetchData = async () => {
                     if (!isAuthenticated.value) return;
-                    const data = await callApi('ADMIN_GET_DATA');
+                    // 勝利團隊修正：載入時使用靜默模式，即使部分 API 尚未建置完成也不會跳出惱人警告
+                    const data = await callApi('ADMIN_GET_DATA', {}, true);
                     if (data) { users.value = data.users || []; teachers.value = data.teachers || []; courses.value = data.courses || []; orders.value = data.orders || []; sysSettings.value = data.settings || {}; }
-                    const slotData = await callApi('ADMIN_GET_SLOTS');
+                    const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
                     if (slotData) slots.value = slotData;
                 };
 
