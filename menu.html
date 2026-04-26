@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器</title>
-    <!-- Version: 2026.04.18.V126_Full_Action_Logic_Restore_Verified -->
+    <!-- Version: 2026.04.26.V128_Upload_R2_Integrated -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -26,12 +26,16 @@
         
         <div class="flex-1 overflow-y-auto hide-scrollbar">
             <div class="p-5 space-y-5 border-b border-slate-200 bg-white">
-                <div><label class="block text-sm font-bold text-slate-700 mb-2">1. 載入底圖 (JPG/PNG)</label><input type="file" id="image-upload" accept="image/jpeg, image/png" class="hidden"><button onclick="document.getElementById('image-upload').click()" class="w-full py-3 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm">上傳選單圖片檔</button></div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">1. 載入底圖 (JPG/PNG)</label>
+                    <input type="file" id="image-upload" accept="image/jpeg, image/png" class="hidden">
+                    <button onclick="document.getElementById('image-upload').click()" class="w-full py-3 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95">上傳選單圖片檔</button>
+                </div>
                 <div><label class="block text-sm font-bold text-slate-700 mb-1">2. 選單名稱</label><input type="text" id="save-filename" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="New Rich Menu"></div>
                 <div><label class="block text-sm font-bold text-slate-700 mb-1">3. 選單列文字 (ChatBar)</label><input type="text" id="rich-menu-chatbar" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="選單"></div>
             </div>
             
-            <!-- ✅ 區域動作編輯器：恢復 image_ac2a0b.png 規格 -->
+            <!-- ✅ 區域動作編輯器 -->
             <div id="editor-ui" class="bg-[#F8F9FA] pb-6 space-y-4"></div>
         </div>
 
@@ -77,7 +81,62 @@
         window.MenuModule = (function() {
             var canvas, isDrawingMode = false, isMouseDown = false, currentRect, startX, startY, currentImgHeight = 843, savedBase64Image = null;
             return {
-                init: function() { canvas = new fabric.Canvas('menu-canvas', { selection: true }); this.bindEvents(); document.getElementById('image-upload').addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (f) => this.load(file.name, "{}", f.target.result); reader.readAsDataURL(file); }); },
+                init: function() { 
+                    canvas = new fabric.Canvas('menu-canvas', { selection: true }); 
+                    this.bindEvents(); 
+                    
+                    // 🚀 核心升級：整合 R2 上傳與圖片自動壓縮機制
+                    document.getElementById('image-upload').addEventListener('change', (e) => { 
+                        const file = e.target.files[0]; 
+                        if (!file) return; 
+                        
+                        const btn = document.querySelector('button[onclick="document.getElementById(\'image-upload\').click()"]');
+                        const origHtml = btn.innerHTML;
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>雲端 R2 上傳中...';
+                        btn.disabled = true;
+
+                        const reader = new FileReader(); 
+                        reader.onload = (f) => {
+                            const img = new Image();
+                            img.onload = async () => {
+                                const cvs = document.createElement('canvas');
+                                cvs.width = img.width; cvs.height = img.height;
+                                const ctx = cvs.getContext('2d');
+                                ctx.drawImage(img, 0, 0);
+
+                                // LINE 要求圖片須小於 1MB，啟動品質壓縮檢測
+                                let quality = 0.9;
+                                let b64 = cvs.toDataURL('image/jpeg', quality);
+                                while (b64.length > 1000000 && quality > 0.3) {
+                                    quality -= 0.1;
+                                    b64 = cvs.toDataURL('image/jpeg', quality);
+                                }
+
+                                if (b64.length > 1048576) {
+                                    alert('❌ 圖片尺寸過大，無法安全壓縮至 1MB 以下，請自行處理後再上傳');
+                                    btn.innerHTML = origHtml; btn.disabled = false; return;
+                                }
+
+                                try {
+                                    // 背景上傳至 R2 空間
+                                    const res = await ApiHelper.call('UPLOAD_IMAGE', { imageBase64: b64 });
+                                    if (res && res.url) {
+                                        // 成功上傳後，使用 base64 載入前端畫布，確保畫布操作不被 CORS 阻擋
+                                        MenuModule.load(file.name, "{}", b64);
+                                    } else {
+                                        throw new Error('R2 URL 回傳失敗');
+                                    }
+                                } catch (err) {
+                                    alert('上傳發生異常: ' + err.message);
+                                } finally {
+                                    btn.innerHTML = origHtml; btn.disabled = false;
+                                }
+                            };
+                            img.src = f.target.result;
+                        }; 
+                        reader.readAsDataURL(file); 
+                    }); 
+                },
                 getCurrentBase64: () => savedBase64Image,
                 load: function(name, jsonStr, base64) {
                     savedBase64Image = base64; document.getElementById('canvas-placeholder').style.display = 'none';
@@ -90,7 +149,7 @@
                     }; tempImg.src = base64;
                 },
                 bindEvents: function() {
-                    canvas.on('mouse:down', (o) => { if (!isDrawingMode || canvas.findTarget(o.e)) return; isMouseDown = true; var pointer = canvas.getPointer(o.e); startX = pointer.x; startY = pointer.y; currentRect = new fabric.Rect({ left: startX, top: startY, width: 0, height: 0, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1 }); currentRect.action = { type: 'uri', uri: 'https://' }; canvas.add(currentRect); });
+                    canvas.on('mouse:down', (o) => { if (!isDrawingMode || canvas.findTarget(o.e)) return; isMouseDown = true; var pointer = canvas.getPointer(o.e); startX = pointer.x; startY = pointer.y; currentRect = new fabric.Rect({ left: startX, top: startY, width: 0, height: 0, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1 }); currentRect.action = { type: 'message', text: '' }; canvas.add(currentRect); });
                     canvas.on('mouse:move', (o) => { if (!isMouseDown) return; var pointer = canvas.getPointer(o.e); currentRect.set({ left: Math.min(startX, pointer.x), top: Math.min(startY, pointer.y), width: Math.abs(startX - pointer.x), height: Math.abs(startY - pointer.y) }); canvas.renderAll(); });
                     canvas.on('mouse:up', () => { if (!isMouseDown) return; isMouseDown = false; isDrawingMode = false; document.getElementById('menu-draw-btn').innerText = '開始劃定區域'; this.updateOutput(); });
                     canvas.on('object:modified', () => this.updateOutput());
@@ -112,18 +171,39 @@
                         <select class='w-full border mb-3 p-3 rounded-lg text-[14px] font-bold bg-slate-50' onchange='MenuModule.updateAreaProp(${idx}, "type", this.value)'>
                             <option value="uri" ${type==="uri"?"selected":""}>開啟網址 (URI)</option><option value="message" ${type==="message"?"selected":""}>傳送文字 (Message)</option><option value="postback" ${type==="postback"?"selected":""}>回傳指令 (Postback)</option><option value="richmenuswitch" ${type==="richmenuswitch"?"selected":""}>切換選單 (Switch)</option>
                         </select>`;
-                        if (type === 'uri') html += `<input class='w-full border p-3 text-xs font-mono rounded-lg' value='${a.action.uri || ""}' oninput='MenuModule.updateAreaProp(${idx}, "uri", this.value)'>`;
-                        else if (type === 'message') html += `<input class='w-full border p-3 text-xs rounded-lg' value='${a.action.text || ""}' oninput='MenuModule.updateAreaProp(${idx}, "text", this.value)'>`;
-                        else if (type === 'postback') html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg' value='${a.action.data || ""}' oninput='MenuModule.updateAreaProp(${idx}, "data", this.value)'><input class='w-full border p-3 text-xs rounded-lg' value='${a.action.text || ""}' oninput='MenuModule.updateAreaProp(${idx}, "text", this.value)'>`;
-                        else if (type === 'richmenuswitch') html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg' value='${a.action.richMenuAliasId || ""}' oninput='MenuModule.updateAreaProp(${idx}, "richMenuAliasId", this.value)'><input class='w-full border p-3 text-xs rounded-lg' value='${a.action.data || ""}' oninput='MenuModule.updateAreaProp(${idx}, "data", this.value)'>`;
+                        if (type === 'uri') html += `<input class='w-full border p-3 text-xs font-mono rounded-lg' value='${a.action.uri || ""}' placeholder='https://' onchange='MenuModule.updateAreaProp(${idx}, "uri", this.value)'>`;
+                        else if (type === 'message') html += `<input class='w-full border p-3 text-xs rounded-lg' value='${a.action.text || ""}' placeholder='點擊後發送的文字' onchange='MenuModule.updateAreaProp(${idx}, "text", this.value)'>`;
+                        else if (type === 'postback') html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg' value='${a.action.data || ""}' placeholder='參數如 action=1' onchange='MenuModule.updateAreaProp(${idx}, "data", this.value)'><input class='w-full border p-3 text-xs rounded-lg' value='${a.action.text || ""}' placeholder='按鈕顯示文字' onchange='MenuModule.updateAreaProp(${idx}, "text", this.value)'>`;
+                        else if (type === 'richmenuswitch') html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg' value='${a.action.richMenuAliasId || ""}' placeholder='別名 Alias ID' onchange='MenuModule.updateAreaProp(${idx}, "richMenuAliasId", this.value)'><input class='w-full border p-3 text-xs rounded-lg' value='${a.action.data || ""}' placeholder='參數 data' onchange='MenuModule.updateAreaProp(${idx}, "data", this.value)'>`;
+                        
+                        html += `<button onclick='MenuModule.removeAreaFromCanvas(${idx})' class='w-full mt-3 py-2 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100'>刪除區域</button>`;
+                        
                         div.innerHTML = html; container.appendChild(div);
                     });
                 },
                 updateAreaProp: function(idx, prop, val) { var objects = canvas.getObjects('rect'); if(objects[idx]) { if(prop==="type") { var old = objects[idx].action; objects[idx].action = { type: val }; if(val==="uri") objects[idx].action.uri = old.uri || ""; else if(val==="message") objects[idx].action.text = old.text || ""; } else { objects[idx].action[prop] = val; } this.updateOutput(); } },
+                removeAreaFromCanvas: function(idx) { var objects = canvas.getObjects('rect'); if(objects[idx]) { canvas.remove(objects[idx]); this.updateOutput(); } },
                 importAreas: function(areas, scale) { canvas.getObjects('rect').forEach(o => canvas.remove(o)); areas.forEach(a => { var r = new fabric.Rect({ left: a.bounds.x * scale, top: a.bounds.y * scale, width: a.bounds.width * scale, height: a.bounds.height * scale, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1 }); r.action = a.action; canvas.add(r); }); canvas.renderAll(); this.updateOutput(); },
                 openDeployModal: () => { document.getElementById('deploy-api-url').value = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; document.getElementById('deploy-modal').classList.remove('hidden'); },
                 closeDeployModal: () => document.getElementById('deploy-modal').classList.add('hidden'),
-                executeDeploy: async function() { const data = await ApiHelper.call('DEPLOY_RICH_MENU', { richMenuObj: JSON.parse(document.getElementById('json-output').value), imageBase64: savedBase64Image }); if(data) alert('部署成功'); this.closeDeployModal(); }
+                
+                executeDeploy: async function() { 
+                    const btn = document.getElementById('deploy-submit-btn');
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>部署中...';
+                    btn.disabled = true;
+                    
+                    try {
+                        const data = await ApiHelper.call('DEPLOY_RICH_MENU', { 
+                            menuObject: JSON.parse(document.getElementById('json-output').value), 
+                            image: savedBase64Image 
+                        }); 
+                        if(data) alert('✅ 部署成功！請至 LINE OA 查看。'); 
+                        this.closeDeployModal(); 
+                    } finally {
+                        btn.innerHTML = '啟動部署';
+                        btn.disabled = false;
+                    }
+                }
             };
         })();
 
@@ -139,7 +219,6 @@
                     localStorage.setItem('rich_menu_saves', JSON.stringify(saves.slice(0, 15))); this.renderList(); alert('儲存成功');
                 },
                 loadFromIndex: function(idx) { const item = currentSaves[idx]; if(!item) return; currentId = item.id; document.getElementById('save-filename').value = item.name; document.getElementById('rich-menu-chatbar').value = item.data.chatBarText || "選單"; MenuModule.load(item.name, encodeURIComponent(JSON.stringify(item.data)), item.image); this.toggleDrawer(); },
-                // ✅ 刪除功能補完 (100% 規格)
                 deleteFromIndex: function(idx) { if(!confirm('確定永久刪除此選單紀錄？')) return; const saves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); saves.splice(idx, 1); localStorage.setItem('rich_menu_saves', JSON.stringify(saves)); this.renderList(); },
                 renderList: function() {
                     currentSaves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); const container = document.getElementById('saved-files-list');
