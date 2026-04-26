@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器</title>
-    <!-- Version: 2026.04.26.V129_Strict_Validation_Error_Catch -->
+    <!-- Version: 2026.04.26.V130_Inline_Error_Modal -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -35,7 +35,6 @@
                 <div><label class="block text-sm font-bold text-slate-700 mb-1">3. 選單列文字 (ChatBar)</label><input type="text" id="rich-menu-chatbar" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 bg-slate-50" value="選單" maxlength="14" placeholder="最多 14 個字"></div>
             </div>
             
-            <!-- ✅ 區域動作編輯器 -->
             <div id="editor-ui" class="bg-[#F8F9FA] pb-6 space-y-4"></div>
         </div>
 
@@ -64,7 +63,7 @@
         </div>
     </main>
 
-    <!-- 🌟 檔案庫抽屜 (100% 復刻) -->
+    <!-- 檔案庫抽屜 -->
     <div id="right-drawer-overlay" onclick="StorageModule.toggleDrawer()" class="hidden fixed inset-0 bg-slate-800/20 z-40 backdrop-blur-sm"></div>
     <aside id="right-drawer" class="fixed right-0 top-0 h-full w-[360px] bg-[#F8F9FA] shadow-2xl translate-x-full transition-transform duration-300 z-50 flex flex-col border-l border-slate-200">
         <div class="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-white"><h2 class="font-black text-slate-800 text-lg">選單檔案庫</h2><button onclick="StorageModule.toggleDrawer()" class="text-slate-400 p-2 hover:bg-slate-50"><i class="fas fa-times"></i></button></div>
@@ -72,38 +71,49 @@
         <div class="flex-1 overflow-y-auto p-5 space-y-4" id="saved-files-list"></div>
     </aside>
 
-    <div id="deploy-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg p-6"><h3 class="font-bold text-lg mb-4 text-indigo-600">確認部署至 LINE</h3><p class="text-sm text-slate-500 mb-6">系統將自動注入 API 通道金鑰。確定執行？</p><input type="text" id="deploy-api-url" class="w-full border p-3 rounded-lg bg-slate-50 font-mono text-xs mb-6" readonly><div class="flex justify-end gap-3"><button onclick="MenuModule.closeDeployModal()" class="px-6 py-2.5 rounded-lg text-sm font-bold text-slate-500 bg-slate-100">取消</button><button id="deploy-submit-btn" onclick="MenuModule.executeDeploy()" class="px-8 py-2.5 rounded-lg text-sm font-black text-white bg-indigo-600 shadow-md">啟動部署</button></div></div></div>
+    <!-- 部署彈窗 -->
+    <div id="deploy-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg p-8">
+            <h3 class="font-black text-xl mb-2 text-indigo-900">確認部署至 LINE</h3>
+            <p class="text-sm text-slate-500 font-bold mb-6">系統將直接連線至 LINE 伺服器進行版面抽換。確定執行？</p>
+            
+            <input type="text" id="deploy-api-url" class="w-full border border-slate-200 p-3 rounded-lg bg-slate-50 font-mono text-xs text-slate-400 mb-4" readonly>
+            
+            <!-- ✅ 錯誤訊息將會優雅地顯示在這裡，不再用 alert -->
+            <div id="deploy-error-msg" class="hidden bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-sm font-bold mb-6 whitespace-pre-wrap leading-relaxed shadow-sm"></div>
+            
+            <div class="flex justify-end gap-3 mt-4">
+                <button onclick="MenuModule.closeDeployModal()" class="px-6 py-3 rounded-xl text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition">取消</button>
+                <button id="deploy-submit-btn" onclick="MenuModule.executeDeploy()" class="px-8 py-3 rounded-xl text-sm font-black text-white bg-indigo-600 shadow-md hover:bg-indigo-700 transition flex items-center gap-2">啟動部署</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         function toggleSidebar() { const s = document.getElementById('sidebar'); const e = document.getElementById('expand-btn'); if (s.classList.contains('-ml-[360px]')) { s.classList.remove('-ml-[360px]'); e.classList.add('hidden'); } else { s.classList.add('-ml-[360px]'); e.classList.remove('hidden'); } }
         
-        // 🚀 核心升級：精準報錯機制，若發生異常會吐出白話文與詳細錯誤
+        // 將異常直接 throw 出來，交由 UI 處理
         const ApiHelper = { 
             call: async (act, pl = {}) => { 
-                try { 
-                    const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; 
-                    const res = await fetch(url, { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ action: act, payload: pl }) 
-                    }); 
-                    
-                    const text = await res.text();
-                    let json;
-                    try {
-                        json = JSON.parse(text);
-                    } catch(e) {
-                        throw new Error(`伺服器回傳了無效的格式！\n\n【可能的原因】\n1. Google Apps Script 尚未部署或更新版本\n2. GAS 的「誰可以存取」未設定為「任何人」\n3. LINE API 金鑰錯誤\n\n【伺服器原始回應節錄】\n${text.substring(0, 150)}...`);
-                    }
+                const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; 
+                const res = await fetch(url, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ action: act, payload: pl }) 
+                }); 
+                
+                const text = await res.text();
+                let json;
+                try {
+                    json = JSON.parse(text);
+                } catch(e) {
+                    throw new Error(`伺服器回傳了無效格式！\n\n[原始回應]\n${text.substring(0, 150)}...`);
+                }
 
-                    if (json.status !== 'success') {
-                        throw new Error(json.message || '後端執行失敗，但沒有提供具體錯誤訊息 (status != success)。請檢查後端日誌。');
-                    }
-                    return json.data; 
-                } catch (e) { 
-                    alert("⚠️ 執行失敗：\n\n" + e.message); 
-                    return null; 
-                } 
+                if (json.status !== 'success') {
+                    throw new Error(json.message || '後端執行失敗，但沒有提供具體錯誤訊息。');
+                }
+                return json.data; 
             } 
         };
 
@@ -152,7 +162,6 @@
                                         throw new Error('R2 URL 回傳失敗');
                                     }
                                 } catch (err) {
-                                    // 即使上傳失敗，依然讓前端可編輯，避免卡死
                                     MenuModule.load(file.name, "{}", b64);
                                 } finally {
                                     btn.innerHTML = origHtml; btn.disabled = false;
@@ -202,7 +211,7 @@
                         else if (type === 'postback') html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg' value='${a.action.data || ""}' placeholder='參數如 action=1' onchange='MenuModule.updateAreaProp(${idx}, "data", this.value)'><input class='w-full border p-3 text-xs rounded-lg' value='${a.action.text || ""}' placeholder='按鈕顯示文字' onchange='MenuModule.updateAreaProp(${idx}, "text", this.value)'>`;
                         else if (type === 'richmenuswitch') html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg' value='${a.action.richMenuAliasId || ""}' placeholder='別名 Alias ID' onchange='MenuModule.updateAreaProp(${idx}, "richMenuAliasId", this.value)'><input class='w-full border p-3 text-xs rounded-lg' value='${a.action.data || ""}' placeholder='參數 data' onchange='MenuModule.updateAreaProp(${idx}, "data", this.value)'>`;
                         
-                        html += `<button onclick='MenuModule.removeAreaFromCanvas(${idx})' class='w-full mt-3 py-2 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100'>刪除區域</button>`;
+                        html += `<button onclick='MenuModule.removeAreaFromCanvas(${idx})' class='w-full mt-3 py-2 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition'>刪除區域</button>`;
                         
                         div.innerHTML = html; container.appendChild(div);
                     });
@@ -210,34 +219,45 @@
                 updateAreaProp: function(idx, prop, val) { var objects = canvas.getObjects('rect'); if(objects[idx]) { if(prop==="type") { var old = objects[idx].action; objects[idx].action = { type: val }; if(val==="uri") objects[idx].action.uri = old.uri || ""; else if(val==="message") objects[idx].action.text = old.text || ""; } else { objects[idx].action[prop] = val; } this.updateOutput(); } },
                 removeAreaFromCanvas: function(idx) { var objects = canvas.getObjects('rect'); if(objects[idx]) { canvas.remove(objects[idx]); this.updateOutput(); } },
                 importAreas: function(areas, scale) { canvas.getObjects('rect').forEach(o => canvas.remove(o)); areas.forEach(a => { var r = new fabric.Rect({ left: a.bounds.x * scale, top: a.bounds.y * scale, width: a.bounds.width * scale, height: a.bounds.height * scale, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1 }); r.action = a.action; canvas.add(r); }); canvas.renderAll(); this.updateOutput(); },
-                openDeployModal: () => { document.getElementById('deploy-api-url').value = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; document.getElementById('deploy-modal').classList.remove('hidden'); },
-                closeDeployModal: () => document.getElementById('deploy-modal').classList.add('hidden'),
+                openDeployModal: () => { 
+                    document.getElementById('deploy-api-url').value = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; 
+                    document.getElementById('deploy-error-msg').classList.add('hidden');
+                    document.getElementById('deploy-modal').classList.remove('hidden'); 
+                },
+                closeDeployModal: () => {
+                    document.getElementById('deploy-error-msg').classList.add('hidden');
+                    document.getElementById('deploy-modal').classList.add('hidden');
+                },
                 
-                // 🚀 核心升級：部署前嚴格防呆，防止空值送到 LINE API
                 executeDeploy: async function() { 
                     const menuObjStr = document.getElementById('json-output').value;
-                    if (!menuObjStr || menuObjStr === '{}') return alert('請先上傳底圖並劃定至少一個區域！');
+                    const errBox = document.getElementById('deploy-error-msg');
+                    errBox.classList.add('hidden');
+                    
+                    const showError = (msg) => {
+                        errBox.innerText = `🚫 發生錯誤：\n${msg}`;
+                        errBox.classList.remove('hidden');
+                    };
+
+                    if (!menuObjStr || menuObjStr === '{}') return showError('請先上傳底圖並劃定至少一個區域！');
                     
                     const menuObj = JSON.parse(menuObjStr);
                     
-                    // 防呆 1：基本資訊檢查
-                    if (!menuObj.name) return alert('【檢查失敗】左側「選單名稱」不可為空！');
-                    if (!menuObj.chatBarText) return alert('【檢查失敗】左側「選單列文字」不可為空！');
-                    if (!menuObj.areas || menuObj.areas.length === 0) return alert('【檢查失敗】請至少在畫面上劃定一個熱區！');
+                    if (!menuObj.name) return showError('左側「選單名稱」不可為空！');
+                    if (!menuObj.chatBarText) return showError('左側「選單列文字」不可為空！');
+                    if (!menuObj.areas || menuObj.areas.length === 0) return showError('請至少在畫面上劃定一個熱區！');
                     
-                    // 防呆 2：區域內容嚴格檢查 (只要一格沒填，LINE 就會擋掉)
                     for (let i = 0; i < menuObj.areas.length; i++) {
                         const action = menuObj.areas[i].action;
-                        if (action.type === 'message' && !action.text) return alert(`【檢查失敗】區域 #${i+1} 尚未填寫「傳送文字」內容！`);
-                        if (action.type === 'uri' && !action.uri) return alert(`【檢查失敗】區域 #${i+1} 尚未填寫「開啟網址」連結！`);
-                        if (action.type === 'postback' && !action.data) return alert(`【檢查失敗】區域 #${i+1} 尚未填寫「回傳指令」！`);
+                        if (action.type === 'message' && !action.text) return showError(`區域 #${i+1} 尚未填寫「傳送文字」內容！`);
+                        if (action.type === 'uri' && !action.uri) return showError(`區域 #${i+1} 尚未填寫「開啟網址」連結！`);
+                        if (action.type === 'postback' && !action.data) return showError(`區域 #${i+1} 尚未填寫「回傳指令」！`);
                     }
 
-                    // 防呆 3：強制將高度鎖定在 LINE 的標準規格，避免比例不符被退件
                     const h = menuObj.size.height;
                     if (Math.abs(h - 1686) < 100) menuObj.size.height = 1686;
                     else if (Math.abs(h - 843) < 100) menuObj.size.height = 843;
-                    else return alert(`【檢查失敗】您上傳的圖片比例不符合 LINE 規範！\n\n目前尺寸為：2500x${h}\nLINE 規定必須為：2500x1686 (大選單) 或 2500x843 (小選單)\n\n請重新裁切圖片後上傳。`);
+                    else return showError(`您上傳的圖片比例不符合 LINE 規範！\n目前尺寸為：2500x${h}\nLINE 規定必須為：2500x1686 (大選單) 或 2500x843 (小選單)\n請重新裁切圖片後上傳。`);
 
                     const btn = document.getElementById('deploy-submit-btn');
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>部署中...';
@@ -248,10 +268,14 @@
                             menuObject: menuObj, 
                             image: savedBase64Image 
                         }); 
-                        if(data) alert('✅ 部署成功！請至 LINE 官方帳號查看最新選單。'); 
-                        this.closeDeployModal(); 
+                        if(data) {
+                            alert('✅ 部署成功！請至 LINE 官方帳號查看最新選單。'); 
+                            this.closeDeployModal(); 
+                        }
+                    } catch (e) {
+                        showError(e.message);
                     } finally {
-                        btn.innerHTML = '啟動部署';
+                        btn.innerHTML = '<i class="fas fa-rocket mr-2"></i>啟動部署';
                         btn.disabled = false;
                     }
                 }
