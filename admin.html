@@ -294,6 +294,16 @@
                         </div>
                         <button @click="saveSettings" class="btn-green-main w-full py-4 shadow-md active:scale-98 transition">確認儲存並同步雲端參數</button>
                     </div>
+
+                    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-purple-500"></div>
+                        <div class="section-title !mb-4 text-purple-700 border-purple-500">一鍵系統初始化</div>
+                        <p class="text-sm text-slate-500 mb-5 font-bold leading-relaxed">我們已經為您準備好了「人生進化 ACTION (2026 版)」的 19 堂官方標準課程與升級方案。點擊下方按鈕，系統將會自動將所有課程匯入資料庫中。</p>
+                        <button @click="importDefaultCourses" :disabled="isLoading" class="w-full py-3.5 border border-purple-200 rounded-lg font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 transition shadow-sm disabled:opacity-50 flex items-center justify-center">
+                            <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>
+                            <i v-else class="fas fa-magic mr-2"></i>執行自動匯入 (共 19 項方案)
+                        </button>
+                    </div>
                 </div>
 
             </main>
@@ -735,6 +745,41 @@
                     if(await callApi('ADMIN_UPDATE_COURSE', copiedCourse)) { alert('✅ 複製成功！'); fetchData(); }
                 };
 
+                const importDefaultCourses = async () => {
+                    if(!confirm('即將自動匯入 19 堂官方標準課程，確定要執行嗎？\n(若重複執行將自動更新覆蓋同名項目)')) return;
+                    isLoading.value = true;
+                    const defaultCourses = [
+                        { id: 'C_AWAKE_MEM', name: '成為「喚醒階段」會員\n開啟覺察之路，立贈 19,800 點學習紅包', priceText: '$19,800 / 年', price: 19800, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_TRANS_MEM', name: '成為「蛻變階段」會員\n啟動正向循環，立贈 59,800 點學習紅包', priceText: '$59,800 / 年', price: 59800, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_FULL_MEM', name: '成為「完整階段」會員\n邁向生命大師，立贈 99,800 點學習紅包', priceText: '$99,800 / 年', price: 99800, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_ENERGY_3', name: '能量檢測 (3次)\n了解自身能量狀態，找出專屬調頻方案', priceText: '$3,800 / 次', price: 3800, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_ONLINE_LIVE', name: '每月線上直播共修\n凝聚社群能量，每月一次免費線上充電', priceText: '免費 (會員可免費12場)', price: 0, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_OFFLINE_LIVE', name: '每月實體共修\n現場能量交流 (會員免費12場，超過或非會員 $800/場)', priceText: '$800 / 場', price: 800, type: '一般', capacity: 99, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_GROUP_HEAL', name: '瀞化排列成長團體\n在團體支持中釋放深層印記，找回內在力量', priceText: '$880 / 場', price: 880, type: '一般', capacity: 30, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_CARD_WORK', name: '一日工作坊：卡牌課\n透過卡牌直指潛意識，解開生命盲點', priceText: '$8,800 (可用紅包全額折抵)', price: 8800, type: '一般', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'RULE_C', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_BELIEF_WORK', name: '一日工作坊：信念課\n重塑底層信念，改寫人生劇本', priceText: '$8,800 (可用紅包全額折抵)', price: 8800, type: '一般', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'RULE_C', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_COLOR_WORK', name: '一日工作坊：色彩測色課\n尋找你的專屬頻率色彩', priceText: '$8,800 (可用紅包全額折抵)', price: 8800, type: '一般', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'RULE_C', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_AWAKE_CAMP', name: '靈脈重啟三日工作坊\n三天兩夜深度覺察，拔除深層恐懼', priceText: '$19,800 / 三天兩夜', price: 19800, type: '喚醒階段會員', capacity: 30, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_ESPI_MAIN', name: 'ESPI 人生正轉方程式\n啟動蛻變，讓人生進入正向循環', priceText: '$39,800', price: 39800, type: '蛻變階段會員', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['蛻變階段會員', '完整階段會員', '專業導師'] },
+                        { id: 'C_ESPI_RE', name: 'ESPI 人生正轉方程式 (複訓)\n溫故知新，深化人生正向循環', priceText: '$10,000 / 複訓價', price: 10000, type: '蛻變階段會員', capacity: 10, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['蛻變階段會員', '完整階段會員', '專業導師'] },
+                        { id: 'C_JING_LIFE', name: '瀞生活共修\n將修行融入日常，活出平靜與豐盛', priceText: '$36,000', price: 36000, type: '蛻變階段會員', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['蛻變階段會員', '完整階段會員', '專業導師'] },
+                        { id: 'C_JING_RE', name: '瀞生活共修 (複訓)\n持續深化日常修行，穩定高頻狀態', priceText: '$10,000 / 複訓價', price: 10000, type: '蛻變階段會員', capacity: 10, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['蛻變階段會員', '完整階段會員', '專業導師'] },
+                        { id: 'C_SOUL_READ', name: '靈魂解讀師課程\n連結高我，解碼靈魂藍圖的終極修練', priceText: '$99,800', price: 99800, type: '完整階段會員', capacity: 10, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['完整階段會員', '專業導師'] },
+                        { id: 'C_SOUL_RE', name: '靈魂解讀師課程 (複訓)\n持續精進解讀功力，保持通道清明', priceText: '$12,000 / 複訓價', price: 12000, type: '完整階段會員', capacity: 5, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['完整階段會員', '專業導師'] },
+                        { id: 'C_SYS_ARR', name: '系統排列師課程\n掌握系統排列法則，成為生命療癒的引導者', priceText: '$59,800', price: 59800, type: '完整階段會員', capacity: 15, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['完整階段會員', '專業導師'] },
+                        { id: 'C_SYS_RE', name: '系統排列師課程 (複訓)\n磨練排列技巧，深化場域感知', priceText: '$8,000 / 複訓價', price: 8000, type: '完整階段會員', capacity: 5, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['完整階段會員', '專業導師'] }
+                    ];
+                    let successCount = 0;
+                    for(let c of defaultCourses) {
+                        const res = await callApi('ADMIN_UPDATE_COURSE', c, true);
+                        if(res) successCount++;
+                    }
+                    isLoading.value = false;
+                    alert(`✅ 匯入完成！成功新增 ${successCount} 堂官方標準課程方案。`);
+                    fetchData();
+                    view.value = 'courses';
+                };
+
                 onMounted(() => {
                     const today = new Date(); const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
                     for (let i = 0; i < 30; i++) { 
@@ -753,7 +798,7 @@
                     adminCategories, courseFilterCategory, courseSearchQuery, memberSearch, filteredMembers, filteredAdminCourses, activeEnrollmentCourse, openEnrollments, 
                     courseOrders: computed(()=>activeEnrollmentCourse.value?orders.value.filter(o=>o.courseId===activeEnrollmentCourse.value.id || o.courseId===activeEnrollmentCourse.value.name):[]), 
                     updateOrderAttendance, generateCheckinLink, openOrderEditModal, editingOrder, saveOrderUpdate, syncToCalendar, 
-                    editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse, handleCourseImageUpload,
+                    editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse, handleCourseImageUpload, importDefaultCourses,
                     getSlotStatus, getSlotStyle, isDraftClose, handleToggleSlot, handleApproveTeacher, 
                     editingSysConfig, openSysConfigModal, saveSysConfig, draftOpenSlots, draftCloseSlots, clearDrafts, submitDrafts
                 };
