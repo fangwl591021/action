@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.26.V185_Auto_Sync_RealTime -->
+    <!-- Version: 2026.04.26.V184_Silent_Error_Handling -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,6 +65,7 @@
 <body>
     <div id="app" v-cloak>
         
+        <!-- 登入驗證 -->
         <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4 relative text-center">
             <div class="max-w-[360px] w-full bg-white rounded-2xl shadow-sm p-8 border border-slate-200 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-1.5 bg-[#06C755]"></div>
@@ -82,6 +83,7 @@
         </div>
 
         <div v-else class="flex min-h-screen">
+            <!-- 側邊選單 -->
             <aside class="sidebar">
                 <div class="sidebar-brand">宏學管理站</div>
                 <nav class="flex-grow mt-2 overflow-y-auto hide-scrollbar">
@@ -115,12 +117,13 @@
                         <div class="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded text-green-700 text-xs font-bold mr-2">
                             <div class="w-2 h-2 rounded-full bg-[#06C755] animate-pulse"></div><span>通道正常</span>
                         </div>
-                        <button @click="fetchData" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>手動強制同步</button>
+                        <button @click="fetchData" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
                         <button @click="triggerBackup" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-hdd mr-2"></i>資料備份</button>
                         <button @click="runHealthCheck" class="btn-outline text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100"><i class="fas fa-stethoscope mr-2"></i>系統健檢</button>
                     </div>
                 </header>
 
+                <!-- 1. 營運統計 -->
                 <div v-if="view === 'dashboard'" class="p-6 animate-fade-in">
                     <div class="grid grid-cols-4 gap-4 mb-6">
                         <div v-for="(val, label) in { '實收總額': '$'+totalRevenue, '系統會員': users.length, '上架課程': courses.length, '預約導師': teachers.length }" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -174,6 +177,7 @@
                     </div>
                 </div>
 
+                <!-- 3. 課程管理 -->
                 <div v-if="view === 'courses'" class="animate-fade-in">
                     <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
                         <div class="flex gap-3">
@@ -230,6 +234,7 @@
                     </div>
                 </div>
 
+                <!-- 4. 訂單維護 -->
                 <div v-if="view === 'orders'" class="animate-fade-in">
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
                         <table class="admin-table">
@@ -289,13 +294,26 @@
                         </div>
                         <button @click="saveSettings" class="btn-green-main w-full py-4 shadow-md active:scale-98 transition">確認儲存並同步雲端參數</button>
                     </div>
+
+                    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-purple-500"></div>
+                        <div class="section-title !mb-4 text-purple-700 border-purple-500">一鍵系統初始化</div>
+                        <p class="text-sm text-slate-500 mb-5 font-bold leading-relaxed">我們已經為您準備好了「人生進化 ACTION (2026 版)」的 19 堂官方標準課程與升級方案。點擊下方按鈕，系統將會自動將所有課程匯入資料庫中。</p>
+                        <button @click="importDefaultCourses" :disabled="isLoading" class="w-full py-3.5 border border-purple-200 rounded-lg font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 transition shadow-sm disabled:opacity-50 flex items-center justify-center">
+                            <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>
+                            <i v-else class="fas fa-magic mr-2"></i>執行自動匯入 (共 19 項方案)
+                        </button>
+                    </div>
                 </div>
 
             </main>
         </div>
 
+        <!-- ========================================== -->
         <!-- 彈窗 (Modals) 區域 -->
-        <!-- Modal: 課程設定 -->
+        <!-- ========================================== -->
+
+        <!-- Modal: 課程設定 20 欄位平坦化 -->
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[900px] !rounded-xl bg-white">
                 <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
@@ -311,8 +329,11 @@
                                 <label class="input-label">課程或方案名稱 (支援換行做為活動說明預覽)</label>
                                 <textarea v-model="editingCourse.name" class="input-field h-24 resize-none font-bold text-slate-800" placeholder="例如：靈脈重啟三日工作坊 或 喚醒階會員"></textarea>
                             </div>
-                            <div><label class="input-label">前台顯示價格字串</label><input type="text" v-model="editingCourse.priceText" class="input-field text-slate-600" placeholder="例如：19,800元/三天"></div>
-                            <div><label class="input-label">分類標籤 (決定前台篩選)</label><input type="text" v-model="editingCourse.type" class="input-field font-bold text-indigo-600" placeholder="例如：工作坊"></div>
+                            <div>
+                                <label class="input-label">前台顯示價格字串</label>
+                                <input type="text" v-model="editingCourse.priceText" class="input-field text-slate-600" placeholder="例如：19,800元/三天 或 19,800元/年">
+                            </div>
+                            <div><label class="input-label">分類標籤 (決定前台篩選)</label><input type="text" v-model="editingCourse.type" class="input-field font-bold text-indigo-600" placeholder="例如：工作坊 或 會員方案"></div>
                             <div><label class="input-label">實際結帳金額 (純數字)</label><input type="number" v-model.number="editingCourse.price" class="input-field font-black text-[#06C755]"></div>
                             <div><label class="input-label">招生人數上限</label><input type="number" v-model.number="editingCourse.capacity" class="input-field"></div>
                             <div><label class="input-label">開始日期</label><input type="date" v-model="editingCourse.startDate" class="input-field"></div>
@@ -481,6 +502,7 @@
 
                 const toggleGroup = (g) => { groups.value[g] = !groups.value[g]; };
                 
+                // 視圖控制
                 const switchView = (v) => { view.value = v; window.scrollTo(0, 0); };
                 const isSubView = computed(() => false);
                 const backToParent = () => {};
@@ -525,8 +547,9 @@
                     }).filter(c => c.totalOrders > 0);
                 });
 
+                // 勝利團隊修正：加入 silent 靜默模式，防止無腦彈窗
                 const callApi = async (act, pl = {}, silent = false) => {
-                    if(!silent) isLoading.value = true;
+                    isLoading.value = true;
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
                         const json = await res.json();
@@ -534,51 +557,28 @@
                         return json.data;
                     } catch (e) {
                         if (!silent) alert(`❌ 錯誤: ${e.message}`);
+                        else console.warn(`API Error (${act}):`, e.message); // 靜默記錄在背景
                         return null;
                     } finally {
-                        if(!silent) isLoading.value = false;
+                        isLoading.value = false;
                     }
                 };
 
+                const handleLogin = () => { if (loginForm.value.account === 'admin' && ['@1234', '8888'].includes(loginForm.value.password)) { isAuthenticated.value = true; localStorage.setItem('admin_auth_v156', 'true'); fetchData(); checkHubHealth(); } else { alert('帳密錯誤'); } };
+                const logout = () => { if(confirm('確定安全登出？')) { isAuthenticated.value = false; localStorage.removeItem('admin_auth_v156'); } };
+
                 const fetchData = async () => {
                     if (!isAuthenticated.value) return;
+                    // 勝利團隊修正：載入時使用靜默模式，即使部分 API 尚未建置完成也不會跳出惱人警告
                     const data = await callApi('ADMIN_GET_DATA', {}, true);
                     if (data) { users.value = data.users || []; teachers.value = data.teachers || []; courses.value = data.courses || []; orders.value = data.orders || []; sysSettings.value = data.settings || {}; }
                     const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
                     if (slotData) slots.value = slotData;
                 };
 
-                // 🚀 新增：無感自動同步引擎 (Auto-Sync)
-                const lastUpdateTime = ref('0');
-                let syncInterval = null;
-                const startAutoSync = () => {
-                    if (syncInterval) clearInterval(syncInterval);
-                    syncInterval = setInterval(async () => {
-                        if (!isAuthenticated.value) return;
-                        try {
-                            const res = await callApi('CHECK_UPDATES', {}, true);
-                            if (res && res.lastUpdate) {
-                                if (lastUpdateTime.value !== '0' && res.lastUpdate !== lastUpdateTime.value) {
-                                    console.log('🔄 偵測到雲端新資料，自動無縫刷新 CRM...');
-                                    fetchData(); // 靜默背景抓取，不打斷總監操作
-                                }
-                                lastUpdateTime.value = res.lastUpdate;
-                            }
-                        } catch(e) {}
-                    }, 3000); // 極速 3 秒輕量輪詢
-                };
-
-                const handleLogin = () => { 
-                    if (loginForm.value.account === 'admin' && ['@1234', '8888'].includes(loginForm.value.password)) { 
-                        isAuthenticated.value = true; localStorage.setItem('admin_auth_v156', 'true'); 
-                        fetchData(); checkHubHealth(); startAutoSync();
-                    } else { alert('帳密錯誤'); } 
-                };
-                const logout = () => { if(confirm('確定安全登出？')) { isAuthenticated.value = false; localStorage.removeItem('admin_auth_v156'); clearInterval(syncInterval); } };
-
                 const openMemberDetail = async (u) => { 
                     activeMember.value = {...u, birthday: u.birthday || '', industry: u.industry || '', gender: u.gender || '男', address: u.address || '', adminNote: u.adminNote || ''}; 
-                    const pts = await callApi('GET_USER_POINTS', { targetUid: u.userId }, true); 
+                    const pts = await callApi('GET_USER_POINTS', { targetUid: u.userId }); 
                     if(pts) activeMemberPoints.value = pts; 
                 };
                 const saveMemberDetail = async () => { if(await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value })) { alert('儲存成功'); fetchData(); } };
@@ -631,8 +631,8 @@
                 };
 
                 const checkHubHealth = async () => { try { const res = await fetch(`${WORKER_URL}hub-status`); const json = await res.json(); hubStatus.value = json.allGood ? 'online' : 'offline'; } catch (e) { hubStatus.value = 'offline'; } };
-                const runHealthCheck = async () => { const res = await callApi('SYSTEM_HEALTH_CHECK', {}, true); if(res) alert('✅ 健檢完成：\n'+(res.log?.join('\n')||'')); };
-                const triggerBackup = async () => { if(confirm('立即備份？')) { const res = await callApi('ADMIN_TRIGGER_BACKUP', {}, true); if(res) alert('✅ '+res.message); } };
+                const runHealthCheck = async () => { const res = await callApi('SYSTEM_HEALTH_CHECK'); if(res) alert('✅ 健檢完成：\n'+(res.log?.join('\n')||'')); };
+                const triggerBackup = async () => { if(confirm('立即備份？')) { const res = await callApi('ADMIN_TRIGGER_BACKUP'); if(res) alert('✅ '+res.message); } };
 
                 const openPointActionModal = (t) => { editingPointAction.value = { type: t, amount: '', reason: '' }; };
                 const submitPointAction = async () => { if(await callApi('ADMIN_MANAGE_POINTS', { uid: activeMember.value.userId, ...editingPointAction.value, operator: 'Admin' })) { alert('異動成功'); editingPointAction.value = null; openMemberDetail(activeMember.value); fetchData(); } };
@@ -653,10 +653,13 @@
                 const handleToggleSlot = async (uid, date, time) => {
                     const currentStatus = getSlotStatus(uid, date, time);
                     if (currentStatus === 'BOOKED') return alert('此時段已被預約，無法取消！');
+
                     const openIdx = draftOpenSlots.value.findIndex(s => s.uid === uid && s.date === date && s.time === time);
                     if (openIdx > -1) { draftOpenSlots.value.splice(openIdx, 1); return; }
+
                     const closeIdx = draftCloseSlots.value.findIndex(s => s.uid === uid && s.date === date && s.time === time);
                     if (closeIdx > -1) { draftCloseSlots.value.splice(closeIdx, 1); return; }
+
                     if (currentStatus === 'OPEN') draftCloseSlots.value.push({ uid, date, time });
                     else draftOpenSlots.value.push({ uid, date, time });
                 };
@@ -666,9 +669,12 @@
                     const uid = activeTeacher.value.userId;
                     const rent = activeTeacher.value.config.rent || 0;
                     const totalCost = draftOpenSlots.value.length * rent;
+
                     if (!confirm(`確定送出異動嗎？\n新增：${draftOpenSlots.value.length} 時段\n關閉：${draftCloseSlots.value.length} 時段\n扣除：${totalCost} 點`)) return;
+
                     isLoading.value = true;
                     const res = await callApi('ADMIN_BATCH_TOGGLE_SLOTS', { teacherUid: uid, draftOpen: draftOpenSlots.value, draftClose: draftCloseSlots.value });
+
                     if (res && res.success) { alert('✅ 結算完成！'); fetchData(); clearDrafts(); } 
                     else { alert('❌ 失敗，可能餘額不足'); }
                     isLoading.value = false;
@@ -692,7 +698,7 @@
                     isLoading.value = false;
                 };
 
-                const updateOrderAttendance = async (o) => { await callApi('ADMIN_UPDATE_ORDER', { orderId: o.orderId, attendance: o.attendance }, true); };
+                const updateOrderAttendance = async (o) => { await callApi('ADMIN_UPDATE_ORDER', { orderId: o.orderId, attendance: o.attendance }); };
                 const openEnrollments = (c) => { activeEnrollmentCourse.value = c; };
                 const openOrderEditModal = (o) => { editingOrder.value = {...o}; };
                 const saveOrderUpdate = async () => { if(await callApi('ADMIN_UPDATE_ORDER', editingOrder.value)) { alert('✅ 更新成功'); editingOrder.value = null; fetchData(); } };
@@ -739,15 +745,48 @@
                     if(await callApi('ADMIN_UPDATE_COURSE', copiedCourse)) { alert('✅ 複製成功！'); fetchData(); }
                 };
 
+                const importDefaultCourses = async () => {
+                    if(!confirm('即將自動匯入 19 堂官方標準課程，確定要執行嗎？\n(若重複執行將自動更新覆蓋同名項目)')) return;
+                    isLoading.value = true;
+                    const defaultCourses = [
+                        { id: 'C_AWAKE_MEM', name: '成為「喚醒階段」會員\n開啟覺察之路，立贈 19,800 點學習紅包', priceText: '$19,800 / 年', price: 19800, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_TRANS_MEM', name: '成為「蛻變階段」會員\n啟動正向循環，立贈 59,800 點學習紅包', priceText: '$59,800 / 年', price: 59800, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_FULL_MEM', name: '成為「完整階段」會員\n邁向生命大師，立贈 99,800 點學習紅包', priceText: '$99,800 / 年', price: 99800, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_ENERGY_3', name: '能量檢測 (3次)\n了解自身能量狀態，找出專屬調頻方案', priceText: '$3,800 / 次', price: 3800, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_ONLINE_LIVE', name: '每月線上直播共修\n凝聚社群能量，每月一次免費線上充電', priceText: '免費 (會員可免費12場)', price: 0, type: '一般', capacity: 999, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_OFFLINE_LIVE', name: '每月實體共修\n現場能量交流 (會員免費12場，超過或非會員 $800/場)', priceText: '$800 / 場', price: 800, type: '一般', capacity: 99, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_GROUP_HEAL', name: '瀞化排列成長團體\n在團體支持中釋放深層印記，找回內在力量', priceText: '$880 / 場', price: 880, type: '一般', capacity: 30, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_CARD_WORK', name: '一日工作坊：卡牌課\n透過卡牌直指潛意識，解開生命盲點', priceText: '$8,800 (可用紅包全額折抵)', price: 8800, type: '一般', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'RULE_C', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_BELIEF_WORK', name: '一日工作坊：信念課\n重塑底層信念，改寫人生劇本', priceText: '$8,800 (可用紅包全額折抵)', price: 8800, type: '一般', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'RULE_C', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_COLOR_WORK', name: '一日工作坊：色彩測色課\n尋找你的專屬頻率色彩', priceText: '$8,800 (可用紅包全額折抵)', price: 8800, type: '一般', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'RULE_C', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_AWAKE_CAMP', name: '靈脈重啟三日工作坊\n三天兩夜深度覺察，拔除深層恐懼', priceText: '$19,800 / 三天兩夜', price: 19800, type: '喚醒階段會員', capacity: 30, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] },
+                        { id: 'C_ESPI_MAIN', name: 'ESPI 人生正轉方程式\n啟動蛻變，讓人生進入正向循環', priceText: '$39,800', price: 39800, type: '蛻變階段會員', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['蛻變階段會員', '完整階段會員', '專業導師'] },
+                        { id: 'C_ESPI_RE', name: 'ESPI 人生正轉方程式 (複訓)\n溫故知新，深化人生正向循環', priceText: '$10,000 / 複訓價', price: 10000, type: '蛻變階段會員', capacity: 10, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['蛻變階段會員', '完整階段會員', '專業導師'] },
+                        { id: 'C_JING_LIFE', name: '瀞生活共修\n將修行融入日常，活出平靜與豐盛', priceText: '$36,000', price: 36000, type: '蛻變階段會員', capacity: 20, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['蛻變階段會員', '完整階段會員', '專業導師'] },
+                        { id: 'C_JING_RE', name: '瀞生活共修 (複訓)\n持續深化日常修行，穩定高頻狀態', priceText: '$10,000 / 複訓價', price: 10000, type: '蛻變階段會員', capacity: 10, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['蛻變階段會員', '完整階段會員', '專業導師'] },
+                        { id: 'C_SOUL_READ', name: '靈魂解讀師課程\n連結高我，解碼靈魂藍圖的終極修練', priceText: '$99,800', price: 99800, type: '完整階段會員', capacity: 10, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['完整階段會員', '專業導師'] },
+                        { id: 'C_SOUL_RE', name: '靈魂解讀師課程 (複訓)\n持續精進解讀功力，保持通道清明', priceText: '$12,000 / 複訓價', price: 12000, type: '完整階段會員', capacity: 5, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['完整階段會員', '專業導師'] },
+                        { id: 'C_SYS_ARR', name: '系統排列師課程\n掌握系統排列法則，成為生命療癒的引導者', priceText: '$59,800', price: 59800, type: '完整階段會員', capacity: 15, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['完整階段會員', '專業導師'] },
+                        { id: 'C_SYS_RE', name: '系統排列師課程 (複訓)\n磨練排列技巧，深化場域感知', priceText: '$8,000 / 複訓價', price: 8000, type: '完整階段會員', capacity: 5, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '', isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['完整階段會員', '專業導師'] }
+                    ];
+                    let successCount = 0;
+                    for(let c of defaultCourses) {
+                        const res = await callApi('ADMIN_UPDATE_COURSE', c, true);
+                        if(res) successCount++;
+                    }
+                    isLoading.value = false;
+                    alert(`✅ 匯入完成！成功新增 ${successCount} 堂官方標準課程方案。`);
+                    fetchData();
+                    view.value = 'courses';
+                };
+
                 onMounted(() => {
                     const today = new Date(); const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
                     for (let i = 0; i < 30; i++) { 
                         const d = new Date(today); d.setDate(today.getDate() + i); 
                         dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: dayNames[d.getDay()] }); 
                     }
-                    if (localStorage.getItem('admin_auth_v156') === 'true') { 
-                        isAuthenticated.value = true; fetchData(); checkHubHealth(); startAutoSync();
-                    }
+                    if (localStorage.getItem('admin_auth_v156') === 'true') { isAuthenticated.value = true; fetchData(); checkHubHealth(); }
                 });
 
                 return { 
@@ -759,7 +798,7 @@
                     adminCategories, courseFilterCategory, courseSearchQuery, memberSearch, filteredMembers, filteredAdminCourses, activeEnrollmentCourse, openEnrollments, 
                     courseOrders: computed(()=>activeEnrollmentCourse.value?orders.value.filter(o=>o.courseId===activeEnrollmentCourse.value.id || o.courseId===activeEnrollmentCourse.value.name):[]), 
                     updateOrderAttendance, generateCheckinLink, openOrderEditModal, editingOrder, saveOrderUpdate, syncToCalendar, 
-                    editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse, handleCourseImageUpload,
+                    editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse, handleCourseImageUpload, importDefaultCourses,
                     getSlotStatus, getSlotStyle, isDraftClose, handleToggleSlot, handleApproveTeacher, 
                     editingSysConfig, openSysConfigModal, saveSysConfig, draftOpenSlots, draftCloseSlots, clearDrafts, submitDrafts
                 };
