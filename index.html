@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.27.V225_Dynamic_Remittance_Info -->
+    <!-- Version: 2026.04.27.V226_Admin_Switch_And_Cancel -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -129,13 +129,13 @@
                 <div v-if="view === 'orders'" class="animate-fade-in">
                     <div class="header-fixed justify-center"><h2 class="text-[17px] font-bold text-[#111111]">歷史報名紀錄</h2></div>
                     <div class="pt-2 pb-20">
-                        <div v-for="o in myOrders" :key="o.orderId" class="native-card">
+                        <div v-for="o in myOrders" :key="o.orderId" class="native-card relative overflow-hidden">
                             <div class="flex justify-between items-start mb-3">
                                 <div class="text-[12px] font-mono font-bold text-[#AAAAAA]">{{ o.orderId }}</div>
                                 <div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="o.status==='PAID'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'">{{ o.status==='PAID'?'已付款':(o.status==='CANCELLED'?'已取消':'待付款') }}</div>
                             </div>
-                            <div class="native-title">{{ getCourseName(o.courseId).split('\n')[0] }}</div>
-                            <div class="text-[#06C755] font-black text-[18px] mb-3">$ {{ formatPrice(o.amount) }}</div>
+                            <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ getCourseName(o.courseId).split('\n')[0] }}</div>
+                            <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">$ {{ formatPrice(o.amount) }}</div>
                             
                             <!-- 顯示訂單備註 (紅包折抵或後續寫入資訊) -->
                             <div v-if="o.note" class="text-[13px] text-slate-500 font-bold bg-slate-50 p-3 rounded-lg mb-3 border border-slate-100 leading-relaxed">
@@ -143,13 +143,18 @@
                             </div>
                             
                             <!-- 待付款狀態：顯示線上付款與轉帳按鈕 -->
-                            <div v-if="o.status === 'PENDING'" class="flex gap-2 border-t pt-3">
+                            <div v-if="o.status === 'PENDING'" class="flex gap-2 border-t pt-3 mt-2">
                                 <button @click="payOrder(o)" :disabled="isLoading" class="flex-1 py-3 rounded-lg bg-[#06C755] text-white text-[13px] font-bold active:scale-95 transition flex justify-center items-center shadow-sm">
                                     <i class="fas fa-credit-card mr-1.5"></i>線上刷卡
                                 </button>
                                 <button @click="openRemittanceModal(o)" class="flex-1 py-3 rounded-lg bg-[#111111] text-white text-[13px] font-bold active:scale-95 transition shadow-sm">
                                     <i class="fas fa-university mr-1.5"></i>轉帳回報
                                 </button>
+                            </div>
+                            
+                            <!-- ✅ 新增：取消訂單開關判斷 -->
+                            <div v-if="o.status === 'PENDING' && sysSettings.allow_cancel_order === 'true'" class="mt-3 text-center">
+                                <button @click="cancelOrder(o)" :disabled="isLoading" class="text-xs font-bold text-slate-400 underline py-1 hover:text-slate-600 transition">取消報名這堂課</button>
                             </div>
                         </div>
                         <div v-if="myOrders.length === 0" class="text-center py-12 text-[#AAAAAA] font-bold">
@@ -208,6 +213,15 @@
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="editForm.address" class="native-input border border-slate-200 bg-white" placeholder="寄送實體資料使用"></div>
                             
                             <div class="pt-6"><button @click="saveProfileUpdate" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存變更</button></div>
+                        </div>
+                        
+                        <!-- 🛡️ 管理員專屬：切換至管理後台按鈕 -->
+                        <div v-if="userStatus.isAdmin" class="mt-8 animate-fade-in">
+                            <div class="text-xs font-bold text-slate-400 text-center mb-3 tracking-widest uppercase">系統管理員專區</div>
+                            <a href="./admin.html" class="w-full py-4 bg-slate-800 text-white rounded-2xl font-black shadow-lg flex items-center justify-center gap-3 active:scale-95 transition border border-slate-700">
+                                <i class="fas fa-shield-alt text-[#06C755] text-xl"></i>
+                                切換至管理後台
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -301,7 +315,7 @@
                                 </button>
                             </div>
                             
-                            <!-- ✅ 動態載入後台設定的匯款資訊 -->
+                            <!-- 動態載入後台設定的匯款資訊 -->
                             <div v-if="paymentMethod === 'REMITTANCE'" class="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-[13px] text-slate-600 font-medium leading-relaxed animate-fade-in">
                                 <p class="font-bold text-slate-800 mb-2"><i class="fas fa-university mr-1 text-[#06C755]"></i>官方匯款資訊：</p>
                                 <div class="whitespace-pre-wrap text-slate-700 font-bold mb-3 p-3 bg-white rounded border border-slate-100">{{ sysSettings.remittance_info || '尚未設定匯款帳號，請聯絡官方客服。' }}</div>
@@ -377,14 +391,13 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        // ⚠️ 強制更新 Cache Version
-        const CACHE_VERSION = 'v225';
+        const CACHE_VERSION = 'v226'; // 強制更新快取
 
         createApp({
             setup() {
                 const isGlobalLoading = ref(true); const loadingText = ref('啟動系統中...'); const hasInitError = ref(false);
                 const view = ref('home'); const isLoading = ref(false);
-                const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null }); const userPoints = ref({ balance: 0 }); const sysSettings = ref({});
+                const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null, isAdmin: false }); const userPoints = ref({ balance: 0 }); const sysSettings = ref({});
                 const courses = ref([]); const myOrders = ref([]); const selectedCourse = ref(null);
                 
                 // 表單
@@ -491,6 +504,7 @@
                     if (res) { alert(`🎁 領取紅包成功！獲得 ${res.earned} 點`); window.location.reload(); }
                 };
 
+                // 🌟 新增：動態將 WORKER_URL 傳遞給後端，解決無法跳轉問題
                 const initiatePayment = async (orderId, amount, courseName) => {
                     const payRes = await callApi('GET_PAYMENT_PAYLOAD', {
                         orderId: orderId,
@@ -600,11 +614,32 @@
                     isLoading.value = false;
                 };
 
+                // ✅ 獨立補繳款函式 (修復防呆邏輯)
                 const payOrder = async (o) => {
+                    try {
+                        isLoading.value = true;
+                        const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
+                        const courseName = getCourseName(o.courseId).split('\n')[0];
+                        await initiatePayment(o.orderId, amt, courseName);
+                    } catch (e) {
+                        alert('系統異常，無法跳轉金流');
+                        isLoading.value = false;
+                    }
+                };
+
+                // ✅ 獨立取消訂單函式
+                const cancelOrder = async (o) => {
+                    if (!confirm('確定要取消這筆報名訂單嗎？\n(注意：若是扣抵紅包的訂單，取消後點數需聯絡客服退還)')) return;
                     isLoading.value = true;
-                    const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
-                    const courseName = getCourseName(o.courseId).split('\n')[0];
-                    await initiatePayment(o.orderId, amt, courseName);
+                    const res = await callApi('CANCEL_MY_ORDER', { orderId: o.orderId });
+                    if (res && res.success) {
+                        alert('✅ 訂單已成功取消');
+                        const oData = await callApi('GET_USER_ORDERS', {}, true);
+                        if (oData) myOrders.value = oData;
+                    } else {
+                        alert('取消失敗，請稍後再試');
+                    }
+                    isLoading.value = false;
                 };
 
                 // 🌟 匯款回報執行
@@ -642,7 +677,7 @@
                         window.scrollTo(0,0); 
                     },
                     pointsToUse, finalPrice, executeBooking,
-                    payOrder, 
+                    payOrder, cancelOrder,
                     openRemittanceModal: (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; }, 
                     submitRemittance,
                     navigateTo, dailyCheckin, submitRegistration,
