@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.27.V229_Enhanced_Error_Catching -->
+    <!-- Version: 2026.04.28.V231_Frontend_Purified -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,7 +65,7 @@
         </transition>
 
         <!-- 🏠 主系統架構 -->
-        <div v-if="view !== 'register' && view !== 'courseDetail'" class="flex flex-col h-screen overflow-hidden">
+        <div v-if="view !== 'register' && view !== 'courseDetail' && view !== 'share'" class="flex flex-col h-screen overflow-hidden">
             
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
@@ -101,7 +101,7 @@
 
                     <!-- 📦 課程列表區塊 -->
                     <div class="px-4 mt-5 mb-10 grid grid-cols-2 gap-4">
-                        <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm">
+                        <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm cursor-pointer">
                             <div class="w-full aspect-[4/3] bg-[#F8F9FA] relative border-b border-[#EEEEEE]">
                                 <img v-if="c.image" :src="c.image" class="w-full h-full object-cover">
                                 <div v-else class="absolute inset-0 flex items-center justify-center text-[#DDE0E5]"><i class="far fa-image text-3xl"></i></div>
@@ -109,8 +109,8 @@
                             <div class="p-4 flex-1 flex flex-col">
                                 <div class="flex-1">
                                     <span class="category-pill">{{ c.type || '一般' }}</span>
-                                    <div class="text-[15px] font-black text-[#111111] leading-snug mb-1 line-clamp-2">{{ c.name.split('\n')[0] }}</div>
-                                    <div v-if="c.name.includes('\n')" class="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mb-2 font-medium">
+                                    <div class="text-[15px] font-black text-[#111111] leading-snug mb-1 line-clamp-2">{{ (c.name || '').split('\n')[0] }}</div>
+                                    <div v-if="(c.name || '').includes('\n')" class="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mb-2 font-medium">
                                         {{ c.name.substring(c.name.indexOf('\n') + 1).trim() }}
                                     </div>
                                 </div>
@@ -134,7 +134,7 @@
                                 <div class="text-[12px] font-mono font-bold text-[#AAAAAA]">{{ o.orderId }}</div>
                                 <div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="o.status==='PAID'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'">{{ o.status==='PAID'?'已付款':(o.status==='CANCELLED'?'已取消':'待付款') }}</div>
                             </div>
-                            <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ getCourseName(o.courseId).split('\n')[0] }}</div>
+                            <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ (getCourseName(o.courseId) || '').split('\n')[0] }}</div>
                             <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">$ {{ formatPrice(o.amount) }}</div>
                             
                             <!-- 顯示訂單備註 -->
@@ -183,8 +183,12 @@
                         <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg mb-8 relative overflow-hidden">
                             <div class="absolute right-0 top-0 opacity-10 text-8xl -mt-4 -mr-2"><i class="fas fa-gift"></i></div>
                             <div class="text-[13px] text-slate-300 font-bold mb-1 relative z-10">紅包帳戶餘額</div>
-                            <div class="text-4xl font-black mb-6 relative z-10">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
-                            <button @click="dailyCheckin" class="w-full py-3.5 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-bold active:scale-95 transition border border-white/10 relative z-10"><i class="fas fa-coins mr-2 text-yellow-300"></i>每日登入領紅包</button>
+                            <div class="text-4xl font-black mb-4 relative z-10">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
+                            
+                            <div class="flex gap-2 relative z-10 mt-6">
+                                <button @click="dailyCheckin" class="flex-1 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-white/10 flex items-center justify-center gap-1"><i class="fas fa-calendar-check text-green-300"></i>每日登入</button>
+                                <button @click="navigateTo('share')" class="flex-1 py-3 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-1"><i class="fas fa-share-alt"></i>邀請賺點</button>
+                            </div>
                         </div>
                         
                         <div v-if="!isEditingProfile" class="space-y-1 animate-fade-in">
@@ -228,7 +232,7 @@
 
             <!-- 底部固定導覽列 -->
             <nav class="bottom-nav">
-                <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home' || view === 'courseDetail'}"><i class="fas fa-compass"></i><span>探索</span></div>
+                <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
                 <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile'}"><i class="fas fa-user"></i><span>我的</span></div>
             </nav>
@@ -252,7 +256,7 @@
                     
                     <div class="p-6">
                         <div class="inline-block px-3 py-1 bg-green-50 text-[#06C755] text-xs font-bold rounded-md mb-4 border border-green-100">{{ selectedCourse.type || '一般' }}</div>
-                        <h1 class="text-2xl font-black text-slate-800 mb-3 leading-snug">{{ selectedCourse.name.split('\n')[0] }}</h1>
+                        <h1 class="text-2xl font-black text-slate-800 mb-3 leading-snug">{{ (selectedCourse.name || '').split('\n')[0] }}</h1>
                         <div class="text-3xl font-black text-[#06C755] mb-8">{{ selectedCourse.priceText || ('$' + formatPrice(selectedCourse.price)) }}</div>
                         
                         <div class="bg-[#F8F9FA] rounded-2xl p-5 space-y-4 border border-[#EEEEEE]">
@@ -274,7 +278,7 @@
                             </div>
                         </div>
 
-                        <!-- ✅ 結帳試算區塊 -->
+                        <!-- 結帳試算區塊 -->
                         <div class="mt-8 border-t border-slate-100 pt-6" v-if="selectedCourse.price > 0">
                             <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-calculator text-[#06C755]"></i>結帳試算</h3>
                             <div class="bg-[#F8F9FA] rounded-2xl p-5 space-y-3 border border-[#EEEEEE]">
@@ -293,7 +297,7 @@
                             </div>
                         </div>
                         
-                        <!-- ✅ 付款方式選擇區塊 -->
+                        <!-- 付款方式選擇區塊 -->
                         <div class="mt-6 border-t border-slate-100 pt-6" v-if="finalPrice > 0">
                             <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-wallet text-[#06C755]"></i>選擇付款方式</h3>
                             <div class="flex gap-3">
@@ -315,18 +319,64 @@
                         <div class="mt-8 border-t border-slate-100 pt-8">
                             <h3 class="text-[17px] font-black text-[#111111] mb-5 flex items-center gap-2"><i class="fas fa-align-left text-[#06C755]"></i>詳細內容與權益</h3>
                             <div class="text-[15px] text-slate-600 leading-loose whitespace-pre-wrap font-medium">
-                                {{ selectedCourse.description ? selectedCourse.description : (selectedCourse.name.includes('\n') ? selectedCourse.name.substring(selectedCourse.name.indexOf('\n') + 1).trim() : '暫無詳細說明') }}
+                                {{ selectedCourse.description ? selectedCourse.description : ((selectedCourse.name || '').includes('\n') ? selectedCourse.name.substring(selectedCourse.name.indexOf('\n') + 1).trim() : '暫無詳細說明') }}
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 底部報名列 (固定) -->
                 <div class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-100 p-5 pb-[max(env(safe-area-inset-bottom),20px)] z-[70] shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
                     <button @click="executeBooking" :disabled="isLoading || !selectedCourse.isRegistrationOpen || (selectedCourse.capacity > 0 && selectedCourse.enrolled >= selectedCourse.capacity)" class="btn-primary w-full py-4 text-lg shadow-lg shadow-green-100/50">
                         <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>
                         {{ checkoutButtonText }}
                     </button>
+                </div>
+            </div>
+        </transition>
+
+        <!-- ========================================================== -->
+        <!-- 🎁 專屬分享好友畫面 -->
+        <!-- ========================================================== -->
+        <transition name="slide-up">
+            <div v-if="view === 'share'" class="fixed inset-0 bg-white z-[60] flex flex-col overflow-hidden">
+                <div class="header-fixed justify-start gap-4">
+                    <button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button>
+                    <h2 class="text-[19px] font-black text-slate-800">邀請好友賺紅包</h2>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center pb-32">
+                    <div class="w-full bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-100 text-center shadow-sm relative overflow-hidden mb-8 mt-4">
+                        <div class="absolute -right-6 -top-6 text-green-500/10 text-9xl"><i class="fas fa-gift"></i></div>
+                        
+                        <div class="w-16 h-16 rounded-full mx-auto mb-4 overflow-hidden border-2 border-white shadow-md relative z-10">
+                             <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="text-lg font-black text-slate-800 relative z-10">{{ liffProfile.displayName }} 邀請您</h3>
+                        <p class="text-[13px] text-slate-500 font-bold mt-2 relative z-10">成為「人生ACTION」專屬會員</p>
+                        
+                        <div class="bg-white rounded-2xl p-4 mt-6 shadow-sm border border-slate-100 relative z-10 mx-auto w-[200px] h-[200px] flex items-center justify-center">
+                            <img :src="'https://quickchart.io/qr?text=' + encodeURIComponent(shareUrl) + '&size=200'" class="w-full h-full object-contain">
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-bold mt-3 relative z-10">請好友使用 LINE 掃描上方條碼</p>
+                    </div>
+                    
+                    <div class="w-full space-y-3">
+                        <button @click="shareToFriend" class="w-full py-4 bg-[#06C755] text-white rounded-xl text-[15px] font-black active:scale-95 transition shadow-lg shadow-green-100 flex items-center justify-center gap-2">
+                            <i class="fas fa-paper-plane"></i> 傳送卡片給 LINE 好友
+                        </button>
+                        <button @click="copyShareUrl" class="w-full py-4 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[15px] font-black active:scale-95 transition flex items-center justify-center gap-2 hover:bg-slate-200">
+                            <i class="fas fa-link"></i> 複製專屬邀請連結
+                        </button>
+                    </div>
+                    
+                    <div class="mt-8 p-5 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 leading-relaxed font-medium">
+                        <p class="font-bold text-slate-700 mb-2"><i class="fas fa-info-circle mr-1 text-[#06C755]"></i> 推薦獎勵說明：</p>
+                        <ul class="list-disc pl-4 space-y-1.5">
+                            <li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得紅包點數。</li>
+                            <li>每成功邀請一位，您將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_refer || 0 }}</span> 點。</li>
+                            <li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新紅包。</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </transition>
@@ -412,8 +462,8 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        // ⚠️ 強制更新 Cache Version 破解舊資料缺漏的 bug
-        const CACHE_VERSION = 'v229';
+        // ⚠️ 強制更新 Cache Version
+        const CACHE_VERSION = 'v231';
 
         createApp({
             setup() {
@@ -422,27 +472,25 @@
                 const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null, isAdmin: false }); const userPoints = ref({ balance: 0 }); const sysSettings = ref({});
                 const courses = ref([]); const myOrders = ref([]); const selectedCourse = ref(null);
                 
-                // 表單
                 const regForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 const isEditingProfile = ref(false);
                 const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 
-                // 🏷️ 5 個固定標籤分類
                 const predefinedCategories = ['一般', '一般會員', '喚醒階段會員', '蛻變階段會員', '完整階段會員'];
                 const activeCategory = ref('一般');
 
                 const showRemittanceInfoModal = ref(false); 
                 const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null);
-                const paymentMethod = ref('NEWEBPAY'); // 結帳選擇的付款方式
+                const paymentMethod = ref('NEWEBPAY');
 
                 const callApi = async (act, pl = {}, silent = false) => {
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {} }) });
                         const json = await res.json(); 
-                        if (json.status !== 'success') throw new Error(json.message || `後端路由未開通：${act}`); 
+                        if (json.status !== 'success') throw new Error(json.message || `API Error: 後端未授權此操作 (${act})`); 
                         if (act === 'GET_SETTINGS' && (!json.data || Object.keys(json.data).length === 0)) throw new Error("後端設定為空");
                         return json.data;
-                    } catch (e) { if(!silent) alert("API Error: " + (e.message || "伺服器無回應")); return null; }
+                    } catch (e) { if(!silent) alert(e.message); return null; }
                 };
 
                 const syncLocal = (uid) => {
@@ -475,6 +523,11 @@
                         const uid = liffProfile.value.userId;
                         syncLocal(uid);
 
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const refCode = urlParams.get('ref');
+                        if (refCode) localStorage.setItem('referral_uid', refCode);
+                        const viewParam = urlParams.get('view');
+
                         const [checkRes, cData, oData, pData] = await Promise.all([
                             callApi('CHECK_USER', {}, true),
                             callApi('GET_COURSES', {}, true),
@@ -493,19 +546,22 @@
                             localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
                         }
                         isGlobalLoading.value = false;
+
+                        if (viewParam === 'share' && userStatus.value.registered) view.value = 'share';
                     } catch (e) { console.error("Init Error", e); loadingText.value = "系統初始化失敗"; hasInitError.value = true; }
                 };
 
                 const navigateTo = (t) => {
-                    if ((t === 'profile' || t === 'orders') && !userStatus.value.registered) { view.value = 'register'; return; }
+                    if ((t === 'profile' || t === 'orders' || t === 'share') && !userStatus.value.registered) { view.value = 'register'; return; }
                     view.value = t; window.scrollTo(0, 0);
                 };
 
                 const submitRegistration = async () => {
                     if (!regForm.value.name || !regForm.value.phone) return alert('姓名與電話為必填');
                     isLoading.value = true;
-                    const res = await callApi('REGISTER_USER', { userId: liffProfile.value.userId, ...regForm.value });
-                    if (res) window.location.reload();
+                    const refUid = localStorage.getItem('referral_uid') || '';
+                    const res = await callApi('REGISTER_USER', { userId: liffProfile.value.userId, referrerUid: refUid, ...regForm.value });
+                    if (res) { localStorage.removeItem('referral_uid'); window.location.reload(); }
                     isLoading.value = false;
                 };
 
@@ -527,42 +583,63 @@
                     if (res) { alert(`🎁 領取紅包成功！獲得 ${res.earned} 點`); window.location.reload(); }
                 };
 
+                const shareUrl = computed(() => {
+                    if (!sysSettings.value.liff_id || !liffProfile.value.userId) return "https://line.me";
+                    return `https://liff.line.me/${sysSettings.value.liff_id}?view=share&ref=${liffProfile.value.userId}`;
+                });
+
+                const shareToFriend = async () => {
+                    if (liff.isApiAvailable('shareTargetPicker')) {
+                        try {
+                            const res = await liff.shareTargetPicker([{
+                                "type": "flex", "altText": `${liffProfile.value.displayName} 邀請您加入人生ACTION！`,
+                                "contents": {
+                                  "type": "bubble",
+                                  "hero": { "type": "image", "url": sysSettings.value.banner_image || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80", "size": "full", "aspectRatio": "20:13", "aspectMode": "cover" },
+                                  "body": {
+                                    "type": "box", "layout": "vertical",
+                                    "contents": [
+                                      { "type": "text", "text": "人生 ACTION", "weight": "bold", "size": "xl" },
+                                      { "type": "text", "text": `${liffProfile.value.displayName} 邀請您加入會員，領取專屬迎新紅包！立刻點擊下方按鈕加入我們。`, "wrap": true, "size": "sm", "color": "#666666", "margin": "md" }
+                                    ]
+                                  },
+                                  "footer": {
+                                    "type": "box", "layout": "vertical",
+                                    "contents": [{ "type": "button", "style": "primary", "color": "#06C755", "action": { "type": "uri", "label": "點此加入領取紅包", "uri": shareUrl.value } }]
+                                  }
+                                }
+                            }]);
+                            if (res) alert("✅ 分享成功！");
+                        } catch(e) {}
+                    } else alert("您的裝置或 LINE 版本不支援直接分享功能，請使用「複製連結」。");
+                };
+
+                const copyShareUrl = () => {
+                    const el = document.createElement('textarea');
+                    el.value = shareUrl.value;
+                    document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+                    alert("✅ 已複製邀請連結！您可以直接貼給好友了！");
+                };
+
                 const initiatePayment = async (orderId, amount, courseName) => {
                     const payRes = await callApi('GET_PAYMENT_PAYLOAD', {
-                        orderId: orderId,
-                        amount: amount,
-                        courseName: courseName,
-                        email: userStatus.value.info?.email || 'user@example.com',
-                        workerUrl: WORKER_URL 
+                        orderId: orderId, amount: amount, courseName: courseName,
+                        email: userStatus.value.info?.email || 'user@example.com', workerUrl: WORKER_URL 
                     });
 
                     if (payRes && payRes.GatewayUrl) {
                         const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = payRes.GatewayUrl;
-                        form.style.display = 'none';
-
-                        const params = {
-                            MerchantID: payRes.MerchantID,
-                            TradeInfo: payRes.TradeInfo,
-                            TradeSha: payRes.TradeSha,
-                            Version: payRes.Version
-                        };
-
+                        form.method = 'POST'; form.action = payRes.GatewayUrl; form.style.display = 'none';
+                        const params = { MerchantID: payRes.MerchantID, TradeInfo: payRes.TradeInfo, TradeSha: payRes.TradeSha, Version: payRes.Version };
                         for (const key in params) {
                             const input = document.createElement('input');
-                            input.type = 'hidden';
-                            input.name = key;
-                            input.value = params[key];
+                            input.type = 'hidden'; input.name = key; input.value = params[key];
                             form.appendChild(input);
                         }
-
-                        document.body.appendChild(form);
-                        form.submit();
+                        document.body.appendChild(form); form.submit();
                     } else {
                         alert('無法取得金流參數，請稍後至「報名紀錄」重試付款。');
-                        isLoading.value = false;
-                        view.value = 'orders';
+                        isLoading.value = false; view.value = 'orders';
                     }
                 };
 
@@ -571,11 +648,9 @@
                     const price = Number(selectedCourse.value.price) || 0;
                     const bal = Number(userPoints.value.balance) || 0;
                     let maxDeduction = 0;
-                    
                     if (selectedCourse.value.discountRule === 'RULE_A') maxDeduction = price * 0.2;
                     else if (selectedCourse.value.discountRule === 'RULE_B') maxDeduction = price * 0.5;
                     else if (selectedCourse.value.discountRule === 'RULE_C') maxDeduction = price;
-                    
                     return Math.min(bal, Math.floor(maxDeduction));
                 });
 
@@ -596,42 +671,26 @@
 
                 const executeBooking = async () => {
                     if (!userStatus.value.registered) { view.value = 'register'; return; }
-                    
                     const paymentName = paymentMethod.value === 'NEWEBPAY' ? '線上刷卡' : '銀行匯款';
-                    let confirmMsg = '';
-                    if (finalPrice.value === 0) {
-                        confirmMsg = `確定使用 ${pointsToUse.value} 點紅包，全額抵扣報名「${selectedCourse.value.name.split('\n')[0]}」嗎？`;
-                    } else {
-                        confirmMsg = pointsToUse.value > 0 
-                            ? `確定使用 ${pointsToUse.value} 點紅包，並以「${paymentName}」結帳 $${finalPrice.value} 嗎？`
-                            : `確定以「${paymentName}」結帳 $${finalPrice.value} 嗎？`;
-                    }
+                    const cName = (selectedCourse.value.name || '').split('\n')[0];
+                    let confirmMsg = finalPrice.value === 0 
+                        ? `確定使用 ${pointsToUse.value} 點紅包，全額抵扣報名「${cName}」嗎？`
+                        : (pointsToUse.value > 0 ? `確定使用 ${pointsToUse.value} 點紅包，並以「${paymentName}」結帳 $${finalPrice.value} 嗎？` : `確定以「${paymentName}」結帳 $${finalPrice.value} 嗎？`);
                         
                     if (!confirm(confirmMsg)) return;
-                    
                     isLoading.value = true;
 
                     if (pointsToUse.value > 0) {
-                        await callApi('ADMIN_MANAGE_POINTS', { 
-                            uid: liffProfile.value.userId, 
-                            type: 'SYSTEM_SPEND', 
-                            amount: pointsToUse.value, 
-                            reason: `報名折抵: ${selectedCourse.value.name.split('\n')[0]}`, 
-                            operator: 'System' 
-                        }, true);
+                        await callApi('ADMIN_MANAGE_POINTS', { uid: liffProfile.value.userId, type: 'SYSTEM_SPEND', amount: pointsToUse.value, reason: `報名折抵: ${cName}`, operator: 'System' }, true);
                     }
 
                     const noteText = pointsToUse.value > 0 ? `紅包折抵 ${pointsToUse.value} 點` : '';
-                    const res = await callApi('REGISTER', { 
-                        courseId: selectedCourse.value.id, 
-                        amount: finalPrice.value,
-                        note: noteText
-                    });
+                    const res = await callApi('REGISTER', { courseId: selectedCourse.value.id, amount: finalPrice.value, note: noteText });
                     
                     if (res && res.orderId) {
                         if (finalPrice.value > 0) {
                             if (paymentMethod.value === 'NEWEBPAY') {
-                                await initiatePayment(res.orderId, finalPrice.value, selectedCourse.value.name.split('\n')[0]);
+                                await initiatePayment(res.orderId, finalPrice.value, cName);
                                 return; 
                             } else {
                                 showRemittanceInfoModal.value = true;
@@ -641,13 +700,10 @@
                         } else {
                             alert('✅ 免費/全額折抵報名成功！請至「報名紀錄」查看。');
                         }
-                        
                         view.value = 'orders';
                         const oData = await callApi('GET_USER_ORDERS', {}, true);
                         if (oData) myOrders.value = oData;
-                    } else {
-                        alert('報名失敗，請稍後再試。');
-                    }
+                    } else alert('報名失敗，請稍後再試。');
                     isLoading.value = false;
                 };
 
@@ -658,15 +714,13 @@
                     if (oData) myOrders.value = oData;
                 };
 
-                const formatPrice = (p) => {
-                    return Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString();
-                };
+                const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString();
 
                 const payOrder = async (o) => {
                     try {
                         isLoading.value = true;
                         const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
-                        const courseName = getCourseName(o.courseId).split('\n')[0];
+                        const courseName = (getCourseName(o.courseId) || '').split('\n')[0];
                         await initiatePayment(o.orderId, amt, courseName);
                     } catch (e) {
                         alert('系統異常，無法跳轉金流');
@@ -682,9 +736,7 @@
                         alert('✅ 訂單已成功取消');
                         const oData = await callApi('GET_USER_ORDERS', {}, true);
                         if (oData) myOrders.value = oData;
-                    } else {
-                        alert('取消失敗，請稍後再試');
-                    }
+                    } else alert('取消失敗，請稍後再試');
                     isLoading.value = false;
                 };
 
@@ -693,20 +745,13 @@
                     if (digits.length !== 5) { alert('請輸入完整的 5 碼數字'); return; }
                     
                     isLoading.value = true;
-                    const res = await callApi('UPDATE_MY_ORDER', {
-                        orderId: currentOrderForRemit.value.orderId,
-                        userId: liffProfile.value.userId,
-                        remittance: digits
-                    });
-                    
+                    const res = await callApi('UPDATE_MY_ORDER', { orderId: currentOrderForRemit.value.orderId, userId: liffProfile.value.userId, remittance: digits });
                     if (res && res.success) {
                         alert('✅ 回報成功！我們將盡快為您對帳。');
                         showRemittanceModal.value = false;
                         const oData = await callApi('GET_USER_ORDERS', {}, true);
                         if (oData) myOrders.value = oData;
-                    } else {
-                        alert('回報失敗，請稍後再試。');
-                    }
+                    } else alert('回報失敗，請稍後再試。');
                     isLoading.value = false;
                 };
 
@@ -728,7 +773,7 @@
                     submitRemittance,
                     navigateTo, dailyCheckin, submitRegistration,
                     formatPrice,
-                    getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
+                    getCourseName: (id) => { const c = courses.value.find(x => x.id === id || x.name === id); return c ? c.name : id; },
                     
                     categories: predefinedCategories,
                     activeCategory,
@@ -743,7 +788,8 @@
                                 return searchTarget.includes(key);
                             }
                         });
-                    })
+                    }),
+                    shareUrl, shareToFriend, copyShareUrl
                 };
             }
         }).mount('#app');
