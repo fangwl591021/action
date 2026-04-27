@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.20.V221_Payment_Gateway_Linked -->
+    <!-- Version: 2026.04.27.V222_Payment_Bug_Fixed -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -175,6 +175,7 @@
                             <button @click="dailyCheckin" class="w-full py-3.5 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-bold active:scale-95 transition border border-white/10 relative z-10"><i class="fas fa-coins mr-2 text-yellow-300"></i>每日登入領紅包</button>
                         </div>
                         
+                        <!-- 唯讀模式 -->
                         <div v-if="!isEditingProfile" class="space-y-1 animate-fade-in">
                             <div class="profile-row"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div>
                             <div class="profile-row"><span class="profile-label">目前等級</span><span class="profile-value text-[#06C755] bg-green-50 px-2 py-0.5 rounded">{{ userStatus.info?.memberTier || '一般會員' }}</span></div>
@@ -185,17 +186,18 @@
                             <div class="profile-row flex-col !items-start gap-2"><span class="profile-label">收件地址</span><span class="profile-value text-sm text-left leading-relaxed">{{ userStatus.info?.address || '未填寫' }}</span></div>
                         </div>
 
+                        <!-- 編輯模式 -->
                         <div v-else class="space-y-5 animate-fade-in">
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">真實姓名</label><input type="text" v-model="editForm.name" class="native-input border border-slate-200 bg-white" placeholder="請輸入真實姓名"></div>
                             <div>
                                 <label class="text-xs font-bold text-slate-400 mb-1.5 block">性別</label>
-                                <select v-model="editForm.gender" class="native-input bg-white border border-slate-200">
+                                <select v-model="editForm.gender" class="native-input border border-slate-200 bg-white">
                                     <option value="">請選擇</option><option value="男">男</option><option value="女">女</option>
                                 </select>
                             </div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="editForm.birthday" class="native-input bg-white border border-slate-200"></div>
+                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="editForm.birthday" class="native-input border border-slate-200 bg-white"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="editForm.phone" class="native-input font-mono border border-slate-200 bg-white" placeholder="09xxxxxxxx"></div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="例如：行銷、教育"></div>
+                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="您的職業或專長"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="editForm.address" class="native-input border border-slate-200 bg-white" placeholder="寄送實體資料使用"></div>
                             
                             <div class="pt-6"><button @click="saveProfileUpdate" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存變更</button></div>
@@ -214,14 +216,17 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- 📖 課程詳細介紹頁面 -->
+        <!-- 📖 課程詳細介紹頁面 (全版子畫面) -->
         <!-- ========================================================== -->
         <transition name="slide-up">
             <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-0 bg-white z-[60] flex flex-col overflow-hidden">
+                
+                <!-- 浮動返回按鈕 -->
                 <div class="absolute top-0 left-0 w-full z-50 flex justify-between items-center p-4 pt-[max(env(safe-area-inset-top),16px)] bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
                     <button @click="view = 'home'" class="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto active:scale-90 transition shadow-sm"><i class="fas fa-arrow-left"></i></button>
                 </div>
                 
+                <!-- 內容捲動區 -->
                 <div class="flex-1 overflow-y-auto pb-32 hide-scrollbar">
                     <div class="w-full aspect-[4/3] bg-slate-100 relative">
                         <img v-if="selectedCourse.image" :src="selectedCourse.image" class="w-full h-full object-cover">
@@ -261,6 +266,7 @@
                     </div>
                 </div>
                 
+                <!-- 底部報名列 (固定) -->
                 <div class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-100 p-5 pb-[max(env(safe-area-inset-bottom),20px)] z-[70] shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
                     <button @click="executeBooking" :disabled="isLoading || !selectedCourse.isRegistrationOpen || (selectedCourse.capacity > 0 && selectedCourse.enrolled >= selectedCourse.capacity)" class="btn-primary w-full py-4 text-lg shadow-lg shadow-green-100/50">
                         <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>
@@ -298,7 +304,8 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v221'; // 強制更新以避免快取問題
+        // ⚠️ 強制更新 Cache Version，打破舊快取
+        const CACHE_VERSION = 'v222';
 
         createApp({
             setup() {
@@ -307,10 +314,12 @@
                 const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null }); const userPoints = ref({ balance: 0 }); const sysSettings = ref({});
                 const courses = ref([]); const myOrders = ref([]); const selectedCourse = ref(null);
                 
+                // 表單
                 const regForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 const isEditingProfile = ref(false);
                 const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 
+                // 🏷️ 5 個固定標籤分類
                 const predefinedCategories = ['一般', '一般會員', '喚醒階段會員', '蛻變階段會員', '完整階段會員'];
                 const activeCategory = ref('一般');
 
@@ -408,13 +417,14 @@
                     if (res) { alert(`🎁 領取紅包成功！獲得 ${res.earned} 點`); window.location.reload(); }
                 };
 
-                // 🌟 新增：取得金流包並自動提交表單跳轉
+                // 🌟 動態將 WORKER_URL 傳遞給後端，解決無法跳轉問題
                 const initiatePayment = async (orderId, amount, courseName) => {
                     const payRes = await callApi('GET_PAYMENT_PAYLOAD', {
                         orderId: orderId,
                         amount: amount,
                         courseName: courseName,
-                        email: userStatus.value.info?.email || 'user@example.com' // 如果沒有email預設帶入
+                        email: userStatus.value.info?.email || 'user@example.com',
+                        workerUrl: WORKER_URL // ✅ 動態傳遞 Worker 網址，解決金流參數崩潰
                     });
 
                     if (payRes && payRes.GatewayUrl) {
@@ -476,7 +486,6 @@
                     isLoading.value = false;
                 };
 
-                // 🌟 新增：在訂單列表點擊「補繳款」
                 const payOrder = async (o) => {
                     isLoading.value = true;
                     const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
@@ -491,8 +500,8 @@
                     isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                     openCourseDetail: (c) => { selectedCourse.value = c; view.value = 'courseDetail'; window.scrollTo(0,0); },
                     executeBooking,
-                    payOrder, // 匯出 payOrder 給 HTML 按鈕使用
-                    openRemittanceModal: (o) => { alert('請聯絡客服提供轉帳證明。'); }, // 簡化轉帳邏輯
+                    payOrder, 
+                    openRemittanceModal: (o) => { alert('請聯絡客服提供轉帳證明。'); }, 
                     navigateTo, dailyCheckin, submitRegistration,
                     formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(),
                     getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
