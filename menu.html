@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器</title>
-    <!-- Version: 2026.04.26.V130_Inline_Error_Modal -->
+    <!-- Version: 2026.04.28.V235_Storage_Quota_Fix_Based_On_V130 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -157,12 +157,14 @@
                                 try {
                                     const res = await ApiHelper.call('UPLOAD_IMAGE', { imageBase64: b64 });
                                     if (res && res.url) {
-                                        MenuModule.load(file.name, "{}", b64);
+                                        MenuModule.load(file.name, "{}", res.url); // 直接使用 R2 網址
+                                        savedBase64Image = b64; // 保留本機壓縮檔作為部署預備
                                     } else {
                                         throw new Error('R2 URL 回傳失敗');
                                     }
                                 } catch (err) {
                                     MenuModule.load(file.name, "{}", b64);
+                                    savedBase64Image = b64;
                                 } finally {
                                     btn.innerHTML = origHtml; btn.disabled = false;
                                 }
@@ -174,14 +176,22 @@
                 },
                 getCurrentBase64: () => savedBase64Image,
                 load: function(name, jsonStr, base64) {
-                    savedBase64Image = base64; document.getElementById('canvas-placeholder').style.display = 'none';
-                    var data = {}; try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
-                    var tempImg = new Image();
-                    tempImg.onload = () => {
-                        var ratio = tempImg.height / tempImg.width; currentImgHeight = Math.round(2500 * ratio);
-                        canvas.setWidth(600); canvas.setHeight(600 * ratio);
-                        fabric.Image.fromURL(base64, (img) => { canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { scaleX: 600 / img.width, scaleY: (600 * ratio) / img.height }); this.importAreas(data.areas || [], 600 / 2500); });
-                    }; tempImg.src = base64;
+                    try {
+                        savedBase64Image = base64; 
+                        document.getElementById('canvas-placeholder').style.display = 'none';
+                        var data = {}; try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
+                        var tempImg = new Image();
+                        tempImg.onload = () => {
+                            var ratio = tempImg.height / tempImg.width; currentImgHeight = Math.round(2500 * ratio);
+                            canvas.setWidth(600); canvas.setHeight(600 * ratio);
+                            fabric.Image.fromURL(base64, (img) => { canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { scaleX: 600 / img.width, scaleY: (600 * ratio) / img.height }); this.importAreas(data.areas || [], 600 / 2500); });
+                        }; 
+                        tempImg.onerror = () => { alert('載入底圖失敗，格式可能有誤或網址失效'); };
+                        tempImg.src = base64;
+                    } catch (err) {
+                        alert('載入選單發生錯誤');
+                        console.error(err);
+                    }
                 },
                 bindEvents: function() {
                     canvas.on('mouse:down', (o) => { if (!isDrawingMode || canvas.findTarget(o.e)) return; isMouseDown = true; var pointer = canvas.getPointer(o.e); startX = pointer.x; startY = pointer.y; currentRect = new fabric.Rect({ left: startX, top: startY, width: 0, height: 0, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1 }); currentRect.action = { type: 'message', text: '' }; canvas.add(currentRect); });
@@ -265,8 +275,8 @@
                     
                     try {
                         const data = await ApiHelper.call('DEPLOY_RICH_MENU', { 
-                            menuObject: menuObj, 
-                            image: savedBase64Image 
+                            richMenuObj: menuObj, // 修正 payload 屬性名
+                            imageBase64: savedBase64Image 
                         }); 
                         if(data) {
                             alert('✅ 部署成功！請至 LINE 官方帳號查看最新選單。'); 
@@ -287,13 +297,60 @@
             return {
                 toggleDrawer: function() { const d = document.getElementById('right-drawer'); const o = document.getElementById('right-drawer-overlay'); if (d.classList.contains('translate-x-full')) { d.classList.remove('translate-x-full'); o.classList.remove('hidden'); this.renderList(); } else { d.classList.add('translate-x-full'); o.classList.add('hidden'); } },
                 saveCurrent: function(isNew) {
-                    const base64 = MenuModule.getCurrentBase64(); if(!base64) return alert('請先載入圖片');
-                    const saves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); const json = JSON.parse(document.getElementById('json-output').value); const name = document.getElementById('save-filename').value;
-                    if (isNew || !currentId) { const newId = Date.now().toString(); saves.unshift({ id: newId, name: name, date: new Date().toLocaleString(), data: json, image: base64 }); currentId = newId; }
-                    else { const idx = saves.findIndex(x => x.id === currentId); if (idx > -1) saves[idx] = { id: currentId, name: name, date: new Date().toLocaleString(), data: json, image: base64 }; }
-                    localStorage.setItem('rich_menu_saves', JSON.stringify(saves.slice(0, 15))); this.renderList(); alert('儲存成功');
+                    const base64 = MenuModule.getCurrentBase64(); 
+                    if(!base64) return alert('請先載入圖片');
+                    
+                    let saves = [];
+                    try { saves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); } catch(e) {}
+                    
+                    let json = {};
+                    try { json = JSON.parse(document.getElementById('json-output').value); } catch(e) {}
+                    
+                    const name = document.getElementById('save-filename').value;
+                    
+                    if (isNew || !currentId) { 
+                        const newId = Date.now().toString(); 
+                        saves.unshift({ id: newId, name: name, date: new Date().toLocaleString(), data: json, image: base64 }); 
+                        currentId = newId; 
+                    } else { 
+                        const idx = saves.findIndex(x => x.id === currentId); 
+                        if (idx > -1) saves[idx] = { id: currentId, name: name, date: new Date().toLocaleString(), data: json, image: base64 }; 
+                    }
+
+                    // ✅ 防爆容量機制：嘗試儲存，若空間不足則拋棄最舊的再試，最多保留 5 筆
+                    let success = false;
+                    while(!success && saves.length > 0) {
+                        try {
+                            localStorage.setItem('rich_menu_saves', JSON.stringify(saves.slice(0, 5)));
+                            success = true;
+                        } catch(e) {
+                            if (saves.length > 1) {
+                                saves.pop(); // 丟棄最後一個
+                            } else {
+                                break; // 連一個都存不下
+                            }
+                        }
+                    }
+                    
+                    if(success) {
+                        this.renderList(); 
+                        alert('✅ 儲存成功');
+                    } else {
+                        alert('❌ 儲存失敗：瀏覽器空間嚴重不足');
+                    }
                 },
-                loadFromIndex: function(idx) { const item = currentSaves[idx]; if(!item) return; currentId = item.id; document.getElementById('save-filename').value = item.name; document.getElementById('rich-menu-chatbar').value = item.data.chatBarText || "選單"; MenuModule.load(item.name, encodeURIComponent(JSON.stringify(item.data)), item.image); this.toggleDrawer(); },
+                loadFromIndex: function(idx) { 
+                    try {
+                        const item = currentSaves[idx]; if(!item) return; 
+                        currentId = item.id; 
+                        document.getElementById('save-filename').value = item.name; 
+                        document.getElementById('rich-menu-chatbar').value = item.data?.chatBarText || "選單"; 
+                        MenuModule.load(item.name, encodeURIComponent(JSON.stringify(item.data)), item.image); 
+                        this.toggleDrawer();
+                    } catch(e) {
+                        alert('❌ 載入失敗，檔案可能已損毀');
+                    }
+                },
                 deleteFromIndex: function(idx) { if(!confirm('確定永久刪除此選單紀錄？')) return; const saves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); saves.splice(idx, 1); localStorage.setItem('rich_menu_saves', JSON.stringify(saves)); this.renderList(); },
                 renderList: function() {
                     currentSaves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); const container = document.getElementById('saved-files-list');
@@ -307,7 +364,8 @@
                     `).join('');
                 }
             };
-        })(); MenuModule.init();
+        })(); 
+        MenuModule.init();
     </script>
 </body>
 </html>
