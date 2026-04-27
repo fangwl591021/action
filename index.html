@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.27.V222_Payment_Bug_Fixed -->
+    <!-- Version: 2026.04.27.V224_Payment_Method_Selection -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -135,14 +135,21 @@
                                 <div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="o.status==='PAID'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'">{{ o.status==='PAID'?'已付款':(o.status==='CANCELLED'?'已取消':'待付款') }}</div>
                             </div>
                             <div class="native-title">{{ getCourseName(o.courseId).split('\n')[0] }}</div>
-                            <div class="text-[#06C755] font-black text-[18px] mb-4">$ {{ formatPrice(o.amount) }}</div>
+                            <div class="text-[#06C755] font-black text-[18px] mb-3">$ {{ formatPrice(o.amount) }}</div>
+                            
+                            <!-- 顯示訂單備註 (紅包折抵或後續寫入資訊) -->
+                            <div v-if="o.note" class="text-[13px] text-slate-500 font-bold bg-slate-50 p-3 rounded-lg mb-3 border border-slate-100 leading-relaxed">
+                                <i class="fas fa-info-circle mr-1.5 text-slate-400"></i>{{ o.note }}
+                            </div>
                             
                             <!-- 待付款狀態：顯示線上付款與轉帳按鈕 -->
                             <div v-if="o.status === 'PENDING'" class="flex gap-2 border-t pt-3">
-                                <button @click="payOrder(o)" :disabled="isLoading" class="flex-1 py-3 rounded-lg bg-[#06C755] text-white text-[13px] font-bold active:scale-95 transition flex justify-center items-center">
-                                    <i class="fas fa-credit-card mr-1.5"></i>信用卡付款
+                                <button @click="payOrder(o)" :disabled="isLoading" class="flex-1 py-3 rounded-lg bg-[#06C755] text-white text-[13px] font-bold active:scale-95 transition flex justify-center items-center shadow-sm">
+                                    <i class="fas fa-credit-card mr-1.5"></i>線上刷卡
                                 </button>
-                                <button @click="openRemittanceModal(o)" class="flex-1 py-3 rounded-lg bg-[#111111] text-white text-[13px] font-bold active:scale-95 transition">轉帳回報</button>
+                                <button @click="openRemittanceModal(o)" class="flex-1 py-3 rounded-lg bg-[#111111] text-white text-[13px] font-bold active:scale-95 transition shadow-sm">
+                                    <i class="fas fa-university mr-1.5"></i>轉帳回報
+                                </button>
                             </div>
                         </div>
                         <div v-if="myOrders.length === 0" class="text-center py-12 text-[#AAAAAA] font-bold">
@@ -197,7 +204,7 @@
                             </div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="editForm.birthday" class="native-input border border-slate-200 bg-white"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="editForm.phone" class="native-input font-mono border border-slate-200 bg-white" placeholder="09xxxxxxxx"></div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="您的職業或專長"></div>
+                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="例如：行銷、教育"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="editForm.address" class="native-input border border-slate-200 bg-white" placeholder="寄送實體資料使用"></div>
                             
                             <div class="pt-6"><button @click="saveProfileUpdate" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存變更</button></div>
@@ -216,7 +223,7 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- 📖 課程詳細介紹頁面 (全版子畫面) -->
+        <!-- 📖 課程詳細介紹頁面 (全版子畫面) 包含結帳試算 -->
         <!-- ========================================================== -->
         <transition name="slide-up">
             <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-0 bg-white z-[60] flex flex-col overflow-hidden">
@@ -257,6 +264,49 @@
                             </div>
                         </div>
 
+                        <!-- ✅ 結帳試算區塊 -->
+                        <div class="mt-8 border-t border-slate-100 pt-6" v-if="selectedCourse.price > 0">
+                            <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-calculator text-[#06C755]"></i>結帳試算</h3>
+                            <div class="bg-[#F8F9FA] rounded-2xl p-5 space-y-3 border border-[#EEEEEE]">
+                                <div class="flex justify-between items-center text-[15px] font-bold text-slate-600">
+                                    <span>課程定價</span>
+                                    <span>$ {{ formatPrice(selectedCourse.price) }}</span>
+                                </div>
+                                <div v-if="pointsToUse > 0" class="flex justify-between items-center text-[15px] font-bold text-red-500">
+                                    <span>紅包折抵 <span class="text-xs ml-1">({{ selectedCourse.discountRule === 'RULE_A' ? '上限20%' : (selectedCourse.discountRule === 'RULE_B' ? '上限50%' : '全額') }})</span></span>
+                                    <span>- {{ formatPrice(pointsToUse) }} 點</span>
+                                </div>
+                                <div class="pt-3 border-t border-[#EEEEEE] flex justify-between items-center text-[18px] font-black text-[#111111]">
+                                    <span>實際應付</span>
+                                    <span class="text-[#06C755]">$ {{ formatPrice(finalPrice) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- ✅ 付款方式選擇區塊 -->
+                        <div class="mt-6 border-t border-slate-100 pt-6" v-if="finalPrice > 0">
+                            <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-wallet text-[#06C755]"></i>選擇付款方式</h3>
+                            <div class="flex gap-3">
+                                <button v-if="selectedCourse.paymentMethod === 'ALL' || selectedCourse.paymentMethod === 'NEWEBPAY'"
+                                        @click="paymentMethod = 'NEWEBPAY'"
+                                        class="flex-1 py-4 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center justify-center gap-2"
+                                        :class="paymentMethod === 'NEWEBPAY' ? 'border-[#06C755] bg-green-50 text-[#06C755]' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'">
+                                    <i class="fas fa-credit-card text-2xl block"></i>線上刷卡
+                                </button>
+                                <button v-if="selectedCourse.paymentMethod === 'ALL' || selectedCourse.paymentMethod === 'REMITTANCE'"
+                                        @click="paymentMethod = 'REMITTANCE'"
+                                        class="flex-1 py-4 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center justify-center gap-2"
+                                        :class="paymentMethod === 'REMITTANCE' ? 'border-[#06C755] bg-green-50 text-[#06C755]' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'">
+                                    <i class="fas fa-university text-2xl block"></i>銀行匯款
+                                </button>
+                            </div>
+                            
+                            <div v-if="paymentMethod === 'REMITTANCE'" class="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-[13px] text-slate-600 font-medium leading-relaxed animate-fade-in">
+                                <p class="font-bold text-slate-800 mb-1"><i class="fas fa-info-circle mr-1 text-[#06C755]"></i>匯款注意事項：</p>
+                                <p>請將款項匯至官方指定帳戶。完成匯款後，請至「報名紀錄」中點擊【轉帳回報】填寫帳號末 5 碼，以便為您加速對帳。</p>
+                            </div>
+                        </div>
+
                         <div class="mt-8 border-t border-slate-100 pt-8">
                             <h3 class="text-[17px] font-black text-[#111111] mb-5 flex items-center gap-2"><i class="fas fa-align-left text-[#06C755]"></i>詳細內容與權益</h3>
                             <div class="text-[15px] text-slate-600 leading-loose whitespace-pre-wrap font-medium">
@@ -270,7 +320,7 @@
                 <div class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-100 p-5 pb-[max(env(safe-area-inset-bottom),20px)] z-[70] shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
                     <button @click="executeBooking" :disabled="isLoading || !selectedCourse.isRegistrationOpen || (selectedCourse.capacity > 0 && selectedCourse.enrolled >= selectedCourse.capacity)" class="btn-primary w-full py-4 text-lg shadow-lg shadow-green-100/50">
                         <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>
-                        {{ !selectedCourse.isRegistrationOpen ? '本梯次暫停報名' : (selectedCourse.capacity > 0 && selectedCourse.enrolled >= selectedCourse.capacity ? '名額已滿' : '立即報名付款') }}
+                        {{ !selectedCourse.isRegistrationOpen ? '本梯次暫停報名' : (selectedCourse.capacity > 0 && selectedCourse.enrolled >= selectedCourse.capacity ? '名額已滿' : `確認結帳 ($${formatPrice(finalPrice)})`) }}
                     </button>
                 </div>
             </div>
@@ -299,13 +349,34 @@
             </div>
         </div>
 
+        <!-- ========================================================== -->
+        <!-- 💰 轉帳完成回報 (Bottom Sheet) -->
+        <!-- ========================================================== -->
+        <transition name="slide-up">
+            <div v-if="showRemittanceModal" class="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm">
+                <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-[max(env(safe-area-inset-bottom),24px)] transform transition-transform" @click.stop>
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-[19px] font-black text-[#111111]">轉帳完成回報</h3>
+                        <button @click="showRemittanceModal = false" class="w-8 h-8 bg-[#F4F5F7] rounded-full text-slate-400 flex items-center justify-center active:scale-90 transition"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="mb-6">
+                        <p class="text-[14px] text-slate-500 font-bold mb-4">請輸入您匯款帳號的<span class="text-[#06C755]">最後 5 碼</span>，以便財務加速為您對帳：</p>
+                        <input type="text" v-model="remittanceInput" maxlength="5" pattern="\d*" class="native-input text-center text-4xl font-mono py-6 tracking-widest bg-slate-50 border border-slate-200" placeholder="12345">
+                    </div>
+                    <button @click="submitRemittance" :disabled="isLoading" class="btn-primary py-4 shadow-lg shadow-green-100">
+                        <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認送出回報
+                    </button>
+                </div>
+            </div>
+        </transition>
+
     </div>
 
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        // ⚠️ 強制更新 Cache Version，打破舊快取
-        const CACHE_VERSION = 'v222';
+        // ⚠️ 強制更新 Cache Version
+        const CACHE_VERSION = 'v224';
 
         createApp({
             setup() {
@@ -324,6 +395,7 @@
                 const activeCategory = ref('一般');
 
                 const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null);
+                const paymentMethod = ref('NEWEBPAY'); // 結帳選擇的付款方式
 
                 const callApi = async (act, pl = {}, silent = false) => {
                     try {
@@ -417,14 +489,13 @@
                     if (res) { alert(`🎁 領取紅包成功！獲得 ${res.earned} 點`); window.location.reload(); }
                 };
 
-                // 🌟 動態將 WORKER_URL 傳遞給後端，解決無法跳轉問題
                 const initiatePayment = async (orderId, amount, courseName) => {
                     const payRes = await callApi('GET_PAYMENT_PAYLOAD', {
                         orderId: orderId,
                         amount: amount,
                         courseName: courseName,
                         email: userStatus.value.info?.email || 'user@example.com',
-                        workerUrl: WORKER_URL // ✅ 動態傳遞 Worker 網址，解決金流參數崩潰
+                        workerUrl: WORKER_URL 
                     });
 
                     if (payRes && payRes.GatewayUrl) {
@@ -457,26 +528,67 @@
                     }
                 };
 
+                // ✅ 結帳前點數試算邏輯
+                const pointsToUse = computed(() => {
+                    if (!selectedCourse.value || !userPoints.value) return 0;
+                    const price = Number(selectedCourse.value.price) || 0;
+                    const bal = Number(userPoints.value.balance) || 0;
+                    let maxDeduction = 0;
+                    
+                    if (selectedCourse.value.discountRule === 'RULE_A') maxDeduction = price * 0.2;
+                    else if (selectedCourse.value.discountRule === 'RULE_B') maxDeduction = price * 0.5;
+                    else if (selectedCourse.value.discountRule === 'RULE_C') maxDeduction = price;
+                    
+                    return Math.min(bal, Math.floor(maxDeduction));
+                });
+
+                const finalPrice = computed(() => {
+                    if (!selectedCourse.value) return 0;
+                    const price = Number(selectedCourse.value.price) || 0;
+                    return Math.max(0, price - pointsToUse.value);
+                });
+
                 const executeBooking = async () => {
                     if (!userStatus.value.registered) { view.value = 'register'; return; }
-                    if (!confirm(`確定要報名「${selectedCourse.value.name.split('\n')[0]}」嗎？\n系統將為您產生訂單。`)) return;
+                    
+                    const paymentName = paymentMethod.value === 'NEWEBPAY' ? '線上刷卡' : '銀行匯款';
+                    const confirmMsg = pointsToUse.value > 0 
+                        ? `確定使用 ${pointsToUse.value} 點紅包，並以「${paymentName}」結帳 $${finalPrice.value} 嗎？`
+                        : `確定以「${paymentName}」結帳 $${finalPrice.value} 嗎？`;
+                        
+                    if (!confirm(confirmMsg)) return;
                     
                     isLoading.value = true;
-                    // 1. 建立訂單
-                    const res = await callApi('REGISTER', { courseId: selectedCourse.value.id, amount: selectedCourse.value.price });
+
+                    if (pointsToUse.value > 0) {
+                        await callApi('ADMIN_MANAGE_POINTS', { 
+                            uid: liffProfile.value.userId, 
+                            type: 'SYSTEM_SPEND', 
+                            amount: pointsToUse.value, 
+                            reason: `報名折抵: ${selectedCourse.value.name.split('\n')[0]}`, 
+                            operator: 'System' 
+                        }, true);
+                    }
+
+                    const noteText = pointsToUse.value > 0 ? `紅包折抵 ${pointsToUse.value} 點` : '';
+                    const res = await callApi('REGISTER', { 
+                        courseId: selectedCourse.value.id, 
+                        amount: finalPrice.value,
+                        note: noteText
+                    });
                     
                     if (res && res.orderId) {
-                        const finalAmount = Number(selectedCourse.value.price) || 0;
-                        
-                        // 2. 如果金額 > 0，發起金流跳轉
-                        if (finalAmount > 0) {
-                            await initiatePayment(res.orderId, finalAmount, selectedCourse.value.name.split('\n')[0]);
-                            return; // 終止後續，等待網頁跳轉
+                        if (finalPrice.value > 0) {
+                            if (paymentMethod.value === 'NEWEBPAY') {
+                                await initiatePayment(res.orderId, finalPrice.value, selectedCourse.value.name.split('\n')[0]);
+                                return; 
+                            } else {
+                                alert('✅ 報名單已建立！請記得匯款，並至「報名紀錄」回報帳號後五碼。');
+                            }
                         } else {
                             alert('✅ 免費/全額折抵報名成功！請至「報名紀錄」查看。');
                         }
                         
-                        // 3. (金額為 0) 刷新訂單頁面
                         view.value = 'orders';
                         const oData = await callApi('GET_USER_ORDERS', {}, true);
                         if (oData) myOrders.value = oData;
@@ -493,15 +605,44 @@
                     await initiatePayment(o.orderId, amt, courseName);
                 };
 
+                // 🌟 匯款回報執行
+                const submitRemittance = async () => {
+                    const digits = remittanceInput.value.replace(/\D/g, '');
+                    if (digits.length !== 5) { alert('請輸入完整的 5 碼數字'); return; }
+                    
+                    isLoading.value = true;
+                    const res = await callApi('UPDATE_MY_ORDER', {
+                        orderId: currentOrderForRemit.value.orderId,
+                        userId: liffProfile.value.userId,
+                        remittance: digits
+                    });
+                    
+                    if (res && res.success) {
+                        alert('✅ 回報成功！我們將盡快為您對帳。');
+                        showRemittanceModal.value = false;
+                        const oData = await callApi('GET_USER_ORDERS', {}, true);
+                        if (oData) myOrders.value = oData;
+                    } else {
+                        alert('回報失敗，請稍後再試。');
+                    }
+                    isLoading.value = false;
+                };
+
                 onMounted(() => { initApp(); });
 
                 return { 
-                    isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceModal, remittanceInput, currentOrderForRemit,
+                    isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
                     isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
-                    openCourseDetail: (c) => { selectedCourse.value = c; view.value = 'courseDetail'; window.scrollTo(0,0); },
-                    executeBooking,
+                    openCourseDetail: (c) => { 
+                        selectedCourse.value = c; 
+                        paymentMethod.value = (c.paymentMethod === 'REMITTANCE') ? 'REMITTANCE' : 'NEWEBPAY';
+                        view.value = 'courseDetail'; 
+                        window.scrollTo(0,0); 
+                    },
+                    pointsToUse, finalPrice, executeBooking,
                     payOrder, 
-                    openRemittanceModal: (o) => { alert('請聯絡客服提供轉帳證明。'); }, 
+                    openRemittanceModal: (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; }, 
+                    submitRemittance,
                     navigateTo, dailyCheckin, submitRegistration,
                     formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(),
                     getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
