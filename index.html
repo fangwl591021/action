@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.26.V235_Remove_Empty_Member_Label -->
+    <!-- Version: 2026.04.20.V221_Payment_Gateway_Linked -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -60,13 +60,12 @@
                 </div>
                 <div class="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
                 <div class="text-white/90 font-bold text-xs mt-6 tracking-widest">{{ loadingText }}</div>
-                <div v-if="debugId" class="text-white/40 text-[10px] mt-2 font-mono">LIFF ID: {{ debugId }}</div>
                 <button v-if="hasInitError" @click="retryInit" class="mt-8 px-6 py-2 bg-white/20 border border-white/40 rounded-full text-white text-sm font-bold active:scale-95 transition">重新嘗試連線</button>
             </div>
         </transition>
 
         <!-- 🏠 主系統架構 -->
-        <div v-if="view !== 'register' && view !== 'courseDetail' && !isGlobalLoading" class="flex flex-col h-screen overflow-hidden">
+        <div v-if="view !== 'register' && view !== 'courseDetail'" class="flex flex-col h-screen overflow-hidden">
             
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
@@ -74,9 +73,9 @@
                 <div v-if="view === 'home'" class="animate-fade-in relative">
                     <div class="header-fixed">
                         <div class="font-black text-[#111111] text-[19px] tracking-tight">人生ACTION</div>
-                        <div @click="navigateTo('profile')" class="w-9 h-9 rounded-full overflow-hidden bg-[#F4F5F7] border border-slate-100 cursor-pointer transition active:opacity-70 flex items-center justify-center">
+                        <div @click="navigateTo('profile')" class="w-9 h-9 rounded-full overflow-hidden bg-[#F4F5F7] border border-slate-100 cursor-pointer transition active:opacity-70">
                             <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
-                            <i v-else class="fas fa-user-astronaut text-[#DDE0E5] text-[24px]"></i>
+                            <i v-else class="fas fa-user-circle text-[#DDE0E5] text-[36px]"></i>
                         </div>
                     </div>
 
@@ -89,13 +88,13 @@
                         </div>
                     </div>
 
-                    <!-- 🗂️ 標籤導航 (已移除會員標籤) -->
-                    <div class="bg-white sticky top-[61px] z-20 border-b border-[#F0F0F0] py-2.5 shadow-sm">
+                    <!-- 🗂️ 5 個固定標籤導航 -->
+                    <div class="bg-white sticky top-[61px] z-20 border-b border-[#F0F0F0] py-3 shadow-sm">
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-2">
-                            <button v-for="cat in categories" :key="cat.val" @click="activeCategory = cat.val" 
-                                    class="shrink-0 px-4 py-1.5 rounded-full text-[12px] font-bold transition-all" 
-                                    :class="activeCategory === cat.val ? 'bg-[#111111] text-white shadow-md' : 'bg-[#F4F5F7] text-[#666666] hover:bg-[#EAECEF]'">
-                                {{ cat.label }}
+                            <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" 
+                                    class="shrink-0 px-5 py-2 rounded-full text-[14px] font-bold transition-all" 
+                                    :class="activeCategory === cat ? 'bg-[#111111] text-white shadow-md' : 'bg-[#F4F5F7] text-[#666666] hover:bg-[#EAECEF]'">
+                                {{ cat }}
                             </button>
                         </div>
                     </div>
@@ -110,9 +109,7 @@
                             <div class="p-4 flex-1 flex flex-col">
                                 <div class="flex-1">
                                     <span class="category-pill">{{ c.type || '一般' }}</span>
-                                    
                                     <div class="text-[15px] font-black text-[#111111] leading-snug mb-1 line-clamp-2">{{ c.name.split('\n')[0] }}</div>
-                                    
                                     <div v-if="c.name.includes('\n')" class="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mb-2 font-medium">
                                         {{ c.name.substring(c.name.indexOf('\n') + 1).trim() }}
                                     </div>
@@ -137,8 +134,16 @@
                                 <div class="text-[12px] font-mono font-bold text-[#AAAAAA]">{{ o.orderId }}</div>
                                 <div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="o.status==='PAID'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'">{{ o.status==='PAID'?'已付款':(o.status==='CANCELLED'?'已取消':'待付款') }}</div>
                             </div>
-                            <div class="native-title">{{ getCourseName(o.courseId) }}</div>
+                            <div class="native-title">{{ getCourseName(o.courseId).split('\n')[0] }}</div>
                             <div class="text-[#06C755] font-black text-[18px] mb-4">$ {{ formatPrice(o.amount) }}</div>
+                            
+                            <!-- 待付款狀態：顯示線上付款與轉帳按鈕 -->
+                            <div v-if="o.status === 'PENDING'" class="flex gap-2 border-t pt-3">
+                                <button @click="payOrder(o)" :disabled="isLoading" class="flex-1 py-3 rounded-lg bg-[#06C755] text-white text-[13px] font-bold active:scale-95 transition flex justify-center items-center">
+                                    <i class="fas fa-credit-card mr-1.5"></i>信用卡付款
+                                </button>
+                                <button @click="openRemittanceModal(o)" class="flex-1 py-3 rounded-lg bg-[#111111] text-white text-[13px] font-bold active:scale-95 transition">轉帳回報</button>
+                            </div>
                         </div>
                         <div v-if="myOrders.length === 0" class="text-center py-12 text-[#AAAAAA] font-bold">
                             目前還沒有報名任何課程
@@ -155,9 +160,8 @@
                     </div>
                     
                     <div class="p-6 text-center border-b border-slate-50">
-                        <div class="w-20 h-20 rounded-full mx-auto mb-3 overflow-hidden border-2 border-[#06C755] p-0.5 flex items-center justify-center bg-slate-50">
+                        <div class="w-20 h-20 rounded-full mx-auto mb-3 overflow-hidden border-2 border-[#06C755] p-0.5">
                              <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover rounded-full">
-                             <i v-else class="fas fa-user-astronaut text-[#DDE0E5] text-[40px]"></i>
                         </div>
                         <div class="font-black text-xl">{{ liffProfile.displayName }}</div>
                         <div class="text-xs text-slate-400 mt-1 font-mono uppercase tracking-tighter">UID: {{ liffProfile.userId }}</div>
@@ -172,11 +176,11 @@
                         </div>
                         
                         <div v-if="!isEditingProfile" class="space-y-1 animate-fade-in">
-                            <div class="profile-row"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name || '未填寫' }}</span></div>
+                            <div class="profile-row"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div>
                             <div class="profile-row"><span class="profile-label">目前等級</span><span class="profile-value text-[#06C755] bg-green-50 px-2 py-0.5 rounded">{{ userStatus.info?.memberTier || '一般會員' }}</span></div>
                             <div class="profile-row"><span class="profile-label">性別</span><span class="profile-value">{{ userStatus.info?.gender || '未填寫' }}</span></div>
                             <div class="profile-row"><span class="profile-label">出生年月日</span><span class="profile-value font-mono">{{ userStatus.info?.birthday || '未填寫' }}</span></div>
-                            <div class="profile-row"><span class="profile-label">聯絡手機</span><span class="profile-value font-mono">{{ userStatus.info?.phone || '未填寫' }}</span></div>
+                            <div class="profile-row"><span class="profile-label">聯絡手機</span><span class="profile-value font-mono">{{ userStatus.info?.phone }}</span></div>
                             <div class="profile-row"><span class="profile-label">業種</span><span class="profile-value">{{ userStatus.info?.industry || '未填寫' }}</span></div>
                             <div class="profile-row flex-col !items-start gap-2"><span class="profile-label">收件地址</span><span class="profile-value text-sm text-left leading-relaxed">{{ userStatus.info?.address || '未填寫' }}</span></div>
                         </div>
@@ -185,11 +189,11 @@
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">真實姓名</label><input type="text" v-model="editForm.name" class="native-input border border-slate-200 bg-white" placeholder="請輸入真實姓名"></div>
                             <div>
                                 <label class="text-xs font-bold text-slate-400 mb-1.5 block">性別</label>
-                                <select v-model="editForm.gender" class="native-input border border-slate-200 bg-white">
+                                <select v-model="editForm.gender" class="native-input bg-white border border-slate-200">
                                     <option value="">請選擇</option><option value="男">男</option><option value="女">女</option>
                                 </select>
                             </div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="editForm.birthday" class="native-input border border-slate-200 bg-white"></div>
+                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="editForm.birthday" class="native-input bg-white border border-slate-200"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="editForm.phone" class="native-input font-mono border border-slate-200 bg-white" placeholder="09xxxxxxxx"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="例如：行銷、教育"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="editForm.address" class="native-input border border-slate-200 bg-white" placeholder="寄送實體資料使用"></div>
@@ -201,6 +205,7 @@
 
             </main>
 
+            <!-- 底部固定導覽列 -->
             <nav class="bottom-nav">
                 <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home' || view === 'courseDetail'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
@@ -208,10 +213,11 @@
             </nav>
         </div>
 
-        <!-- 📖 課程詳細介紹頁面 (全版子畫面) -->
+        <!-- ========================================================== -->
+        <!-- 📖 課程詳細介紹頁面 -->
+        <!-- ========================================================== -->
         <transition name="slide-up">
             <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-0 bg-white z-[60] flex flex-col overflow-hidden">
-                
                 <div class="absolute top-0 left-0 w-full z-50 flex justify-between items-center p-4 pt-[max(env(safe-area-inset-top),16px)] bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
                     <button @click="view = 'home'" class="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto active:scale-90 transition shadow-sm"><i class="fas fa-arrow-left"></i></button>
                 </div>
@@ -226,15 +232,31 @@
                         <div class="inline-block px-3 py-1 bg-green-50 text-[#06C755] text-xs font-bold rounded-md mb-4 border border-green-100">{{ selectedCourse.type || '一般' }}</div>
                         <h1 class="text-2xl font-black text-slate-800 mb-3 leading-snug">{{ selectedCourse.name.split('\n')[0] }}</h1>
                         <div class="text-3xl font-black text-[#06C755] mb-8">{{ selectedCourse.priceText || ('$' + formatPrice(selectedCourse.price)) }}</div>
+                        
                         <div class="bg-[#F8F9FA] rounded-2xl p-5 space-y-4 border border-[#EEEEEE]">
-                            <div v-if="selectedCourse.timeSlotType" class="flex gap-4"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm"><i class="far fa-clock"></i></div><div><div class="text-xs text-slate-400 font-bold mb-0.5">時段說明</div><div class="text-sm font-bold text-slate-700">{{ selectedCourse.timeSlotType }}</div></div></div>
-                            <div v-if="selectedCourse.startDate" class="flex gap-4"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm"><i class="far fa-calendar-alt"></i></div><div><div class="text-xs text-slate-400 font-bold mb-0.5">開課日期</div><div class="text-sm font-bold text-slate-700">{{ selectedCourse.startDate }} <span v-if="selectedCourse.endDate">~ {{ selectedCourse.endDate }}</span></div></div></div>
-                            <div v-if="selectedCourse.location" class="flex gap-4"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm"><i class="fas fa-map-marker-alt"></i></div><div><div class="text-xs text-slate-400 font-bold mb-0.5">上課地點</div><div class="text-sm font-bold text-slate-700">{{ selectedCourse.location }}</div></div></div>
-                            <div v-if="selectedCourse.instructor" class="flex gap-4"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm"><i class="fas fa-chalkboard-teacher"></i></div><div><div class="text-xs text-slate-400 font-bold mb-0.5">授課導師</div><div class="text-sm font-bold text-slate-700">{{ selectedCourse.instructor }}</div></div></div>
+                            <div v-if="selectedCourse.timeSlotType" class="flex gap-4">
+                                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm"><i class="far fa-clock"></i></div>
+                                <div><div class="text-xs text-slate-400 font-bold mb-0.5">時段說明</div><div class="text-sm font-bold text-slate-700">{{ selectedCourse.timeSlotType }}</div></div>
+                            </div>
+                            <div v-if="selectedCourse.startDate" class="flex gap-4">
+                                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm"><i class="far fa-calendar-alt"></i></div>
+                                <div><div class="text-xs text-slate-400 font-bold mb-0.5">開課日期</div><div class="text-sm font-bold text-slate-700">{{ selectedCourse.startDate }} <span v-if="selectedCourse.endDate">~ {{ selectedCourse.endDate }}</span></div></div>
+                            </div>
+                            <div v-if="selectedCourse.location" class="flex gap-4">
+                                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm"><i class="fas fa-map-marker-alt"></i></div>
+                                <div><div class="text-xs text-slate-400 font-bold mb-0.5">上課地點</div><div class="text-sm font-bold text-slate-700">{{ selectedCourse.location }}</div></div>
+                            </div>
+                            <div v-if="selectedCourse.instructor" class="flex gap-4">
+                                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm"><i class="fas fa-chalkboard-teacher"></i></div>
+                                <div><div class="text-xs text-slate-400 font-bold mb-0.5">授課導師</div><div class="text-sm font-bold text-slate-700">{{ selectedCourse.instructor }}</div></div>
+                            </div>
                         </div>
+
                         <div class="mt-8 border-t border-slate-100 pt-8">
                             <h3 class="text-[17px] font-black text-[#111111] mb-5 flex items-center gap-2"><i class="fas fa-align-left text-[#06C755]"></i>詳細內容與權益</h3>
-                            <div class="text-[15px] text-slate-600 leading-loose whitespace-pre-wrap font-medium">{{ selectedCourse.description ? selectedCourse.description : (selectedCourse.name.includes('\n') ? selectedCourse.name.substring(selectedCourse.name.indexOf('\n') + 1).trim() : '暫無詳細說明') }}</div>
+                            <div class="text-[15px] text-slate-600 leading-loose whitespace-pre-wrap font-medium">
+                                {{ selectedCourse.description ? selectedCourse.description : (selectedCourse.name.includes('\n') ? selectedCourse.name.substring(selectedCourse.name.indexOf('\n') + 1).trim() : '暫無詳細說明') }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -248,15 +270,14 @@
             </div>
         </transition>
 
-        <!-- 📝 新戶註冊引導 -->
+        <!-- ========================================================== -->
+        <!-- 📝 新戶註冊引導視圖 -->
+        <!-- ========================================================== -->
         <div v-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in">
             <div class="header-fixed justify-start gap-4 shadow-sm"><button @click="view = 'home'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h1 class="text-[19px] font-black">建立學員檔案</h1></div>
             <div class="flex-1 overflow-y-auto p-6 space-y-6 pb-32">
                 <div class="text-center mb-8">
-                    <div class="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden border border-slate-100 shadow-sm flex items-center justify-center bg-slate-50">
-                        <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
-                        <i v-else class="fas fa-user-astronaut text-[#DDE0E5] text-[40px]"></i>
-                    </div>
+                    <div class="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden border border-slate-100 shadow-sm"><img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover"></div>
                     <div class="font-black text-[#111111] text-xl">{{ liffProfile.displayName }}</div>
                     <p class="text-xs text-slate-400 mt-2">請完善您的真實資料，以便系統派發課表與通知</p>
                 </div>
@@ -277,38 +298,32 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v235_Remove_Empty_Member_Label';
+        const CACHE_VERSION = 'v221'; // 強制更新以避免快取問題
 
         createApp({
             setup() {
-                const isGlobalLoading = ref(true); const loadingText = ref('啟動系統中...'); 
-                const hasInitError = ref(false);
+                const isGlobalLoading = ref(true); const loadingText = ref('啟動系統中...'); const hasInitError = ref(false);
                 const view = ref('home'); const isLoading = ref(false);
                 const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null }); const userPoints = ref({ balance: 0 }); const sysSettings = ref({});
                 const courses = ref([]); const myOrders = ref([]); const selectedCourse = ref(null);
-                const debugId = ref('');
                 
                 const regForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 const isEditingProfile = ref(false);
                 const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 
-                // 🏷️ 標籤分類定義 (已移除「會員」標籤)
-                const predefinedCategories = [
-                    { val: 'ALL', label: '全部' },
-                    { val: '一般', label: '一般' },
-                    { val: '喚醒階段會員', label: '喚醒階段' },
-                    { val: '蛻變階段會員', label: '蛻變階段' },
-                    { val: '完整階段會員', label: '完整階段' }
-                ];
-                const activeCategory = ref('ALL');
+                const predefinedCategories = ['一般', '一般會員', '喚醒階段會員', '蛻變階段會員', '完整階段會員'];
+                const activeCategory = ref('一般');
+
+                const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null);
 
                 const callApi = async (act, pl = {}, silent = false) => {
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {} }) });
                         const json = await res.json(); 
                         if (json.status !== 'success') throw new Error(json.message); 
+                        if (act === 'GET_SETTINGS' && (!json.data || Object.keys(json.data).length === 0)) throw new Error("後端設定為空");
                         return json.data;
-                    } catch (e) { if(!silent) console.error("API Error: ", e); return null; }
+                    } catch (e) { if(!silent) alert("API Error: " + e.message); return null; }
                 };
 
                 const syncLocal = (uid) => {
@@ -323,55 +338,43 @@
                 };
 
                 const initApp = async () => {
-                    isGlobalLoading.value = true;
-                    loadingText.value = '執行安全清理...';
                     hasInitError.value = false;
                     try {
-                        Object.keys(localStorage).forEach(key => {
-                            if (key.includes('sets_') || key.includes('courses_') || key.includes('u_') || key.includes('p_')) {
-                                if (!key.includes(CACHE_VERSION)) localStorage.removeItem(key);
-                            }
-                        });
-
-                        const exactLiffId = '2009130603-RYWWBxUf';
-                        debugId.value = exactLiffId;
-                        loadingText.value = '呼叫 LINE 伺服器驗證...';
-                        try {
-                            await liff.init({ liffId: exactLiffId });
-                            if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
-                            liffProfile.value = await liff.getProfile();
-                        } catch (err) {
-                            console.warn("[VictoryTeam] LIFF 驗證失敗，切換模擬帳號", err);
-                            liffProfile.value = { userId: "U_MOCK_TEST_USER", displayName: "總監 (模擬預覽)", pictureUrl: "" };
+                        syncLocal(null);
+                        const rawSets = await callApi('GET_SETTINGS', {}, true);
+                        if (rawSets) {
+                            let sets = {}; Object.keys(rawSets).forEach(k => sets[k.toLowerCase()] = rawSets[k]);
+                            sysSettings.value = sets; localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets));
                         }
+                        const finalLiffId = sysSettings.value.liff_id;
+                        if (!finalLiffId) throw new Error('無法取得連線參數');
                         
-                        loadingText.value = '讀取個人與課程資料...';
+                        await liff.init({ liffId: finalLiffId });
+                        if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+                        
+                        liffProfile.value = await liff.getProfile();
                         const uid = liffProfile.value.userId;
-                        const [checkRes, cData, oData, pData, rawSets] = await Promise.all([
+                        syncLocal(uid);
+
+                        const [checkRes, cData, oData, pData] = await Promise.all([
                             callApi('CHECK_USER', {}, true),
                             callApi('GET_COURSES', {}, true),
                             callApi('GET_USER_ORDERS', {}, true),
-                            callApi('GET_USER_POINTS', {}, true),
-                            callApi('GET_SETTINGS', {}, true)
+                            callApi('GET_USER_POINTS', {}, true)
                         ]);
+
                         if (checkRes) userStatus.value = checkRes;
                         if (cData) courses.value = cData;
                         if (oData) myOrders.value = oData;
                         if (pData) userPoints.value = pData;
-                        if (rawSets) {
-                            let sets = {}; Object.keys(rawSets).forEach(k => sets[k.toLowerCase()] = rawSets[k]);
-                            sysSettings.value = sets;
+
+                        if (uid) {
+                            localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes));
+                            localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(pData));
+                            localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
                         }
-                        localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sysSettings.value));
-                        localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(userStatus.value));
-                        localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(userPoints.value));
-                        localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(courses.value));
                         isGlobalLoading.value = false;
-                    } catch (e) { 
-                        console.error("[VictoryTeam] 系統載入失敗:", e); 
-                        loadingText.value = "系統連線異常";
-                        hasInitError.value = true;
-                    }
+                    } catch (e) { console.error("Init Error", e); loadingText.value = "系統初始化失敗"; hasInitError.value = true; }
                 };
 
                 const navigateTo = (t) => {
@@ -405,37 +408,107 @@
                     if (res) { alert(`🎁 領取紅包成功！獲得 ${res.earned} 點`); window.location.reload(); }
                 };
 
+                // 🌟 新增：取得金流包並自動提交表單跳轉
+                const initiatePayment = async (orderId, amount, courseName) => {
+                    const payRes = await callApi('GET_PAYMENT_PAYLOAD', {
+                        orderId: orderId,
+                        amount: amount,
+                        courseName: courseName,
+                        email: userStatus.value.info?.email || 'user@example.com' // 如果沒有email預設帶入
+                    });
+
+                    if (payRes && payRes.GatewayUrl) {
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = payRes.GatewayUrl;
+                        form.style.display = 'none';
+
+                        const params = {
+                            MerchantID: payRes.MerchantID,
+                            TradeInfo: payRes.TradeInfo,
+                            TradeSha: payRes.TradeSha,
+                            Version: payRes.Version
+                        };
+
+                        for (const key in params) {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = key;
+                            input.value = params[key];
+                            form.appendChild(input);
+                        }
+
+                        document.body.appendChild(form);
+                        form.submit();
+                    } else {
+                        alert('無法取得金流參數，請稍後至「報名紀錄」重試付款。');
+                        isLoading.value = false;
+                        view.value = 'orders';
+                    }
+                };
+
                 const executeBooking = async () => {
                     if (!userStatus.value.registered) { view.value = 'register'; return; }
                     if (!confirm(`確定要報名「${selectedCourse.value.name.split('\n')[0]}」嗎？\n系統將為您產生訂單。`)) return;
+                    
                     isLoading.value = true;
+                    // 1. 建立訂單
                     const res = await callApi('REGISTER', { courseId: selectedCourse.value.id, amount: selectedCourse.value.price });
-                    if (res) {
-                        alert('✅ 報名成功！請至「報名紀錄」查看付款資訊。');
+                    
+                    if (res && res.orderId) {
+                        const finalAmount = Number(selectedCourse.value.price) || 0;
+                        
+                        // 2. 如果金額 > 0，發起金流跳轉
+                        if (finalAmount > 0) {
+                            await initiatePayment(res.orderId, finalAmount, selectedCourse.value.name.split('\n')[0]);
+                            return; // 終止後續，等待網頁跳轉
+                        } else {
+                            alert('✅ 免費/全額折抵報名成功！請至「報名紀錄」查看。');
+                        }
+                        
+                        // 3. (金額為 0) 刷新訂單頁面
                         view.value = 'orders';
                         const oData = await callApi('GET_USER_ORDERS', {}, true);
                         if (oData) myOrders.value = oData;
+                    } else {
+                        alert('報名失敗，請稍後再試。');
                     }
                     isLoading.value = false;
+                };
+
+                // 🌟 新增：在訂單列表點擊「補繳款」
+                const payOrder = async (o) => {
+                    isLoading.value = true;
+                    const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
+                    const courseName = getCourseName(o.courseId).split('\n')[0];
+                    await initiatePayment(o.orderId, amt, courseName);
                 };
 
                 onMounted(() => { initApp(); });
 
                 return { 
-                    isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm,
-                    isEditingProfile, editForm, startEditingProfile, saveProfileUpdate, debugId,
+                    isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceModal, remittanceInput, currentOrderForRemit,
+                    isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                     openCourseDetail: (c) => { selectedCourse.value = c; view.value = 'courseDetail'; window.scrollTo(0,0); },
-                    executeBooking, navigateTo, dailyCheckin, submitRegistration,
+                    executeBooking,
+                    payOrder, // 匯出 payOrder 給 HTML 按鈕使用
+                    openRemittanceModal: (o) => { alert('請聯絡客服提供轉帳證明。'); }, // 簡化轉帳邏輯
+                    navigateTo, dailyCheckin, submitRegistration,
                     formatPrice: (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString(),
                     getCourseName: (id) => courses.value.find(c => c.id === id || c.name === id)?.name || id,
+                    
                     categories: predefinedCategories,
                     activeCategory,
                     filteredCourses: computed(() => {
                         return courses.value.filter(c => {
                             if (c.isPublished === false) return false;
-                            if (activeCategory.value === 'ALL') return true;
-                            if (activeCategory.value === '一般') return !c.type || c.type === '一般';
-                            return c.type === activeCategory.value;
+                            const searchTarget = (c.name || '') + ' ' + (c.type || '');
+                            if (activeCategory.value === '一般') {
+                                return !['一般會員', '喚醒階段', '蛻變階段', '完整階段'].some(k => searchTarget.includes(k));
+                            } else {
+                                const key = activeCategory.value.replace('會員', ''); 
+                                return searchTarget.includes(key);
+                            }
                         });
                     })
                 };
