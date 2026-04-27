@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.27.V228_Payment_Buttons_Failsafe -->
+    <!-- Version: 2026.04.27.V229_Enhanced_Error_Catching -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -138,7 +138,7 @@
                             <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">$ {{ formatPrice(o.amount) }}</div>
                             
                             <!-- 顯示訂單備註 -->
-                            <div v-if="o.note" class="text-[13px] text-slate-500 font-bold bg-slate-50 p-3 rounded-lg mb-3 border border-slate-100 leading-relaxed">
+                            <div v-if="o.note" class="text-[13px] text-slate-500 font-bold bg-slate-50 p-3 rounded-lg mb-3 border border-slate-100 leading-relaxed whitespace-pre-wrap">
                                 <i class="fas fa-info-circle mr-1.5 text-slate-400"></i>{{ o.note }}
                             </div>
                             
@@ -152,7 +152,7 @@
                                 </button>
                             </div>
                             
-                            <!-- 取消訂單 -->
+                            <!-- 取消訂單開關判斷 -->
                             <div v-if="o.status === 'PENDING' && sysSettings.allow_cancel_order === 'true'" class="mt-3 text-center">
                                 <button @click="cancelOrder(o)" :disabled="isLoading" class="text-xs font-bold text-slate-400 underline py-1 hover:text-slate-600 transition">取消報名這堂課</button>
                             </div>
@@ -293,7 +293,7 @@
                             </div>
                         </div>
                         
-                        <!-- ✅ 付款方式選擇區塊 (加強防呆，如果沒設定一律顯示雙按鈕) -->
+                        <!-- ✅ 付款方式選擇區塊 -->
                         <div class="mt-6 border-t border-slate-100 pt-6" v-if="finalPrice > 0">
                             <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-wallet text-[#06C755]"></i>選擇付款方式</h3>
                             <div class="flex gap-3">
@@ -413,7 +413,7 @@
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
         // ⚠️ 強制更新 Cache Version 破解舊資料缺漏的 bug
-        const CACHE_VERSION = 'v228';
+        const CACHE_VERSION = 'v229';
 
         createApp({
             setup() {
@@ -439,10 +439,10 @@
                     try {
                         const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {} }) });
                         const json = await res.json(); 
-                        if (json.status !== 'success') throw new Error(json.message); 
+                        if (json.status !== 'success') throw new Error(json.message || `後端路由未開通：${act}`); 
                         if (act === 'GET_SETTINGS' && (!json.data || Object.keys(json.data).length === 0)) throw new Error("後端設定為空");
                         return json.data;
-                    } catch (e) { if(!silent) alert("API Error: " + e.message); return null; }
+                    } catch (e) { if(!silent) alert("API Error: " + (e.message || "伺服器無回應")); return null; }
                 };
 
                 const syncLocal = (uid) => {
@@ -566,7 +566,6 @@
                     }
                 };
 
-                // ✅ 結帳前點數試算邏輯
                 const pointsToUse = computed(() => {
                     if (!selectedCourse.value || !userPoints.value) return 0;
                     const price = Number(selectedCourse.value.price) || 0;
@@ -586,7 +585,6 @@
                     return Math.max(0, price - pointsToUse.value);
                 });
 
-                // ✅ 動態產生結帳按鈕文字
                 const checkoutButtonText = computed(() => {
                     if (!selectedCourse.value) return '';
                     if (!selectedCourse.value.isRegistrationOpen) return '本梯次暫停報名';
@@ -636,7 +634,6 @@
                                 await initiatePayment(res.orderId, finalPrice.value, selectedCourse.value.name.split('\n')[0]);
                                 return; 
                             } else {
-                                // ✅ 匯款模式：開啟匯款資訊專屬彈窗
                                 showRemittanceInfoModal.value = true;
                                 isLoading.value = false;
                                 return; 
@@ -720,7 +717,6 @@
                     isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                     openCourseDetail: (c) => { 
                         selectedCourse.value = c; 
-                        // ✅ 防止 undefined 導致按鈕消失
                         const pm = c.paymentMethod || 'ALL'; 
                         paymentMethod.value = (pm === 'REMITTANCE') ? 'REMITTANCE' : 'NEWEBPAY';
                         view.value = 'courseDetail'; 
