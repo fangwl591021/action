@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.28.V250_Larger_Font_Sizes -->
+    <!-- Version: 2026.04.29.V251_Red_Envelope_And_Logs -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -72,7 +72,7 @@
                 <i class="fas fa-user-plus"></i>
             </div>
             <h2 class="text-3xl font-black text-slate-800 mb-4">還差最後一步！</h2>
-            <p class="text-[17px] text-slate-500 font-bold mb-12 leading-loose">為了能將專屬福氣、課表與系統通知<br>順利發送給您，請先加入官方帳號。</p>
+            <p class="text-[17px] text-slate-500 font-bold mb-12 leading-loose">為了能將專屬紅包、課表與系統通知<br>順利發送給您，請先加入官方帳號。</p>
             
             <a :href="sysSettings.link_lineoa || 'https://line.me/R/'" class="btn-primary py-5 w-full text-xl shadow-lg shadow-green-100 mb-8">
                 <i class="fab fa-line text-2xl mr-2"></i> 點此加入官方帳號
@@ -121,7 +121,6 @@
                     <!-- 📦 課程列表區塊 -->
                     <div class="px-5 mt-6 mb-12 grid grid-cols-2 gap-4">
                         <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm cursor-pointer">
-                            <!-- ✅ 強制裁切：設定 aspect-video 與 absolute inset-0，鎖死卡片圖片高度 -->
                             <div class="w-full aspect-video bg-[#F8F9FA] relative overflow-hidden border-b border-[#EEEEEE] shrink-0">
                                 <div class="absolute top-2 left-2 z-10">
                                     <span class="category-pill">{{ c.type || '一般' }}</span>
@@ -159,12 +158,10 @@
                             <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ (getCourseName(o.courseId) || '').split('\n')[0] }}</div>
                             <div class="text-[#06C755] font-black text-[20px] mb-4" :class="{'text-slate-300': o.status==='CANCELLED'}">$ {{ formatPrice(o.amount) }}</div>
                             
-                            <!-- 顯示訂單備註 -->
                             <div v-if="o.note" class="text-[15px] text-slate-500 font-bold bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100 leading-relaxed whitespace-pre-wrap">
                                 <i class="fas fa-info-circle mr-2 text-slate-400"></i>{{ o.note }}
                             </div>
                             
-                            <!-- 待付款狀態：顯示線上付款與轉帳按鈕 -->
                             <div v-if="o.status === 'PENDING'" class="flex gap-3 border-t border-slate-100 pt-4 mt-2">
                                 <button @click="payOrder(o)" :disabled="isLoading" class="flex-1 py-3.5 rounded-xl bg-[#06C755] text-white text-[15px] font-black active:scale-95 transition flex justify-center items-center shadow-sm">
                                     <i class="fas fa-credit-card mr-2"></i>線上刷卡
@@ -174,7 +171,6 @@
                                 </button>
                             </div>
                             
-                            <!-- 取消訂單開關判斷 -->
                             <div v-if="o.status === 'PENDING' && sysSettings.allow_cancel_order === 'true'" class="mt-4 text-center">
                                 <button @click="cancelOrder(o)" :disabled="isLoading" class="text-sm font-bold text-slate-400 underline py-2 hover:text-slate-600 transition">取消報名這堂課</button>
                             </div>
@@ -202,19 +198,44 @@
                     </div>
                     
                     <div class="p-6">
-                        <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-8 text-white shadow-lg mb-10 relative overflow-hidden">
-                            <div class="absolute right-0 top-0 opacity-10 text-9xl -mt-4 -mr-2"><i class="fas fa-gift"></i></div>
-                            <div class="text-[15px] text-slate-300 font-bold mb-2 relative z-10">福氣帳戶餘額</div>
+                        <!-- 🎁 紅包卡片 (換為漸層紅與紅包圖示) -->
+                        <div class="bg-gradient-to-br from-red-600 to-red-800 rounded-3xl p-8 text-white shadow-lg mb-8 relative overflow-hidden">
+                            <div class="absolute right-0 top-0 opacity-10 text-9xl -mt-4 -mr-2"><i class="fas fa-envelope-open-text"></i></div>
+                            <div class="text-[15px] text-red-200 font-bold mb-2 relative z-10">紅包帳戶餘額</div>
                             <div class="text-5xl font-black mb-6 relative z-10">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-lg font-medium">點</span></div>
                             
                             <div class="flex gap-3 relative z-10 mt-8">
                                 <button @click="dailyCheckin" class="flex-1 py-4 bg-white/20 hover:bg-white/30 rounded-2xl text-[15px] font-bold active:scale-95 transition border border-white/10 flex items-center justify-center gap-2"><i class="fas fa-calendar-check text-green-300 text-lg"></i>每日登入</button>
-                                <button @click="navigateTo('share')" class="flex-1 py-4 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-2xl text-[15px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-2"><i class="fas fa-share-alt text-lg"></i>共享福氣</button>
+                                <button @click="navigateTo('share')" class="flex-1 py-4 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-2xl text-[15px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-2"><i class="fas fa-share-alt text-lg"></i>邀請賺點</button>
+                            </div>
+                        </div>
+
+                        <!-- 💰 紅包明細紀錄 (全新區塊，讓使用者看到邀請分享的紀錄) -->
+                        <div v-if="!isEditingProfile" class="mb-10 animate-fade-in">
+                            <div class="flex justify-between items-center mb-4 px-2">
+                                <h3 class="text-[18px] font-black text-slate-800 flex items-center gap-2">
+                                    <i class="fas fa-list-ul text-[#06C755]"></i>紅包點數明細
+                                </h3>
+                            </div>
+                            <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                                <div v-for="log in userPoints.logs" :key="log.createdAt" class="p-5 border-b border-slate-50 last:border-0 flex justify-between items-center hover:bg-slate-50 transition">
+                                    <div>
+                                        <div class="font-bold text-[16px] text-slate-700 mb-1.5">{{ log.reason }}</div>
+                                        <div class="text-[13px] text-slate-400 font-mono">{{ log.createdAt }}</div>
+                                    </div>
+                                    <div class="font-black text-[18px]" :class="log.type.includes('ADD') || log.type.includes('EARN') ? 'text-[#06C755]' : 'text-slate-400'">
+                                        {{ log.type.includes('ADD') || log.type.includes('EARN') ? '+' : '-' }}{{ log.amount }}
+                                    </div>
+                                </div>
+                                <div v-if="!userPoints.logs || userPoints.logs.length === 0" class="p-8 text-center text-slate-400 text-sm font-bold bg-slate-50/50">
+                                    <i class="fas fa-box-open text-3xl mb-3 text-slate-300"></i><br>目前尚無紅包紀錄
+                                </div>
                             </div>
                         </div>
                         
-                        <div v-if="!isEditingProfile" class="space-y-2 animate-fade-in px-2">
-                            <div class="profile-row"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div>
+                        <!-- 📋 基本資料區 -->
+                        <div v-if="!isEditingProfile" class="space-y-2 animate-fade-in px-2 mt-4">
+                            <div class="profile-row border-t border-slate-100"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div>
                             <div class="profile-row"><span class="profile-label">目前等級</span><span class="profile-value text-[#06C755] bg-green-50 px-3 py-1 rounded-lg">{{ userStatus.info?.memberTier || '一般會員' }}</span></div>
                             <div class="profile-row"><span class="profile-label">性別</span><span class="profile-value">{{ userStatus.info?.gender || '未填寫' }}</span></div>
                             <div class="profile-row"><span class="profile-label">出生年月日</span><span class="profile-value font-mono">{{ userStatus.info?.birthday || '未填寫' }}</span></div>
@@ -223,7 +244,8 @@
                             <div class="profile-row flex-col !items-start gap-3"><span class="profile-label">收件地址</span><span class="profile-value text-[16px] text-left leading-loose">{{ userStatus.info?.address || '未填寫' }}</span></div>
                         </div>
 
-                        <div v-else class="space-y-6 animate-fade-in px-2">
+                        <!-- 編輯模式 -->
+                        <div v-else class="space-y-6 animate-fade-in px-2 mt-4">
                             <div><label class="text-[15px] font-bold text-slate-400 mb-2 block">真實姓名</label><input type="text" v-model="editForm.name" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="請輸入真實姓名"></div>
                             <div>
                                 <label class="text-[15px] font-bold text-slate-400 mb-2 block">性別</label>
@@ -267,14 +289,15 @@
             <div v-if="view === 'share'" class="fixed inset-0 bg-[#F4F5F7] z-[60] flex flex-col overflow-hidden">
                 <div class="header-fixed justify-start gap-4 z-50 shadow-sm bg-white py-5">
                     <button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-2xl"></i></button>
-                    <h2 class="text-[21px] font-black text-slate-800">邀請好友共享福氣</h2>
+                    <h2 class="text-[21px] font-black text-slate-800">邀請好友賺紅包</h2>
                 </div>
                 
                 <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center pb-40">
                     
                     <!-- 頂部名片 -->
                     <div class="w-full bg-white rounded-3xl p-8 border border-slate-100 text-center shadow-sm relative overflow-hidden mb-6 mt-2">
-                        <div class="absolute -right-4 -top-4 text-[#06C755]/5 text-9xl"><i class="fas fa-gift"></i></div>
+                        <!-- 紅包 Icon -->
+                        <div class="absolute -right-4 -top-4 text-red-500/5 text-9xl"><i class="fas fa-envelope-open-text"></i></div>
                         
                         <div class="w-20 h-20 rounded-full mx-auto mb-4 overflow-hidden border-[3px] border-white shadow-md relative z-10">
                              <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
@@ -309,9 +332,9 @@
                     <div class="w-full p-6 bg-white rounded-2xl border border-slate-100 text-[15px] text-slate-500 leading-loose font-medium shadow-sm mb-10">
                         <p class="font-bold text-slate-700 mb-3 text-base"><i class="fas fa-info-circle mr-2 text-[#06C755]"></i> 推薦獎勵說明：</p>
                         <ul class="list-disc pl-5 space-y-2">
-                            <li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得福氣點數。</li>
+                            <li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得紅包點數。</li>
                             <li>每成功邀請一位，您將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_refer || 0 }}</span> 點。</li>
-                            <li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新福氣。</li>
+                            <li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新紅包。</li>
                         </ul>
                     </div>
                 </div>
@@ -329,7 +352,6 @@
                 </div>
                 
                 <div class="flex-1 overflow-y-auto pb-40 hide-scrollbar">
-                    <!-- ✅ 內頁強制裁切，保持視覺一致性 -->
                     <div class="w-full aspect-video bg-slate-100 relative overflow-hidden">
                         <div class="absolute top-5 left-5 z-10">
                             <span class="category-pill !text-[14px] !px-4 !py-2">{{ selectedCourse.type || '一般' }}</span>
@@ -361,7 +383,6 @@
                             </div>
                         </div>
 
-                        <!-- 結帳試算區塊 -->
                         <div class="mt-10 border-t border-slate-100 pt-8" v-if="selectedCourse.price > 0">
                             <h3 class="text-[19px] font-black text-[#111111] mb-5 flex items-center gap-3"><i class="fas fa-calculator text-[#06C755] text-xl"></i>結帳試算</h3>
                             <div class="bg-[#F8F9FA] rounded-2xl p-6 space-y-4 border border-[#EEEEEE]">
@@ -370,7 +391,7 @@
                                     <span>$ {{ formatPrice(selectedCourse.price) }}</span>
                                 </div>
                                 <div v-if="pointsToUse > 0" class="flex justify-between items-center text-[17px] font-bold text-red-500">
-                                    <span>福氣點數折抵 <span class="text-sm ml-1">({{ selectedCourse.discountRule === 'RULE_A' ? '上限20%' : (selectedCourse.discountRule === 'RULE_B' ? '上限50%' : '全額') }})</span></span>
+                                    <span>紅包點數折抵 <span class="text-sm ml-1">({{ selectedCourse.discountRule === 'RULE_A' ? '上限20%' : (selectedCourse.discountRule === 'RULE_B' ? '上限50%' : '全額') }})</span></span>
                                     <span>- {{ formatPrice(pointsToUse) }} 點</span>
                                 </div>
                                 <div class="pt-4 border-t border-[#EEEEEE] flex justify-between items-center text-[21px] font-black text-[#111111] mt-2">
@@ -380,7 +401,6 @@
                             </div>
                         </div>
                         
-                        <!-- 付款方式選擇區塊 -->
                         <div class="mt-8 border-t border-slate-100 pt-8" v-if="finalPrice > 0">
                             <h3 class="text-[19px] font-black text-[#111111] mb-5 flex items-center gap-3"><i class="fas fa-wallet text-[#06C755] text-xl"></i>選擇付款方式</h3>
                             <div class="flex gap-4">
@@ -498,13 +518,13 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v250'; 
+        const CACHE_VERSION = 'v251'; 
 
         createApp({
             setup() {
                 const isGlobalLoading = ref(true); const loadingText = ref('啟動系統中...'); const hasInitError = ref(false);
                 const view = ref('home'); const isLoading = ref(false);
-                const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null, isAdmin: false }); const userPoints = ref({ balance: 0 }); const sysSettings = ref({});
+                const liffProfile = ref({}); const userStatus = ref({ registered: false, info: null, isAdmin: false }); const userPoints = ref({ balance: 0, logs: [] }); const sysSettings = ref({});
                 const courses = ref([]); const myOrders = ref([]); const selectedCourse = ref(null);
                 
                 const regForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
@@ -597,13 +617,12 @@
                         loadingText.value = '載入使用者資料...';
                         liffProfile.value = await liff.getProfile();
 
-                        // 🤝 程式層級好友狀態檢查 (預防未開啟 Aggressive prompt 的情況)
                         try {
                             const friendship = await liff.getFriendship();
                             if (!friendship.friendFlag) {
                                 isGlobalLoading.value = false;
                                 view.value = 'add_friend_prompt';
-                                return; // 暫停初始化，等用戶加完好友
+                                return; 
                             }
                         } catch(e) {
                             console.log('好友檢查略過或權限不足:', e);
@@ -688,7 +707,7 @@
                 const dailyCheckin = async () => {
                     try {
                         const res = await callApi('DAILY_CHECKIN', {}, false);
-                        if (res) { alert(`🎁 領取福氣點數成功！獲得 ${res.earned} 點`); window.location.reload(); }
+                        if (res) { alert(`🎁 領取紅包點數成功！獲得 ${res.earned} 點`); window.location.reload(); }
                     } catch(e) { console.error(e); }
                 };
 
@@ -712,13 +731,13 @@
                                   "body": {
                                     "type": "box", "layout": "vertical",
                                     "contents": [
-                                      { "type": "text", "text": "人生 ACTION 共享福氣", "weight": "bold", "size": "xl" },
-                                      { "type": "text", "text": `${liffProfile.value.displayName} 邀請您加入會員，領取專屬迎新福氣！立刻點擊下方按鈕加入我們。`, "wrap": true, "size": "sm", "color": "#666666", "margin": "md" }
+                                      { "type": "text", "text": "人生 ACTION 領取專屬紅包", "weight": "bold", "size": "xl" },
+                                      { "type": "text", "text": `${liffProfile.value.displayName} 邀請您加入會員，領取專屬迎新紅包！立刻點擊下方按鈕加入我們。`, "wrap": true, "size": "sm", "color": "#666666", "margin": "md" }
                                     ]
                                   },
                                   "footer": {
                                     "type": "box", "layout": "vertical",
-                                    "contents": [{ "type": "button", "style": "primary", "color": "#06C755", "action": { "type": "uri", "label": "點此加入領取福氣", "uri": shareUrl.value } }]
+                                    "contents": [{ "type": "button", "style": "primary", "color": "#06C755", "action": { "type": "uri", "label": "點此加入領取紅包", "uri": shareUrl.value } }]
                                   }
                                 }
                             }]);
@@ -787,8 +806,8 @@
                     const paymentName = paymentMethod.value === 'NEWEBPAY' ? '線上刷卡' : '銀行匯款';
                     const cName = (selectedCourse.value.name || '').split('\n')[0];
                     let confirmMsg = finalPrice.value === 0 
-                        ? `確定使用 ${pointsToUse.value} 點福氣點數，全額抵扣報名「${cName}」嗎？`
-                        : (pointsToUse.value > 0 ? `確定使用 ${pointsToUse.value} 點福氣點數，並以「${paymentName}」結帳 $${finalPrice.value} 嗎？` : `確定以「${paymentName}」結帳 $${finalPrice.value} 嗎？`);
+                        ? `確定使用 ${pointsToUse.value} 點紅包點數，全額抵扣報名「${cName}」嗎？`
+                        : (pointsToUse.value > 0 ? `確定使用 ${pointsToUse.value} 點紅包點數，並以「${paymentName}」結帳 $${finalPrice.value} 嗎？` : `確定以「${paymentName}」結帳 $${finalPrice.value} 嗎？`);
                         
                     if (!confirm(confirmMsg)) return;
                     isLoading.value = true;
@@ -798,7 +817,7 @@
                             await callApi('ADMIN_MANAGE_POINTS', { uid: liffProfile.value.userId, type: 'SYSTEM_SPEND', amount: pointsToUse.value, reason: `報名折抵: ${cName}`, operator: 'System' }, false);
                         }
 
-                        const noteText = pointsToUse.value > 0 ? `福氣點數折抵 ${pointsToUse.value} 點` : '';
+                        const noteText = pointsToUse.value > 0 ? `紅包點數折抵 ${pointsToUse.value} 點` : '';
                         const res = await callApi('REGISTER', { courseId: selectedCourse.value.id, amount: finalPrice.value, note: noteText }, false);
                         
                         if (res && res.orderId) {
@@ -850,7 +869,7 @@
                 };
 
                 const cancelOrder = async (o) => {
-                    if (!confirm('確定要取消這筆報名訂單嗎？\n(注意：若是扣抵福氣點數的訂單，取消後點數需聯絡客服退還)')) return;
+                    if (!confirm('確定要取消這筆報名訂單嗎？\n(注意：若是扣抵紅包點數的訂單，取消後點數需聯絡客服退還)')) return;
                     isLoading.value = true;
                     try {
                         const res = await callApi('CANCEL_MY_ORDER', { orderId: o.orderId }, false);
