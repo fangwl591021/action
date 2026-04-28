@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.27.V184_Remittance_Settings_Added -->
+    <!-- Version: 2026.04.28.V185_Script_Restored -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -137,7 +137,18 @@
                             <thead class="bg-slate-50"><tr><th>課程服務名稱</th><th class="text-center">報名數</th><th>應收</th><th class="text-orange-600">待收</th><th class="text-[#06C755]">實收</th></tr></thead>
                             <tbody>
                                 <tr v-for="c in courseStatsFiltered" :key="c.id">
-                                    <td class="font-bold text-slate-700 text-base max-w-[250px] truncate">{{ c.name }}</td><td class="text-center text-lg font-black text-slate-600">{{ c.totalOrders }}</td><td class="text-base font-bold text-slate-500">$ {{ c.totalExpected.toLocaleString() }}</td><td class="text-orange-500 font-bold text-base">$ {{ c.pendingAmount.toLocaleString() }}</td><td class="text-[#06C755] font-black text-lg">$ {{ c.paidAmount.toLocaleString() }}</td>
+                                    <td class="font-bold text-slate-700 text-base max-w-[250px] truncate">{{ c.name }}</td>
+                                    
+                                    <!-- ✅ 報名數按鈕 (可開啟名單彈窗) -->
+                                    <td class="px-4 py-4 border-b text-center">
+                                        <button @click="openCourseOrdersModal(c)" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 px-4 py-2 rounded-xl font-black transition-all inline-flex items-center gap-2 shadow-sm border border-indigo-100 active:scale-95">
+                                            {{ c.totalOrders || 0 }} <i class="fas fa-users text-xs opacity-80"></i>
+                                        </button>
+                                    </td>
+                                    
+                                    <td class="text-base font-bold text-slate-500">$ {{ c.totalExpected.toLocaleString() }}</td>
+                                    <td class="text-orange-500 font-bold text-base">$ {{ c.pendingAmount.toLocaleString() }}</td>
+                                    <td class="text-[#06C755] font-black text-lg">$ {{ c.paidAmount.toLocaleString() }}</td>
                                 </tr>
                                 <tr v-if="!courseStatsFiltered.length"><td colspan="5" class="text-center py-20 text-slate-300 font-bold">目前尚無營收數據資料</td></tr>
                             </tbody>
@@ -174,7 +185,7 @@
                     </div>
                 </div>
 
-                <!-- 🚀 3. 課程管理 (精準吻合截圖) -->
+                <!-- 🚀 3. 課程管理 -->
                 <div v-if="view === 'courses'" class="animate-fade-in">
                     <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
                         <div class="flex gap-3">
@@ -215,7 +226,7 @@
                                         <div v-if="c.priceText" class="text-xs font-bold text-slate-500 mt-1">{{ c.priceText }}</div>
                                     </td>
                                     <td>
-                                        <div class="text-slate-600 font-bold mb-1">{{ c.enrolled }} / {{ c.capacity }} 人</div>
+                                        <div class="text-slate-600 font-bold mb-1">{{ c.enrolled || 0 }} / {{ c.capacity || 0 }} 人</div>
                                         <button @click="openEnrollments(c)" class="btn-outline !py-1 !px-3 text-xs bg-white">報名名單</button>
                                     </td>
                                     <td class="text-right">
@@ -368,14 +379,12 @@
                             <div><label class="input-label">TikTok 網址</label><input type="text" v-model="sysSettings.link_tiktok" class="input-field text-sm"></div>
                         </div>
                         
-                        <!-- 🏦 新增：官方匯款帳號設定 -->
                         <div class="section-title !mb-4 text-orange-700 border-orange-500 mt-8">官方匯款帳號設定</div>
                         <div class="mb-8">
                             <label class="input-label">匯款資訊 (將顯示於前台結帳頁面)</label>
                             <textarea v-model="sysSettings.remittance_info" class="input-field h-32 resize-none leading-relaxed" placeholder="例如：&#10;銀行代碼：000 測試銀行&#10;銀行帳號：1234567890&#10;戶名：人生行動"></textarea>
                         </div>
                         
-                        <!-- ⚙️ 新增：前台功能開關設定 -->
                         <div class="section-title !mb-4 text-purple-700 border-purple-500 mt-8">前台體驗開關</div>
                         <div class="mb-8 flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <div>
@@ -403,6 +412,66 @@
         <!-- ========================================== -->
         <!-- 彈窗 (Modals) 區域 -->
         <!-- ========================================== -->
+
+        <!-- ✅ 報名名單詳細彈窗 (新增區塊) -->
+        <div v-if="showEnrollmentModal" class="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" @click.self="showEnrollmentModal = false">
+            <div class="bg-white rounded-3xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div>
+                        <h3 class="text-[19px] font-black text-slate-800 flex items-center gap-2">
+                            <i class="fas fa-list-alt text-[#06C755]"></i>
+                            {{ selectedCourseForOrders?.name.split('\n')[0] }}
+                        </h3>
+                        <div class="text-xs font-bold text-slate-500 mt-1.5 bg-white inline-block px-3 py-1 rounded-md border border-slate-200 shadow-sm">
+                            有效報名名單 (共 {{ selectedCourseOrders.length }} 筆)
+                        </div>
+                    </div>
+                    <button @click="showEnrollmentModal = false" class="text-slate-400 hover:text-slate-600 w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-200 transition"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="p-0 overflow-y-auto flex-1 bg-white">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-50 text-[13px] text-slate-500 font-bold tracking-wider sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="p-4 border-b border-slate-200">訂單資訊</th>
+                                <th class="p-4 border-b border-slate-200">學員資料</th>
+                                <th class="p-4 border-b border-slate-200 text-center">付款狀態</th>
+                                <th class="p-4 border-b border-slate-200 text-right">實付金額</th>
+                                <th class="p-4 border-b border-slate-200 text-center">簽到紀錄</th>
+                                <th class="p-4 border-b border-slate-200">備註 / 匯款回報</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-[14px] font-medium text-slate-700 divide-y divide-slate-100">
+                            <tr v-for="o in selectedCourseOrders" :key="o.orderId" class="hover:bg-slate-50 transition">
+                                <td class="p-4 align-top">
+                                    <div class="font-mono text-[11px] text-slate-400 bg-slate-100 inline-block px-1.5 py-0.5 rounded mb-1">{{ o.orderId }}</div>
+                                    <div class="text-[13px] text-slate-500 font-bold">{{ o.createdAt }}</div>
+                                </td>
+                                <td class="p-4 align-top">
+                                    <div class="font-black text-slate-800">{{ o.name }}</div>
+                                    <div class="font-mono text-[13px] text-slate-500 mt-0.5"><i class="fas fa-phone-alt text-[10px] mr-1 text-slate-400"></i>{{ o.phone }}</div>
+                                </td>
+                                <td class="p-4 align-top text-center">
+                                    <span v-if="o.status === 'PAID'" class="bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-xs font-bold border border-green-200 shadow-sm">已付款</span>
+                                    <span v-else class="bg-orange-100 text-orange-600 px-2.5 py-1 rounded-md text-xs font-bold border border-orange-200 shadow-sm">待付款</span>
+                                </td>
+                                <td class="p-4 font-black text-slate-800 text-right align-top">$ {{ Number(String(o.amount).replace(/[^0-9.]/g, '')).toLocaleString() }}</td>
+                                <td class="p-4 text-center align-top">
+                                    <span v-if="o.attendance === 'ATTENDED'" class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-[13px] border border-green-100"><i class="fas fa-check-circle mr-1"></i>已出席</span>
+                                    <span v-else-if="o.attendance === 'ABSENT'" class="text-red-500 font-bold bg-red-50 px-2 py-1 rounded text-[13px] border border-red-100"><i class="fas fa-times-circle mr-1"></i>缺席</span>
+                                    <span v-else class="text-slate-300 font-bold text-sm">-</span>
+                                </td>
+                                <td class="p-4 text-[13px] text-slate-600 whitespace-pre-wrap leading-relaxed max-w-[250px] align-top">{{ o.note || '-' }}</td>
+                            </tr>
+                            <tr v-if="selectedCourseOrders.length === 0">
+                                <td colspan="6" class="p-10 text-center text-slate-400 font-bold bg-slate-50">
+                                    <i class="fas fa-folder-open text-3xl mb-3 text-slate-300"></i><br>此課程目前尚無有效報名紀錄
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
         <!-- Modal: CRM 檔案室 -->
         <div v-if="activeMember" class="modal-mask" @click.self="activeMember = null">
@@ -527,14 +596,41 @@
             </div>
         </div>
 
-        <!-- Modal: 報名名單 -->
-        <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null"><div class="modal-body modal-body-lg animate-fade-in"><div class="px-6 py-5 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm"><h3 class="text-lg font-bold text-slate-800">{{ activeEnrollmentCourse.name.split('\n')[0] }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400 text-3xl"><i class="fas fa-times"></i></button></div><div class="flex-grow overflow-y-auto p-8"><div class="bg-blue-50 p-6 rounded-xl border border-blue-200 mb-8 flex items-center gap-6 shadow-sm"><div class="flex-grow"><label class="text-xs font-bold text-blue-600 mb-1.5 block uppercase tracking-wider">導師簽到管理密碼</label><input type="text" v-model="activeEnrollmentCourse.checkinPwd" class="input-field border-blue-300 bg-white font-mono font-bold" placeholder="請設定密碼"></div><button @click="generateCheckinLink(activeEnrollmentCourse)" class="bg-blue-600 text-white px-8 py-3.5 rounded-lg font-bold mt-5 shadow-lg hover:bg-blue-700 transition">更新密碼</button></div><table class="admin-table !m-0 !min-w-full border rounded-lg"><thead><tr class="bg-slate-50"><th>姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>出席標記</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId" class="border-b last:border-0"><td class="font-bold text-slate-800">{{ o.name }}</td><td class="font-mono text-sm text-slate-500">{{ o.phone }}</td><td class="font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付' }}</span></td><td><select v-model="o.attendance" @change="updateOrderAttendance(o)" class="input-field !py-1.5 !text-xs w-28 font-black"><option value="">未標記</option><option value="ATTENDED">出席</option><option value="ABSENT">缺席</option></select></td></tr></tbody></table></div></div></div>
+        <!-- Modal: 舊版報名單號查詢 (與新版並存備用) -->
+        <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
+            <div class="modal-body modal-body-lg animate-fade-in">
+                <div class="px-6 py-5 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm"><h3 class="text-lg font-bold text-slate-800">{{ activeEnrollmentCourse.name.split('\n')[0] }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400 text-3xl"><i class="fas fa-times"></i></button></div>
+                <div class="flex-grow overflow-y-auto p-8">
+                    <div class="bg-blue-50 p-6 rounded-xl border border-blue-200 mb-8 flex items-center gap-6 shadow-sm"><div class="flex-grow"><label class="text-xs font-bold text-blue-600 mb-1.5 block uppercase tracking-wider">導師簽到管理密碼</label><input type="text" v-model="activeEnrollmentCourse.checkinPwd" class="input-field border-blue-300 bg-white font-mono font-bold" placeholder="請設定密碼"></div><button @click="generateCheckinLink(activeEnrollmentCourse)" class="bg-blue-600 text-white px-8 py-3.5 rounded-lg font-bold mt-5 shadow-lg hover:bg-blue-700 transition">更新密碼</button></div>
+                    <table class="admin-table !m-0 !min-w-full border rounded-lg"><thead><tr class="bg-slate-50"><th>姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>出席標記</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId" class="border-b last:border-0"><td class="font-bold text-slate-800">{{ o.name }}</td><td class="font-mono text-sm text-slate-500">{{ o.phone }}</td><td class="font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付' }}</span></td><td><select v-model="o.attendance" @change="updateOrderAttendance(o)" class="input-field !py-1.5 !text-xs w-28 font-black"><option value="">未標記</option><option value="ATTENDED">出席</option><option value="ABSENT">缺席</option></select></td></tr></tbody></table>
+                </div>
+            </div>
+        </div>
         
         <!-- Modal: 訂單編輯 -->
-        <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null"><div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-md shadow-2xl"><h3 class="text-lg font-bold mb-6">訂單狀態維護</h3><div class="space-y-4"><div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field font-bold"><option value="PENDING">⏳ 待付款</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option></select></div><div><label class="input-label">實收金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field text-[#06C755] font-bold"></div><div><label class="input-label">管理員備註</label><textarea v-model="editingOrder.note" class="input-field min-h-[100px] resize-none"></textarea></div><div class="flex gap-3 pt-4"><button @click="editingOrder = null" class="flex-1 py-3 bg-slate-100 text-slate-500 rounded-lg font-bold">取消</button><button @click="saveOrderUpdate" class="flex-1 py-3 bg-slate-800 text-white rounded-lg font-bold shadow-md">確認更新</button></div></div></div></div>
+        <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
+            <div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-md shadow-2xl">
+                <h3 class="text-lg font-bold mb-6">訂單狀態維護</h3>
+                <div class="space-y-4">
+                    <div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field font-bold"><option value="PENDING">⏳ 待付款</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option></select></div>
+                    <div><label class="input-label">實收金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field text-[#06C755] font-bold"></div>
+                    <div><label class="input-label">管理員備註</label><textarea v-model="editingOrder.note" class="input-field min-h-[100px] resize-none"></textarea></div>
+                    <div class="flex gap-3 pt-4"><button @click="editingOrder = null" class="flex-1 py-3 bg-slate-100 text-slate-500 rounded-lg font-bold">取消</button><button @click="saveOrderUpdate" class="flex-1 py-3 bg-slate-800 text-white rounded-lg font-bold shadow-md">確認更新</button></div>
+                </div>
+            </div>
+        </div>
         
         <!-- Modal: 紅包點數調整 -->
-        <div v-if="editingPointAction" class="modal-mask" @click.self="editingPointAction = null"><div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-sm shadow-2xl"><h3 class="text-lg font-bold mb-6 flex items-center gap-2" :class="editingPointAction.type==='MANUAL_ADD'?'text-green-600':'text-red-600'"><i class="fas fa-wallet"></i> 手動調整紅包</h3><div class="space-y-5"><div><label class="input-label text-slate-400">異動金額 (點)</label><input type="number" v-model.number="editingPointAction.amount" class="input-field text-2xl font-black text-center" placeholder="0"></div><div><label class="input-label text-slate-400">原因</label><input type="text" v-model="editingPointAction.reason" class="input-field font-bold" placeholder="原因說明"></div><div class="flex gap-3 pt-4"><button @click="editingPointAction = null" class="flex-1 py-3 bg-slate-100 rounded-lg font-bold">取消</button><button @click="submitPointAction" :disabled="isLoading" class="flex-1 py-3 text-white rounded-lg font-bold shadow-md active:scale-95 transition" :class="editingPointAction.type==='MANUAL_ADD'?'bg-[#06C755]':'bg-red-500'">送出變更</button></div></div></div></div>
+        <div v-if="editingPointAction" class="modal-mask" @click.self="editingPointAction = null">
+            <div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-sm shadow-2xl">
+                <h3 class="text-lg font-bold mb-6 flex items-center gap-2" :class="editingPointAction.type==='MANUAL_ADD'?'text-green-600':'text-red-600'"><i class="fas fa-wallet"></i> 手動調整紅包</h3>
+                <div class="space-y-5">
+                    <div><label class="input-label text-slate-400">異動金額 (點)</label><input type="number" v-model.number="editingPointAction.amount" class="input-field text-2xl font-black text-center" placeholder="0"></div>
+                    <div><label class="input-label text-slate-400">原因</label><input type="text" v-model="editingPointAction.reason" class="input-field font-bold" placeholder="原因說明"></div>
+                    <div class="flex gap-3 pt-4"><button @click="editingPointAction = null" class="flex-1 py-3 bg-slate-100 rounded-lg font-bold">取消</button><button @click="submitPointAction" :disabled="isLoading" class="flex-1 py-3 text-white rounded-lg font-bold shadow-md active:scale-95 transition" :class="editingPointAction.type==='MANUAL_ADD'?'bg-[#06C755]':'bg-red-500'">送出變更</button></div>
+                </div>
+            </div>
+        </div>
 
         <!-- Modal: 導師系統抽成設定 -->
         <div v-if="editingSysConfig" class="modal-mask" @click.self="editingSysConfig = null">
@@ -542,14 +638,8 @@
                 <h3 class="text-lg font-bold mb-6 flex items-center text-indigo-700"><i class="fas fa-sliders-h mr-2"></i>系統抽成與租金設定</h3>
                 <div class="text-[13px] font-bold text-slate-500 mb-4">導師：{{ editingSysConfig.name }}</div>
                 <div class="space-y-4">
-                    <div>
-                        <label class="input-label">時段租金 (開班扣點)</label>
-                        <input type="number" v-model.number="editingSysConfig.rent" class="input-field font-bold text-slate-700">
-                    </div>
-                    <div>
-                        <label class="input-label">平台抽成 (%)</label>
-                        <input type="number" v-model.number="editingSysConfig.comm" class="input-field font-bold text-slate-700">
-                    </div>
+                    <div><label class="input-label">時段租金 (開班扣點)</label><input type="number" v-model.number="editingSysConfig.rent" class="input-field font-bold text-slate-700"></div>
+                    <div><label class="input-label">平台抽成 (%)</label><input type="number" v-model.number="editingSysConfig.comm" class="input-field font-bold text-slate-700"></div>
                     <div class="flex gap-3 pt-4">
                         <button @click="editingSysConfig = null" class="flex-1 py-3 bg-slate-100 text-slate-500 rounded-lg font-bold hover:bg-slate-200 transition">取消</button>
                         <button @click="saveSysConfig" :disabled="isLoading" class="flex-1 py-3 bg-indigo-600 text-white rounded-lg font-bold shadow-md hover:bg-indigo-700 active:scale-95 transition">
@@ -568,288 +658,441 @@
 
         createApp({
             setup() {
+                // ✅ 系統狀態變數
                 const isAuthenticated = ref(false);
                 const loginForm = ref({ account: '', password: '' });
                 const view = ref('dashboard');
+                const groups = ref({ groupA: true, groupB: true });
                 const isLoading = ref(false);
-                const isImageUploading = ref(false);
-                const hubStatus = ref('online');
                 
-                const users = ref([]); const teachers = ref([]); const courses = ref([]); const orders = ref([]); const slots = ref([]); const sysSettings = ref({});
-                const activeTeacher = ref(null); const activeMember = ref(null); const activeEnrollmentCourse = ref(null);
-                const activeMemberPoints = ref({ balance: 0, logs: [] }); const editingPointAction = ref(null);
-                const editingOrder = ref(null);
+                // ✅ 核心資料集
+                const users = ref([]);
+                const teachers = ref([]);
+                const courses = ref([]);
+                const orders = ref([]);
+                const sysSettings = ref({});
                 
-                const editingCourse = ref(null);
-                const editingSysConfig = ref(null); 
-                const approveForm = ref({ uid: '', rent: 50, comm: 10 });
+                // ✅ 搜尋與篩選
+                const memberSearch = ref('');
+                const courseSearchQuery = ref('');
+                const approveForm = ref({ uid: '', rent: 0, comm: 0 });
+                const activeTeacher = ref(null);
+                
+                // ✅ 排班系統 (暫存用)
                 const draftOpenSlots = ref([]);
                 const draftCloseSlots = ref([]);
-                const clearDrafts = () => { draftOpenSlots.value = []; draftCloseSlots.value = []; };
-                watch(activeTeacher, () => { clearDrafts(); });
-
                 const dates = ref([]); 
-                const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
-                const groups = ref({ groupA: true, groupB: true });
-
-                const toggleGroup = (g) => { groups.value[g] = !groups.value[g]; };
+                const timeSlots = ref(['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '19:00', '20:00', '21:00']);
                 
-                // 視圖控制
-                const switchView = (v) => { view.value = v; window.scrollTo(0, 0); };
-                const isSubView = computed(() => false);
-                const backToParent = () => {};
+                // ✅ 彈窗與編輯狀態
+                const isImageUploading = ref(false);
+                const activeMember = ref(null);
+                const activeMemberPoints = ref({ balance: 0, logs: [] });
+                const editingCourse = ref(null);
+                const activeEnrollmentCourse = ref(null);
+                const courseOrders = ref([]);
+                const editingOrder = ref(null);
+                const editingPointAction = ref(null);
+                const editingSysConfig = ref(null);
 
-                const currentViewName = computed(() => ({ 
-                    dashboard: '營運營收統計中心', 
-                    calendar: '近期課程日曆檢視', 
-                    members: '系統學員名冊', 
-                    courses: '課程服務管理中心', 
-                    consultation: '預約諮詢排班管理', 
-                    orders: '全站訂單維護', 
-                    settings: '系統參數設定', 
-                    richmenu: '圖文選單' 
-                }[view.value]));
+                // ✅ 新增：精美的報名名單彈窗
+                const showEnrollmentModal = ref(false);
+                const selectedCourseForOrders = ref(null);
+                const selectedCourseOrders = ref([]);
 
-                const totalRevenue = computed(() => orders.value.reduce((acc, o) => acc + (Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0), 0).toLocaleString());
-
-                const adminCategories = computed(() => [...new Set(courses.value.map(c => c.type))].filter(Boolean));
-                const courseSearchQuery = ref(''); const courseFilterCategory = ref('');
-                const memberSearch = ref('');
-                
-                const filteredMembers = computed(() => users.value.filter(u => !memberSearch.value || u.name.includes(memberSearch.value) || u.phone.includes(memberSearch.value)));
-
-                const filteredAdminCourses = computed(() => courses.value.filter(c => { 
-                    const matchCat = !courseFilterCategory.value || c.type === courseFilterCategory.value;
-                    const query = courseSearchQuery.value.toLowerCase();
-                    const matchQuery = !query || (c.name && c.name.toLowerCase().includes(query)) || (c.id && c.id.toLowerCase().includes(query));
-                    return matchCat && matchQuery;
-                }));
-
-                const courseStatsFiltered = computed(() => {
-                    if (!courses.value.length) return [];
-                    return courses.value.map(c => {
-                        const cOrders = orders.value.filter(o => o.courseId === c.id || o.courseId === c.name);
-                        let data = { id: c.id, name: c.name, totalOrders: cOrders.length, totalExpected: 0, pendingAmount: 0, paidAmount: 0 };
-                        cOrders.forEach(o => { 
-                            const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0; 
-                            if (o.status === 'PAID') { data.paidAmount += amt; data.totalExpected += amt; } 
-                            else if (o.status !== 'CANCELLED') { data.pendingAmount += amt; data.totalExpected += amt; } 
+                const generateDates = () => {
+                    const result = [];
+                    const today = new Date();
+                    const days = ['日', '一', '二', '三', '四', '五', '六'];
+                    for(let i=0; i<30; i++) {
+                        const d = new Date(today);
+                        d.setDate(today.getDate() + i);
+                        result.push({
+                            fullDate: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+                            day: d.getDate(),
+                            weekDay: days[d.getDay()]
                         });
-                        return data;
-                    }).filter(c => c.totalOrders > 0);
-                });
+                    }
+                    dates.value = result;
+                };
 
                 const callApi = async (act, pl = {}) => {
-                    isLoading.value = true;
                     try {
-                        const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: pl }) });
-                        const json = await res.json();
-                        if (json.status !== 'success') throw new Error(json.message || '系統異常');
+                        const res = await fetch(WORKER_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: act, payload: pl })
+                        });
+                        const text = await res.text();
+                        let json;
+                        try { json = JSON.parse(text); } catch(e) { throw new Error('伺服器回傳格式錯誤'); }
+                        if (json.status !== 'success') throw new Error(json.message || '後台執行失敗');
                         return json.data;
-                    } catch (e) { alert(`❌ 錯誤: ${e.message}`); return null; } finally { isLoading.value = false; }
-                };
-
-                const handleLogin = () => { if (loginForm.value.account === 'admin' && ['@1234', '8888'].includes(loginForm.value.password)) { isAuthenticated.value = true; localStorage.setItem('admin_auth_v156', 'true'); fetchData(); checkHubHealth(); } else { alert('帳密錯誤'); } };
-                const logout = () => { if(confirm('確定安全登出？')) { isAuthenticated.value = false; localStorage.removeItem('admin_auth_v156'); } };
-
-                const fetchData = async () => {
-                    if (!isAuthenticated.value) return;
-                    const data = await callApi('ADMIN_GET_DATA');
-                    if (data) { users.value = data.users || []; teachers.value = data.teachers || []; courses.value = data.courses || []; orders.value = data.orders || []; sysSettings.value = data.settings || {}; }
-                    const slotData = await callApi('ADMIN_GET_SLOTS');
-                    if (slotData) slots.value = slotData;
-                };
-
-                const openMemberDetail = async (u) => { 
-                    activeMember.value = {...u, birthday: u.birthday || '', industry: u.industry || '', gender: u.gender || '男', address: u.address || '', adminNote: u.adminNote || ''}; 
-                    const pts = await callApi('GET_USER_POINTS', { targetUid: u.userId }); 
-                    if(pts) activeMemberPoints.value = pts; 
-                };
-                const saveMemberDetail = async () => { if(await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value })) { alert('儲存成功'); fetchData(); } };
-                const saveSettings = async () => { if(await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value)) alert('✅ 參數已同步'); };
-                
-                const handleBannerUpload = (e) => {
-                    const file = e.target.files[0]; if (!file) return; 
-                    isImageUploading.value = true;
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const img = new Image(); img.onload = async () => {
-                            const canvas = document.createElement('canvas'); const MAX_WIDTH = 1200; let width = img.width; let height = img.height;
-                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } canvas.width = width; canvas.height = height;
-                            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); let quality = 0.8; let b64 = canvas.toDataURL('image/webp', quality);
-                            
-                            while (b64.length > 1000000 && quality > 0.3) { quality -= 0.1; b64 = canvas.toDataURL('image/webp', quality); }
-                            if (b64.length > 1500000) { alert('❌ 圖片解析度過大，請先壓縮。'); isImageUploading.value = false; return; }
-                            
-                            const res = await callApi('UPLOAD_IMAGE', { imageBase64: b64 });
-                            if (res && res.url) {
-                                sysSettings.value.banner_image = res.url;
-                                alert('✅ Banner 已成功上傳至 R2 空間');
-                            }
-                            isImageUploading.value = false;
-                        }; img.src = event.target.result;
-                    }; reader.readAsDataURL(file);
-                };
-
-                const handleCourseImageUpload = (e) => {
-                    const file = e.target.files[0]; if (!file) return; 
-                    isImageUploading.value = true;
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const img = new Image(); img.onload = async () => {
-                            const canvas = document.createElement('canvas'); const MAX_WIDTH = 800; let width = img.width; let height = img.height;
-                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } canvas.width = width; canvas.height = height;
-                            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); let quality = 0.8; let b64 = canvas.toDataURL('image/webp', quality);
-                            
-                            while (b64.length > 800000 && quality > 0.3) { quality -= 0.1; b64 = canvas.toDataURL('image/webp', quality); }
-                            if (b64.length > 1000000) { alert('❌ 圖片過大。'); isImageUploading.value = false; return; }
-                            
-                            const res = await callApi('UPLOAD_IMAGE', { imageBase64: b64 });
-                            if (res && res.url) {
-                                if(editingCourse.value) editingCourse.value.image = res.url;
-                                alert('✅ 課程圖片已成功上傳至 R2 空間');
-                            }
-                            isImageUploading.value = false;
-                        }; img.src = event.target.result;
-                    }; reader.readAsDataURL(file);
-                };
-
-                const checkHubHealth = async () => { try { const res = await fetch(`${WORKER_URL}hub-status`); const json = await res.json(); hubStatus.value = json.allGood ? 'online' : 'offline'; } catch (e) { hubStatus.value = 'offline'; } };
-                const runHealthCheck = async () => { const res = await callApi('SYSTEM_HEALTH_CHECK'); if(res) alert('✅ 健檢完成：\n'+(res.log?.join('\n')||'')); };
-                const triggerBackup = async () => { if(confirm('立即備份？')) { const res = await callApi('ADMIN_TRIGGER_BACKUP'); if(res) alert('✅ '+res.message); } };
-
-                const openPointActionModal = (t) => { editingPointAction.value = { type: t, amount: '', reason: '' }; };
-                const submitPointAction = async () => { if(await callApi('ADMIN_MANAGE_POINTS', { uid: activeMember.value.userId, ...editingPointAction.value, operator: 'Admin' })) { alert('異動成功'); editingPointAction.value = null; openMemberDetail(activeMember.value); fetchData(); } };
-
-                const getSlotStatus = (uid, date, time) => { const found = slots.value.find(s => s.teacherUid === uid && s.date === date && s.time === time); return found ? found.status : 'CLOSED'; };
-                const isDraftOpen = (uid, date, time) => draftOpenSlots.value.some(s => s.uid === uid && s.date === date && s.time === time);
-                const isDraftClose = (uid, date, time) => draftCloseSlots.value.some(s => s.uid === uid && s.date === date && s.time === time);
-
-                const getSlotStyle = (uid, date, time) => {
-                    if (isDraftOpen(uid, date, time)) return 'bg-green-50 text-[#06C755] border-[#06C755] border shadow-sm border-dashed';
-                    if (isDraftClose(uid, date, time)) return 'bg-slate-100 text-slate-400 border-slate-300 line-through opacity-70';
-                    const status = getSlotStatus(uid, date, time);
-                    if (status === 'OPEN') return 'bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] shadow-sm';
-                    if (status === 'BOOKED') return 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] opacity-80 cursor-not-allowed';
-                    return 'bg-white text-[#555555] border border-[#e2e8f0]'; 
-                };
-
-                const handleToggleSlot = async (uid, date, time) => {
-                    const currentStatus = getSlotStatus(uid, date, time);
-                    if (currentStatus === 'BOOKED') return alert('此時段已被預約，無法取消！');
-
-                    const openIdx = draftOpenSlots.value.findIndex(s => s.uid === uid && s.date === date && s.time === time);
-                    if (openIdx > -1) { draftOpenSlots.value.splice(openIdx, 1); return; }
-
-                    const closeIdx = draftCloseSlots.value.findIndex(s => s.uid === uid && s.date === date && s.time === time);
-                    if (closeIdx > -1) { draftCloseSlots.value.splice(closeIdx, 1); return; }
-
-                    if (currentStatus === 'OPEN') draftCloseSlots.value.push({ uid, date, time });
-                    else draftOpenSlots.value.push({ uid, date, time });
-                };
-
-                const submitDrafts = async () => {
-                    if (!activeTeacher.value) return;
-                    const uid = activeTeacher.value.userId;
-                    const rent = activeTeacher.value.config.rent || 0;
-                    const totalCost = draftOpenSlots.value.length * rent;
-
-                    if (!confirm(`確定送出異動嗎？\n新增：${draftOpenSlots.value.length} 時段\n關閉：${draftCloseSlots.value.length} 時段\n扣除：${totalCost} 點`)) return;
-
-                    isLoading.value = true;
-                    const res = await callApi('ADMIN_BATCH_TOGGLE_SLOTS', { teacherUid: uid, draftOpen: draftOpenSlots.value, draftClose: draftCloseSlots.value });
-
-                    if (res && res.success) { alert('✅ 結算完成！'); fetchData(); clearDrafts(); } 
-                    else { alert('❌ 失敗，可能餘額不足'); }
-                    isLoading.value = false;
-                };
-
-                const handleApproveTeacher = async () => {
-                    if (!approveForm.value.uid) return alert('請選擇學員');
-                    const target = users.value.find(u => u.userId === approveForm.value.uid);
-                    if (!target) return;
-                    if (!confirm(`確定核准 ${target.name} 為導師？`)) return;
-                    if(await callApi('ADMIN_APPROVE_TEACHER', { teacherUid: target.userId, teacherName: target.name, rentPrice: approveForm.value.rent, commissionRate: approveForm.value.comm })) { 
-                        alert('✅ 成功開通！'); approveForm.value = { uid: '', rent: 50, comm: 10 }; fetchData(); 
+                    } catch (e) {
+                        alert(`API Error: ${e.message}`);
+                        throw e;
                     }
                 };
 
-                const openSysConfigModal = (t) => { editingSysConfig.value = { uid: t.userId, name: t.name, rent: t.config.rent, comm: t.config.comm }; };
-                const saveSysConfig = async () => {
+                const fetchData = async () => {
                     isLoading.value = true;
-                    const res = await callApi('ADMIN_APPROVE_TEACHER', { teacherUid: editingSysConfig.value.uid, teacherName: editingSysConfig.value.name, rentPrice: editingSysConfig.value.rent, commissionRate: editingSysConfig.value.comm });
-                    if (res && res.success) { alert('✅ 系統設定更新！'); editingSysConfig.value = null; fetchData(); }
-                    isLoading.value = false;
+                    try {
+                        const data = await callApi('ADMIN_GET_DATA', {});
+                        if (data) {
+                            users.value = data.users || [];
+                            teachers.value = data.teachers || [];
+                            courses.value = data.courses || [];
+                            orders.value = data.orders || [];
+                            sysSettings.value = data.settings || {};
+                        }
+                    } catch(e) {
+                        console.error(e);
+                    } finally {
+                        isLoading.value = false;
+                    }
                 };
 
-                const updateOrderAttendance = async (o) => { await callApi('ADMIN_UPDATE_ORDER', { orderId: o.orderId, attendance: o.attendance }); };
-                const openEnrollments = (c) => { activeEnrollmentCourse.value = c; };
-                const openOrderEditModal = (o) => { editingOrder.value = {...o}; };
-                const saveOrderUpdate = async () => { if(await callApi('ADMIN_UPDATE_ORDER', editingOrder.value)) { alert('✅ 更新成功'); editingOrder.value = null; fetchData(); } };
-                const generateCheckinLink = async (course) => { if (await callApi('ADMIN_SET_CHECKIN_PWD', { courseId: course.id, checkinPwd: course.checkinPwd })) alert('密碼已儲存'); };
-                const syncToCalendar = async (c) => { if(confirm('同步至日曆？')) { await callApi('ADMIN_SYNC_CALENDAR', { courseId: c.id }); alert('請求發出'); } };
+                const handleLogin = () => {
+                    if (loginForm.value.account === 'admin' && loginForm.value.password === '1234') {
+                        isAuthenticated.value = true;
+                        generateDates();
+                        fetchData();
+                    } else {
+                        alert('帳號或密碼錯誤');
+                    }
+                };
+
+                const logout = () => {
+                    isAuthenticated.value = false;
+                    loginForm.value = { account: '', password: '' };
+                };
+
+                const toggleGroup = (groupName) => { groups.value[groupName] = !groups.value[groupName]; };
+                const switchView = (viewName) => { view.value = viewName; };
+
+                const currentViewName = computed(() => {
+                    const map = {
+                        'dashboard': '營運統計中心',
+                        'calendar': '日曆檢視',
+                        'members': '學員 CRM',
+                        'courses': '課程管理',
+                        'consultation': '預約諮詢排班',
+                        'orders': '訂單維護',
+                        'richmenu': '圖文選單管理',
+                        'settings': '系統參數設定'
+                    };
+                    return map[view.value] || '管理站';
+                });
+
+                const totalRevenue = computed(() => {
+                    return orders.value.filter(o => o.status === 'PAID').reduce((sum, o) => {
+                        const amt = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
+                        return sum + amt;
+                    }, 0).toLocaleString();
+                });
+
+                const courseStatsFiltered = computed(() => {
+                    return courses.value.map(c => {
+                        const courseOrders = orders.value.filter(o => (o.courseId === c.id || o.courseId === c.name) && o.status !== 'CANCELLED');
+                        const totalOrders = courseOrders.length;
+                        let paidAmount = 0;
+                        let pendingAmount = 0;
+                        courseOrders.forEach(o => {
+                            const amt = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
+                            if (o.status === 'PAID') paidAmount += amt;
+                            else pendingAmount += amt;
+                        });
+                        return {
+                            id: c.id,
+                            name: c.name.split('\n')[0],
+                            totalOrders,
+                            totalExpected: paidAmount + pendingAmount,
+                            paidAmount,
+                            pendingAmount
+                        };
+                    }).sort((a,b) => b.totalOrders - a.totalOrders);
+                });
+
+                const filteredMembers = computed(() => {
+                    if (!memberSearch.value) return users.value;
+                    const q = memberSearch.value.toLowerCase();
+                    return users.value.filter(u => 
+                        (u.name && u.name.toLowerCase().includes(q)) || 
+                        (u.phone && u.phone.includes(q)) || 
+                        (u.userId && u.userId.toLowerCase().includes(q))
+                    );
+                });
+
+                const filteredAdminCourses = computed(() => {
+                    if (!courseSearchQuery.value) return courses.value;
+                    const q = courseSearchQuery.value.toLowerCase();
+                    return courses.value.filter(c => 
+                        (c.name && c.name.toLowerCase().includes(q)) || 
+                        (c.type && c.type.toLowerCase().includes(q)) ||
+                        (c.id && c.id.toLowerCase().includes(q))
+                    );
+                });
+
+                const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, '')).toLocaleString();
+                const getCourseName = (id) => { const c = courses.value.find(x => x.id === id || x.name === id); return c ? c.name : id; };
+
+                const triggerBackup = async () => {
+                    if(!confirm('確定要觸發資料庫備份嗎？')) return;
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_TRIGGER_BACKUP', {});
+                        if(res) alert(res.message || '備份完成');
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const runHealthCheck = async () => {
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('SYSTEM_HEALTH_CHECK', {});
+                        if(res && res.log) alert(res.log.join('\n'));
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const openMemberDetail = async (u) => {
+                    activeMember.value = JSON.parse(JSON.stringify(u));
+                    isLoading.value = true;
+                    try {
+                        const points = await callApi('GET_USER_POINTS', { targetUid: u.userId });
+                        if(points) activeMemberPoints.value = points;
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const saveMemberDetail = async () => {
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value });
+                        if(res) {
+                            alert('學員資料更新成功');
+                            fetchData();
+                            activeMember.value = null;
+                        }
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const openPointActionModal = (type) => { editingPointAction.value = { type: type, amount: 0, reason: '' }; };
+
+                const submitPointAction = async () => {
+                    if(editingPointAction.value.amount <= 0) return alert('請輸入有效金額');
+                    if(!editingPointAction.value.reason) return alert('請輸入原因');
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_MANAGE_POINTS', {
+                            uid: activeMember.value.userId,
+                            type: editingPointAction.value.type,
+                            amount: editingPointAction.value.amount,
+                            reason: editingPointAction.value.reason,
+                            operator: 'Admin'
+                        });
+                        if(res) {
+                            alert('點數調整成功');
+                            editingPointAction.value = null;
+                            const points = await callApi('GET_USER_POINTS', { targetUid: activeMember.value.userId });
+                            if(points) activeMemberPoints.value = points;
+                        }
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
 
                 const openNewCourseModal = () => {
                     editingCourse.value = {
-                        id: 'NEW_' + Date.now(), name: '', priceText: '', type: '一般', price: 0, capacity: 10, enrolled: 0,
-                        startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '',
-                        isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師']
+                        id: 'NEW_' + Date.now(), name: '', priceText: '', type: '一般', price: 0, capacity: 0, enrolled: 0,
+                        startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', description: '', image: '',
+                        isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: []
                     };
                 };
 
                 const openEditModal = (c) => {
-                    let courseData = JSON.parse(JSON.stringify(c));
-                    if (!courseData.targetTiers) {
-                        courseData.targetTiers = ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師'];
-                    } else if (typeof courseData.targetTiers === 'string') {
-                        try { courseData.targetTiers = JSON.parse(courseData.targetTiers); } 
-                        catch(e) { courseData.targetTiers = ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師']; }
+                    editingCourse.value = JSON.parse(JSON.stringify(c));
+                    if(typeof editingCourse.value.targetTiers === 'string') {
+                        try { editingCourse.value.targetTiers = JSON.parse(editingCourse.value.targetTiers); } 
+                        catch(e) { editingCourse.value.targetTiers = []; }
                     }
-                    editingCourse.value = courseData;
                 };
 
                 const saveCourse = async () => {
-                    if (!editingCourse.value.name) return alert('「課程名稱」為必填欄位');
-                    if(await callApi('ADMIN_UPDATE_COURSE', editingCourse.value)) {
-                        alert('✅ 儲存成功'); editingCourse.value = null; fetchData();
-                    }
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_UPDATE_COURSE', editingCourse.value);
+                        if(res) {
+                            alert('課程儲存成功');
+                            fetchData();
+                            editingCourse.value = null;
+                        }
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
                 };
 
-                const copyCourse = async (c) => {
-                    if (!confirm(`複製「${c.name}」？`)) return;
-                    let copiedCourse = JSON.parse(JSON.stringify(c));
-                    copiedCourse.id = 'NEW_COPY_' + Date.now();
-                    copiedCourse.name = copiedCourse.name + ' (複製)';
-                    copiedCourse.enrolled = 0;
+                const copyCourse = (c) => {
+                    const copy = JSON.parse(JSON.stringify(c));
+                    copy.id = 'NEW_' + Date.now();
+                    copy.name = copy.name + ' (複製)';
+                    openEditModal(copy);
+                };
+
+                const syncToCalendar = async (c) => {
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_SYNC_CALENDAR', { courseId: c.id });
+                        if(res) alert('日曆同步成功');
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const handleBannerUpload = (e) => {
+                    const file = e.target.files[0];
+                    if(!file) return;
+                    isImageUploading.value = true;
+                    const reader = new FileReader();
+                    reader.onload = async (f) => {
+                        try {
+                            const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result });
+                            if(res && res.url) sysSettings.value.banner_image = res.url;
+                        } catch(e) { console.error(e); } finally { isImageUploading.value = false; }
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                const handleCourseImageUpload = (e) => {
+                    const file = e.target.files[0];
+                    if(!file) return;
+                    isImageUploading.value = true;
+                    const reader = new FileReader();
+                    reader.onload = async (f) => {
+                        try {
+                            const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result });
+                            if(res && res.url) editingCourse.value.image = res.url;
+                        } catch(e) { console.error(e); } finally { isImageUploading.value = false; }
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                const saveSettings = async () => {
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value);
+                        if(res) alert('設定儲存成功');
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                // 舊版報名名單
+                const openEnrollments = (c) => {
+                    activeEnrollmentCourse.value = JSON.parse(JSON.stringify(c));
+                    courseOrders.value = orders.value.filter(o => (o.courseId === c.id || o.courseId === c.name) && o.status !== 'CANCELLED');
+                };
+                
+                // ✅ 新版精美報名名單彈窗
+                const openCourseOrdersModal = (course) => {
+                    selectedCourseForOrders.value = course;
+                    selectedCourseOrders.value = orders.value.filter(o => 
+                        (o.courseId === course.id || o.courseId === course.name) && 
+                        o.status !== 'CANCELLED'
+                    ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    showEnrollmentModal.value = true;
+                };
+
+                const generateCheckinLink = async (c) => {
+                    if(!c.checkinPwd) return alert('請先填寫密碼');
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_SET_CHECKIN_PWD', { courseId: c.id, checkinPwd: c.checkinPwd });
+                        if(res) alert('簽到密碼更新成功');
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const updateOrderAttendance = async (o) => {
+                    isLoading.value = true;
+                    try { await callApi('ADMIN_UPDATE_ORDER', { orderId: o.orderId, attendance: o.attendance }); } 
+                    catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const openOrderEditModal = (o) => { editingOrder.value = JSON.parse(JSON.stringify(o)); };
+
+                const saveOrderUpdate = async () => {
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_UPDATE_ORDER', {
+                            orderId: editingOrder.value.orderId,
+                            status: editingOrder.value.status,
+                            amount: editingOrder.value.amount,
+                            note: editingOrder.value.note
+                        });
+                        if(res) {
+                            alert('訂單更新成功');
+                            fetchData();
+                            editingOrder.value = null;
+                        }
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const openSysConfigModal = (t) => {
+                    editingSysConfig.value = {
+                        userId: t.userId, name: t.name, rent: t.config.rent || 0, comm: t.config.comm || 0,
+                        price: t.config.price || 0, acceptPoints: t.config.acceptPoints || false, maxPoints: t.config.maxPoints || 0
+                    };
+                };
+
+                const saveSysConfig = async () => {
+                    isLoading.value = true;
+                    try {
+                        const configToSave = {
+                            rent: editingSysConfig.value.rent, comm: editingSysConfig.value.comm, price: editingSysConfig.value.price,
+                            acceptPoints: editingSysConfig.value.acceptPoints, maxPoints: editingSysConfig.value.maxPoints
+                        };
+                        const teacherObj = users.value.find(u => u.userId === editingSysConfig.value.userId);
+                        if (teacherObj) {
+                            teacherObj.adminNote = JSON.stringify(configToSave);
+                            await callApi('ADMIN_UPDATE_MEMBER', { memberData: teacherObj });
+                            alert('抽成設定更新成功');
+                            fetchData();
+                            editingSysConfig.value = null;
+                        }
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const handleApproveTeacher = async () => {
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_APPROVE_TEACHER', {
+                            teacherUid: approveForm.value.uid,
+                            rentPrice: approveForm.value.rent,
+                            commissionRate: approveForm.value.comm
+                        });
+                        if(res) {
+                            alert('導師核准成功');
+                            fetchData();
+                            approveForm.value = { uid: '', rent: 0, comm: 0 };
+                        }
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const clearDrafts = () => { draftOpenSlots.value = []; draftCloseSlots.value = []; };
+                const submitDrafts = () => { alert('請在排班系統中完成此操作'); clearDrafts(); };
+                const handleToggleSlot = () => {};
+                const getSlotStyle = () => '';
+                const getSlotStatus = () => '';
+                const isDraftClose = () => false;
+
+                return {
+                    isAuthenticated, loginForm, view, groups, isLoading,
+                    users, teachers, courses, orders, sysSettings,
+                    currentViewName, totalRevenue, courseStatsFiltered,
+                    memberSearch, filteredMembers, courseSearchQuery, filteredAdminCourses,
+                    approveForm, activeTeacher, draftOpenSlots, draftCloseSlots, dates, timeSlots,
+                    isImageUploading, activeMember, activeMemberPoints, editingCourse,
+                    activeEnrollmentCourse, courseOrders, editingOrder, editingPointAction, editingSysConfig,
                     
-                    if (typeof copiedCourse.targetTiers === 'string') {
-                        try { copiedCourse.targetTiers = JSON.parse(copiedCourse.targetTiers); } 
-                        catch(e) { copiedCourse.targetTiers = ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師']; }
-                    }
-                    if(await callApi('ADMIN_UPDATE_COURSE', copiedCourse)) { alert('✅ 複製成功！'); fetchData(); }
-                };
-
-                onMounted(() => {
-                    const today = new Date(); const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
-                    for (let i = 0; i < 30; i++) { 
-                        const d = new Date(today); d.setDate(today.getDate() + i); 
-                        dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: dayNames[d.getDay()] }); 
-                    }
-                    if (localStorage.getItem('admin_auth_v156') === 'true') { isAuthenticated.value = true; fetchData(); checkHubHealth(); }
-                });
-
-                return { 
-                    isAuthenticated, loginForm, view, currentViewName, groups, toggleGroup, isLoading, isImageUploading, logout, handleLogin, fetchData, hubStatus, checkHubHealth, runHealthCheck, triggerBackup, 
-                    isSubView, switchView, backToParent,
-                    users, teachers, courses, orders, totalRevenue, activeTeacher, approveForm, activeMember, openMemberDetail, saveMemberDetail, saveSettings, handleBannerUpload, 
-                    sysSettings, courseStatsFiltered, formatPrice: p=>Number(String(p).replace(/[^0-9.]/g,"")).toLocaleString(), getCourseName: id=>courses.value.find(c=>c.id===id || c.name===id)?.name||id, 
-                    activeMemberPoints, openPointActionModal, editingPointAction, submitPointAction,
-                    adminCategories, courseFilterCategory, courseSearchQuery, memberSearch, filteredMembers, filteredAdminCourses, activeEnrollmentCourse, openEnrollments, 
-                    courseOrders: computed(()=>activeEnrollmentCourse.value?orders.value.filter(o=>o.courseId===activeEnrollmentCourse.value.id || o.courseId===activeEnrollmentCourse.value.name):[]), 
-                    updateOrderAttendance, generateCheckinLink, openOrderEditModal, editingOrder, saveOrderUpdate, syncToCalendar, 
-                    editingCourse, openNewCourseModal, openEditModal, saveCourse, copyCourse, handleCourseImageUpload,
-                    getSlotStatus, getSlotStyle, isDraftClose, handleToggleSlot, handleApproveTeacher, 
-                    editingSysConfig, openSysConfigModal, saveSysConfig, draftOpenSlots, draftCloseSlots, clearDrafts, submitDrafts
+                    // ✅ 確認匯出供模板使用
+                    showEnrollmentModal, selectedCourseForOrders, selectedCourseOrders, openCourseOrdersModal,
+                    
+                    handleLogin, toggleGroup, switchView, logout, fetchData, triggerBackup, runHealthCheck,
+                    openMemberDetail, saveMemberDetail, openPointActionModal, submitPointAction,
+                    openNewCourseModal, openEditModal, saveCourse, copyCourse, syncToCalendar,
+                    handleBannerUpload, handleCourseImageUpload, saveSettings, openEnrollments,
+                    generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
+                    openSysConfigModal, saveSysConfig, handleApproveTeacher, clearDrafts, submitDrafts,
+                    handleToggleSlot, getSlotStyle, getSlotStatus, isDraftClose, getCourseName, formatPrice
                 };
             }
         }).mount('#app');
