@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
-    <!-- Version: 2026.04.28.V245_Category_Tags_Fixed -->
+    <!-- Version: 2026.04.28.V247_Share_Blessing_And_Add_Friend -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -64,8 +64,27 @@
             </div>
         </transition>
 
+        <!-- ========================================================== -->
+        <!-- 🤝 強制加好友引導畫面 (若偵測非好友時攔截) -->
+        <!-- ========================================================== -->
+        <div v-if="view === 'add_friend_prompt'" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-8 animate-fade-in text-center">
+            <div class="w-24 h-24 bg-[#06C755]/10 text-[#06C755] rounded-full flex items-center justify-center text-5xl mb-6 shadow-sm border border-[#06C755]/20">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <h2 class="text-2xl font-black text-slate-800 mb-3">還差最後一步！</h2>
+            <p class="text-[15px] text-slate-500 font-medium mb-10 leading-relaxed">為了能將專屬福氣、課表與系統通知<br>順利發送給您，請先加入官方帳號。</p>
+            
+            <a :href="sysSettings.link_lineoa || 'https://line.me/R/'" class="btn-primary py-4 w-full text-lg shadow-lg shadow-green-100 mb-6">
+                <i class="fab fa-line text-xl mr-1"></i> 點此加入官方帳號
+            </a>
+            
+            <button @click="retryInit" class="text-sm font-bold text-slate-400 hover:text-slate-600 transition underline decoration-slate-300 underline-offset-4">
+                我已經加入了，繼續進入系統
+            </button>
+        </div>
+
         <!-- 🏠 主系統架構 -->
-        <div v-if="view !== 'register' && view !== 'courseDetail' && view !== 'share'" class="flex flex-col h-screen overflow-hidden">
+        <div v-if="view !== 'register' && view !== 'courseDetail' && view !== 'share' && view !== 'add_friend_prompt'" class="flex flex-col h-screen overflow-hidden">
             
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
@@ -88,7 +107,7 @@
                         </div>
                     </div>
 
-                    <!-- 🗂️ 6 個固定標籤導航 (已優化尺寸) -->
+                    <!-- 🗂️ 固定標籤導航 -->
                     <div class="bg-white sticky top-[61px] z-20 border-b border-[#F0F0F0] py-3 shadow-sm">
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-1.5">
                             <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" 
@@ -182,12 +201,12 @@
                     <div class="p-6">
                         <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg mb-8 relative overflow-hidden">
                             <div class="absolute right-0 top-0 opacity-10 text-8xl -mt-4 -mr-2"><i class="fas fa-gift"></i></div>
-                            <div class="text-[13px] text-slate-300 font-bold mb-1 relative z-10">紅包帳戶餘額</div>
+                            <div class="text-[13px] text-slate-300 font-bold mb-1 relative z-10">福氣帳戶餘額</div>
                             <div class="text-4xl font-black mb-4 relative z-10">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
                             
                             <div class="flex gap-2 relative z-10 mt-6">
                                 <button @click="dailyCheckin" class="flex-1 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-white/10 flex items-center justify-center gap-1"><i class="fas fa-calendar-check text-green-300"></i>每日登入</button>
-                                <button @click="navigateTo('share')" class="flex-1 py-3 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-1"><i class="fas fa-share-alt"></i>邀請賺點</button>
+                                <button @click="navigateTo('share')" class="flex-1 py-3 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-1"><i class="fas fa-share-alt"></i>共享福氣</button>
                             </div>
                         </div>
                         
@@ -245,7 +264,7 @@
             <div v-if="view === 'share'" class="fixed inset-0 bg-white z-[60] flex flex-col overflow-hidden">
                 <div class="header-fixed justify-start gap-4 z-50 shadow-sm">
                     <button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button>
-                    <h2 class="text-[19px] font-black text-slate-800">邀請好友賺紅包</h2>
+                    <h2 class="text-[19px] font-black text-slate-800">邀請好友共享福氣</h2>
                 </div>
                 
                 <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center pb-32 bg-white">
@@ -276,9 +295,9 @@
                     <div class="mt-8 p-5 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 leading-relaxed font-medium">
                         <p class="font-bold text-slate-700 mb-2"><i class="fas fa-info-circle mr-1 text-[#06C755]"></i> 推薦獎勵說明：</p>
                         <ul class="list-disc pl-4 space-y-1.5">
-                            <li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得紅包點數。</li>
+                            <li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得福氣點數。</li>
                             <li>每成功邀請一位，您將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_refer || 0 }}</span> 點。</li>
-                            <li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新紅包。</li>
+                            <li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新福氣。</li>
                         </ul>
                     </div>
                 </div>
@@ -334,7 +353,7 @@
                                     <span>$ {{ formatPrice(selectedCourse.price) }}</span>
                                 </div>
                                 <div v-if="pointsToUse > 0" class="flex justify-between items-center text-[15px] font-bold text-red-500">
-                                    <span>紅包折抵 <span class="text-xs ml-1">({{ selectedCourse.discountRule === 'RULE_A' ? '上限20%' : (selectedCourse.discountRule === 'RULE_B' ? '上限50%' : '全額') }})</span></span>
+                                    <span>福氣點數折抵 <span class="text-xs ml-1">({{ selectedCourse.discountRule === 'RULE_A' ? '上限20%' : (selectedCourse.discountRule === 'RULE_B' ? '上限50%' : '全額') }})</span></span>
                                     <span>- {{ formatPrice(pointsToUse) }} 點</span>
                                 </div>
                                 <div class="pt-3 border-t border-[#EEEEEE] flex justify-between items-center text-[18px] font-black text-[#111111]">
@@ -462,7 +481,7 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v245'; 
+        const CACHE_VERSION = 'v247'; 
 
         createApp({
             setup() {
@@ -475,7 +494,6 @@
                 const isEditingProfile = ref(false);
                 const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 
-                // ✅ 更新分類標籤名稱 (精簡文字，不再超出手機畫面)
                 const predefinedCategories = ['全部', '一般', '會員', '喚醒階段', '蛻變階段', '完整階段'];
                 const activeCategory = ref('全部');
 
@@ -561,6 +579,19 @@
                         
                         loadingText.value = '載入使用者資料...';
                         liffProfile.value = await liff.getProfile();
+
+                        // 🤝 程式層級好友狀態檢查 (預防未開啟 Aggressive prompt 的情況)
+                        try {
+                            const friendship = await liff.getFriendship();
+                            if (!friendship.friendFlag) {
+                                isGlobalLoading.value = false;
+                                view.value = 'add_friend_prompt';
+                                return; // 暫停初始化，等用戶加完好友
+                            }
+                        } catch(e) {
+                            console.log('好友檢查略過或權限不足:', e);
+                        }
+
                         const uid = liffProfile.value.userId;
                         syncLocal(uid);
 
@@ -640,7 +671,7 @@
                 const dailyCheckin = async () => {
                     try {
                         const res = await callApi('DAILY_CHECKIN', {}, false);
-                        if (res) { alert(`🎁 領取紅包成功！獲得 ${res.earned} 點`); window.location.reload(); }
+                        if (res) { alert(`🎁 領取福氣點數成功！獲得 ${res.earned} 點`); window.location.reload(); }
                     } catch(e) { console.error(e); }
                 };
 
@@ -664,13 +695,13 @@
                                   "body": {
                                     "type": "box", "layout": "vertical",
                                     "contents": [
-                                      { "type": "text", "text": "人生 ACTION", "weight": "bold", "size": "xl" },
-                                      { "type": "text", "text": `${liffProfile.value.displayName} 邀請您加入會員，領取專屬迎新紅包！立刻點擊下方按鈕加入我們。`, "wrap": true, "size": "sm", "color": "#666666", "margin": "md" }
+                                      { "type": "text", "text": "人生 ACTION 共享福氣", "weight": "bold", "size": "xl" },
+                                      { "type": "text", "text": `${liffProfile.value.displayName} 邀請您加入會員，領取專屬迎新福氣！立刻點擊下方按鈕加入我們。`, "wrap": true, "size": "sm", "color": "#666666", "margin": "md" }
                                     ]
                                   },
                                   "footer": {
                                     "type": "box", "layout": "vertical",
-                                    "contents": [{ "type": "button", "style": "primary", "color": "#06C755", "action": { "type": "uri", "label": "點此加入領取紅包", "uri": shareUrl.value } }]
+                                    "contents": [{ "type": "button", "style": "primary", "color": "#06C755", "action": { "type": "uri", "label": "點此加入領取福氣", "uri": shareUrl.value } }]
                                   }
                                 }
                             }]);
@@ -739,8 +770,8 @@
                     const paymentName = paymentMethod.value === 'NEWEBPAY' ? '線上刷卡' : '銀行匯款';
                     const cName = (selectedCourse.value.name || '').split('\n')[0];
                     let confirmMsg = finalPrice.value === 0 
-                        ? `確定使用 ${pointsToUse.value} 點紅包，全額抵扣報名「${cName}」嗎？`
-                        : (pointsToUse.value > 0 ? `確定使用 ${pointsToUse.value} 點紅包，並以「${paymentName}」結帳 $${finalPrice.value} 嗎？` : `確定以「${paymentName}」結帳 $${finalPrice.value} 嗎？`);
+                        ? `確定使用 ${pointsToUse.value} 點福氣點數，全額抵扣報名「${cName}」嗎？`
+                        : (pointsToUse.value > 0 ? `確定使用 ${pointsToUse.value} 點福氣點數，並以「${paymentName}」結帳 $${finalPrice.value} 嗎？` : `確定以「${paymentName}」結帳 $${finalPrice.value} 嗎？`);
                         
                     if (!confirm(confirmMsg)) return;
                     isLoading.value = true;
@@ -750,7 +781,7 @@
                             await callApi('ADMIN_MANAGE_POINTS', { uid: liffProfile.value.userId, type: 'SYSTEM_SPEND', amount: pointsToUse.value, reason: `報名折抵: ${cName}`, operator: 'System' }, false);
                         }
 
-                        const noteText = pointsToUse.value > 0 ? `紅包折抵 ${pointsToUse.value} 點` : '';
+                        const noteText = pointsToUse.value > 0 ? `福氣點數折抵 ${pointsToUse.value} 點` : '';
                         const res = await callApi('REGISTER', { courseId: selectedCourse.value.id, amount: finalPrice.value, note: noteText }, false);
                         
                         if (res && res.orderId) {
@@ -802,7 +833,7 @@
                 };
 
                 const cancelOrder = async (o) => {
-                    if (!confirm('確定要取消這筆報名訂單嗎？\n(注意：若是扣抵紅包的訂單，取消後點數需聯絡客服退還)')) return;
+                    if (!confirm('確定要取消這筆報名訂單嗎？\n(注意：若是扣抵福氣點數的訂單，取消後點數需聯絡客服退還)')) return;
                     isLoading.value = true;
                     try {
                         const res = await callApi('CANCEL_MY_ORDER', { orderId: o.orderId }, false);
@@ -867,7 +898,6 @@
                     
                     categories: predefinedCategories,
                     activeCategory,
-                    // ✅ 升級版精準過濾邏輯
                     filteredCourses: computed(() => {
                         return courses.value.filter(c => {
                             if (c.isPublished === false) return false;
