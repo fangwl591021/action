@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.28.V185_Script_Restored -->
+    <!-- Version: 2026.04.28.V244_LIFF_Admin_Auth -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -72,12 +72,25 @@
                 <div class="mb-8">
                     <div class="w-14 h-14 bg-[#f0fdf4] text-[#06C755] rounded-xl flex items-center justify-center text-2xl mx-auto mb-4 border border-[#dcfce7]"><i class="fas fa-shield-alt"></i></div>
                     <h2 class="text-xl font-bold text-slate-800">宏學管理站</h2>
-                    <p class="text-slate-500 text-sm mt-1.5 font-medium">請輸入管理帳號密碼</p>
+                    <p class="text-slate-500 text-sm mt-1.5 font-medium">系統安全驗證</p>
                 </div>
                 <div class="space-y-4">
+                    <!-- ✅ LINE 一鍵登入按鈕 -->
+                    <button @click="lineLogin" :disabled="isLoading" class="w-full py-3.5 bg-[#06C755] text-white rounded-lg font-bold text-sm shadow-sm hover:bg-[#05b04a] transition flex items-center justify-center gap-2 active:scale-95">
+                        <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>
+                        <i v-else class="fab fa-line text-lg"></i>
+                        {{ isLoading ? '身分驗證中...' : 'LINE 授權一鍵登入' }}
+                    </button>
+                    
+                    <div class="relative flex items-center py-3">
+                        <div class="flex-grow border-t border-slate-100"></div>
+                        <span class="shrink-0 px-3 text-[11px] text-slate-400 font-bold uppercase tracking-widest">或使用備用密碼登入</span>
+                        <div class="flex-grow border-t border-slate-100"></div>
+                    </div>
+
                     <input type="text" v-model="loginForm.account" placeholder="管理員帳號" class="input-field w-full text-center bg-slate-50">
                     <input type="password" v-model="loginForm.password" placeholder="登入密碼" class="input-field w-full text-center bg-slate-50" @keyup.enter="handleLogin">
-                    <button @click="handleLogin" class="w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-slate-700 transition mt-2">確認登入</button>
+                    <button @click="handleLogin" class="w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-slate-700 transition mt-2">密碼登入</button>
                 </div>
             </div>
         </div>
@@ -139,7 +152,7 @@
                                 <tr v-for="c in courseStatsFiltered" :key="c.id">
                                     <td class="font-bold text-slate-700 text-base max-w-[250px] truncate">{{ c.name }}</td>
                                     
-                                    <!-- ✅ 報名數按鈕 (可開啟名單彈窗) -->
+                                    <!-- 報名數按鈕 (開啟名單彈窗) -->
                                     <td class="px-4 py-4 border-b text-center">
                                         <button @click="openCourseOrdersModal(c)" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 px-4 py-2 rounded-xl font-black transition-all inline-flex items-center gap-2 shadow-sm border border-indigo-100 active:scale-95">
                                             {{ c.totalOrders || 0 }} <i class="fas fa-users text-xs opacity-80"></i>
@@ -185,7 +198,6 @@
                     </div>
                 </div>
 
-                <!-- 🚀 3. 課程管理 -->
                 <div v-if="view === 'courses'" class="animate-fade-in">
                     <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
                         <div class="flex gap-3">
@@ -664,6 +676,7 @@
                 const view = ref('dashboard');
                 const groups = ref({ groupA: true, groupB: true });
                 const isLoading = ref(false);
+                const liffProfile = ref({});
                 
                 // ✅ 核心資料集
                 const users = ref([]);
@@ -695,7 +708,6 @@
                 const editingPointAction = ref(null);
                 const editingSysConfig = ref(null);
 
-                // ✅ 新增：精美的報名名單彈窗
                 const showEnrollmentModal = ref(false);
                 const selectedCourseForOrders = ref(null);
                 const selectedCourseOrders = ref([]);
@@ -716,12 +728,16 @@
                     dates.value = result;
                 };
 
-                const callApi = async (act, pl = {}) => {
+                const callApi = async (act, pl = {}, silent = false) => {
                     try {
                         const res = await fetch(WORKER_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: act, payload: pl })
+                            body: JSON.stringify({ 
+                                action: act, 
+                                payload: pl,
+                                userProfile: liffProfile.value || {} 
+                            })
                         });
                         const text = await res.text();
                         let json;
@@ -729,7 +745,7 @@
                         if (json.status !== 'success') throw new Error(json.message || '後台執行失敗');
                         return json.data;
                     } catch (e) {
-                        alert(`API Error: ${e.message}`);
+                        if (!silent) alert(`API Error: ${e.message}`);
                         throw e;
                     }
                 };
@@ -752,8 +768,67 @@
                     }
                 };
 
+                // 🌟 新增：自動嘗試 LIFF 登入 (針對由前台切換過來的情境)
+                const autoLineLogin = async () => {
+                    try {
+                        const data = await callApi('GET_SETTINGS', {}, true);
+                        let finalLiffId = String(data.liff_id || '').trim();
+                        if (finalLiffId.includes('liff.line.me/')) {
+                            finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
+                        }
+                        if (finalLiffId) {
+                            await liff.init({ liffId: finalLiffId });
+                            if (liff.isLoggedIn()) {
+                                liffProfile.value = await liff.getProfile();
+                                const checkRes = await callApi('CHECK_USER', {}, true);
+                                if (checkRes && checkRes.isAdmin) {
+                                    isAuthenticated.value = true;
+                                    generateDates();
+                                    fetchData();
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Silent LIFF login skip:', e);
+                    }
+                };
+
+                // 🌟 新增：一鍵授權按鈕邏輯
+                const lineLogin = async () => {
+                    isLoading.value = true;
+                    try {
+                        const data = await callApi('GET_SETTINGS', {}, false);
+                        let finalLiffId = String(data.liff_id || '').trim();
+                        if (finalLiffId.includes('liff.line.me/')) {
+                            finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
+                        }
+                        if (!finalLiffId) throw new Error('管理員尚未設定系統主 LIFF ID');
+
+                        await liff.init({ liffId: finalLiffId });
+                        if (!liff.isLoggedIn()) {
+                            liff.login({ redirectUri: window.location.href });
+                            return;
+                        }
+
+                        liffProfile.value = await liff.getProfile();
+                        const checkRes = await callApi('CHECK_USER', {}, false);
+
+                        if (checkRes && checkRes.isAdmin) {
+                            isAuthenticated.value = true;
+                            generateDates();
+                            fetchData();
+                        } else {
+                            alert('⛔ 您的 LINE 帳號沒有管理權限，無法登入。');
+                        }
+                    } catch (e) {
+                        alert(`登入失敗: ${e.message}`);
+                    } finally {
+                        isLoading.value = false;
+                    }
+                };
+
                 const handleLogin = () => {
-                    if (loginForm.value.account === 'admin' && loginForm.value.password === '1234') {
+                    if (loginForm.value.account === 'admin' && loginForm.value.password === '@1234') {
                         isAuthenticated.value = true;
                         generateDates();
                         fetchData();
@@ -976,13 +1051,11 @@
                     } catch(e) { console.error(e); } finally { isLoading.value = false; }
                 };
 
-                // 舊版報名名單
                 const openEnrollments = (c) => {
                     activeEnrollmentCourse.value = JSON.parse(JSON.stringify(c));
                     courseOrders.value = orders.value.filter(o => (o.courseId === c.id || o.courseId === c.name) && o.status !== 'CANCELLED');
                 };
                 
-                // ✅ 新版精美報名名單彈窗
                 const openCourseOrdersModal = (course) => {
                     selectedCourseForOrders.value = course;
                     selectedCourseOrders.value = orders.value.filter(o => 
@@ -1074,8 +1147,12 @@
                 const getSlotStatus = () => '';
                 const isDraftClose = () => false;
 
+                onMounted(() => {
+                    autoLineLogin();
+                });
+
                 return {
-                    isAuthenticated, loginForm, view, groups, isLoading,
+                    isAuthenticated, loginForm, view, groups, isLoading, liffProfile,
                     users, teachers, courses, orders, sysSettings,
                     currentViewName, totalRevenue, courseStatsFiltered,
                     memberSearch, filteredMembers, courseSearchQuery, filteredAdminCourses,
@@ -1083,10 +1160,9 @@
                     isImageUploading, activeMember, activeMemberPoints, editingCourse,
                     activeEnrollmentCourse, courseOrders, editingOrder, editingPointAction, editingSysConfig,
                     
-                    // ✅ 確認匯出供模板使用
                     showEnrollmentModal, selectedCourseForOrders, selectedCourseOrders, openCourseOrdersModal,
                     
-                    handleLogin, toggleGroup, switchView, logout, fetchData, triggerBackup, runHealthCheck,
+                    lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, triggerBackup, runHealthCheck,
                     openMemberDetail, saveMemberDetail, openPointActionModal, submitPointAction,
                     openNewCourseModal, openEditModal, saveCourse, copyCourse, syncToCalendar,
                     handleBannerUpload, handleCourseImageUpload, saveSettings, openEnrollments,
