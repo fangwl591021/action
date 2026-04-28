@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生ACTION</title>
+    <!-- Version: 2026.04.28.V245_Category_Tags_Fixed -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -50,6 +51,7 @@
 <body>
     <div id="app" v-cloak class="max-w-md mx-auto min-h-screen bg-[#F4F5F7] pb-[env(safe-area-inset-bottom)] relative">
         
+        <!-- 🟢 系統啟動載入 -->
         <transition name="fade">
             <div v-if="isGlobalLoading" class="fixed inset-0 bg-[#06C755] z-[100] flex flex-col items-center justify-center text-center">
                 <div class="mb-6 flex flex-col items-center">
@@ -62,10 +64,12 @@
             </div>
         </transition>
 
+        <!-- 🏠 主系統架構 -->
         <div v-if="view !== 'register' && view !== 'courseDetail' && view !== 'share'" class="flex flex-col h-screen overflow-hidden">
             
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
+                <!-- 🌟 首頁：課程探索 -->
                 <div v-if="view === 'home'" class="animate-fade-in relative">
                     <div class="header-fixed">
                         <div class="font-black text-[#111111] text-[19px] tracking-tight">人生ACTION</div>
@@ -84,16 +88,18 @@
                         </div>
                     </div>
 
+                    <!-- 🗂️ 6 個固定標籤導航 (已優化尺寸) -->
                     <div class="bg-white sticky top-[61px] z-20 border-b border-[#F0F0F0] py-3 shadow-sm">
-                        <div class="flex overflow-x-auto hide-scrollbar px-4 gap-2">
+                        <div class="flex overflow-x-auto hide-scrollbar px-4 gap-1.5">
                             <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" 
-                                    class="shrink-0 px-5 py-2 rounded-full text-[14px] font-bold transition-all" 
+                                    class="shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all" 
                                     :class="activeCategory === cat ? 'bg-[#111111] text-white shadow-md' : 'bg-[#F4F5F7] text-[#666666] hover:bg-[#EAECEF]'">
                                 {{ cat }}
                             </button>
                         </div>
                     </div>
 
+                    <!-- 📦 課程列表區塊 -->
                     <div class="px-4 mt-5 mb-10 grid grid-cols-2 gap-4">
                         <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm cursor-pointer">
                             <div class="w-full aspect-[4/3] bg-[#F8F9FA] relative border-b border-[#EEEEEE]">
@@ -119,6 +125,7 @@
                     </div>
                 </div>
 
+                <!-- 📜 我的報名紀錄 -->
                 <div v-if="view === 'orders'" class="animate-fade-in">
                     <div class="header-fixed justify-center"><h2 class="text-[17px] font-bold text-[#111111]">歷史報名紀錄</h2></div>
                     <div class="pt-2 pb-20">
@@ -130,10 +137,12 @@
                             <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ (getCourseName(o.courseId) || '').split('\n')[0] }}</div>
                             <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">$ {{ formatPrice(o.amount) }}</div>
                             
+                            <!-- 顯示訂單備註 -->
                             <div v-if="o.note" class="text-[13px] text-slate-500 font-bold bg-slate-50 p-3 rounded-lg mb-3 border border-slate-100 leading-relaxed whitespace-pre-wrap">
                                 <i class="fas fa-info-circle mr-1.5 text-slate-400"></i>{{ o.note }}
                             </div>
                             
+                            <!-- 待付款狀態：顯示線上付款與轉帳按鈕 -->
                             <div v-if="o.status === 'PENDING'" class="flex gap-2 border-t pt-3 mt-2">
                                 <button @click="payOrder(o)" :disabled="isLoading" class="flex-1 py-3 rounded-lg bg-[#06C755] text-white text-[13px] font-bold active:scale-95 transition flex justify-center items-center shadow-sm">
                                     <i class="fas fa-credit-card mr-1.5"></i>線上刷卡
@@ -143,6 +152,7 @@
                                 </button>
                             </div>
                             
+                            <!-- 取消訂單開關判斷 -->
                             <div v-if="o.status === 'PENDING' && sysSettings.allow_cancel_order === 'true'" class="mt-3 text-center">
                                 <button @click="cancelOrder(o)" :disabled="isLoading" class="text-xs font-bold text-slate-400 underline py-1 hover:text-slate-600 transition">取消報名這堂課</button>
                             </div>
@@ -153,6 +163,7 @@
                     </div>
                 </div>
 
+                <!-- 👤 我的檔案 -->
                 <div v-if="view === 'profile'" class="animate-fade-in bg-white min-h-screen pb-32">
                     <div class="header-fixed justify-between">
                         <h2 class="text-[17px] font-bold text-[#111111]">學員檔案</h2>
@@ -206,6 +217,7 @@
                             <div class="pt-6"><button @click="saveProfileUpdate" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存變更</button></div>
                         </div>
                         
+                        <!-- 🛡️ 管理員專屬：切換至管理後台按鈕 -->
                         <div v-if="userStatus.isAdmin" class="mt-8 animate-fade-in">
                             <div class="text-xs font-bold text-slate-400 text-center mb-3 tracking-widest uppercase">系統管理員專區</div>
                             <a href="./admin.html" class="w-full py-4 bg-slate-800 text-white rounded-2xl font-black shadow-lg flex items-center justify-center gap-3 active:scale-95 transition border border-slate-700">
@@ -216,6 +228,7 @@
                     </div>
                 </div>
 
+                <!-- 🎁 專屬分享好友畫面 -->
                 <div v-if="view === 'share'" class="animate-fade-in bg-white min-h-screen pb-32">
                     <div class="header-fixed justify-start gap-4">
                         <button @click="navigateTo('profile')" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button>
@@ -259,6 +272,7 @@
                 </div>
             </main>
 
+            <!-- 底部固定導覽列 -->
             <nav class="bottom-nav">
                 <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
@@ -266,6 +280,9 @@
             </nav>
         </div>
 
+        <!-- ========================================================== -->
+        <!-- 📖 課程詳細介紹頁面 (全版子畫面) -->
+        <!-- ========================================================== -->
         <transition name="slide-up">
             <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-0 bg-white z-[60] flex flex-col overflow-hidden">
                 
@@ -303,6 +320,7 @@
                             </div>
                         </div>
 
+                        <!-- 結帳試算區塊 -->
                         <div class="mt-8 border-t border-slate-100 pt-6" v-if="selectedCourse.price > 0">
                             <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-calculator text-[#06C755]"></i>結帳試算</h3>
                             <div class="bg-[#F8F9FA] rounded-2xl p-5 space-y-3 border border-[#EEEEEE]">
@@ -321,6 +339,7 @@
                             </div>
                         </div>
                         
+                        <!-- 付款方式選擇區塊 -->
                         <div class="mt-6 border-t border-slate-100 pt-6" v-if="finalPrice > 0">
                             <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-wallet text-[#06C755]"></i>選擇付款方式</h3>
                             <div class="flex gap-3">
@@ -357,6 +376,9 @@
             </div>
         </transition>
 
+        <!-- ========================================================== -->
+        <!-- 📝 新戶註冊引導視圖 -->
+        <!-- ========================================================== -->
         <div v-if="view === 'register'" class="fixed inset-0 bg-white z-[90] flex flex-col h-full w-full overflow-hidden animate-fade-in">
             <div class="header-fixed justify-start gap-4 shadow-sm"><button @click="view = 'home'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h1 class="text-[19px] font-black">建立學員檔案</h1></div>
             <div class="flex-1 overflow-y-auto p-6 space-y-6 pb-32">
@@ -377,6 +399,9 @@
             </div>
         </div>
 
+        <!-- ========================================================== -->
+        <!-- 🏦 匯款資訊提示彈窗 (送出報名後跳出) -->
+        <!-- ========================================================== -->
         <transition name="fade">
             <div v-if="showRemittanceInfoModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl transform transition-transform animate-fade-in" @click.stop>
@@ -406,6 +431,9 @@
             </div>
         </transition>
 
+        <!-- ========================================================== -->
+        <!-- 💰 轉帳完成回報 (Bottom Sheet) -->
+        <!-- ========================================================== -->
         <transition name="slide-up">
             <div v-if="showRemittanceModal" class="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm">
                 <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-[max(env(safe-area-inset-bottom),24px)] transform transition-transform" @click.stop>
@@ -429,7 +457,7 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v241'; // 🆙 強制更新版號
+        const CACHE_VERSION = 'v245'; 
 
         createApp({
             setup() {
@@ -442,14 +470,14 @@
                 const isEditingProfile = ref(false);
                 const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 
-                const predefinedCategories = ['一般', '一般會員', '喚醒階段會員', '蛻變階段會員', '完整階段會員'];
-                const activeCategory = ref('一般');
+                // ✅ 更新分類標籤名稱 (精簡文字，不再超出手機畫面)
+                const predefinedCategories = ['全部', '一般', '會員', '喚醒階段', '蛻變階段', '完整階段'];
+                const activeCategory = ref('全部');
 
                 const showRemittanceInfoModal = ref(false); 
                 const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null);
                 const paymentMethod = ref('NEWEBPAY');
 
-                // 🌟 新版 API 呼叫模組：解開靜默拋錯，直接把錯誤吐出來
                 const callApi = async (act, pl = {}, silent = false) => {
                     try {
                         const res = await fetch(WORKER_URL, { 
@@ -468,6 +496,10 @@
                             throw new Error(`後端回傳格式異常，請確認 GAS 部署是否正確。\n(回應開頭: ${text.substring(0, 50)}...)`);
                         }
 
+                        if (!json.status) {
+                            throw new Error(`【GAS 版本過舊】\n系統偵測到後端尚未更新！\n請至 GAS 點擊「管理部署作業」-> 編輯 -> 版本選「建立新版本」-> 部署。\n(未識別指令: ${act})`);
+                        }
+
                         if (json.status !== 'success') {
                             throw new Error(json.message || `後台尚未授權此操作 (${act})`); 
                         }
@@ -481,7 +513,7 @@
                         if (!silent) {
                             alert(`❌ 系統提示：\n${e.message}`); 
                         }
-                        throw e; // 確保呼叫端能接到錯誤
+                        throw e;
                     }
                 };
 
@@ -568,7 +600,6 @@
                     view.value = t; window.scrollTo(0, 0);
                 };
 
-                // 🛡️ 全域防護：所有 Loading 都有 finally 解除鎖定
                 const submitRegistration = async () => {
                     if (!regForm.value.name || !regForm.value.phone) return alert('姓名與電話為必填');
                     isLoading.value = true;
@@ -698,7 +729,6 @@
                     return '確認報名並取得匯款帳號';
                 });
 
-                // 🛡️ 防護：執行結帳
                 const executeBooking = async () => {
                     if (!userStatus.value.registered) { view.value = 'register'; return; }
                     const paymentName = paymentMethod.value === 'NEWEBPAY' ? '線上刷卡' : '銀行匯款';
@@ -722,7 +752,7 @@
                             if (finalPrice.value > 0) {
                                 if (paymentMethod.value === 'NEWEBPAY') {
                                     await initiatePayment(res.orderId, finalPrice.value, cName);
-                                    return; // 這裡不設 finally false，因為準備要跳轉金流了
+                                    return; 
                                 } else {
                                     showRemittanceInfoModal.value = true;
                                 }
@@ -753,7 +783,6 @@
 
                 const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString();
 
-                // 🛡️ 防護：重新發起刷卡
                 const payOrder = async (o) => {
                     isLoading.value = true;
                     try {
@@ -767,7 +796,6 @@
                     }
                 };
 
-                // 🛡️ 防護：取消訂單
                 const cancelOrder = async (o) => {
                     if (!confirm('確定要取消這筆報名訂單嗎？\n(注意：若是扣抵紅包的訂單，取消後點數需聯絡客服退還)')) return;
                     isLoading.value = true;
@@ -787,7 +815,6 @@
                     }
                 };
 
-                // 🛡️ 防護：匯款回報
                 const submitRemittance = async () => {
                     const digits = remittanceInput.value.replace(/\D/g, '');
                     if (digits.length !== 5) { 
@@ -835,14 +862,19 @@
                     
                     categories: predefinedCategories,
                     activeCategory,
+                    // ✅ 升級版精準過濾邏輯
                     filteredCourses: computed(() => {
                         return courses.value.filter(c => {
                             if (c.isPublished === false) return false;
+                            if (activeCategory.value === '全部') return true;
+                            
                             const searchTarget = (c.name || '') + ' ' + (c.type || '');
                             if (activeCategory.value === '一般') {
-                                return !['一般會員', '喚醒階段', '蛻變階段', '完整階段'].some(k => searchTarget.includes(k));
+                                return !['會員', '喚醒', '蛻變', '完整'].some(k => searchTarget.includes(k));
+                            } else if (activeCategory.value === '會員') {
+                                return searchTarget.includes('會員') && !['喚醒', '蛻變', '完整'].some(k => searchTarget.includes(k));
                             } else {
-                                const key = activeCategory.value.replace('會員', ''); 
+                                const key = activeCategory.value.replace('階段', ''); 
                                 return searchTarget.includes(key);
                             }
                         });
