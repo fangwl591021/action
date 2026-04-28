@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器</title>
-    <!-- Version: 2026.04.28.V235_Storage_Quota_Fix_Based_On_V130 -->
+    <!-- Version: 2026.04.28.V236_Deploy_Payload_Fixed -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -79,7 +79,6 @@
             
             <input type="text" id="deploy-api-url" class="w-full border border-slate-200 p-3 rounded-lg bg-slate-50 font-mono text-xs text-slate-400 mb-4" readonly>
             
-            <!-- ✅ 錯誤訊息將會優雅地顯示在這裡，不再用 alert -->
             <div id="deploy-error-msg" class="hidden bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-sm font-bold mb-6 whitespace-pre-wrap leading-relaxed shadow-sm"></div>
             
             <div class="flex justify-end gap-3 mt-4">
@@ -92,7 +91,6 @@
     <script>
         function toggleSidebar() { const s = document.getElementById('sidebar'); const e = document.getElementById('expand-btn'); if (s.classList.contains('-ml-[360px]')) { s.classList.remove('-ml-[360px]'); e.classList.add('hidden'); } else { s.classList.add('-ml-[360px]'); e.classList.remove('hidden'); } }
         
-        // 將異常直接 throw 出來，交由 UI 處理
         const ApiHelper = { 
             call: async (act, pl = {}) => { 
                 const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; 
@@ -157,8 +155,8 @@
                                 try {
                                     const res = await ApiHelper.call('UPLOAD_IMAGE', { imageBase64: b64 });
                                     if (res && res.url) {
-                                        MenuModule.load(file.name, "{}", res.url); // 直接使用 R2 網址
-                                        savedBase64Image = b64; // 保留本機壓縮檔作為部署預備
+                                        MenuModule.load(file.name, "{}", res.url); 
+                                        savedBase64Image = b64; 
                                     } else {
                                         throw new Error('R2 URL 回傳失敗');
                                     }
@@ -202,7 +200,18 @@
                 toggleDrawMode: function() { isDrawingMode = true; document.getElementById('menu-draw-btn').innerText = '繪製區域中...'; },
                 updateOutput: function() {
                     var scale = 2500 / canvas.getWidth();
-                    var areas = canvas.getObjects('rect').map(o => ({ bounds: { x: Math.round(o.left * scale), y: Math.round(o.top * scale), width: Math.round(o.getScaledWidth() * scale), height: Math.round(o.getScaledHeight() * scale) }, action: o.action }));
+                    var areas = canvas.getObjects('rect').map(o => {
+                        // ✅ 邊界防呆：確保數值不會出現負數，也絕對不會超出圖片最大尺寸
+                        let x = Math.max(0, Math.round(o.left * scale));
+                        let y = Math.max(0, Math.round(o.top * scale));
+                        let w = Math.round(o.getScaledWidth() * scale);
+                        let h = Math.round(o.getScaledHeight() * scale);
+                        
+                        if (x + w > 2500) w = 2500 - x;
+                        if (y + h > currentImgHeight) h = currentImgHeight - y;
+
+                        return { bounds: { x: x, y: y, width: w, height: h }, action: o.action };
+                    });
                     var res = { size: { width: 2500, height: currentImgHeight }, selected: true, name: document.getElementById('save-filename').value, chatBarText: document.getElementById('rich-menu-chatbar').value, areas: areas };
                     document.getElementById('json-output').value = JSON.stringify(res, null, 2); this.renderAreaEditor(areas); this.refreshCanvasLabels();
                 },
@@ -257,11 +266,25 @@
                     if (!menuObj.chatBarText) return showError('左側「選單列文字」不可為空！');
                     if (!menuObj.areas || menuObj.areas.length === 0) return showError('請至少在畫面上劃定一個熱區！');
                     
+                    // ✅ 深度淨化 Action：剔除殘留無效屬性，防止 LINE 解析失敗
                     for (let i = 0; i < menuObj.areas.length; i++) {
                         const action = menuObj.areas[i].action;
                         if (action.type === 'message' && !action.text) return showError(`區域 #${i+1} 尚未填寫「傳送文字」內容！`);
                         if (action.type === 'uri' && !action.uri) return showError(`區域 #${i+1} 尚未填寫「開啟網址」連結！`);
                         if (action.type === 'postback' && !action.data) return showError(`區域 #${i+1} 尚未填寫「回傳指令」！`);
+                        
+                        const pureAction = { type: action.type };
+                        if (action.type === 'uri') pureAction.uri = action.uri;
+                        if (action.type === 'message') pureAction.text = action.text;
+                        if (action.type === 'postback') {
+                            pureAction.data = action.data;
+                            if (action.text) pureAction.text = action.text;
+                        }
+                        if (action.type === 'richmenuswitch') {
+                            pureAction.richMenuAliasId = action.richMenuAliasId;
+                            pureAction.data = action.data;
+                        }
+                        menuObj.areas[i].action = pureAction;
                     }
 
                     const h = menuObj.size.height;
@@ -275,8 +298,12 @@
                     
                     try {
                         const data = await ApiHelper.call('DEPLOY_RICH_MENU', { 
-                            richMenuObj: menuObj, // 修正 payload 屬性名
-                            imageBase64: savedBase64Image 
+                            // ✅ 暴力兼容：同時發送新舊版變數，Worker 一定收得到
+                            richMenuObj: menuObj, 
+                            imageBase64: savedBase64Image,
+                            menuObject: menuObj,
+                            menuObj: menuObj,
+                            image: savedBase64Image
                         }); 
                         if(data) {
                             alert('✅ 部署成功！請至 LINE 官方帳號查看最新選單。'); 
