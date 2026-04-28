@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.04.29.V255_Editable_Referrer_UID -->
+    <!-- Version: 2026.04.29.V257_Admin_Ref_Name_Live -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -151,14 +151,11 @@
                             <tbody>
                                 <tr v-for="c in courseStatsFiltered" :key="c.id">
                                     <td class="font-bold text-slate-700 text-[18px] max-w-[250px] truncate">{{ c.name }}</td>
-                                    
-                                    <!-- 報名數按鈕 (開啟名單彈窗) -->
                                     <td class="px-4 py-4 border-b text-center">
                                         <button @click="openCourseOrdersModal(c)" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 px-4 py-2 rounded-xl font-black transition-all inline-flex items-center gap-2 shadow-sm border border-indigo-100 active:scale-95 text-[17px]">
                                             {{ c.totalOrders || 0 }} <i class="fas fa-users text-[15px] opacity-80"></i>
                                         </button>
                                     </td>
-                                    
                                     <td class="text-[18px] font-bold text-slate-500">$ {{ c.totalExpected.toLocaleString() }}</td>
                                     <td class="text-orange-500 font-bold text-[18px]">$ {{ c.pendingAmount.toLocaleString() }}</td>
                                     <td class="text-[#06C755] font-black text-[22px]">$ {{ c.paidAmount.toLocaleString() }}</td>
@@ -375,7 +372,6 @@
                         <input type="file" ref="bannerInput" class="hidden" accept="image/*" @change="handleBannerUpload">
                     </div>
 
-                    <!-- ✅ 新增：管理員 UID 設定區 -->
                     <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
                         <div class="section-title !mb-5 text-indigo-700 border-indigo-500">系統管理員設定</div>
@@ -517,15 +513,19 @@
                                 <div><label class="input-label">手機</label><input type="tel" v-model="activeMember.phone" class="input-field font-mono font-bold"></div>
                                 <div><label class="input-label">生日</label><input type="date" v-model="activeMember.birthday" class="input-field"></div>
                                 <div><label class="input-label">業種</label><input type="text" v-model="activeMember.industry" class="input-field" placeholder="行銷、科技..."></div>
-                                <div><label class="input-label">性別</label><select v-model="activeMember.gender" class="input-field"><option value="男">男</option><option value="女">男</option></select></div>
+                                <div><label class="input-label">性別</label><select v-model="activeMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div>
                                 <div class="col-span-2"><label class="input-label">地址</label><input type="text" v-model="activeMember.address" class="input-field"></div>
                                 
-                                <!-- ✅ 新增：系統 UID 與 介紹人 UID 顯示 -->
+                                <!-- ✅ 新增：系統 UID 與 介紹人 UID 即時連動顯示 -->
                                 <div class="col-span-2 grid grid-cols-2 gap-5 mt-2 pt-5 border-t border-slate-100">
-                                    <!-- 修改為唯讀 -->
                                     <div><label class="input-label">系統 UID (唯讀，供複製)</label><input type="text" :value="activeMember.userId" class="input-field font-mono text-[14px] bg-slate-50 text-slate-500" readonly></div>
-                                    <!-- 修改為可編輯 v-model -->
-                                    <div><label class="input-label">介紹人 UID (可修改歸屬)</label><input type="text" v-model="activeMember.referrerUid" class="input-field font-mono text-[14px]" placeholder="無"></div>
+                                    <div>
+                                        <label class="input-label flex items-center justify-between">
+                                            <span>介紹人 UID (可修改)</span>
+                                            <span v-if="activeMember.referrerUid" class="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[12px] font-black"><i class="fas fa-user mr-1"></i>{{ getReferrerName(activeMember.referrerUid) }}</span>
+                                        </label>
+                                        <input type="text" v-model="activeMember.referrerUid" class="input-field font-mono text-[14px]" placeholder="無">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -937,6 +937,13 @@
                 const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, '')).toLocaleString();
                 const getCourseName = (id) => { const c = courses.value.find(x => x.id === id || x.name === id); return c ? c.name : id; };
 
+                // ✅ 取得介紹人姓名的函式 (供 UI 即時連動顯示)
+                const getReferrerName = (uid) => {
+                    if (!uid) return '';
+                    const u = users.value.find(x => x.userId === String(uid).trim());
+                    return u ? u.name : '找不到此學員';
+                };
+
                 const triggerBackup = async () => {
                     if(!confirm('確定要觸發資料庫備份嗎？')) return;
                     isLoading.value = true;
@@ -1194,7 +1201,8 @@
                     handleBannerUpload, handleCourseImageUpload, saveSettings, openEnrollments,
                     generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
                     openSysConfigModal, saveSysConfig, handleApproveTeacher, clearDrafts, submitDrafts,
-                    handleToggleSlot, getSlotStyle, getSlotStatus, isDraftClose, getCourseName, formatPrice
+                    handleToggleSlot, getSlotStyle, getSlotStatus, isDraftClose, getCourseName, formatPrice,
+                    getReferrerName // ✅ 匯出輔助函式供前端連動使用
                 };
             }
         }).mount('#app');
