@@ -228,57 +228,62 @@
                     </div>
                 </div>
 
-                <!-- 🎁 專屬分享好友畫面 -->
-                <div v-if="view === 'share'" class="animate-fade-in bg-white min-h-screen pb-32">
-                    <div class="header-fixed justify-start gap-4">
-                        <button @click="navigateTo('profile')" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button>
-                        <h2 class="text-[19px] font-black text-slate-800">邀請好友賺紅包</h2>
-                    </div>
-                    
-                    <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center pb-32">
-                        <div class="w-full bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-100 text-center shadow-sm relative overflow-hidden mb-8 mt-4">
-                            <div class="absolute -right-6 -top-6 text-green-500/10 text-9xl"><i class="fas fa-gift"></i></div>
-                            
-                            <div class="w-16 h-16 rounded-full mx-auto mb-4 overflow-hidden border-2 border-white shadow-md relative z-10">
-                                 <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
-                            </div>
-                            <h3 class="text-lg font-black text-slate-800 relative z-10">{{ liffProfile.displayName }} 邀請您</h3>
-                            <p class="text-[13px] text-slate-500 font-bold mt-2 relative z-10">成為「人生ACTION」專屬會員</p>
-                            
-                            <div class="bg-white rounded-2xl p-4 mt-6 shadow-sm border border-slate-100 relative z-10 mx-auto w-[200px] h-[200px] flex items-center justify-center">
-                                <img :src="'https://quickchart.io/qr?text=' + encodeURIComponent(shareUrl) + '&size=200'" class="w-full h-full object-contain">
-                            </div>
-                            <p class="text-[11px] text-slate-400 font-bold mt-3 relative z-10">請好友使用 LINE 掃描上方條碼</p>
-                        </div>
-                        
-                        <div class="w-full space-y-3">
-                            <button @click="shareToFriend" class="w-full py-4 bg-[#06C755] text-white rounded-xl text-[15px] font-black active:scale-95 transition shadow-lg shadow-green-100 flex items-center justify-center gap-2">
-                                <i class="fas fa-paper-plane"></i> 傳送卡片給 LINE 好友
-                            </button>
-                            <button @click="copyShareUrl" class="w-full py-4 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[15px] font-black active:scale-95 transition flex items-center justify-center gap-2 hover:bg-slate-200">
-                                <i class="fas fa-link"></i> 複製專屬邀請連結
-                            </button>
-                        </div>
-                        
-                        <div class="mt-8 p-5 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 leading-relaxed font-medium">
-                            <p class="font-bold text-slate-700 mb-2"><i class="fas fa-info-circle mr-1 text-[#06C755]"></i> 推薦獎勵說明：</p>
-                            <ul class="list-disc pl-4 space-y-1.5">
-                                <li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得紅包點數。</li>
-                                <li>每成功邀請一位，您將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_refer || 0 }}</span> 點。</li>
-                                <li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新紅包。</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
             </main>
 
             <!-- 底部固定導覽列 -->
             <nav class="bottom-nav">
                 <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
-                <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile' || view === 'share'}"><i class="fas fa-user"></i><span>我的</span></div>
+                <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile'}"><i class="fas fa-user"></i><span>我的</span></div>
             </nav>
         </div>
+
+        <!-- ========================================================== -->
+        <!-- 🎁 專屬分享好友畫面 (全版子畫面) -->
+        <!-- ========================================================== -->
+        <transition name="slide-up">
+            <div v-if="view === 'share'" class="fixed inset-0 bg-white z-[60] flex flex-col overflow-hidden">
+                <div class="header-fixed justify-start gap-4 z-50 shadow-sm">
+                    <button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button>
+                    <h2 class="text-[19px] font-black text-slate-800">邀請好友賺紅包</h2>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center pb-32 bg-white">
+                    <div class="w-full bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-100 text-center shadow-sm relative overflow-hidden mb-8 mt-4">
+                        <div class="absolute -right-6 -top-6 text-green-500/10 text-9xl"><i class="fas fa-gift"></i></div>
+                        
+                        <div class="w-16 h-16 rounded-full mx-auto mb-4 overflow-hidden border-2 border-white shadow-md relative z-10">
+                             <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="text-lg font-black text-slate-800 relative z-10">{{ liffProfile.displayName }} 邀請您</h3>
+                        <p class="text-[13px] text-slate-500 font-bold mt-2 relative z-10">成為「人生ACTION」專屬會員</p>
+                        
+                        <div class="bg-white rounded-2xl p-4 mt-6 shadow-sm border border-slate-100 relative z-10 mx-auto w-[200px] h-[200px] flex items-center justify-center">
+                            <img :src="'https://quickchart.io/qr?text=' + encodeURIComponent(shareUrl) + '&size=200'" class="w-full h-full object-contain">
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-bold mt-3 relative z-10">請好友使用 LINE 掃描上方條碼</p>
+                    </div>
+                    
+                    <div class="w-full space-y-3">
+                        <button @click="shareToFriend" class="w-full py-4 bg-[#06C755] text-white rounded-xl text-[15px] font-black active:scale-95 transition shadow-lg shadow-green-100 flex items-center justify-center gap-2">
+                            <i class="fas fa-paper-plane"></i> 傳送卡片給 LINE 好友
+                        </button>
+                        <button @click="copyShareUrl" class="w-full py-4 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[15px] font-black active:scale-95 transition flex items-center justify-center gap-2 hover:bg-slate-200">
+                            <i class="fas fa-link"></i> 複製專屬邀請連結
+                        </button>
+                    </div>
+                    
+                    <div class="mt-8 p-5 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-500 leading-relaxed font-medium">
+                        <p class="font-bold text-slate-700 mb-2"><i class="fas fa-info-circle mr-1 text-[#06C755]"></i> 推薦獎勵說明：</p>
+                        <ul class="list-disc pl-4 space-y-1.5">
+                            <li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得紅包點數。</li>
+                            <li>每成功邀請一位，您將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_refer || 0 }}</span> 點。</li>
+                            <li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新紅包。</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </transition>
 
         <!-- ========================================================== -->
         <!-- 📖 課程詳細介紹頁面 (全版子畫面) -->
