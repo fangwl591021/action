@@ -40,7 +40,7 @@
 
         .course-card { background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #EEEEEE; display: flex; flex-direction: column; transition: transform 0.2s; }
         .course-card:active { transform: scale(0.97); }
-        .category-pill { background-color: #f0fdf4; color: #06C755; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; display: inline-block; margin-bottom: 8px; }
+        .category-pill { background-color: #FF5809; color: #ffffff; font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: inline-block; }
 
         .profile-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #F4F5F7; }
         .profile-label { font-size: 14px; color: #888888; font-weight: 600; min-width: 80px; }
@@ -112,7 +112,7 @@
                         <div class="flex overflow-x-auto hide-scrollbar px-4 gap-1.5">
                             <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" 
                                     class="shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all" 
-                                    :class="activeCategory === cat ? 'bg-[#111111] text-white shadow-md' : 'bg-[#F4F5F7] text-[#666666] hover:bg-[#EAECEF]'">
+                                    :class="activeCategory === cat ? 'bg-[#FF5809] text-white shadow-md' : 'bg-[#F4F5F7] text-[#666666] hover:bg-[#EAECEF]'">
                                 {{ cat }}
                             </button>
                         </div>
@@ -123,12 +123,14 @@
                         <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm cursor-pointer">
                             <!-- ✅ 強制裁切：設定 aspect-video 與 absolute inset-0，鎖死卡片圖片高度 -->
                             <div class="w-full aspect-video bg-[#F8F9FA] relative overflow-hidden border-b border-[#EEEEEE] shrink-0">
+                                <div class="absolute top-2 left-2 z-10">
+                                    <span class="category-pill">{{ c.type || '一般' }}</span>
+                                </div>
                                 <img v-if="c.image" :src="c.image" class="absolute inset-0 w-full h-full object-cover">
                                 <div v-else class="absolute inset-0 flex items-center justify-center text-[#DDE0E5]"><i class="far fa-image text-3xl"></i></div>
                             </div>
                             <div class="p-4 flex-1 flex flex-col justify-between">
                                 <div class="mb-2">
-                                    <span class="category-pill">{{ c.type || '一般' }}</span>
                                     <div class="text-[15px] font-black text-[#111111] leading-snug mb-1 line-clamp-2">{{ (c.name || '').split('\n')[0] }}</div>
                                     <div v-if="(c.name || '').includes('\n')" class="text-[11px] text-slate-500 line-clamp-2 leading-relaxed font-medium">
                                         {{ c.name.substring(c.name.indexOf('\n') + 1).trim() }}
@@ -329,12 +331,14 @@
                 <div class="flex-1 overflow-y-auto pb-32 hide-scrollbar">
                     <!-- ✅ 內頁強制裁切，保持視覺一致性 -->
                     <div class="w-full aspect-video bg-slate-100 relative overflow-hidden">
+                        <div class="absolute top-4 left-4 z-10">
+                            <span class="category-pill !text-xs !px-3 !py-1.5">{{ selectedCourse.type || '一般' }}</span>
+                        </div>
                         <img v-if="selectedCourse.image" :src="selectedCourse.image" class="absolute inset-0 w-full h-full object-cover">
                         <div v-else class="absolute inset-0 flex items-center justify-center text-slate-300"><i class="far fa-image text-5xl"></i></div>
                     </div>
                     
                     <div class="p-6">
-                        <div class="inline-block px-3 py-1 bg-green-50 text-[#06C755] text-xs font-bold rounded-md mb-4 border border-green-100">{{ selectedCourse.type || '一般' }}</div>
                         <h1 class="text-2xl font-black text-slate-800 mb-3 leading-snug">{{ (selectedCourse.name || '').split('\n')[0] }}</h1>
                         <div class="text-3xl font-black text-[#06C755] mb-8">{{ selectedCourse.priceText || ('$' + formatPrice(selectedCourse.price)) }}</div>
                         
