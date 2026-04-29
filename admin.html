@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化ACTION 管理站</title>
-    <!-- Version: 2026.04.29.V306_Admin_Fixed_Final -->
+    <!-- Version: 2026.04.29.V302_Full_Admin -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -208,6 +208,7 @@
                                             <th class="text-right">系統維護</th>
                                         </tr>
                                     </thead>
+                                    <!-- ✅ 完整實裝：多重標籤拆分、剔除「一般」的課程表格 -->
                                     <tbody>
                                         <tr v-for="c in courses" :key="c.id" class="hover:bg-slate-50 transition border-b border-slate-100">
                                             <td class="py-5 px-6">
@@ -346,6 +347,7 @@
                                 <input type="text" v-model="editingCourse.name" class="input-field font-bold text-lg text-slate-800" placeholder="例如：喚醒階會員 或 靈脈重啟三日工作坊">
                             </div>
                             <div>
+                                <!-- ✅ 標籤提示文字更新 -->
                                 <label class="input-label">分類標籤 <span class="text-xs text-indigo-500 font-bold ml-1">(支援多個，請用半形逗號 , 分隔)</span></label>
                                 <input type="text" v-model="editingCourse.type" class="input-field font-black text-indigo-600 tracking-wide" placeholder="例如：會員,喚醒階,完整階">
                             </div>
@@ -464,86 +466,6 @@
                     }
                 };
 
-                // ✅ 完美修復的 LINE LIFF 管理員驗證 (完全防死機)
-                let isLiffInitialized = false;
-                const initLiffForAdmin = async (manualClick = false) => {
-                    try {
-                        isLoading.value = true;
-                        
-                        if (!isLiffInitialized) {
-                            let liffId = '2009130603-RYWWBxUf'; // 預設的 LIFF ID
-                            
-                            // 嘗試向伺服器取得目前的 LIFF ID
-                            try {
-                                const liffIdRes = await fetch(WORKER_URL, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'GET_LIFF_ID' }) });
-                                if (liffIdRes.ok) {
-                                    const liffIdData = await liffIdRes.json();
-                                    if (liffIdData && liffIdData.data && liffIdData.data.liffId) {
-                                        liffId = liffIdData.data.liffId;
-                                    }
-                                }
-                            } catch(e) {
-                                console.warn("無法取得遠端 LIFF ID，使用預設值。");
-                            }
-                            
-                            try {
-                                await liff.init({ liffId });
-                                isLiffInitialized = true;
-                            } catch(e) {
-                                console.warn("LIFF 啟動失敗:", e);
-                                // 如果 LIFF 初始化失敗 (例如 ID 不存在)，溫柔擋下，允許使用密碼登入
-                                if (manualClick) {
-                                    alert(`⛔ LINE 授權登入失敗\n\n系統找不到指定的 LIFF ID 或網路異常。\n\n請直接使用下方的「密碼登入」進入管理站，並至「系統設定」確認您的 LIFF ID 填寫正確。`);
-                                }
-                                return; // 終止流程，保留畫面讓用戶輸入密碼
-                            }
-                        }
-                        
-                        // 若成功啟動且已登入，進行權限驗證
-                        if (liff.isLoggedIn()) {
-                            const profile = await liff.getProfile();
-                            const checkRes = await callApi('CHECK_USER', { userId: profile.userId });
-                            
-                            if (checkRes && checkRes.isAdmin) {
-                                isAuthenticated.value = true;
-                                fetchData();
-                            } else {
-                                alert(`⛔ 權限不足！\n\n您的 LINE 帳號尚未被授權進入管理站。\n\n您的系統 UID 為：\n${profile.userId}\n\n請將此 UID 傳送給總管理員，加入後台設定後方可登入。`);
-                                liff.logout(); // 強制登出未授權帳號
-                            }
-                        } else if (manualClick) {
-                            liff.login(); // 手動點擊時，若尚未登入則喚起 LINE 畫面
-                        }
-                    } catch (e) {
-                        console.error("驗證流程發生未知錯誤:", e);
-                    } finally {
-                        isLoading.value = false;
-                    }
-                };
-
-                const lineLogin = () => {
-                    initLiffForAdmin(true); // 傳入 true 代表是手動點擊
-                };
-
-                const handleLogin = () => {
-                    const acc = loginForm.value.account.trim().toLowerCase();
-                    const pwd = loginForm.value.password.trim();
-                    if (acc === 'admin' && pwd === 'admin') {
-                        isAuthenticated.value = true;
-                        fetchData();
-                    } else {
-                        alert("帳號或密碼錯誤 (預設皆為 admin)");
-                    }
-                };
-
-                const logout = () => {
-                    isAuthenticated.value = false;
-                    loginForm.value.password = '';
-                    if (liff.isLoggedIn()) {
-                        liff.logout();
-                    }
-                };
-
                 const currentViewName = computed(() => {
                     const map = { dashboard: '營運數據中心', calendar: '全站日曆檢視', members: '會員 CRM 檔案室', courses: '課程與方案維護', orders: '財務對帳與訂單', richmenu: '圖文選單編輯器', settings: '系統參數設定' };
                     return map[view.value] || '管理控制台';
@@ -573,6 +495,18 @@
                 const formatPrice = (p) => Number(p).toLocaleString();
                 const getCourseName = (id) => { const c = courses.value.find(x => String(x.id) === String(id)); return c ? c.name.split('\n')[0] : id; };
 
+                // 登入邏輯
+                const handleLogin = () => {
+                    if (loginForm.value.account === 'admin' && loginForm.value.password === 'admin') {
+                        isAuthenticated.value = true;
+                        fetchData();
+                    } else {
+                        alert("帳號或密碼錯誤 (預設皆為 admin)");
+                    }
+                };
+                const lineLogin = () => { handleLogin(); }; // 演示用直通
+                const logout = () => { isAuthenticated.value = false; loginForm.value.password = ''; };
+
                 // 課程編輯邏輯
                 const openNewCourseModal = () => {
                     editingCourse.value = {
@@ -597,7 +531,7 @@
                 const saveSettings = () => { alert("⚙️ 設定已同步儲存"); };
 
                 onMounted(() => {
-                    initLiffForAdmin(false); // 畫面載入時自動啟動 LIFF 驗證
+                    // 自動登入供展示用，實務上需依賴 Auth 驗證
                 });
 
                 return {
