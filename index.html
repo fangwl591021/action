@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化ACTION</title>
-    <!-- Version: 2026.04.29.V317_Frontend_Perfect_Restore -->
+    <!-- Version: 2026.04.30.V318_Header_Banner_Restored -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,29 +14,23 @@
         body { background-color: #F4F4F4; color: #111111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* 簡潔的分類標籤 */
         .category-tab { white-space: nowrap; padding: 10px 16px; font-size: 14px; font-weight: bold; color: #888888; border-bottom: 2px solid transparent; transition: 0.2s; }
         .category-tab.active { color: #111111; border-bottom: 2px solid #111111; }
         
-        /* 扁平化的課程卡片 */
         .course-card { background: #ffffff; border: 1px solid #EBEBEB; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: background-color 0.2s; }
         .course-card:active { background-color: #F9F9F9; }
         
-        /* 輕量級標籤 */
         .category-pill-orange { background: #FF5809; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; display: inline-block; font-weight: 800; }
         
-        /* 底部導覽列 */
         .nav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 33.33%; color: #AAAAAA; font-size: 10px; font-weight: bold; gap: 4px; }
         .nav-btn.active { color: #06C755; }
         .nav-btn i { font-size: 22px; }
         
-        /* 動畫 */
         .slide-up-enter-active, .slide-up-leave-active { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); }
         .animate-fade-in { animation: fadeIn 0.2s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* Loader */
         .loader-spinner { width: 30px; height: 30px; border: 3px solid #EBEBEB; border-top: 3px solid #06C755; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -44,13 +38,11 @@
 <body>
     <div id="app" v-cloak class="max-w-md mx-auto min-h-screen bg-[#F4F4F4] flex flex-col relative pb-[60px]">
         
-        <!-- 全局載入畫面 -->
         <div v-if="isLoading && !isInitialized && !liffErrorMsg" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
             <div class="loader-spinner mb-3"></div>
             <div class="text-[#888888] font-bold text-sm">{{ loadingText }}</div>
         </div>
 
-        <!-- 致命錯誤防護面板 -->
         <div v-if="liffErrorMsg" class="flex-1 flex flex-col items-center justify-center p-6 text-center animate-fade-in h-screen bg-white">
             <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
             <h2 class="text-xl font-bold text-[#111111] mb-2">系統連線異常</h2>
@@ -63,7 +55,7 @@
         </div>
 
         <template v-else-if="isInitialized">
-            <!-- 🏠 1. 首頁 (退回單一標籤邏輯 + 恢復 BANNER + 左標題右頭貼) -->
+            <!-- 🏠 1. 首頁 -->
             <div v-show="view === 'home'" class="flex-1 flex flex-col animate-fade-in bg-white">
                 
                 <!-- ✅ 頂部資訊列：左邊大標題，右邊 LINE 真實頭貼 (無點數) -->
@@ -76,19 +68,15 @@
                     </div>
                 </div>
 
-                <!-- ========================================================== -->
-                <!-- 🖼️ 原本設計的 BANNER 區塊 -->
-                <!-- ========================================================== -->
-                <div class="w-full bg-white relative">
-                    <!-- 預設彩色漸層底色，避免圖片載入前空白 -->
-                    <div class="w-full aspect-[21/9] bg-gradient-to-r from-pink-400 via-yellow-200 to-blue-400 relative overflow-hidden">
-                        <!-- ✅ 這裡放您真實的 Banner 圖片網址 -->
-                        <img src="https://storage.googleapis.com/gweb-uniblog-publish-prod/images/image_dec3c0.max-1000x1000.png" alt="活動 Banner" class="w-full h-full object-cover mix-blend-overlay opacity-90">
+                <!-- ✅ 系統連動 Banner 區塊 -->
+                <div v-if="sysSettings.banner_url" class="w-full bg-white relative">
+                    <div class="w-full relative overflow-hidden">
+                        <img :src="sysSettings.banner_url" alt="活動 Banner" class="w-full h-auto object-cover">
                     </div>
                 </div>
 
                 <!-- 分類標籤列 -->
-                <div class="bg-white px-2 border-b border-[#EBEBEB] overflow-x-auto hide-scrollbar flex sticky top-[60px] z-20 shadow-sm">
+                <div class="bg-white px-2 border-b border-[#EBEBEB] overflow-x-auto hide-scrollbar flex sticky top-[53px] z-20 shadow-sm">
                     <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" class="category-tab" :class="{'active': activeCategory === cat}">
                         {{ cat }}
                     </button>
@@ -161,7 +149,8 @@
                     <h3 class="text-[15px] font-bold text-[#111111] mb-2">專屬分享連結</h3>
                     <p class="text-[13px] text-[#888888] mb-4">好友透過此連結註冊，雙方皆可自動獲得紅包獎勵。</p>
                     <div class="flex justify-center mb-4 border border-[#EBEBEB] p-2 rounded-lg inline-block mx-auto">
-                        <img :src="'https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=' + encodeURIComponent(shareUrl) + '&choe=UTF-8'" alt="QR Code" class="w-[120px] h-[120px]">
+                        <!-- ✅ QR Server 更穩定不易破圖 -->
+                        <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(shareUrl)" alt="QR Code" class="w-[120px] h-[120px]">
                     </div>
                     <div class="flex gap-2 mt-2">
                         <button @click="shareToFriend" class="flex-1 py-2.5 bg-[#111111] text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2">
@@ -185,6 +174,7 @@
                     </div>
                 </div>
 
+                <!-- ✅ 修復點數明細 -->
                 <div class="bg-white border-b border-[#EBEBEB]">
                     <div @click="showPointsLog = !showPointsLog" class="p-5 flex justify-between items-center cursor-pointer active:bg-[#F9F9F9]">
                         <h3 class="text-[15px] font-bold text-[#111111]">點數異動明細</h3>
@@ -194,14 +184,15 @@
                         <div class="space-y-0 border-t border-[#F4F4F4] pt-2">
                             <div v-for="(p, idx) in pointsLog" :key="idx" class="py-2.5 border-b border-[#F4F4F4] flex justify-between items-center last:border-0">
                                 <div>
-                                    <div class="text-[13px] font-bold text-[#333333] mb-0.5">{{ String(p.reason || '') }}</div>
-                                    <div class="text-[11px] text-[#AAAAAA]">{{ String(p.createdAt || '') }}</div>
+                                    <!-- 嚴密兼容後端不同的 Key -->
+                                    <div class="text-[13px] font-bold text-[#333333] mb-0.5">{{ String(p.reason || p.type || '系統紅包紀錄') }}</div>
+                                    <div class="text-[11px] text-[#AAAAAA]">{{ String(p.createdAt || p.date || p.timestamp || '') }}</div>
                                 </div>
-                                <div class="font-bold text-[14px]" :class="p.amount > 0 ? 'text-[#06C755]' : 'text-[#111111]'">
-                                    {{ p.amount > 0 ? '+' : '' }}{{ formatPrice(p.amount) }}
+                                <div class="font-bold text-[14px]" :class="Number(p.amount) > 0 ? 'text-[#06C755]' : 'text-[#111111]'">
+                                    {{ Number(p.amount) > 0 ? '+' : '' }}{{ formatPrice(p.amount) }}
                                 </div>
                             </div>
-                            <div v-if="pointsLog.length === 0" class="text-center py-4 text-[#AAAAAA] font-bold text-[13px]">尚無明細</div>
+                            <div v-if="!pointsLog || pointsLog.length === 0" class="text-center py-4 text-[#AAAAAA] font-bold text-[13px]">尚無明細紀錄</div>
                         </div>
                     </div>
                 </div>
@@ -328,6 +319,7 @@
                 const view = ref('home'); 
                 const activeCategory = ref('全部');
                 
+                const sysSettings = ref({}); // ✅ 全域設定 (包含 Banner)
                 const lineProfile = ref(null); 
                 const userStatus = ref({ registered: false, info: null, referrals: [] });
                 const courses = ref([]);
@@ -359,7 +351,7 @@
                     }
                 };
 
-                // ✅ 恢復 Promise.all 極速載入機制
+                // ✅ 序列化請求，獲取設定與使用者資料
                 const initLiffAndFetch = async () => {
                     try {
                         isLoading.value = true;
@@ -399,14 +391,28 @@
                         const refCode = urlParams.get('ref');
                         if (refCode) localStorage.setItem('referral_uid', refCode);
 
-                        // ✅ 平行讀取，秒速完成
-                        loadingText.value = '讀取系統資料...';
-                        const [checkRes, cData, oData, pData] = await Promise.all([
-                            callApi('CHECK_USER', { userId: profile.userId, _t: Date.now() }, true),
-                            callApi('GET_COURSES', { _t: Date.now() }, true),
-                            callApi('GET_USER_ORDERS', { userId: profile.userId, _t: Date.now() }, true),
-                            callApi('GET_USER_POINTS', { userId: profile.userId, _t: Date.now() }, true)
-                        ]);
+                        // ⚠️ 依序執行，避免死鎖
+                        loadingText.value = '讀取全域設定...';
+                        try {
+                            let sData = await callApi('GET_SETTINGS', {}, true);
+                            if (!sData) {
+                                const aData = await callApi('ADMIN_GET_DATA', {}, true);
+                                if (aData && aData.settings) sData = aData.settings;
+                            }
+                            if (sData) sysSettings.value = sData;
+                        } catch(e) { console.warn("取得系統設定失敗"); }
+
+                        loadingText.value = '讀取會員資料...';
+                        const checkRes = await callApi('CHECK_USER', { userId: profile.userId, _t: Date.now() }, true);
+                        
+                        loadingText.value = '整理最新課程...';
+                        const cData = await callApi('GET_COURSES', { _t: Date.now() }, true);
+                        
+                        loadingText.value = '結算歷史訂單...';
+                        const oData = await callApi('GET_USER_ORDERS', { userId: profile.userId, _t: Date.now() }, true);
+                        
+                        loadingText.value = '更新紅包點數...';
+                        const pData = await callApi('GET_USER_POINTS', { userId: profile.userId, _t: Date.now() }, true);
 
                         if (!checkRes || !cData) throw new Error("伺服器無回應或發生壅塞，請稍後重試。");
 
@@ -545,7 +551,7 @@
                 return {
                     isInitialized, isLoading, loadingText, liffErrorMsg, isCheckingIn, isSubmittingOrder, view, userStatus, courses, orders, pointsLog, showPointsLog,
                     activeCategory, selectedCourse, showCheckout, retryInit, formatPrice, getCourseName, dailyCheckin, openCourseDetail, openCheckout,
-                    calculatedDiscount, finalPayAmount, discountRuleText, submitOrder, lineProfile,
+                    calculatedDiscount, finalPayAmount, discountRuleText, submitOrder, lineProfile, sysSettings,
                     
                     categories: computed(() => {
                         const tabSet = new Set();
