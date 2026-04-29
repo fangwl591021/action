@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化ACTION</title>
-    <!-- Version: 2026.04.29.V316_Frontend_Header_Fixed -->
+    <!-- Version: 2026.04.29.V317_Frontend_Perfect_Restore -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -23,7 +23,7 @@
         .course-card:active { background-color: #F9F9F9; }
         
         /* 輕量級標籤 */
-        .category-pill-orange { background: #FF5809; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; display: inline-block; }
+        .category-pill-orange { background: #FF5809; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; display: inline-block; font-weight: 800; }
         
         /* 底部導覽列 */
         .nav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 33.33%; color: #AAAAAA; font-size: 10px; font-weight: bold; gap: 4px; }
@@ -63,17 +63,16 @@
         </div>
 
         <template v-else-if="isInitialized">
-            <!-- 🏠 1. 首頁 (退回單一標籤邏輯 + 恢復 BANNER + 恢復頭貼) -->
+            <!-- 🏠 1. 首頁 (退回單一標籤邏輯 + 恢復 BANNER + 左標題右頭貼) -->
             <div v-show="view === 'home'" class="flex-1 flex flex-col animate-fade-in bg-white">
                 
-                <!-- ✅ 頂部資訊列：恢復 LINE 頭貼，移除點數 -->
-                <div class="bg-white px-4 py-3 border-b border-[#EBEBEB] sticky top-0 z-30 flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <!-- LINE 真實頭貼 -->
+                <!-- ✅ 頂部資訊列：左邊大標題，右邊 LINE 真實頭貼 (無點數) -->
+                <div class="bg-white px-4 py-3 border-b border-[#EBEBEB] sticky top-0 z-30 flex justify-between items-center shadow-sm">
+                    <div class="font-black text-xl text-[#111111] tracking-tight">人生進化ACTION</div>
+                    <div @click="view = 'profile'" class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition">
+                        <div class="font-bold text-[#111111] text-[15px]">{{ lineProfile?.displayName || userStatus.info?.name || '學員' }}</div>
                         <img v-if="lineProfile?.pictureUrl" :src="lineProfile.pictureUrl" class="w-8 h-8 rounded-full object-cover border border-slate-200">
                         <div v-else class="w-8 h-8 rounded-full bg-[#EBEBEB] flex items-center justify-center text-[#888888]"><i class="fas fa-user"></i></div>
-                        
-                        <div class="font-bold text-[#111111] text-lg">{{ lineProfile?.displayName || userStatus.info?.name || '學員' }}</div>
                     </div>
                 </div>
 
@@ -81,14 +80,15 @@
                 <!-- 🖼️ 原本設計的 BANNER 區塊 -->
                 <!-- ========================================================== -->
                 <div class="w-full bg-white relative">
-                    <div class="w-full aspect-[21/9] bg-[#EBEBEB] relative overflow-hidden">
-                        <!-- ✅ 替換為不會破圖的預設漸層，請將 src 換回您自己的活動 Banner 網址 -->
-                        <img src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80" alt="活動 Banner" class="w-full h-full object-cover">
+                    <!-- 預設彩色漸層底色，避免圖片載入前空白 -->
+                    <div class="w-full aspect-[21/9] bg-gradient-to-r from-pink-400 via-yellow-200 to-blue-400 relative overflow-hidden">
+                        <!-- ✅ 這裡放您真實的 Banner 圖片網址 -->
+                        <img src="https://storage.googleapis.com/gweb-uniblog-publish-prod/images/image_dec3c0.max-1000x1000.png" alt="活動 Banner" class="w-full h-full object-cover mix-blend-overlay opacity-90">
                     </div>
                 </div>
 
                 <!-- 分類標籤列 -->
-                <div class="bg-white px-2 border-b border-[#EBEBEB] overflow-x-auto hide-scrollbar flex sticky top-[53px] z-20 shadow-sm">
+                <div class="bg-white px-2 border-b border-[#EBEBEB] overflow-x-auto hide-scrollbar flex sticky top-[60px] z-20 shadow-sm">
                     <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" class="category-tab" :class="{'active': activeCategory === cat}">
                         {{ cat }}
                     </button>
@@ -328,7 +328,7 @@
                 const view = ref('home'); 
                 const activeCategory = ref('全部');
                 
-                const lineProfile = ref(null); // ✅ 儲存 LINE 頭貼與真實姓名
+                const lineProfile = ref(null); 
                 const userStatus = ref({ registered: false, info: null, referrals: [] });
                 const courses = ref([]);
                 const orders = ref([]);
@@ -359,6 +359,7 @@
                     }
                 };
 
+                // ✅ 恢復 Promise.all 極速載入機制
                 const initLiffAndFetch = async () => {
                     try {
                         isLoading.value = true;
@@ -391,7 +392,6 @@
                             return; 
                         }
                         
-                        // ✅ 取得並儲存 LINE 真實頭貼與名稱
                         const profile = await liff.getProfile();
                         lineProfile.value = profile; 
 
@@ -399,18 +399,14 @@
                         const refCode = urlParams.get('ref');
                         if (refCode) localStorage.setItem('referral_uid', refCode);
 
-                        // 依序執行，避免死鎖
-                        loadingText.value = '讀取會員資料...';
-                        const checkRes = await callApi('CHECK_USER', { userId: profile.userId, _t: Date.now() }, true);
-                        
-                        loadingText.value = '整理最新課程...';
-                        const cData = await callApi('GET_COURSES', { _t: Date.now() }, true);
-                        
-                        loadingText.value = '結算歷史訂單...';
-                        const oData = await callApi('GET_USER_ORDERS', { userId: profile.userId, _t: Date.now() }, true);
-                        
-                        loadingText.value = '更新紅包點數...';
-                        const pData = await callApi('GET_USER_POINTS', { userId: profile.userId, _t: Date.now() }, true);
+                        // ✅ 平行讀取，秒速完成
+                        loadingText.value = '讀取系統資料...';
+                        const [checkRes, cData, oData, pData] = await Promise.all([
+                            callApi('CHECK_USER', { userId: profile.userId, _t: Date.now() }, true),
+                            callApi('GET_COURSES', { _t: Date.now() }, true),
+                            callApi('GET_USER_ORDERS', { userId: profile.userId, _t: Date.now() }, true),
+                            callApi('GET_USER_POINTS', { userId: profile.userId, _t: Date.now() }, true)
+                        ]);
 
                         if (!checkRes || !cData) throw new Error("伺服器無回應或發生壅塞，請稍後重試。");
 
@@ -528,8 +524,10 @@
                             alert("報名已受理！");
                             showCheckout.value = false;
                             view.value = 'orders';
-                            const oData = await callApi('GET_USER_ORDERS', { userId: userStatus.value.info.userId, _t: Date.now() }, true);
-                            const pData = await callApi('GET_USER_POINTS', { userId: userStatus.value.info.userId, _t: Date.now() }, true);
+                            const [oData, pData] = await Promise.all([
+                                callApi('GET_USER_ORDERS', { userId: userStatus.value.info.userId, _t: Date.now() }, true),
+                                callApi('GET_USER_POINTS', { userId: userStatus.value.info.userId, _t: Date.now() }, true)
+                            ]);
                             if (oData) orders.value = oData;
                             if (pData) pointsLog.value = pData;
                             
