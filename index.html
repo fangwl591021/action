@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化ACTION</title>
-    <!-- Version: 2026.04.29.V314_Rollback_Stable_Frontend -->
+    <!-- Version: 2026.04.29.V315_Restore_Banner_UI -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -63,9 +63,11 @@
         </div>
 
         <template v-else-if="isInitialized">
-            <!-- 🏠 1. 首頁 (退回單一標籤邏輯) -->
+            <!-- 🏠 1. 首頁 (退回單一標籤邏輯 + 恢復 BANNER) -->
             <div v-show="view === 'home'" class="flex-1 flex flex-col animate-fade-in bg-white">
-                <div class="bg-white px-4 py-3 border-b border-[#EBEBEB] sticky top-0 z-20 flex justify-between items-center">
+                
+                <!-- 頂部資訊列 (固定於上方) -->
+                <div class="bg-white px-4 py-3 border-b border-[#EBEBEB] sticky top-0 z-30 flex justify-between items-center">
                     <div class="font-bold text-[#111111] text-lg">{{ userStatus.info?.name || '學員' }}</div>
                     <div @click="view = 'profile'" class="flex items-center gap-1.5 cursor-pointer">
                         <i class="fas fa-ticket-alt text-[#FF5809]"></i>
@@ -73,16 +75,29 @@
                     </div>
                 </div>
 
-                <div class="bg-white px-2 border-b border-[#EBEBEB] overflow-x-auto hide-scrollbar flex sticky top-[53px] z-20">
+                <!-- ========================================================== -->
+                <!-- 🖼️ 原本設計的 BANNER 區塊 (為您恢復) -->
+                <!-- ========================================================== -->
+                <div class="w-full bg-white relative">
+                    <!-- 預設比例為 21:9，您可以依據您原本 Banner 的高度調整 aspect ratio -->
+                    <div class="w-full aspect-[21/9] bg-[#EBEBEB] relative overflow-hidden">
+                        <!-- ⚠️ 請在此替換為您原本的 BANNER 圖片網址 -->
+                        <img src="https://storage.googleapis.com/gweb-uniblog-publish-prod/images/image_dec3c0.max-1000x1000.png" alt="活動 Banner" class="w-full h-full object-cover">
+                    </div>
+                </div>
+
+                <!-- 分類標籤列 (滾動到此處時會黏在資訊列下方) -->
+                <div class="bg-white px-2 border-b border-[#EBEBEB] overflow-x-auto hide-scrollbar flex sticky top-[53px] z-20 shadow-sm">
                     <button v-for="cat in categories" :key="cat" @click="activeCategory = cat" class="category-tab" :class="{'active': activeCategory === cat}">
                         {{ cat }}
                     </button>
                 </div>
 
+                <!-- 課程清單 -->
                 <div class="px-3 py-4 grid grid-cols-2 gap-3 bg-[#F4F4F4] min-h-[calc(100vh-160px)] content-start">
                     <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card">
                         <div class="w-full aspect-video bg-[#EBEBEB] relative border-b border-[#EBEBEB] shrink-0">
-                            <!-- ✅ 退回單一標籤顯示 -->
+                            <!-- 單一標籤顯示 -->
                             <div class="absolute top-1.5 left-1.5 z-10 max-w-[95%]">
                                 <span class="category-pill-orange">{{ String(c.type || '一般').trim() }}</span>
                             </div>
