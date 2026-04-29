@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化ACTION 管理站</title>
-    <!-- Version: 2026.04.30.V320_Admin_Dashboard_Stats_Btn -->
+    <!-- Version: 2026.04.30.V321_Admin_Modals_Fully_Implemented -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -105,9 +105,9 @@
                             <div @click="switchView('dashboard')" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie w-6 text-center"></i>營運統計</div>
                             <div @click="switchView('calendar')" class="nav-item" :class="{'nav-active': view === 'calendar'}"><i class="far fa-calendar-alt w-6 text-center"></i>日曆檢視</div>
                             <div @click="switchView('members')" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-6 text-center"></i>學員 CRM</div>
-                            <div @click="switchView('courses')" class="nav-item" :class="{'nav-active': view === 'courses' || view === 'course_edit' || view === 'course_enrollments'}"><i class="fas fa-book w-6 text-center"></i>課程管理</div>
-                            <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation' || view === 'sys_config'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約諮詢</div>
-                            <div @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders' || view === 'order_edit'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
+                            <div @click="switchView('courses')" class="nav-item" :class="{'nav-active': view === 'courses'}"><i class="fas fa-book w-6 text-center"></i>課程管理</div>
+                            <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約諮詢</div>
+                            <div @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
                         </div>
                     </div>
                     <div class="nav-group mt-2 border-t border-slate-50 pt-2">
@@ -152,7 +152,7 @@
                                 <tr v-for="c in courseStatsFiltered" :key="c.id">
                                     <td class="font-bold text-slate-700 text-[18px] max-w-[250px] truncate">{{ String(c.name || '').split('\n')[0] }}</td>
                                     
-                                    <!-- ✅ 更新：改成左邊數字、右邊按鈕寫統計 -->
+                                    <!-- ✅ 恢復：左邊數字、右邊按鈕寫統計 -->
                                     <td class="px-4 py-4 border-b">
                                         <div class="flex items-center justify-center gap-3">
                                             <span class="font-black text-slate-700 text-[18px]">{{ c.totalOrders || 0 }}</span>
@@ -243,7 +243,8 @@
                                     </td>
                                     <td>
                                         <div class="text-slate-600 text-[17px] font-bold mb-2">{{ c.enrolled || 0 }} / {{ c.capacity || 0 }} 人</div>
-                                        <button @click="openEnrollments(c)" class="btn-outline !py-1 !px-3 text-[14px] bg-white shadow-sm">報名名單</button>
+                                        <!-- ✅ 恢復：點擊呼叫 openCourseOrdersModal 顯示報名名單 -->
+                                        <button @click="openCourseOrdersModal(c)" class="btn-outline !py-1 !px-3 text-[14px] bg-white shadow-sm">報名名單</button>
                                         <div class="mt-2">
                                             <span class="status-badge" :class="c.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'">{{ c.isPublished ? '🟢 已上架' : '🔴 已下架' }}</span>
                                         </div>
@@ -329,6 +330,7 @@
                                     <td class="font-bold text-[17px]">{{ String(o.name || '') }}</td>
                                     <td class="font-bold text-[#06C755] text-[20px]">${{ formatPrice(o.amount) }}</td>
                                     <td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{o.status==='PAID'?'已完款':'待付'}}</span></td>
+                                    <!-- ✅ 恢復：點擊呼叫 openOrderEditModal -->
                                     <td class="text-right"><button @click="openOrderEditModal(o)" class="text-blue-600 font-bold text-[16px] bg-blue-50 px-4 py-2 rounded hover:bg-blue-100 transition shadow-sm">維護</button></td>
                                 </tr>
                             </tbody>
@@ -400,7 +402,11 @@
             </main>
         </div>
 
+        <!-- ========================================== -->
         <!-- 彈窗 (Modals) 區域 -->
+        <!-- ========================================== -->
+        
+        <!-- 1. 課程編輯彈窗 -->
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[900px] !rounded-xl bg-white">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
@@ -452,6 +458,93 @@
             </div>
         </div>
 
+        <!-- ✅ 2. 真實的：報名單統計與名單彈窗 (不再是警告視窗) -->
+        <div v-if="showOrdersModal" class="modal-mask" @click.self="showOrdersModal = false">
+            <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[1000px] !rounded-xl bg-white">
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
+                    <h3 class="text-[21px] font-black text-slate-800">
+                        報名單統計：{{ String(selectedCourseOrders?.name || '').split('\n')[0] }}
+                    </h3>
+                    <button @click="showOrdersModal = false" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <table class="admin-table !min-w-0 w-full">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="py-3 px-4">單號 / 建立時間</th>
+                                    <th class="py-3 px-4">學員姓名</th>
+                                    <th class="py-3 px-4">聯絡電話</th>
+                                    <th class="py-3 px-4">實付金額</th>
+                                    <th class="py-3 px-4">付款狀態</th>
+                                    <th class="py-3 px-4">學員備註 / 匯款末五碼</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="o in currentCourseOrders" :key="o.orderId" class="border-b border-slate-50 hover:bg-slate-50">
+                                    <td class="py-4 px-4">
+                                        <div class="font-mono font-bold text-[14px] text-slate-500">{{ String(o.orderId || '') }}</div>
+                                        <div class="text-[12px] text-slate-400 mt-1">{{ String(o.createdAt || '') }}</div>
+                                    </td>
+                                    <td class="py-4 px-4 font-bold text-[16px] text-slate-800">{{ String(o.name || '') }}</td>
+                                    <td class="py-4 px-4 font-mono text-[15px] text-slate-600">{{ String(o.phone || '未填寫') }}</td>
+                                    <td class="py-4 px-4 font-black text-[#06C755] text-[16px]">$ {{ formatPrice(o.amount) }}</td>
+                                    <td class="py-4 px-4">
+                                        <span :class="o.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge px-3 py-1">
+                                            {{ o.status === 'PAID' ? '✅ 已完款' : '⏳ 待付' }}
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-4 text-[13px] text-slate-500 whitespace-pre-wrap max-w-[250px] leading-relaxed">{{ String(o.note || '-') }}</td>
+                                </tr>
+                                <tr v-if="!currentCourseOrders.length">
+                                    <td colspan="6" class="text-center py-12 text-slate-400 font-bold text-[15px]">目前尚無報名紀錄</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="px-6 py-4 bg-white flex justify-end items-center border-t border-slate-200 rounded-b-xl">
+                    <button @click="showOrdersModal = false" class="btn-green-main px-8 text-[16px] py-2.5">確認並關閉</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ 3. 真實的：訂單維護彈窗 (不再是警告視窗) -->
+        <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
+            <div class="modal-body p-0 animate-fade-in !max-w-[500px] !rounded-xl bg-white">
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
+                    <h3 class="text-[21px] font-black text-slate-800">訂單維護：{{ editingOrder.orderId }}</h3>
+                    <button @click="editingOrder = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button>
+                </div>
+                <div class="p-8 bg-slate-50 space-y-5 custom-scrollbar max-h-[70vh] overflow-y-auto">
+                    <div>
+                        <label class="input-label">付款狀態</label>
+                        <select v-model="editingOrder.status" class="input-field font-bold">
+                            <option value="PENDING">⏳ 待付款 (PENDING)</option>
+                            <option value="PAID">✅ 已完款 (PAID)</option>
+                            <option value="CANCELLED">❌ 已取消 (CANCELLED)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="input-label">實付金額 (數字)</label>
+                        <input type="number" v-model.number="editingOrder.amount" class="input-field font-black text-[#06C755]">
+                    </div>
+                    <div>
+                        <label class="input-label">訂單備註 (包含匯款帳號等資訊)</label>
+                        <textarea v-model="editingOrder.note" class="input-field h-24 resize-none leading-relaxed text-[15px]"></textarea>
+                    </div>
+                </div>
+                <div class="px-6 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl">
+                    <button @click="editingOrder = null" class="text-[16px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button>
+                    <button @click="saveOrder" :disabled="isLoading" class="btn-green-main px-8 text-[17px] py-3">
+                        <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>儲存變更
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Vue 3 邏輯 -->
@@ -473,8 +566,17 @@
                 const teachers = ref([]);
                 const memberSearch = ref('');
                 const courseSearchQuery = ref('');
+                
+                // 狀態管理：編輯課程
                 const editingCourse = ref(null);
                 
+                // ✅ 狀態管理：報名名單與統計彈窗
+                const showOrdersModal = ref(false);
+                const selectedCourseOrders = ref(null);
+                
+                // ✅ 狀態管理：編輯訂單
+                const editingOrder = ref(null);
+
                 const sysSettings = ref({ liff_id: '', reward_register: 0, reward_refer: 0, reward_daily: 0, link_lineoa: '', link_fb: '', link_ig: '', link_tiktok: '', banner_url: '' });
                 const approveForm = ref({ uid: '', rent: 50, comm: 10 });
 
@@ -626,13 +728,32 @@
                     if (liff.isLoggedIn()) liff.logout();
                 };
 
-                const openCourseOrdersModal = (c) => { alert('📌 報名名單功能建置中'); };
+                // ✅ 實際落實報名單統計與名單功能
+                const openCourseOrdersModal = (c) => {
+                    selectedCourseOrders.value = c;
+                    showOrdersModal.value = true;
+                };
+                const openEnrollments = (c) => { openCourseOrdersModal(c); }; // Alias for 課程管理的報名名單按鈕
+                
+                // ✅ 實際落實訂單維護功能
+                const openOrderEditModal = (o) => {
+                    editingOrder.value = JSON.parse(JSON.stringify(o));
+                };
+                const saveOrder = async () => {
+                    if (!editingOrder.value.orderId) return;
+                    const res = await callApi('ADMIN_UPDATE_ORDER', editingOrder.value);
+                    if (res) {
+                        alert('✅ 訂單更新成功');
+                        editingOrder.value = null;
+                        fetchData();
+                    }
+                };
+
+                // 尚未實作的進階功能
                 const openMemberDetail = (u) => { alert('📌 CRM 進階檔案建置中'); };
-                const openEnrollments = (c) => { alert('📌 報名名單建置中'); };
                 const syncToCalendar = (c) => { alert('📌 同步至日曆功能建置中'); };
                 const copyCourse = (c) => { alert('📌 複製課程功能建置中'); };
                 const openSysConfigModal = (t) => { alert('📌 導師系統設定建置中'); };
-                const openOrderEditModal = (o) => { alert('📌 訂單維護功能建置中'); };
                 const handleApproveTeacher = () => { alert('📌 導師核准功能建置中'); };
 
                 const currentViewName = computed(() => {
@@ -651,6 +772,12 @@
                         const pending = cOrders.filter(o => o.status !== 'PAID').reduce((sum, o) => sum + (Number(o.amount)||0), 0);
                         return { id: c.id, name: c.name, totalOrders: cOrders.length, paidAmount: paid, pendingAmount: pending, totalExpected: paid + pending };
                     }).sort((a,b) => b.totalOrders - a.totalOrders);
+                });
+
+                // ✅ 供報名名單彈窗過濾使用
+                const currentCourseOrders = computed(() => {
+                    if (!selectedCourseOrders.value) return [];
+                    return orders.value.filter(o => String(o.courseId) === String(selectedCourseOrders.value.id));
                 });
 
                 const filteredMembers = computed(() => {
@@ -698,9 +825,14 @@
                     isAuthenticated, isLoading, view, groups, loginForm, users, courses, orders, teachers, memberSearch, courseSearchQuery, editingCourse, sysSettings, approveForm,
                     bannerFileInput, isUploadingBanner, handleBannerUpload,
                     currentViewName, totalRevenue, courseStatsFiltered, filteredMembers, filteredAdminCourses,
+                    
+                    // ✅ 匯出彈窗狀態與操作方法
+                    showOrdersModal, selectedCourseOrders, currentCourseOrders,
+                    editingOrder, openOrderEditModal, saveOrder,
+                    
                     switchView, toggleGroup, formatPrice, fetchData, handleLogin, lineLogin, logout, getCourseName,
                     openNewCourseModal, openEditModal, saveCourse, saveSettings,
-                    openCourseOrdersModal, openMemberDetail, openEnrollments, syncToCalendar, copyCourse, openSysConfigModal, openOrderEditModal, handleApproveTeacher
+                    openCourseOrdersModal, openMemberDetail, openEnrollments, syncToCalendar, copyCourse, openSysConfigModal, handleApproveTeacher
                 };
             }
         }).mount('#app');
