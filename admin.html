@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化ACTION 管理站</title>
-    <!-- Version: 2026.04.29.V306_Full_Admin_Fix -->
+    <!-- Version: 2026.04.29.V306_Admin_Fixed_Final -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -464,25 +464,44 @@
                     }
                 };
 
-                // ✅ 真實的 LINE LIFF 管理員驗證 (加上完善的錯誤防呆)
+                // ✅ 完美修復的 LINE LIFF 管理員驗證 (完全防死機)
                 let isLiffInitialized = false;
                 const initLiffForAdmin = async (manualClick = false) => {
                     try {
                         isLoading.value = true;
                         
                         if (!isLiffInitialized) {
-                            // 向伺服器取得目前的 LIFF ID
-                            const liffIdRes = await fetch(WORKER_URL, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'GET_LIFF_ID' }) });
-                            const liffIdData = await liffIdRes.json();
-                            const liffId = liffIdData.data?.liffId || '2004245607-KvkGZ3dD';
+                            let liffId = '2004245607-KvkGZ3dD'; // 預設的 LIFF ID
                             
-                            await liff.init({ liffId });
-                            isLiffInitialized = true;
+                            // 嘗試向伺服器取得目前的 LIFF ID
+                            try {
+                                const liffIdRes = await fetch(WORKER_URL, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'GET_LIFF_ID' }) });
+                                if (liffIdRes.ok) {
+                                    const liffIdData = await liffIdRes.json();
+                                    if (liffIdData && liffIdData.data && liffIdData.data.liffId) {
+                                        liffId = liffIdData.data.liffId;
+                                    }
+                                }
+                            } catch(e) {
+                                console.warn("無法取得遠端 LIFF ID，使用預設值。");
+                            }
+                            
+                            try {
+                                await liff.init({ liffId });
+                                isLiffInitialized = true;
+                            } catch(e) {
+                                console.warn("LIFF 啟動失敗:", e);
+                                // 如果 LIFF 初始化失敗 (例如 ID 不存在)，溫柔擋下，允許使用密碼登入
+                                if (manualClick) {
+                                    alert(`⛔ LINE 授權登入失敗\n\n系統找不到指定的 LIFF ID 或網路異常。\n\n請直接使用下方的「密碼登入」進入管理站，並至「系統設定」確認您的 LIFF ID 填寫正確。`);
+                                }
+                                return; // 終止流程，保留畫面讓用戶輸入密碼
+                            }
                         }
                         
+                        // 若成功啟動且已登入，進行權限驗證
                         if (liff.isLoggedIn()) {
                             const profile = await liff.getProfile();
-                            // 將用戶 UID 傳回後端檢查是否為管理員
                             const checkRes = await callApi('CHECK_USER', { userId: profile.userId });
                             
                             if (checkRes && checkRes.isAdmin) {
@@ -490,27 +509,22 @@
                                 fetchData();
                             } else {
                                 alert(`⛔ 權限不足！\n\n您的 LINE 帳號尚未被授權進入管理站。\n\n您的系統 UID 為：\n${profile.userId}\n\n請將此 UID 傳送給總管理員，加入後台設定後方可登入。`);
-                                liff.logout(); // 強制登出未授權的帳號
+                                liff.logout(); // 強制登出未授權帳號
                             }
                         } else if (manualClick) {
-                            liff.login(); // 手動點擊時，若未登入則喚起登入畫面
+                            liff.login(); // 手動點擊時，若尚未登入則喚起 LINE 畫面
                         }
                     } catch (e) {
-                        console.error("LIFF 初始化錯誤:", e);
-                        if (manualClick) {
-                            alert(`⛔ LINE 授權登入失敗\n\n系統找不到指定的 LIFF ID，或是網路連線異常。\n請先使用「密碼登入」進入管理站，並至「系統設定」確認您的 LIFF ID 是否正確填寫！\n\n錯誤訊息：${e.message}`);
-                        }
+                        console.error("驗證流程發生未知錯誤:", e);
                     } finally {
                         isLoading.value = false;
                     }
                 };
 
-                // ✅ LINE 一鍵登入按鈕綁定此函式
                 const lineLogin = () => {
                     initLiffForAdmin(true); // 傳入 true 代表是手動點擊
                 };
 
-                // ✅ 密碼登入備案 (防呆去除空白並轉小寫)
                 const handleLogin = () => {
                     const acc = loginForm.value.account.trim().toLowerCase();
                     const pwd = loginForm.value.password.trim();
@@ -583,7 +597,7 @@
                 const saveSettings = () => { alert("⚙️ 設定已同步儲存"); };
 
                 onMounted(() => {
-                    initLiffForAdmin(false); // 畫面載入時自動啟動 LIFF 驗證 (不主動報錯)
+                    initLiffForAdmin(false); // 畫面載入時自動啟動 LIFF 驗證
                 });
 
                 return {
