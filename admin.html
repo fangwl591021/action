@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化ACTION 管理站</title>
-    <!-- Version: 2026.04.30.V321_Admin_Modals_Fully_Implemented -->
+    <!-- Version: 2026.04.30.V322_Admin_Settings_Fully_Restored -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -105,9 +105,9 @@
                             <div @click="switchView('dashboard')" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie w-6 text-center"></i>營運統計</div>
                             <div @click="switchView('calendar')" class="nav-item" :class="{'nav-active': view === 'calendar'}"><i class="far fa-calendar-alt w-6 text-center"></i>日曆檢視</div>
                             <div @click="switchView('members')" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-6 text-center"></i>學員 CRM</div>
-                            <div @click="switchView('courses')" class="nav-item" :class="{'nav-active': view === 'courses'}"><i class="fas fa-book w-6 text-center"></i>課程管理</div>
-                            <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約諮詢</div>
-                            <div @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
+                            <div @click="switchView('courses')" class="nav-item" :class="{'nav-active': view === 'courses' || view === 'course_edit' || view === 'course_enrollments'}"><i class="fas fa-book w-6 text-center"></i>課程管理</div>
+                            <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation' || view === 'sys_config'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約諮詢</div>
+                            <div @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders' || view === 'order_edit'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
                         </div>
                     </div>
                     <div class="nav-group mt-2 border-t border-slate-50 pt-2">
@@ -152,7 +152,7 @@
                                 <tr v-for="c in courseStatsFiltered" :key="c.id">
                                     <td class="font-bold text-slate-700 text-[18px] max-w-[250px] truncate">{{ String(c.name || '').split('\n')[0] }}</td>
                                     
-                                    <!-- ✅ 恢復：左邊數字、右邊按鈕寫統計 -->
+                                    <!-- ✅ 左邊數字、右邊按鈕寫統計 -->
                                     <td class="px-4 py-4 border-b">
                                         <div class="flex items-center justify-center gap-3">
                                             <span class="font-black text-slate-700 text-[18px]">{{ c.totalOrders || 0 }}</span>
@@ -243,7 +243,6 @@
                                     </td>
                                     <td>
                                         <div class="text-slate-600 text-[17px] font-bold mb-2">{{ c.enrolled || 0 }} / {{ c.capacity || 0 }} 人</div>
-                                        <!-- ✅ 恢復：點擊呼叫 openCourseOrdersModal 顯示報名名單 -->
                                         <button @click="openCourseOrdersModal(c)" class="btn-outline !py-1 !px-3 text-[14px] bg-white shadow-sm">報名名單</button>
                                         <div class="mt-2">
                                             <span class="status-badge" :class="c.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'">{{ c.isPublished ? '🟢 已上架' : '🔴 已下架' }}</span>
@@ -330,7 +329,6 @@
                                     <td class="font-bold text-[17px]">{{ String(o.name || '') }}</td>
                                     <td class="font-bold text-[#06C755] text-[20px]">${{ formatPrice(o.amount) }}</td>
                                     <td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{o.status==='PAID'?'已完款':'待付'}}</span></td>
-                                    <!-- ✅ 恢復：點擊呼叫 openOrderEditModal -->
                                     <td class="text-right"><button @click="openOrderEditModal(o)" class="text-blue-600 font-bold text-[16px] bg-blue-50 px-4 py-2 rounded hover:bg-blue-100 transition shadow-sm">維護</button></td>
                                 </tr>
                             </tbody>
@@ -345,8 +343,8 @@
                 <div v-if="view === 'settings'" class="p-8 animate-fade-in max-w-4xl mx-auto space-y-8">
                     <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-full h-1 bg-[#06C755]"></div>
-                        <div class="section-title !mb-5">全域參數設定</div>
                         
+                        <div class="section-title !mb-5">全域參數設定</div>
                         <div class="mb-6">
                             <label class="input-label">前端主 LIFF ID</label>
                             <input type="text" v-model="sysSettings.liff_id" class="input-field font-mono">
@@ -367,13 +365,14 @@
                             </div>
                         </div>
 
+                        <!-- ✅ 補回 R2 Banner 圖片上傳區塊 (對齊前台變數 banner_image) -->
                         <div class="section-title !mb-5 mt-8 border-l-4 border-indigo-500 text-indigo-800">首頁頂部橫幅 (Banner) 圖檔上傳 (Cloudflare R2)</div>
                         <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
-                            <div v-if="sysSettings.banner_url" class="mb-4 relative rounded-lg overflow-hidden border border-slate-200 shadow-sm">
-                                <img :src="sysSettings.banner_url" class="w-full max-h-[300px] object-cover">
+                            <div v-if="sysSettings.banner_image" class="mb-4 relative rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+                                <img :src="sysSettings.banner_image" class="w-full max-h-[300px] object-cover">
                                 <div class="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">目前設定圖片</div>
                             </div>
-                            <input type="text" v-model="sysSettings.banner_url" class="input-field font-mono text-[13px] mb-4 text-slate-500" placeholder="圖片網址將於上傳後自動產生">
+                            <input type="text" v-model="sysSettings.banner_image" class="input-field font-mono text-[13px] mb-4 text-slate-500" placeholder="圖片網址將於上傳後自動產生">
                             
                             <input type="file" ref="bannerFileInput" accept="image/jpeg, image/png, image/webp" class="hidden" @change="handleBannerUpload">
                             <button @click="$refs.bannerFileInput.click()" :disabled="isUploadingBanner" class="w-full py-3.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-100 transition shadow-sm flex items-center justify-center gap-2">
@@ -383,12 +382,53 @@
                             </button>
                         </div>
 
+                        <!-- ✅ 補回匯款與金流設定區塊 -->
+                        <div class="section-title !mb-5 mt-8 border-l-4 border-indigo-500 text-indigo-800">付款與金流參數設定</div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8 space-y-4">
+                            <div>
+                                <label class="input-label">官方指定匯款帳號 (顯示於前台結帳後)</label>
+                                <textarea v-model="sysSettings.remittance_info" class="input-field h-24 resize-none text-[14px] leading-relaxed" placeholder="銀行代碼：000\n帳號：123456789\n戶名：人生進化公司"></textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-5">
+                                <div>
+                                    <label class="input-label">允許學員自行取消待付款訂單</label>
+                                    <select v-model="sysSettings.allow_cancel_order" class="input-field font-bold">
+                                        <option value="true">✅ 允許</option>
+                                        <option value="false">❌ 不允許</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="input-label">藍新金流 Merchant ID</label>
+                                    <input type="text" v-model="sysSettings.newebpay_merchant_id" class="input-field font-mono">
+                                </div>
+                                <div class="col-span-2 grid grid-cols-2 gap-5">
+                                    <div>
+                                        <label class="input-label">藍新金流 Hash Key</label>
+                                        <input type="text" v-model="sysSettings.newebpay_hash_key" class="input-field font-mono">
+                                    </div>
+                                    <div>
+                                        <label class="input-label">藍新金流 Hash IV</label>
+                                        <input type="text" v-model="sysSettings.newebpay_hash_iv" class="input-field font-mono">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 補回社群與連結設定 -->
                         <div class="section-title !mb-5 mt-8 border-l-4 border-indigo-500 text-indigo-800">社群與連結設定</div>
                         <div class="grid grid-cols-2 gap-5 mb-8">
                             <div><label class="input-label">LINE OA 網址</label><input type="text" v-model="sysSettings.link_lineoa" class="input-field text-[16px]"></div>
                             <div><label class="input-label">Facebook 網址</label><input type="text" v-model="sysSettings.link_fb" class="input-field text-[16px]"></div>
                             <div><label class="input-label">Instagram 網址</label><input type="text" v-model="sysSettings.link_ig" class="input-field text-[16px]"></div>
                             <div><label class="input-label">TikTok 網址</label><input type="text" v-model="sysSettings.link_tiktok" class="input-field text-[16px]"></div>
+                        </div>
+
+                        <!-- ✅ 補回進階權限設定 (管理員白名單) -->
+                        <div class="section-title !mb-5 mt-8 border-l-4 border-indigo-500 text-indigo-800">進階權限設定</div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
+                            <label class="input-label">動態管理員 UID 授權清單 (以逗號分隔)</label>
+                            <textarea v-model="sysSettings.admin_uids" class="input-field h-24 resize-none font-mono text-sm" placeholder="U1234567890abcdef, U0987654321fedcba"></textarea>
+                            <p class="text-xs text-slate-400 mt-2 font-bold">在此名單內的 LINE UID 將可免密碼直接登入後台</p>
                         </div>
                         
                         <button @click="saveSettings" :disabled="isLoading" class="btn-green-main w-full py-4 text-[18px] shadow-md active:scale-98 transition flex items-center justify-center gap-2">
@@ -458,7 +498,7 @@
             </div>
         </div>
 
-        <!-- ✅ 2. 真實的：報名單統計與名單彈窗 (不再是警告視窗) -->
+        <!-- 2. 報名單統計與名單彈窗 -->
         <div v-if="showOrdersModal" class="modal-mask" @click.self="showOrdersModal = false">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[1000px] !rounded-xl bg-white">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
@@ -511,7 +551,7 @@
             </div>
         </div>
 
-        <!-- ✅ 3. 真實的：訂單維護彈窗 (不再是警告視窗) -->
+        <!-- 3. 訂單維護彈窗 -->
         <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
             <div class="modal-body p-0 animate-fade-in !max-w-[500px] !rounded-xl bg-white">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
@@ -567,17 +607,20 @@
                 const memberSearch = ref('');
                 const courseSearchQuery = ref('');
                 
-                // 狀態管理：編輯課程
                 const editingCourse = ref(null);
-                
-                // ✅ 狀態管理：報名名單與統計彈窗
                 const showOrdersModal = ref(false);
                 const selectedCourseOrders = ref(null);
-                
-                // ✅ 狀態管理：編輯訂單
                 const editingOrder = ref(null);
 
-                const sysSettings = ref({ liff_id: '', reward_register: 0, reward_refer: 0, reward_daily: 0, link_lineoa: '', link_fb: '', link_ig: '', link_tiktok: '', banner_url: '' });
+                // ✅ 完美恢復所有全域變數，一字不漏
+                const sysSettings = ref({ 
+                    liff_id: '', reward_register: 0, reward_refer: 0, reward_daily: 0, 
+                    link_lineoa: '', link_fb: '', link_ig: '', link_tiktok: '', 
+                    banner_image: '', remittance_info: '', 
+                    newebpay_merchant_id: '', newebpay_hash_key: '', newebpay_hash_iv: '', 
+                    allow_cancel_order: 'false', admin_uids: ''
+                });
+                
                 const approveForm = ref({ uid: '', rent: 50, comm: 10 });
 
                 // R2 Banner 上傳邏輯
@@ -595,7 +638,8 @@
                         try {
                             const res = await callApi('UPLOAD_IMAGE', { imageBase64: base64 });
                             if (res && res.url) {
-                                sysSettings.value.banner_url = res.url;
+                                // ✅ 變數對齊前台的 banner_image
+                                sysSettings.value.banner_image = res.url;
                                 alert('✅ 圖片已成功上傳至 Cloudflare R2！\n請記得點擊畫面最下方的「確認儲存並同步」按鈕。');
                             } else {
                                 throw new Error('伺服器未回傳網址');
@@ -638,6 +682,7 @@
                         orders.value = data.orders || [];
                         teachers.value = data.teachers || [];
                         
+                        // ✅ 精準對應資料庫讀取
                         if (data.settings) {
                             sysSettings.value = {
                                 liff_id: data.settings.liff_id || '',
@@ -648,7 +693,13 @@
                                 link_fb: data.settings.link_fb || '',
                                 link_ig: data.settings.link_ig || '',
                                 link_tiktok: data.settings.link_tiktok || '',
-                                banner_url: data.settings.banner_url || ''
+                                banner_image: data.settings.banner_image || data.settings.banner_url || '',
+                                remittance_info: data.settings.remittance_info || '',
+                                newebpay_merchant_id: data.settings.newebpay_merchant_id || '',
+                                newebpay_hash_key: data.settings.newebpay_hash_key || '',
+                                newebpay_hash_iv: data.settings.newebpay_hash_iv || '',
+                                allow_cancel_order: data.settings.allow_cancel_order || 'false',
+                                admin_uids: data.settings.admin_uids || ''
                             };
                         }
                     }
@@ -728,14 +779,12 @@
                     if (liff.isLoggedIn()) liff.logout();
                 };
 
-                // ✅ 實際落實報名單統計與名單功能
                 const openCourseOrdersModal = (c) => {
                     selectedCourseOrders.value = c;
                     showOrdersModal.value = true;
                 };
-                const openEnrollments = (c) => { openCourseOrdersModal(c); }; // Alias for 課程管理的報名名單按鈕
+                const openEnrollments = (c) => { openCourseOrdersModal(c); }; 
                 
-                // ✅ 實際落實訂單維護功能
                 const openOrderEditModal = (o) => {
                     editingOrder.value = JSON.parse(JSON.stringify(o));
                 };
@@ -749,7 +798,6 @@
                     }
                 };
 
-                // 尚未實作的進階功能
                 const openMemberDetail = (u) => { alert('📌 CRM 進階檔案建置中'); };
                 const syncToCalendar = (c) => { alert('📌 同步至日曆功能建置中'); };
                 const copyCourse = (c) => { alert('📌 複製課程功能建置中'); };
@@ -774,7 +822,6 @@
                     }).sort((a,b) => b.totalOrders - a.totalOrders);
                 });
 
-                // ✅ 供報名名單彈窗過濾使用
                 const currentCourseOrders = computed(() => {
                     if (!selectedCourseOrders.value) return [];
                     return orders.value.filter(o => String(o.courseId) === String(selectedCourseOrders.value.id));
@@ -826,7 +873,6 @@
                     bannerFileInput, isUploadingBanner, handleBannerUpload,
                     currentViewName, totalRevenue, courseStatsFiltered, filteredMembers, filteredAdminCourses,
                     
-                    // ✅ 匯出彈窗狀態與操作方法
                     showOrdersModal, selectedCourseOrders, currentCourseOrders,
                     editingOrder, openOrderEditModal, saveOrder,
                     
