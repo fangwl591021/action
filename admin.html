@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化ACTION 管理站</title>
-    <!-- Version: 2026.04.30.V322_Admin_Settings_Fully_Restored -->
+    <!-- Version: 2026.04.30.V323_Admin_Dynamic_Auth_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -152,7 +152,6 @@
                                 <tr v-for="c in courseStatsFiltered" :key="c.id">
                                     <td class="font-bold text-slate-700 text-[18px] max-w-[250px] truncate">{{ String(c.name || '').split('\n')[0] }}</td>
                                     
-                                    <!-- ✅ 左邊數字、右邊按鈕寫統計 -->
                                     <td class="px-4 py-4 border-b">
                                         <div class="flex items-center justify-center gap-3">
                                             <span class="font-black text-slate-700 text-[18px]">{{ c.totalOrders || 0 }}</span>
@@ -365,7 +364,6 @@
                             </div>
                         </div>
 
-                        <!-- ✅ 補回 R2 Banner 圖片上傳區塊 (對齊前台變數 banner_image) -->
                         <div class="section-title !mb-5 mt-8 border-l-4 border-indigo-500 text-indigo-800">首頁頂部橫幅 (Banner) 圖檔上傳 (Cloudflare R2)</div>
                         <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
                             <div v-if="sysSettings.banner_image" class="mb-4 relative rounded-lg overflow-hidden border border-slate-200 shadow-sm">
@@ -382,7 +380,6 @@
                             </button>
                         </div>
 
-                        <!-- ✅ 補回匯款與金流設定區塊 -->
                         <div class="section-title !mb-5 mt-8 border-l-4 border-indigo-500 text-indigo-800">付款與金流參數設定</div>
                         <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8 space-y-4">
                             <div>
@@ -414,7 +411,6 @@
                             </div>
                         </div>
 
-                        <!-- 補回社群與連結設定 -->
                         <div class="section-title !mb-5 mt-8 border-l-4 border-indigo-500 text-indigo-800">社群與連結設定</div>
                         <div class="grid grid-cols-2 gap-5 mb-8">
                             <div><label class="input-label">LINE OA 網址</label><input type="text" v-model="sysSettings.link_lineoa" class="input-field text-[16px]"></div>
@@ -423,7 +419,6 @@
                             <div><label class="input-label">TikTok 網址</label><input type="text" v-model="sysSettings.link_tiktok" class="input-field text-[16px]"></div>
                         </div>
 
-                        <!-- ✅ 補回進階權限設定 (管理員白名單) -->
                         <div class="section-title !mb-5 mt-8 border-l-4 border-indigo-500 text-indigo-800">進階權限設定</div>
                         <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
                             <label class="input-label">動態管理員 UID 授權清單 (以逗號分隔)</label>
@@ -612,7 +607,6 @@
                 const selectedCourseOrders = ref(null);
                 const editingOrder = ref(null);
 
-                // ✅ 完美恢復所有全域變數，一字不漏
                 const sysSettings = ref({ 
                     liff_id: '', reward_register: 0, reward_refer: 0, reward_daily: 0, 
                     link_lineoa: '', link_fb: '', link_ig: '', link_tiktok: '', 
@@ -623,7 +617,6 @@
                 
                 const approveForm = ref({ uid: '', rent: 50, comm: 10 });
 
-                // R2 Banner 上傳邏輯
                 const bannerFileInput = ref(null);
                 const isUploadingBanner = ref(false);
 
@@ -638,7 +631,6 @@
                         try {
                             const res = await callApi('UPLOAD_IMAGE', { imageBase64: base64 });
                             if (res && res.url) {
-                                // ✅ 變數對齊前台的 banner_image
                                 sysSettings.value.banner_image = res.url;
                                 alert('✅ 圖片已成功上傳至 Cloudflare R2！\n請記得點擊畫面最下方的「確認儲存並同步」按鈕。');
                             } else {
@@ -654,7 +646,6 @@
                     reader.readAsDataURL(file);
                 };
 
-                // API
                 const callApi = async (action, payload = {}) => {
                     isLoading.value = true;
                     try {
@@ -682,7 +673,6 @@
                         orders.value = data.orders || [];
                         teachers.value = data.teachers || [];
                         
-                        // ✅ 精準對應資料庫讀取
                         if (data.settings) {
                             sysSettings.value = {
                                 liff_id: data.settings.liff_id || '',
@@ -741,13 +731,22 @@
                         
                         if (liff.isLoggedIn()) {
                             const profile = await liff.getProfile();
+                            
+                            // 1. 取得全域設定中的 UID 白名單
+                            const currentSettings = await callApi('GET_SETTINGS');
+                            const allowedUids = (currentSettings?.admin_uids || '').split(',').map(u => u.trim()).filter(Boolean);
+                            
+                            // 2. 檢查使用者狀態 (相容舊有 GAS isAdmin 判斷)
                             const checkRes = await callApi('CHECK_USER', { userId: profile.userId });
                             
-                            if (checkRes && checkRes.isAdmin) {
+                            // 3. 白名單核對
+                            const isAuthorized = allowedUids.includes(profile.userId) || (checkRes && checkRes.isAdmin);
+
+                            if (isAuthorized) {
                                 isAuthenticated.value = true;
                                 fetchData();
                             } else {
-                                alert(`⛔ 權限不足！請聯絡總管理員。\nUID: ${profile.userId}`);
+                                alert(`⛔ 權限不足！請聯絡總管理員將以下 UID 加入授權清單。\nUID: ${profile.userId}`);
                                 liff.logout();
                             }
                         } else if (manualClick) {
