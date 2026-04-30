@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>行動管理台 | 人生進化ACTION</title>
-    <!-- Version: 2026.04.30.Mobile_Admin_V3_Stats_Btn -->
+    <!-- Version: 2026.04.30.Mobile_Admin_V4_CRM_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,6 +19,9 @@
         .btn-primary { background-color: #06C755; color: white; font-weight: 800; padding: 14px 20px; border-radius: 12px; text-align: center; font-size: 16px; width: 100%; transition: transform 0.1s; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .btn-primary:active { transform: scale(0.98); }
         .btn-primary:disabled { opacity: 0.5; transform: none; background-color: #cccccc; }
+        
+        .btn-secondary { background-color: #F4F5F7; color: #111111; font-weight: 700; padding: 12px 16px; border-radius: 12px; text-align: center; font-size: 14px; width: 100%; transition: transform 0.1s; display: flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid #EEEEEE; }
+        .btn-secondary:active { transform: scale(0.98); }
         
         .native-input { width: 100%; border: none; background-color: #F4F5F7; border-radius: 10px; padding: 14px 16px; font-size: 15px; outline: none; color: #111111; font-weight: 600; transition: 0.2s; }
         .native-input:focus { background-color: #EAECEF; box-shadow: inset 0 0 0 2px rgba(6,199,85,0.2); }
@@ -47,7 +50,7 @@
 <body>
     <div id="app" v-cloak class="max-w-md mx-auto min-h-screen bg-[#F4F5F7] pb-[env(safe-area-inset-bottom)] relative">
         
-        <!-- 🟢 系統啟動載入 -->
+        <!-- 系統啟動載入 -->
         <transition name="fade">
             <div v-if="isGlobalLoading" class="fixed inset-0 bg-slate-800 z-[100] flex flex-col items-center justify-center text-center">
                 <div class="mb-6 flex flex-col items-center">
@@ -59,9 +62,7 @@
             </div>
         </transition>
 
-        <!-- ========================================================== -->
-        <!-- 🔒 登入驗證 -->
-        <!-- ========================================================== -->
+        <!-- 登入驗證 -->
         <div v-if="!isAuthenticated && !isGlobalLoading" class="min-h-screen flex items-center justify-center bg-white px-6">
             <div class="w-full text-center">
                 <div class="w-20 h-20 bg-green-50 text-[#06C755] rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner border border-green-100">
@@ -93,9 +94,7 @@
             </div>
         </div>
 
-        <!-- ========================================================== -->
-        <!-- 📱 行動管理台主架構 -->
-        <!-- ========================================================== -->
+        <!-- 行動管理台主架構 -->
         <div v-if="isAuthenticated && !isGlobalLoading" class="flex flex-col h-screen overflow-hidden">
             
             <header class="header-fixed">
@@ -112,7 +111,7 @@
 
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px] pt-4 px-4">
                 
-                <!-- 📊 營運統計 (Dashboard) -->
+                <!-- 營運統計 (Dashboard) -->
                 <div v-if="view === 'dashboard'" class="animate-fade-in">
                     <div class="grid grid-cols-2 gap-3 mb-6">
                         <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
@@ -143,7 +142,6 @@
                         <div class="font-bold text-slate-800 text-[16px] mb-3 leading-snug">{{ String(c.name).split('\n')[0] }}</div>
                         <div class="flex justify-between items-center mb-2 text-[13px]">
                             <div class="text-slate-500 font-bold">總報名數</div>
-                            <!-- ✅ 新增了統計按鈕區塊 -->
                             <div class="flex items-center gap-2">
                                 <div class="font-black text-slate-700">{{ c.totalOrders }} 人</div>
                                 <button @click="openCourseOrdersModal(c)" class="bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded text-[11px] font-bold active:scale-95 transition shadow-sm">統計名單</button>
@@ -160,7 +158,7 @@
                     </div>
                 </div>
 
-                <!-- 🧾 訂單維護 (Orders) -->
+                <!-- 訂單維護 (Orders) -->
                 <div v-if="view === 'orders'" class="animate-fade-in">
                     <div class="relative w-full mb-4">
                         <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
@@ -193,7 +191,7 @@
                     </div>
                 </div>
 
-                <!-- 📚 課程管理 (Courses) -->
+                <!-- 課程管理 (Courses) -->
                 <div v-if="view === 'courses'" class="animate-fade-in">
                     <div class="relative w-full mb-4">
                         <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
@@ -221,14 +219,15 @@
                     </div>
                 </div>
 
-                <!-- 👥 學員 CRM (Members) -->
+                <!-- ✅ 學員 CRM (Members) - 修復版：可點擊進入詳細檔案 -->
                 <div v-if="view === 'members'" class="animate-fade-in">
                     <div class="relative w-full mb-4">
                         <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" v-model="userSearchQuery" placeholder="搜尋姓名、手機號碼..." class="native-input pl-10 text-[14px]">
                     </div>
 
-                    <div v-for="u in filteredUsers" :key="u.userId" class="native-card flex items-center justify-between !py-4">
+                    <!-- ✅ 學員卡片改為可點擊，點擊後開啟詳細檔案 Modal -->
+                    <div v-for="u in filteredUsers" :key="u.userId" class="native-card flex items-center justify-between !py-4 active:bg-slate-50 transition cursor-pointer" @click="openMemberDetail(u)">
                         <div>
                             <div class="text-[15px] font-bold text-slate-800 mb-1 flex items-center gap-2">
                                 {{ u.name || '未填寫' }} 
@@ -236,9 +235,10 @@
                             </div>
                             <div class="text-[13px] font-mono text-slate-500"><i class="fas fa-mobile-alt text-slate-300 mr-1.5 text-center w-3"></i>{{ u.phone || '無資料' }}</div>
                         </div>
-                        <div class="text-[11px] text-slate-400 font-mono text-right">
-                            <div class="mb-1">註冊日</div>
-                            <div class="font-bold">{{ String(u.createdAt).substring(0, 10) }}</div>
+                        <div class="text-right">
+                            <div class="text-[11px] text-slate-400 font-mono mb-1">註冊日</div>
+                            <div class="text-[11px] font-bold text-slate-500">{{ String(u.createdAt).substring(0, 10) }}</div>
+                            <i class="fas fa-chevron-right text-slate-300 text-xs mt-1 block"></i>
                         </div>
                     </div>
                     
@@ -250,7 +250,7 @@
 
             </main>
 
-            <!-- 📱 底部固定導覽列 -->
+            <!-- 底部固定導覽列 -->
             <nav class="bottom-nav">
                 <div @click="view = 'dashboard'" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie"></i><span>營運</span></div>
                 <div @click="view = 'orders'" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>訂單</span></div>
@@ -302,7 +302,7 @@
         </transition>
 
         <!-- ========================================================== -->
-        <!-- 📝 報名單統計與名單彈窗 (Modal) -->
+        <!-- 📊 報名單統計與名單彈窗 (Modal) -->
         <!-- ========================================================== -->
         <transition name="fade">
             <div v-if="showOrdersModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -333,6 +333,101 @@
             </div>
         </transition>
 
+        <!-- ========================================================== -->
+        <!-- ✅ 新增：學員詳細檔案 Modal (CRM) -->
+        <!-- ========================================================== -->
+        <transition name="slide-up">
+            <div v-if="activeMember" class="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm">
+                <div class="bg-white w-full max-w-md rounded-t-3xl overflow-hidden flex flex-col max-h-[90vh]" @click.stop>
+                    <div class="sticky top-0 bg-white border-b border-slate-100 p-4 flex justify-between items-center">
+                        <h3 class="text-[18px] font-black text-[#111111] flex items-center gap-2">
+                            <i class="fas fa-address-card text-[#06C755]"></i> {{ activeMember.name }}
+                        </h3>
+                        <button @click="activeMember = null" class="w-8 h-8 bg-[#F4F5F7] rounded-full text-slate-400 flex items-center justify-center active:scale-90 transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-y-auto flex-1 p-4 space-y-4 hide-scrollbar">
+                        <!-- 基本資料區塊 -->
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div class="text-[13px] font-bold text-slate-500 mb-3 flex items-center gap-2"><i class="fas fa-user-edit text-indigo-500"></i>基本資料</div>
+                            <div class="space-y-3">
+                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1">姓名</label><input type="text" v-model="activeMember.name" class="native-input bg-white border border-slate-200"></div>
+                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1">手機</label><input type="tel" v-model="activeMember.phone" class="native-input bg-white border border-slate-200 font-mono"></div>
+                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1">等級</label><select v-model="activeMember.memberTier" class="native-input bg-white border border-slate-200 font-bold text-[#06C755]"><option v-for="t in ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師']" :value="t">{{t}}</option></select></div>
+                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1">業種</label><input type="text" v-model="activeMember.industry" class="native-input bg-white border border-slate-200"></div>
+                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1">性別</label><select v-model="activeMember.gender" class="native-input bg-white border border-slate-200"><option value="男">男</option><option value="女">女</option></select></div>
+                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1">生日</label><input type="date" v-model="activeMember.birthday" class="native-input bg-white border border-slate-200"></div>
+                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1">管理員備註</label><textarea v-model="activeMember.adminNote" class="native-input bg-white border border-slate-200 h-24 resize-none leading-relaxed"></textarea></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 紅包管理區塊 -->
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
+                            <i class="fas fa-gift absolute -right-4 -bottom-4 text-red-50 text-6xl"></i>
+                            <div class="text-[11px] font-bold text-slate-400 mb-1 relative">可用紅包餘額</div>
+                            <div class="text-3xl font-black text-red-500 mb-4 relative">{{ (activeMemberPoints.balance || 0).toLocaleString() }} <span class="text-sm font-bold text-slate-400">點</span></div>
+                            
+                            <div class="flex gap-3 relative">
+                                <button @click="openPointActionModal('MANUAL_ADD')" class="flex-1 py-3 bg-green-50 text-green-600 rounded-xl font-bold border border-green-200 active:scale-95 transition text-sm">
+                                    <i class="fas fa-plus-circle mr-1"></i>贈點
+                                </button>
+                                <button @click="openPointActionModal('MANUAL_DEDUCT')" class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-200 active:scale-95 transition text-sm">
+                                    <i class="fas fa-minus-circle mr-1"></i>扣點
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 歷史紀錄 -->
+                        <div class="bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
+                            <div class="p-3 bg-slate-100 text-[12px] font-bold text-slate-500 flex items-center gap-2"><i class="fas fa-history"></i> 紅包歷史紀錄</div>
+                            <div class="max-h-[200px] overflow-y-auto">
+                                <div v-for="log in activeMemberPoints.logs" :key="log.logId" class="p-3 border-b border-slate-100 last:border-0 flex justify-between items-center">
+                                    <div><div class="font-bold text-[13px] text-slate-700">{{ log.reason }}</div><div class="text-[10px] text-slate-400 font-mono">{{ log.createdAt }}</div></div>
+                                    <div class="font-black text-[16px]" :class="log.type.includes('ADD')||log.type.includes('EARN')?'text-[#06C755]':'text-red-500'">
+                                        {{ log.type.includes('ADD')||log.type.includes('EARN')?'+':'-' }}{{ log.amount }}
+                                    </div>
+                                </div>
+                                <div v-if="!activeMemberPoints.logs.length" class="p-6 text-center text-slate-400 text-[12px] font-bold">目前尚無紀錄</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="sticky bottom-0 bg-white border-t border-slate-100 p-4 flex gap-3">
+                        <button @click="activeMember = null" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-[15px] active:scale-95 transition">取消</button>
+                        <button @click="saveMemberDetail" :disabled="isLoading" class="flex-1 py-3 bg-[#06C755] text-white rounded-xl font-bold text-[15px] shadow-md active:scale-95 transition">
+                            <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ isLoading ? '儲存中' : '儲存變更' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- ========================================================== -->
+        <!-- ✅ 新增：紅包點數調整 Modal -->
+        <!-- ========================================================== -->
+        <transition name="fade">
+            <div v-if="editingPointAction" class="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-slate-100">
+                    <h3 class="text-xl font-black mb-4 flex items-center gap-2" :class="editingPointAction.type==='MANUAL_ADD'?'text-[#06C755]':'text-red-500'">
+                        <i class="fas" :class="editingPointAction.type==='MANUAL_ADD'?'fa-arrow-circle-up':'fa-arrow-circle-down'"></i> 
+                        {{ editingPointAction.type==='MANUAL_ADD' ? '手動贈送點數' : '手動扣除點數' }}
+                    </h3>
+                    <div class="space-y-4">
+                        <div><label class="text-xs font-bold text-slate-500 block mb-1">異動金額 (點)</label><input type="number" v-model.number="editingPointAction.amount" class="native-input text-2xl font-black text-center" placeholder="0"></div>
+                        <div><label class="text-xs font-bold text-slate-500 block mb-1">原因 / 備註</label><input type="text" v-model="editingPointAction.reason" class="native-input" placeholder="請填寫原因..."></div>
+                        <div class="flex gap-3 pt-3">
+                            <button @click="editingPointAction = null" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold active:scale-95 transition">取消</button>
+                            <button @click="submitPointAction" :disabled="isLoading" class="flex-1 py-3 text-white rounded-xl font-bold shadow-md active:scale-95 transition flex justify-center items-center gap-2" :class="editingPointAction.type==='MANUAL_ADD'?'bg-[#06C755]':'bg-red-500'">
+                                <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>確認執行
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
     </div>
 
     <script>
@@ -353,6 +448,11 @@
                 const orders = ref([]);
                 const users = ref([]);
                 
+                // CRM 相關變數
+                const activeMember = ref(null);
+                const activeMemberPoints = ref({ balance: 0, logs: [] });
+                const editingPointAction = ref(null);
+                
                 const orderSearchQuery = ref('');
                 const courseSearchQuery = ref('');
                 const userSearchQuery = ref('');
@@ -363,28 +463,28 @@
                 // ==========================================
                 // API 呼叫模組
                 // ==========================================
-                const callApi = async (action, payload = {}) => {
-                    isLoading.value = true;
+                const callApi = async (action, payload = {}, silent = false) => {
+                    if (!silent) isLoading.value = true;
                     try {
-                        const currentUserId = typeof liff !== 'undefined' && liff.isLoggedIn() ? liff.getDecodedIDToken()?.sub : '';
+                        const currentUserId = typeof liff !== 'undefined' && liff.isLoggedIn() ? (await liff.getProfile()).userId : '';
                         const res = await fetch(WORKER_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action, payload, userProfile: { userId: currentUserId || '' } })
                         });
                         const json = await res.json();
-                        if (json.status !== 'success') throw new Error(json.message);
+                        if (json.status !== 'success') throw new Error(json.message || '後台執行失敗');
                         return json.data;
                     } catch (e) {
-                        alert(`伺服器回應異常: ${e.message}`);
+                        if (!silent) alert(`伺服器回應異常: ${e.message}`);
                         return null;
                     } finally {
-                        isLoading.value = false;
+                        if (!silent) isLoading.value = false;
                     }
                 };
 
                 const fetchData = async () => {
-                    const data = await callApi('ADMIN_GET_DATA');
+                    const data = await callApi('ADMIN_GET_DATA', {});
                     if (data) {
                         courses.value = data.courses || [];
                         users.value = data.users || [];
@@ -402,22 +502,17 @@
                         
                         let liffId = '2009130603-RYWWBxUf'; 
                         try {
-                            const liffIdRes = await fetch(WORKER_URL, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'GET_LIFF_ID' }) });
-                            if (liffIdRes.ok) {
-                                const liffIdData = await liffIdRes.json();
-                                if (liffIdData && liffIdData.data && liffIdData.data.liffId) {
-                                    liffId = liffIdData.data.liffId;
-                                }
-                            }
+                            const settings = await callApi('GET_SETTINGS', {}, true);
+                            if (settings && settings.liff_id) liffId = settings.liff_id;
                         } catch(e) {}
                         
                         await liff.init({ liffId });
                         
                         if (liff.isLoggedIn()) {
                             const profile = await liff.getProfile();
-                            const currentSettings = await callApi('GET_SETTINGS');
+                            const currentSettings = await callApi('GET_SETTINGS', {}, true);
                             const allowedUids = (currentSettings?.admin_uids || '').split(',').map(u => u.trim()).filter(Boolean);
-                            const checkRes = await callApi('CHECK_USER', { userId: profile.userId });
+                            const checkRes = await callApi('CHECK_USER', { userId: profile.userId }, true);
                             const isAuthorized = allowedUids.includes(profile.userId) || (checkRes && checkRes.isAdmin);
 
                             if (isAuthorized) {
@@ -450,6 +545,59 @@
                     } else {
                         alert("帳號或密碼錯誤");
                     }
+                };
+
+                // ==========================================
+                // ✅ CRM 核心功能
+                // ==========================================
+                const openMemberDetail = async (u) => {
+                    activeMember.value = JSON.parse(JSON.stringify(u));
+                    isLoading.value = true;
+                    try {
+                        const points = await callApi('GET_USER_POINTS', { targetUid: u.userId });
+                        if(points) activeMemberPoints.value = points;
+                    } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                };
+
+                const saveMemberDetail = async () => {
+                    if (!activeMember.value || !activeMember.value.userId) return;
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value });
+                        if(res) {
+                            alert('✅ 學員檔案更新成功！');
+                            const idx = users.value.findIndex(u => u.userId === activeMember.value.userId);
+                            if (idx > -1) users.value[idx] = JSON.parse(JSON.stringify(activeMember.value));
+                            activeMember.value = null;
+                        }
+                    } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                };
+
+                const openPointActionModal = (type) => {
+                    editingPointAction.value = { type: type, amount: '', reason: '' };
+                };
+
+                const submitPointAction = async () => {
+                    const amt = Number(editingPointAction.value.amount);
+                    if (!activeMember.value || !activeMember.value.userId) return;
+                    if (!amt || amt <= 0) return alert('請輸入大於 0 的金額');
+                    if (!editingPointAction.value.reason) return alert('請填寫異動原因');
+                    isLoading.value = true;
+                    try {
+                        const res = await callApi('ADMIN_MANAGE_POINTS', { 
+                            uid: activeMember.value.userId, 
+                            amount: amt, 
+                            type: editingPointAction.value.type, 
+                            reason: editingPointAction.value.reason, 
+                            operator: 'Admin' 
+                        });
+                        if (res) {
+                            alert('✅ 點數調整成功！已記錄於流水帳。');
+                            editingPointAction.value = null;
+                            const points = await callApi('GET_USER_POINTS', { targetUid: activeMember.value.userId });
+                            if(points) activeMemberPoints.value = points;
+                        }
+                    } catch(e) { console.error(e); alert('調整失敗：' + e.message); } finally { isLoading.value = false; }
                 };
 
                 // ==========================================
@@ -545,6 +693,10 @@
                     isAuthenticated, isGlobalLoading, loadingText, view, isLoading, loginForm,
                     users, courses, orders, editingOrder, showOrdersModal, selectedCourseOrders,
                     orderSearchQuery, courseSearchQuery, userSearchQuery,
+                    
+                    // CRM 相關
+                    activeMember, activeMemberPoints, editingPointAction,
+                    openMemberDetail, saveMemberDetail, openPointActionModal, submitPointAction,
                     
                     viewTitle, formatPrice, getCourseName,
                     totalRevenue, courseStatsFiltered, currentCourseOrders, filteredOrders, filteredCourses, filteredUsers,
