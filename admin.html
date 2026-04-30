@@ -975,7 +975,14 @@
                         const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value });
                         if(res) {
                             alert('✅ 學員檔案更新成功！');
-                            fetchData();
+                            
+                            // 樂觀更新 (Optimistic UI)：直接更新本地資料，無視 KV 同步時間差
+                            const idx = users.value.findIndex(u => u.userId === activeMember.value.userId);
+                            if (idx > -1) {
+                                users.value[idx] = JSON.parse(JSON.stringify(activeMember.value));
+                            }
+                            
+                            setTimeout(() => fetchData(), 2000); // 延遲背景同步
                             activeMember.value = null;
                         }
                     } catch(e) { console.error(e); } finally { isLoading.value = false; }
@@ -1033,8 +1040,14 @@
                     try {
                         const res = await callApi('ADMIN_UPDATE_COURSE', editingCourse.value);
                         if(res) {
-                            alert('課程儲存成功');
-                            fetchData();
+                            alert('✅ 課程儲存成功');
+                            
+                            // 樂觀更新 (Optimistic UI)
+                            const idx = courses.value.findIndex(c => c.id === editingCourse.value.id);
+                            if (idx > -1) courses.value[idx] = JSON.parse(JSON.stringify(editingCourse.value));
+                            else courses.value.unshift(JSON.parse(JSON.stringify(editingCourse.value)));
+
+                            setTimeout(() => fetchData(), 2000); // 延遲背景同步
                             editingCourse.value = null;
                         }
                     } catch(e) { console.error(e); } finally { isLoading.value = false; }
@@ -1138,8 +1151,17 @@
                             note: editingOrder.value.note
                         });
                         if(res) {
-                            alert('訂單更新成功');
-                            fetchData();
+                            alert('✅ 訂單更新成功');
+                            
+                            // 樂觀更新 (Optimistic UI)
+                            const idx = orders.value.findIndex(o => o.orderId === editingOrder.value.orderId);
+                            if (idx > -1) {
+                                orders.value[idx].status = editingOrder.value.status;
+                                orders.value[idx].amount = editingOrder.value.amount;
+                                orders.value[idx].note = editingOrder.value.note;
+                            }
+                            
+                            setTimeout(() => fetchData(), 2000); // 延遲背景同步
                             editingOrder.value = null;
                         }
                     } catch(e) { console.error(e); } finally { isLoading.value = false; }
@@ -1161,10 +1183,12 @@
                         };
                         const teacherObj = users.value.find(u => u.userId === editingSysConfig.value.userId);
                         if (teacherObj) {
-                            teacherObj.adminNote = JSON.stringify(configToSave);
+                            // 修正之前的 Bug：不該存進 adminNote，而是寫入 config
+                            teacherObj.config = configToSave; 
                             await callApi('ADMIN_UPDATE_MEMBER', { memberData: teacherObj });
-                            alert('抽成設定更新成功');
-                            fetchData();
+                            alert('✅ 抽成設定更新成功');
+                            
+                            setTimeout(() => fetchData(), 2000); // 延遲背景同步
                             editingSysConfig.value = null;
                         }
                     } catch(e) { console.error(e); } finally { isLoading.value = false; }
