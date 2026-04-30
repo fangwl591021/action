@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>行動管理台 | 人生進化ACTION</title>
-    <!-- Version: 2026.04.30.Mobile_Admin_V1 -->
+    <!-- Version: 2026.04.30.Mobile_Admin_V3_Stats_Btn -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -100,9 +100,14 @@
             
             <header class="header-fixed">
                 <div class="font-black text-[#111111] text-[18px] tracking-tight">{{ viewTitle }}</div>
-                <button @click="fetchData" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 active:scale-90 transition">
-                    <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>
-                </button>
+                <div class="flex items-center gap-3">
+                    <a href="./admin.html" class="w-8 h-8 rounded-full bg-slate-800 text-[#06C755] flex items-center justify-center shadow-md active:scale-90 transition border border-slate-700">
+                        <i class="fas fa-desktop"></i>
+                    </a>
+                    <button @click="fetchData" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 active:scale-90 transition">
+                        <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i>
+                    </button>
+                </div>
             </header>
 
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px] pt-4 px-4">
@@ -138,7 +143,11 @@
                         <div class="font-bold text-slate-800 text-[16px] mb-3 leading-snug">{{ String(c.name).split('\n')[0] }}</div>
                         <div class="flex justify-between items-center mb-2 text-[13px]">
                             <div class="text-slate-500 font-bold">總報名數</div>
-                            <div class="font-black text-slate-700">{{ c.totalOrders }} 人</div>
+                            <!-- ✅ 新增了統計按鈕區塊 -->
+                            <div class="flex items-center gap-2">
+                                <div class="font-black text-slate-700">{{ c.totalOrders }} 人</div>
+                                <button @click="openCourseOrdersModal(c)" class="bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded text-[11px] font-bold active:scale-95 transition shadow-sm">統計名單</button>
+                            </div>
                         </div>
                         <div class="flex justify-between items-center mb-3 text-[13px]">
                             <div class="text-slate-500 font-bold">待收帳款</div>
@@ -292,6 +301,38 @@
             </div>
         </transition>
 
+        <!-- ========================================================== -->
+        <!-- 📝 報名單統計與名單彈窗 (Modal) -->
+        <!-- ========================================================== -->
+        <transition name="fade">
+            <div v-if="showOrdersModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div class="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]" @click.stop>
+                    <div class="flex justify-between items-center p-4 border-b border-slate-100 bg-white z-10 shrink-0">
+                        <h3 class="text-[17px] font-black text-[#111111] truncate pr-4">名單：{{ String(selectedCourseOrders?.name || '').split('\n')[0] }}</h3>
+                        <button @click="showOrdersModal = false" class="w-8 h-8 bg-[#F4F5F7] rounded-full text-slate-400 flex items-center justify-center active:scale-90 transition shrink-0"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <div class="overflow-y-auto p-4 bg-slate-50 flex-1 hide-scrollbar">
+                        <div v-for="o in currentCourseOrders" :key="o.orderId" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-3">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <div class="font-bold text-[15px] text-slate-800">{{ String(o.name || '') }}</div>
+                                <span :class="o.status === 'PAID' ? 'status-paid' : 'status-pending'" class="status-badge">
+                                    {{ o.status === 'PAID' ? '✅ 已完款' : '⏳ 待付' }}
+                                </span>
+                            </div>
+                            <div class="text-[13px] font-mono text-slate-500 mb-1"><i class="fas fa-mobile-alt w-4 text-center mr-1"></i>{{ String(o.phone || '未填寫') }}</div>
+                            <div class="text-[13px] font-bold text-[#06C755] mb-2"><i class="fas fa-dollar-sign w-4 text-center mr-1"></i>{{ formatPrice(o.amount) }}</div>
+                            <div v-if="o.note" class="text-[12px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 whitespace-pre-wrap leading-relaxed">{{ String(o.note) }}</div>
+                        </div>
+                        
+                        <div v-if="!currentCourseOrders.length" class="text-center py-10 text-slate-400 font-bold text-[14px]">
+                            目前尚無報名紀錄
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
     </div>
 
     <script>
@@ -316,6 +357,8 @@
                 const courseSearchQuery = ref('');
                 const userSearchQuery = ref('');
                 const editingOrder = ref(null);
+                const showOrdersModal = ref(false);
+                const selectedCourseOrders = ref(null);
 
                 // ==========================================
                 // API 呼叫模組
@@ -323,10 +366,11 @@
                 const callApi = async (action, payload = {}) => {
                     isLoading.value = true;
                     try {
+                        const currentUserId = typeof liff !== 'undefined' && liff.isLoggedIn() ? liff.getDecodedIDToken()?.sub : '';
                         const res = await fetch(WORKER_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action, payload })
+                            body: JSON.stringify({ action, payload, userProfile: { userId: currentUserId || '' } })
                         });
                         const json = await res.json();
                         if (json.status !== 'success') throw new Error(json.message);
@@ -349,7 +393,7 @@
                 };
 
                 // ==========================================
-                // 登入驗證模組 (與 admin.html 完全一致，包含 admin_uids 支援)
+                // 登入驗證模組
                 // ==========================================
                 const initLiffForAdmin = async (manualClick = false) => {
                     try {
@@ -371,15 +415,9 @@
                         
                         if (liff.isLoggedIn()) {
                             const profile = await liff.getProfile();
-                            
-                            // 1. 取得全域設定中的 UID 白名單
                             const currentSettings = await callApi('GET_SETTINGS');
                             const allowedUids = (currentSettings?.admin_uids || '').split(',').map(u => u.trim()).filter(Boolean);
-                            
-                            // 2. 檢查使用者狀態 (舊有 GAS isAdmin 判斷)
                             const checkRes = await callApi('CHECK_USER', { userId: profile.userId });
-                            
-                            // 3. 白名單核對
                             const isAuthorized = allowedUids.includes(profile.userId) || (checkRes && checkRes.isAdmin);
 
                             if (isAuthorized) {
@@ -436,6 +474,11 @@
                     }).sort((a,b) => b.totalOrders - a.totalOrders);
                 });
 
+                const currentCourseOrders = computed(() => {
+                    if (!selectedCourseOrders.value) return [];
+                    return orders.value.filter(o => String(o.courseId) === String(selectedCourseOrders.value.id));
+                });
+
                 const filteredOrders = computed(() => {
                     if (!orderSearchQuery.value) return orders.value;
                     const q = orderSearchQuery.value.toLowerCase();
@@ -461,6 +504,11 @@
                 // ==========================================
                 // 訂單編輯與操作
                 // ==========================================
+                const openCourseOrdersModal = (c) => {
+                    selectedCourseOrders.value = c;
+                    showOrdersModal.value = true;
+                };
+
                 const openEditOrder = (o) => {
                     editingOrder.value = JSON.parse(JSON.stringify(o));
                 };
@@ -495,14 +543,14 @@
 
                 return {
                     isAuthenticated, isGlobalLoading, loadingText, view, isLoading, loginForm,
-                    users, courses, orders, editingOrder,
+                    users, courses, orders, editingOrder, showOrdersModal, selectedCourseOrders,
                     orderSearchQuery, courseSearchQuery, userSearchQuery,
                     
                     viewTitle, formatPrice, getCourseName,
-                    totalRevenue, courseStatsFiltered, filteredOrders, filteredCourses, filteredUsers,
+                    totalRevenue, courseStatsFiltered, currentCourseOrders, filteredOrders, filteredCourses, filteredUsers,
                     
                     lineLogin, handleLogin, fetchData,
-                    openEditOrder, saveOrder, toggleCoursePublish, toggleCourseRegistration
+                    openCourseOrdersModal, openEditOrder, saveOrder, toggleCoursePublish, toggleCourseRegistration
                 };
             }
         }).mount('#app');
