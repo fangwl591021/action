@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>人生進化ACTION 管理站</title>
-    <!-- Version: 2026.04.30.V323_Admin_Dynamic_Auth_Fix -->
+    <!-- Version: 2026.04.30.V325_Admin_Modals_Fully_Restored -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -127,6 +127,7 @@
                 <header class="page-header">
                     <h2 class="text-2xl font-bold text-slate-800">{{ currentViewName }}</h2>
                     <div class="flex items-center gap-3">
+                        <a href="./mobile_admin.html" class="btn-outline !text-[#06C755] !border-[#06C755] hover:!bg-green-50"><i class="fas fa-mobile-alt mr-2"></i>切換行動版</a>
                         <div class="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded text-green-700 text-[15px] font-bold mr-2">
                             <div class="w-2 h-2 rounded-full bg-[#06C755] animate-pulse"></div><span>系統連線正常</span>
                         </div>
@@ -155,6 +156,7 @@
                                     <td class="px-4 py-4 border-b">
                                         <div class="flex items-center justify-center gap-3">
                                             <span class="font-black text-slate-700 text-[18px]">{{ c.totalOrders || 0 }}</span>
+                                            <!-- ✅ 恢復正確的統計彈窗函式 -->
                                             <button @click="openCourseOrdersModal(c)" class="bg-indigo-50 text-indigo-600 border border-indigo-100 px-3 py-1 rounded-md text-[13px] font-bold hover:bg-indigo-100 transition shadow-sm">統計</button>
                                         </div>
                                     </td>
@@ -242,7 +244,8 @@
                                     </td>
                                     <td>
                                         <div class="text-slate-600 text-[17px] font-bold mb-2">{{ c.enrolled || 0 }} / {{ c.capacity || 0 }} 人</div>
-                                        <button @click="openCourseOrdersModal(c)" class="btn-outline !py-1 !px-3 text-[14px] bg-white shadow-sm">報名名單</button>
+                                        <!-- ✅ 恢復正確的報名名單函式 -->
+                                        <button @click="openEnrollments(c)" class="btn-outline !py-1 !px-3 text-[14px] bg-white shadow-sm">報名名單</button>
                                         <div class="mt-2">
                                             <span class="status-badge" :class="c.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'">{{ c.isPublished ? '🟢 已上架' : '🔴 已下架' }}</span>
                                         </div>
@@ -328,6 +331,7 @@
                                     <td class="font-bold text-[17px]">{{ String(o.name || '') }}</td>
                                     <td class="font-bold text-[#06C755] text-[20px]">${{ formatPrice(o.amount) }}</td>
                                     <td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{o.status==='PAID'?'已完款':'待付'}}</span></td>
+                                    <!-- ✅ 恢復正確的訂單維護彈窗函式 -->
                                     <td class="text-right"><button @click="openOrderEditModal(o)" class="text-blue-600 font-bold text-[16px] bg-blue-50 px-4 py-2 rounded hover:bg-blue-100 transition shadow-sm">維護</button></td>
                                 </tr>
                             </tbody>
@@ -366,11 +370,11 @@
 
                         <div class="section-title !mb-5 mt-8 border-l-4 border-indigo-500 text-indigo-800">首頁頂部橫幅 (Banner) 圖檔上傳 (Cloudflare R2)</div>
                         <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
-                            <div v-if="sysSettings.banner_image" class="mb-4 relative rounded-lg overflow-hidden border border-slate-200 shadow-sm">
-                                <img :src="sysSettings.banner_image" class="w-full max-h-[300px] object-cover">
+                            <div v-if="sysSettings.banner_url" class="mb-4 relative rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+                                <img :src="sysSettings.banner_url" class="w-full max-h-[300px] object-cover">
                                 <div class="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">目前設定圖片</div>
                             </div>
-                            <input type="text" v-model="sysSettings.banner_image" class="input-field font-mono text-[13px] mb-4 text-slate-500" placeholder="圖片網址將於上傳後自動產生">
+                            <input type="text" v-model="sysSettings.banner_url" class="input-field font-mono text-[13px] mb-4 text-slate-500" placeholder="圖片網址將於上傳後自動產生">
                             
                             <input type="file" ref="bannerFileInput" accept="image/jpeg, image/png, image/webp" class="hidden" @change="handleBannerUpload">
                             <button @click="$refs.bannerFileInput.click()" :disabled="isUploadingBanner" class="w-full py-3.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-100 transition shadow-sm flex items-center justify-center gap-2">
@@ -602,6 +606,7 @@
                 const memberSearch = ref('');
                 const courseSearchQuery = ref('');
                 
+                // ✅ 完美恢復所有 Modal 需要的變數
                 const editingCourse = ref(null);
                 const showOrdersModal = ref(false);
                 const selectedCourseOrders = ref(null);
@@ -610,7 +615,7 @@
                 const sysSettings = ref({ 
                     liff_id: '', reward_register: 0, reward_refer: 0, reward_daily: 0, 
                     link_lineoa: '', link_fb: '', link_ig: '', link_tiktok: '', 
-                    banner_image: '', remittance_info: '', 
+                    banner_url: '', remittance_info: '', 
                     newebpay_merchant_id: '', newebpay_hash_key: '', newebpay_hash_iv: '', 
                     allow_cancel_order: 'false', admin_uids: ''
                 });
@@ -631,7 +636,7 @@
                         try {
                             const res = await callApi('UPLOAD_IMAGE', { imageBase64: base64 });
                             if (res && res.url) {
-                                sysSettings.value.banner_image = res.url;
+                                sysSettings.value.banner_url = res.url;
                                 alert('✅ 圖片已成功上傳至 Cloudflare R2！\n請記得點擊畫面最下方的「確認儲存並同步」按鈕。');
                             } else {
                                 throw new Error('伺服器未回傳網址');
@@ -649,10 +654,11 @@
                 const callApi = async (action, payload = {}) => {
                     isLoading.value = true;
                     try {
+                        const currentUserId = typeof liff !== 'undefined' && liff.isLoggedIn() ? liff.getDecodedIDToken()?.sub : '';
                         const res = await fetch(WORKER_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action, payload })
+                            body: JSON.stringify({ action, payload, userProfile: { userId: currentUserId || '' } })
                         });
                         const json = await res.json();
                         if (json.status !== 'success') throw new Error(json.message);
@@ -683,7 +689,7 @@
                                 link_fb: data.settings.link_fb || '',
                                 link_ig: data.settings.link_ig || '',
                                 link_tiktok: data.settings.link_tiktok || '',
-                                banner_image: data.settings.banner_image || data.settings.banner_url || '',
+                                banner_url: data.settings.banner_url || data.settings.banner_image || '',
                                 remittance_info: data.settings.remittance_info || '',
                                 newebpay_merchant_id: data.settings.newebpay_merchant_id || '',
                                 newebpay_hash_key: data.settings.newebpay_hash_key || '',
@@ -731,15 +737,9 @@
                         
                         if (liff.isLoggedIn()) {
                             const profile = await liff.getProfile();
-                            
-                            // 1. 取得全域設定中的 UID 白名單
                             const currentSettings = await callApi('GET_SETTINGS');
                             const allowedUids = (currentSettings?.admin_uids || '').split(',').map(u => u.trim()).filter(Boolean);
-                            
-                            // 2. 檢查使用者狀態 (相容舊有 GAS isAdmin 判斷)
                             const checkRes = await callApi('CHECK_USER', { userId: profile.userId });
-                            
-                            // 3. 白名單核對
                             const isAuthorized = allowedUids.includes(profile.userId) || (checkRes && checkRes.isAdmin);
 
                             if (isAuthorized) {
@@ -754,6 +754,7 @@
                         }
                     } catch (e) {
                         console.error(e);
+                        if(manualClick) alert(e.message);
                     } finally {
                         isLoading.value = false;
                     }
@@ -778,6 +779,9 @@
                     if (liff.isLoggedIn()) liff.logout();
                 };
 
+                // ==========================================
+                // ✅ 恢復完美作動的彈窗功能
+                // ==========================================
                 const openCourseOrdersModal = (c) => {
                     selectedCourseOrders.value = c;
                     showOrdersModal.value = true;
@@ -797,12 +801,34 @@
                     }
                 };
 
+                const openNewCourseModal = () => {
+                    editingCourse.value = {
+                        id: 'NEW_' + Date.now(), name: '', priceText: '', price: 0, capacity: 999, enrolled: 0, type: '',
+                        startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '',
+                        isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: '[]'
+                    };
+                };
+                const openEditModal = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); };
+                const saveCourse = async () => {
+                    if (!editingCourse.value.name) return alert('請填寫名稱');
+                    const res = await callApi('ADMIN_UPDATE_COURSE', editingCourse.value);
+                    if (res) {
+                        alert('✅ 儲存發佈成功');
+                        editingCourse.value = null;
+                        fetchData();
+                    }
+                };
+
+                // 尚未實作的進階功能 (提示用)
                 const openMemberDetail = (u) => { alert('📌 CRM 進階檔案建置中'); };
                 const syncToCalendar = (c) => { alert('📌 同步至日曆功能建置中'); };
                 const copyCourse = (c) => { alert('📌 複製課程功能建置中'); };
                 const openSysConfigModal = (t) => { alert('📌 導師系統設定建置中'); };
                 const handleApproveTeacher = () => { alert('📌 導師核准功能建置中'); };
 
+                // ==========================================
+                // 統計與篩選計算
+                // ==========================================
                 const currentViewName = computed(() => {
                     const map = { dashboard: '營運數據中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程管理', consultation: '預約諮詢', orders: '訂單維護', richmenu: '圖文選單', settings: '系統設定' };
                     return map[view.value] || '管理站';
@@ -843,41 +869,23 @@
                 const formatPrice = (p) => Number(p || 0).toLocaleString();
                 const getCourseName = (id) => { const c = courses.value.find(x => String(x.id) === String(id)); return c ? String(c.name||'').split('\n')[0] : id; };
 
-                const openNewCourseModal = () => {
-                    editingCourse.value = {
-                        id: 'NEW_' + Date.now(), name: '', priceText: '', price: 0, capacity: 999, enrolled: 0, type: '',
-                        startDate: '', endDate: '', timeSlotType: '', instructor: '', location: '', image: '', description: '',
-                        isPublished: true, isRegistrationOpen: true, checkinPwd: '', discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: '[]'
-                    };
-                };
-
-                const openEditModal = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); };
-
-                const saveCourse = async () => {
-                    if (!editingCourse.value.name) return alert('請填寫名稱');
-                    const res = await callApi('ADMIN_UPDATE_COURSE', editingCourse.value);
-                    if (res) {
-                        alert('✅ 儲存發佈成功');
-                        editingCourse.value = null;
-                        fetchData();
-                    }
-                };
-
                 onMounted(() => {
                     initLiffForAdmin(false);
                 });
 
                 return {
-                    isAuthenticated, isLoading, view, groups, loginForm, users, courses, orders, teachers, memberSearch, courseSearchQuery, editingCourse, sysSettings, approveForm,
+                    isAuthenticated, isLoading, view, groups, loginForm, users, courses, orders, teachers, memberSearch, courseSearchQuery, sysSettings, approveForm,
                     bannerFileInput, isUploadingBanner, handleBannerUpload,
                     currentViewName, totalRevenue, courseStatsFiltered, filteredMembers, filteredAdminCourses,
                     
-                    showOrdersModal, selectedCourseOrders, currentCourseOrders,
-                    editingOrder, openOrderEditModal, saveOrder,
+                    // ✅ Modal 需要的狀態與函式
+                    editingCourse, showOrdersModal, selectedCourseOrders, currentCourseOrders, editingOrder,
+                    openCourseOrdersModal, openEnrollments, openOrderEditModal, saveOrder, openNewCourseModal, openEditModal, saveCourse,
                     
-                    switchView, toggleGroup, formatPrice, fetchData, handleLogin, lineLogin, logout, getCourseName,
-                    openNewCourseModal, openEditModal, saveCourse, saveSettings,
-                    openCourseOrdersModal, openMemberDetail, openEnrollments, syncToCalendar, copyCourse, openSysConfigModal, handleApproveTeacher
+                    switchView, toggleGroup, formatPrice, fetchData, handleLogin, lineLogin, logout, getCourseName, saveSettings,
+                    
+                    // Placeholder 函式
+                    openMemberDetail, syncToCalendar, copyCourse, openSysConfigModal, handleApproveTeacher
                 };
             }
         }).mount('#app');
