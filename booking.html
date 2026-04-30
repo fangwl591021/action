@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>線上預約</title>
+    <!-- Version: 2026.05.01.V1_B2C_Booking -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [v-cloak] { display: none !important; }
+        body { 
+            background-color: #F4F5F6; /* LINE 原生底色 */
+            color: #111111; 
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: 90px; /* 預留底部 Sticky Bar 空間 */
+        }
+        /* 隱藏捲軸但可滾動 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .line-green { color: #06C755; }
+        .bg-line-green { background-color: #06C755; }
+        
+        /* 底部常駐列 */
+        .sticky-footer {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 0.5px solid #E5E5EA;
+            padding: 12px 16px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            z-index: 50;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+        }
+        
+        /* 時段按鈕樣式 */
+        .time-btn {
+            border: 1px solid #E5E5EA;
+            color: #111;
+            background: #FFF;
+            transition: all 0.2s;
+        }
+        .time-btn.selected {
+            background: #06C755;
+            color: #FFF;
+            border-color: #06C755;
+        }
+        .time-btn.disabled {
+            background: #F4F5F6;
+            color: #C7C7CC;
+            border-color: #F4F5F6;
+            cursor: not-allowed;
+        }
+
+        /* 吐司訊息 */
+        .toast-enter-active, .toast-leave-active { transition: opacity 0.3s, transform 0.3s; }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(20px); }
+    </style>
+</head>
+<body>
+    <div id="app" v-cloak>
+        
+        <!-- 頂部品牌介紹 (模擬一頁式頂部) -->
+        <div class="bg-white px-4 py-6 text-center border-b border-gray-100">
+            <div class="w-16 h-16 mx-auto bg-gray-200 rounded-full mb-3 overflow-hidden">
+                <img src="https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=150&q=80" class="w-full h-full object-cover" alt="Brand Logo">
+            </div>
+            <h1 class="text-lg font-medium">宏學專業諮詢</h1>
+            <p class="text-[13px] text-gray-500 mt-1">選擇適合您的專屬顧問與時段</p>
+        </div>
+
+        <!-- 步驟一：選擇服務項目 (對應 EZPretty 作品集整合與導購) -->
+        <div class="mt-2 bg-white px-4 py-5" v-show="step === 1 || selectedService">
+            <div class="flex justify-between items-end mb-4">
+                <h2 class="text-base font-medium">1. 選擇諮詢項目</h2>
+                <span v-if="selectedService" class="text-[13px] text-blue-500" @click="step = 1; selectedService = null; selectedTeacher = null; selectedSlot = null">重選</span>
+            </div>
+            
+            <div v-if="!selectedService" class="space-y-3">
+                <div v-for="svc in services" :key="svc.id" @click="chooseService(svc)" class="flex gap-3 p-3 border border-gray-100 rounded-xl active:bg-gray-50">
+                    <img :src="svc.img" class="w-20 h-20 rounded-lg object-cover bg-gray-100">
+                    <div class="flex-1 flex flex-col justify-between py-1">
+                        <div>
+                            <div class="text-[15px] text-gray-800">{{ svc.name }}</div>
+                            <div class="text-[12px] text-gray-400 mt-0.5 line-clamp-1">{{ svc.desc }}</div>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-[15px] font-medium text-[#06C755]">${{ formatPrice(svc.price) }}</span>
+                            <span class="text-[12px] text-gray-400"><i class="far fa-clock mr-1"></i>{{ svc.duration }}分</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 已選服務摘要 -->
+            <div v-else class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-3">
+                    <img :src="selectedService.img" class="w-10 h-10 rounded object-cover">
+                    <div class="text-[14px]">{{ selectedService.name }}</div>
+                </div>
+                <div class="text-[14px] text-gray-500">${{ formatPrice(selectedService.price) }}</div>
+            </div>
+        </div>
+
+        <!-- 步驟二：選擇導師 (對應 EZPretty 人員選擇) -->
+        <div class="mt-2 bg-white px-4 py-5" v-show="selectedService && (step === 2 || selectedTeacher)">
+            <div class="flex justify-between items-end mb-4">
+                <h2 class="text-base font-medium">2. 選擇專屬導師</h2>
+                <span v-if="selectedTeacher" class="text-[13px] text-blue-500" @click="step = 2; selectedTeacher = null; selectedSlot = null">重選</span>
+            </div>
+
+            <div v-if="!selectedTeacher" class="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
+                <div v-for="t in teachers" :key="t.userId" @click="chooseTeacher(t)" class="min-w-[120px] border border-gray-100 rounded-xl p-3 text-center active:bg-gray-50">
+                    <div class="w-14 h-14 mx-auto rounded-full bg-gray-200 mb-2 overflow-hidden">
+                        <img :src="t.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover">
+                    </div>
+                    <div class="text-[14px] font-medium">{{ t.name }}</div>
+                    <div class="text-[11px] text-gray-400 mt-1"><i class="fas fa-star text-yellow-400 mr-0.5"></i>4.9</div>
+                </div>
+                <div v-if="teachers.length === 0" class="text-sm text-gray-400 py-4 w-full text-center">載入中或無可用導師...</div>
+            </div>
+
+            <!-- 已選導師摘要 -->
+            <div v-else class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <img :src="selectedTeacher.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80'" class="w-10 h-10 rounded-full object-cover">
+                <div class="text-[14px]">{{ selectedTeacher.name }}</div>
+            </div>
+        </div>
+
+        <!-- 步驟三：選擇日期與時段 (對應 EZPretty 時段鎖定) -->
+        <div class="mt-2 bg-white px-4 py-5" v-show="selectedTeacher && (step === 3 || selectedSlot)">
+            <div class="flex justify-between items-end mb-4">
+                <h2 class="text-base font-medium">3. 選擇預約時間</h2>
+            </div>
+
+            <div v-if="!selectedSlot">
+                <!-- 日期滑動列 -->
+                <div class="flex overflow-x-auto gap-2 pb-3 mb-3 border-b border-gray-100 no-scrollbar">
+                    <div v-for="d in dates" :key="d.fullDate" @click="selectDate = d.fullDate" 
+                         class="min-w-[60px] py-2 flex flex-col items-center rounded-lg transition-colors"
+                         :class="selectDate === d.fullDate ? 'bg-line-green text-white' : 'text-gray-500 active:bg-gray-50'">
+                        <span class="text-[11px] mb-1">{{ d.weekDay }}</span>
+                        <span class="text-[16px] font-medium">{{ d.day }}</span>
+                    </div>
+                </div>
+
+                <!-- 時段網格 -->
+                <div v-if="availableSlotsForDate.length > 0" class="grid grid-cols-4 gap-2">
+                    <button v-for="slot in availableSlotsForDate" :key="slot.time" 
+                            @click="chooseSlot(slot)"
+                            class="time-btn py-2.5 rounded-lg text-[13px]"
+                            :class="{ 'disabled': slot.status !== 'OPEN', 'selected': tempSlot === slot.time }"
+                            :disabled="slot.status !== 'OPEN'">
+                        {{ slot.time }}
+                    </button>
+                </div>
+                <div v-else class="py-8 text-center text-[13px] text-gray-400">
+                    <i class="far fa-calendar-times text-2xl mb-2 block"></i>
+                    本日無開放預約時段
+                </div>
+            </div>
+
+            <!-- 已選時段摘要 -->
+            <div v-else class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div class="text-[14px]"><i class="far fa-calendar-check mr-2 text-[#06C755]"></i>{{ formatDisplayDate(selectedSlot.date) }} {{ selectedSlot.time }}</div>
+                <span class="text-[13px] text-blue-500" @click="selectedSlot = null; tempSlot = null">修改</span>
+            </div>
+        </div>
+
+        <!-- 步驟四：聯絡資訊 (對應 EZPretty 結合 LINE Login) -->
+        <div class="mt-2 bg-white px-4 py-5 mb-6" v-show="selectedSlot">
+            <h2 class="text-base font-medium mb-4">4. 聯絡資訊</h2>
+            
+            <div v-if="isLiffLoading" class="text-center py-4 text-gray-400 text-sm">
+                <i class="fas fa-spinner fa-spin mr-1"></i> 同步 LINE 資料中...
+            </div>
+            
+            <div v-else class="space-y-4">
+                <div>
+                    <label class="text-[12px] text-gray-500 block mb-1">姓名 <span class="text-red-500">*</span></label>
+                    <input type="text" v-model="form.name" placeholder="請輸入姓名" class="w-full bg-gray-50 border-0 rounded-lg px-4 py-3 text-[15px] focus:ring-1 focus:ring-[#06C755] outline-none">
+                </div>
+                <div>
+                    <label class="text-[12px] text-gray-500 block mb-1">手機號碼 <span class="text-red-500">*</span></label>
+                    <input type="tel" v-model="form.phone" placeholder="09xxxxxxxx" class="w-full bg-gray-50 border-0 rounded-lg px-4 py-3 text-[15px] focus:ring-1 focus:ring-[#06C755] outline-none">
+                </div>
+                <div>
+                    <label class="text-[12px] text-gray-500 block mb-1">備註 (選填)</label>
+                    <textarea v-model="form.note" rows="2" placeholder="有什麼想先讓導師知道的嗎？" class="w-full bg-gray-50 border-0 rounded-lg px-4 py-3 text-[15px] focus:ring-1 focus:ring-[#06C755] outline-none"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sticky 導購/結帳列 -->
+        <div class="sticky-footer flex items-center justify-between">
+            <div class="flex flex-col">
+                <span class="text-[11px] text-gray-500">預約總計</span>
+                <span class="text-[18px] font-medium text-[#111]">${{ formatPrice(totalPrice) }}</span>
+            </div>
+            <button @click="submitBooking" 
+                    :disabled="!isFormValid || isSubmitting"
+                    class="bg-line-green text-white px-8 py-3 rounded-xl font-medium text-[15px] disabled:opacity-50 disabled:bg-gray-300 transition-colors w-1/2 flex justify-center items-center">
+                <i v-if="isSubmitting" class="fas fa-spinner fa-spin mr-2"></i>
+                {{ isSubmitting ? '處理中' : '立即預約' }}
+            </button>
+        </div>
+
+        <!-- 吐司提示 -->
+        <transition name="toast">
+            <div v-if="toast.show" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-full text-[13px] shadow-lg z-50 flex items-center gap-2 whitespace-nowrap">
+                <i :class="toast.type === 'success' ? 'fas fa-check-circle text-green-400' : 'fas fa-exclamation-circle text-red-400'"></i>
+                {{ toast.msg }}
+            </div>
+        </transition>
+
+        <!-- 預約成功全螢幕遮罩 (引導關閉 LIFF) -->
+        <div v-if="bookingSuccess" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-6 text-center">
+            <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6">
+                <i class="fas fa-check text-4xl text-[#06C755]"></i>
+            </div>
+            <h2 class="text-xl font-medium mb-2">預約成功！</h2>
+            <p class="text-[14px] text-gray-500 mb-8">預約明細已透過 LINE 訊息發送給您。<br>請依預約時間準時參與。</p>
+            
+            <div class="bg-gray-50 w-full rounded-xl p-4 mb-8 text-left space-y-2 text-[14px]">
+                <div class="flex justify-between"><span class="text-gray-400">項目</span><span>{{ selectedService?.name }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">導師</span><span>{{ selectedTeacher?.name }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">時間</span><span>{{ formatDisplayDate(selectedSlot?.date) }} {{ selectedSlot?.time }}</span></div>
+            </div>
+
+            <button @click="closeLiff" class="w-full bg-line-green text-white py-3.5 rounded-xl font-medium text-[15px]">
+                關閉視窗，返回 LINE
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, watch } = Vue;
+        const WORKER_URL = 'https://action.fangwl591021.workers.dev/'; // 沿用原本的 Backend API
+        const LIFF_ID = ''; // TODO: 填寫 LINE Developers 申請的 LIFF ID
+
+        createApp({
+            setup() {
+                // 狀態管理
+                const step = ref(1);
+                const isLiffLoading = ref(true);
+                const isSubmitting = ref(false);
+                const bookingSuccess = ref(false);
+                const toast = ref({ show: false, msg: '', type: 'success' });
+
+                // 資料與選擇
+                const teachers = ref([]);
+                const slots = ref([]);
+                const dates = ref([]);
+                
+                const selectedService = ref(null);
+                const selectedTeacher = ref(null);
+                const selectDate = ref('');
+                const tempSlot = ref(null); // 暫存點擊的時段
+                const selectedSlot = ref(null);
+
+                // 表單資料
+                const form = ref({
+                    userId: '',
+                    name: '',
+                    phone: '',
+                    note: '',
+                    pictureUrl: ''
+                });
+
+                // 模擬服務項目資料 (實務上應由 API 取得)
+                const services = ref([
+                    { id: 'S1', name: '職涯深度諮詢', desc: '履歷健檢、面試模擬、轉職評估', price: 1500, duration: 60, img: 'https://images.unsplash.com/photo-1552581234-26160f608093?auto=format&fit=crop&w=300&q=80' },
+                    { id: 'S2', name: '創業基礎輔導', desc: '商業模式建構、資金規劃', price: 2500, duration: 90, img: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=300&q=80' },
+                    { id: 'S3', name: '心理潛能探索', desc: '職涯迷惘、壓力釋放、天賦解盤', price: 1200, duration: 60, img: 'https://images.unsplash.com/photo-1499209974431-9dddcece7f88?auto=format&fit=crop&w=300&q=80' }
+                ]);
+
+                const formatPrice = v => Number(v || 0).toLocaleString();
+                const showToast = (msg, type = 'success') => {
+                    toast.value = { show: true, msg, type };
+                    setTimeout(() => toast.value.show = false, 2500);
+                };
+
+                const formatDisplayDate = (dateStr) => {
+                    if (!dateStr) return '';
+                    const d = new Date(dateStr);
+                    return `${d.getMonth() + 1}/${d.getDate()}`;
+                };
+
+                // LIFF 初始化 (實現無感登入)
+                const initLiff = async () => {
+                    try {
+                        if (LIFF_ID) {
+                            await liff.init({ liffId: LIFF_ID });
+                            if (liff.isLoggedIn()) {
+                                const profile = await liff.getProfile();
+                                form.value.userId = profile.userId;
+                                form.value.name = profile.displayName;
+                                form.value.pictureUrl = profile.pictureUrl;
+                            } else {
+                                liff.login();
+                            }
+                        } else {
+                            console.log('未設定 LIFF_ID，使用測試資料');
+                            form.value.userId = 'Utest_mock_id';
+                        }
+                    } catch (err) {
+                        console.error('LIFF Init Error', err);
+                    } finally {
+                        isLiffLoading.value = false;
+                    }
+                };
+
+                // 取得後台開放的時段與導師 (串聯你的 Admin API)
+                const fetchData = async () => {
+                    try {
+                        const res = await fetch(WORKER_URL, { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ action: 'ADMIN_GET_DATA', payload: {} }) 
+                        });
+                        const data = await res.json();
+                        if (data.status === 'success' && data.data) {
+                            teachers.value = data.data.teachers || [];
+                        }
+
+                        // 取得庫存時段
+                        const slotRes = await fetch(WORKER_URL, { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ action: 'ADMIN_GET_SLOTS', payload: {} }) 
+                        });
+                        const slotData = await slotRes.json();
+                        if (slotData.status === 'success' && slotData.data) {
+                            slots.value = slotData.data;
+                        }
+                    } catch (e) {
+                        console.error('Fetch error:', e);
+                        // 若無真實後端，塞入假資料供測試介面
+                        if(teachers.value.length === 0) {
+                             teachers.value = [{userId: 'T1', name: '王宏學顧問'}, {userId: 'T2', name: '李佳玲分析師'}];
+                             slots.value = [
+                                 { teacherUid: 'T1', date: dates.value[0]?.fullDate, time: '14:00', status: 'OPEN' },
+                                 { teacherUid: 'T1', date: dates.value[0]?.fullDate, time: '15:00', status: 'OPEN' },
+                                 { teacherUid: 'T1', date: dates.value[0]?.fullDate, time: '16:00', status: 'BOOKED' }
+                             ];
+                        }
+                    }
+                };
+
+                // UI 互動邏輯
+                const chooseService = (svc) => {
+                    selectedService.value = svc;
+                    step.value = 2;
+                };
+
+                const chooseTeacher = (teacher) => {
+                    selectedTeacher.value = teacher;
+                    step.value = 3;
+                    tempSlot.value = null; // 重置時段選擇
+                };
+
+                const chooseSlot = (slot) => {
+                    if (slot.status !== 'OPEN') return;
+                    tempSlot.value = slot.time;
+                    // 自動鎖定時段並進入下一步
+                    setTimeout(() => {
+                        selectedSlot.value = { date: selectDate.value, time: slot.time };
+                        step.value = 4;
+                        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    }, 300);
+                };
+
+                // 計算當前選擇導師與日期下的所有時段
+                const availableSlotsForDate = computed(() => {
+                    if (!selectedTeacher.value || !selectDate.value) return [];
+                    const defaultTimes = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+                    
+                    // 過濾出該導師該日期的所有狀態
+                    const teacherSlots = slots.value.filter(s => s.teacherUid === selectedTeacher.value.userId && s.date === selectDate.value);
+                    
+                    return defaultTimes.map(time => {
+                        const s = teacherSlots.find(ts => ts.time === time);
+                        // 如果後台沒排班(沒資料)，預設為 CLOSED (不可約)
+                        return { time, status: s ? s.status : 'CLOSED' };
+                    });
+                });
+
+                const totalPrice = computed(() => selectedService.value ? selectedService.value.price : 0);
+                const isFormValid = computed(() => form.value.name.trim() !== '' && form.value.phone.trim() !== '' && selectedSlot.value !== null);
+
+                // 送出預約 (包含送出 Webhook / FlexMessage 的概念)
+                const submitBooking = async () => {
+                    if (!isFormValid.value) return;
+                    isSubmitting.value = true;
+                    
+                    const payload = {
+                        customer: { ...form.value },
+                        service: { ...selectedService.value },
+                        teacher: { ...selectedTeacher.value },
+                        schedule: { ...selectedSlot.value }
+                    };
+
+                    try {
+                        // 在此呼叫你的 Cloudflare Worker API 執行建立訂單、扣時段、發送 LINE 推播
+                        /*
+                        const res = await fetch(WORKER_URL, {
+                            method: 'POST',
+                            body: JSON.stringify({ action: 'CREATE_BOOKING', payload })
+                        });
+                        const result = await res.json();
+                        */
+                        
+                        // 模擬 API 延遲
+                        await new Promise(r => setTimeout(r, 1200));
+                        bookingSuccess.value = true;
+
+                    } catch (e) {
+                        showToast('預約失敗，請稍後再試', 'error');
+                    } finally {
+                        isSubmitting.value = false;
+                    }
+                };
+
+                const closeLiff = () => {
+                    if (liff && liff.isInClient()) {
+                        liff.closeWindow();
+                    } else {
+                        showToast('已完成。因不在 LINE 內無法自動關閉');
+                    }
+                };
+
+                // 初始化日期滑動列 (取未來 14 天)
+                onMounted(() => {
+                    const today = new Date();
+                    const days = ['日', '一', '二', '三', '四', '五', '六'];
+                    for (let i = 0; i < 14; i++) {
+                        const d = new Date(today);
+                        d.setDate(today.getDate() + i + 1); // 從明天開始算
+                        dates.value.push({
+                            fullDate: d.toISOString().split('T')[0],
+                            day: d.getDate(),
+                            weekDay: days[d.getDay()]
+                        });
+                    }
+                    selectDate.value = dates.value[0].fullDate;
+                    
+                    initLiff();
+                    fetchData();
+                });
+
+                return {
+                    step, services, teachers, dates, selectDate,
+                    selectedService, selectedTeacher, tempSlot, selectedSlot,
+                    form, isLiffLoading, isSubmitting, bookingSuccess, toast,
+                    availableSlotsForDate, totalPrice, isFormValid,
+                    chooseService, chooseTeacher, chooseSlot, submitBooking, closeLiff,
+                    formatPrice, formatDisplayDate, showToast
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
