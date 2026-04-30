@@ -407,21 +407,22 @@
                     };
 
                     try {
-                        // 在此呼叫你的 Cloudflare Worker API 執行建立訂單、扣時段、發送 LINE 推播
-                        /*
                         const res = await fetch(WORKER_URL, {
                             method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action: 'CREATE_BOOKING', payload })
                         });
                         const result = await res.json();
-                        */
                         
-                        // 模擬 API 延遲
-                        await new Promise(r => setTimeout(r, 1200));
-                        bookingSuccess.value = true;
+                        if (result.status === 'success') {
+                            bookingSuccess.value = true;
+                        } else {
+                            throw new Error(result.message || '預約處理失敗');
+                        }
 
                     } catch (e) {
-                        showToast('預約失敗，請稍後再試', 'error');
+                        console.error('Booking Error:', e);
+                        showToast(e.message || '預約失敗，請稍後再試', 'error');
                     } finally {
                         isSubmitting.value = false;
                     }
