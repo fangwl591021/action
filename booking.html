@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>預約專屬諮詢</title>
-    <!-- Version: 2026.05.02.V3_Consult_Sync_Avatar -->
+    <!-- Version: 2026.05.02.V4_Consult_Nav_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -25,7 +25,7 @@
         
         .header-fixed { position: sticky; top: 0; background: #ffffff; z-index: 40; border-bottom: 1px solid #EEEEEE; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
         
-        /* 底部常駐列 */
+        /* 底部常駐列 (結帳用) */
         .sticky-footer {
             position: fixed;
             bottom: 0; left: 0; right: 0;
@@ -37,6 +37,12 @@
             z-index: 50;
         }
         
+        /* 底部導覽列 (加入功能列表) */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top: 1px solid #EEEEEE; display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); z-index: 40; }
+        .nav-item { flex: 1; padding: 12px 0; text-align: center; color: #AAAAAA; font-size: 10px; font-weight: 800; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: 0.2s; }
+        .nav-active { color: #06C755; }
+        .nav-item i { font-size: 20px; }
+
         /* 時段按鈕樣式 */
         .time-btn { border: 1px solid #E5E5EA; color: #111; background: #FFF; transition: all 0.1s; font-weight: 700; }
         .time-btn.selected { background: #06C755; color: #FFF; border-color: #06C755; }
@@ -54,8 +60,10 @@
         
         <!-- 頂部導航 -->
         <div class="header-fixed">
-            <button v-if="step > 1 && !bookingSuccess" @click="goBack" class="text-[#111111] p-2 -ml-2 active:opacity-50 transition"><i class="fas fa-arrow-left text-xl"></i></button>
+            <a v-if="step === 1 && !bookingSuccess" href="./index.html" class="text-[#111111] p-2 -ml-2 active:opacity-50 transition"><i class="fas fa-arrow-left text-xl"></i></a>
+            <button v-else-if="step > 1 && !bookingSuccess" @click="goBack" class="text-[#111111] p-2 -ml-2 active:opacity-50 transition"><i class="fas fa-arrow-left text-xl"></i></button>
             <div v-else class="w-8"></div>
+            
             <h1 class="text-[17px] font-black tracking-tight">{{ stepTitle }}</h1>
             <a href="./index.html" class="text-slate-400 p-2 -mr-2 active:opacity-50 transition"><i class="fas fa-home text-lg"></i></a>
         </div>
@@ -265,6 +273,14 @@
 
         </div>
 
+        <!-- 底部固定導覽列 (與首頁保持一致) -->
+        <nav v-if="step < 4 && !bookingSuccess" class="bottom-nav">
+            <div @click="goToPage('./index.html')" class="nav-item"><i class="fas fa-compass"></i><span>探索</span></div>
+            <div class="nav-item nav-active"><i class="fas fa-calendar-check"></i><span>預約</span></div>
+            <div @click="goToPage('./index.html?view=orders')" class="nav-item"><i class="fas fa-receipt"></i><span>紀錄</span></div>
+            <div @click="goToPage('./index.html?view=profile')" class="nav-item"><i class="fas fa-user"></i><span>我的</span></div>
+        </nav>
+
         <!-- 底部結帳/導航列 (僅在 Step 4 顯示) -->
         <div v-if="step === 4" class="sticky-footer flex items-center justify-between">
             <div class="flex flex-col">
@@ -333,44 +349,52 @@
 
                 const formatPrice = v => Number(v || 0).toLocaleString();
 
+                const callApi = async (act, pl = {}, silent = false) => {
+                    try {
+                        const res = await fetch(WORKER_URL, { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ action: act, payload: pl }) 
+                        });
+                        const data = await res.json();
+                        if (data.status !== 'success') throw new Error(data.message || '後端錯誤');
+                        return data.data;
+                    } catch(e) {
+                        if (!silent) console.error(e);
+                        throw e;
+                    }
+                };
+
                 // 取得可用導師 (僅顯示被標記為導師且有開放的)
                 const teachers = computed(() => {
                     return allTeachers.value.filter(t => t.memberTier && ['專業導師', '導師'].some(tier => t.memberTier.includes(tier)));
                 });
 
                 // 取出該導師對應的諮詢課程
-                // 條件：如果課程的 instructor 等於導師名字，或者課程 type 包含「諮詢」且沒有被專屬綁定給別人
                 const teacherServices = computed(() => {
                     if (!selectedTeacher.value) return [];
                     return allCourses.value.filter(c => {
                         if (c.isPublished === false) return false;
                         const matchInstructor = c.instructor === selectedTeacher.value.name;
                         const isConsultType = (c.type || '').includes('諮詢') || (c.name || '').includes('諮詢');
-                        // 導師專屬，或共用的諮詢課
                         return matchInstructor || (isConsultType && !c.instructor);
                     });
                 });
 
+                const goToPage = (url) => { window.location.href = url; };
+
                 // 初始化 LIFF (抓取本地暫存或 LINE 資料)
                 const initLiffAndData = async () => {
                     try {
-                        // 1. 嘗試載入本地快取，加速首屏
                         const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) allCourses.value = JSON.parse(cCs);
                         
-                        // 2. 獲取遠端資料
-                        const res = await fetch(WORKER_URL, { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ action: 'ADMIN_GET_DATA', payload: {} }) 
-                        });
-                        const data = await res.json();
+                        const data = await callApi('ADMIN_GET_DATA', {}, false);
                         
-                        if (data.status === 'success' && data.data) {
-                            allTeachers.value = data.data.users || []; // 從所有 users 中透過 computed 篩選導師
-                            allCourses.value = data.data.courses || [];
+                        if (data) {
+                            allTeachers.value = data.users || []; 
+                            allCourses.value = data.courses || [];
                             
-                            // 同時嘗試取得該用戶之前填過的資料 (自動帶入)
-                            const sysSettings = data.data.settings || {};
+                            const sysSettings = data.settings || {};
                             let liffId = String(sysSettings.liff_id || '').trim();
                             if (liffId.includes('liff.line.me/')) liffId = liffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
                             
@@ -381,7 +405,11 @@
                                     form.value.userId = profile.userId;
                                     form.value.name = profile.displayName;
                                     
-                                    // 嘗試從本地或後台拉取真實姓名與電話
+                                    // 【靜默更新 LINE 大頭照】確保大頭照沒存到的導師只要登入就會自動補上
+                                    if (profile.pictureUrl) {
+                                        callApi('REGISTER_USER', { userId: profile.userId, pictureUrl: profile.pictureUrl }, true).catch(()=>{});
+                                    }
+                                    
                                     const cU = localStorage.getItem(`u_${profile.userId}_${CACHE_VERSION}`);
                                     if (cU) {
                                         const parsedU = JSON.parse(cU);
@@ -394,19 +422,12 @@
                             }
                         }
 
-                        // 3. 取得排班庫存
-                        const slotRes = await fetch(WORKER_URL, { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ action: 'ADMIN_GET_SLOTS', payload: {} }) 
-                        });
-                        const slotData = await slotRes.json();
-                        if (slotData.status === 'success' && slotData.data) {
-                            slots.value = slotData.data;
+                        const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
+                        if (slotData) {
+                            slots.value = slotData;
                         }
                     } catch (e) {
                         console.error('Init error:', e);
-                        // 模擬開發環境容錯
                         if(allTeachers.value.length === 0) {
                              allTeachers.value = [{
                                  userId: 'T1', 
@@ -441,7 +462,6 @@
                 const chooseSlot = (slot) => {
                     if (slot.status !== 'OPEN') return;
                     tempSlot.value = slot.time;
-                    // 延遲跳轉營造點擊手感
                     setTimeout(() => {
                         selectedSlot.value = { date: selectDate.value, time: slot.time };
                         step.value = 4;
@@ -454,7 +474,6 @@
                     window.scrollTo(0,0);
                 };
 
-                // 計算當前導師與日期下的開放時段
                 const availableSlotsForDate = computed(() => {
                     if (!selectedTeacher.value || !selectDate.value) return [];
                     const defaultTimes = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
@@ -464,13 +483,12 @@
                     return defaultTimes.map(time => {
                         const s = teacherSlots.find(ts => ts.time === time);
                         return { time, status: s ? s.status : 'CLOSED' };
-                    }).filter(s => s.status === 'OPEN'); // 為了讓前端乾淨，只列出有開放的，若要顯示全部鎖定也可拿掉 filter
+                    }).filter(s => s.status === 'OPEN');
                 });
 
                 const totalPrice = computed(() => selectedService.value ? selectedService.value.price : 0);
                 const isFormValid = computed(() => form.value.name.trim() !== '' && form.value.phone.trim() !== '' && selectedSlot.value !== null);
 
-                // 執行預約 API
                 const submitBooking = async () => {
                     if (!isFormValid.value) return;
                     isSubmitting.value = true;
@@ -483,22 +501,15 @@
                     };
 
                     try {
-                        const res = await fetch(WORKER_URL, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'CREATE_BOOKING', payload })
-                        });
-                        const result = await res.json();
-                        
-                        if (result.status === 'success') {
+                        const res = await callApi('CREATE_BOOKING', payload, false);
+                        if (res && res.orderId) {
                             bookingSuccess.value = true;
                             window.scrollTo(0,0);
                         } else {
-                            throw new Error(result.message || '預約處理失敗');
+                            throw new Error('預約處理失敗');
                         }
                     } catch (e) {
                         alert(e.message || '預約失敗，時段可能已被搶走，請重新選擇。');
-                        // 重新抓取時段庫存
                         initLiffAndData();
                         step.value = 3; 
                     } finally {
@@ -506,13 +517,12 @@
                     }
                 };
 
-                // 初始化未來 14 天的日曆
                 onMounted(() => {
                     const today = new Date();
                     const days = ['日', '一', '二', '三', '四', '五', '六'];
                     for (let i = 0; i < 14; i++) {
                         const d = new Date(today);
-                        d.setDate(today.getDate() + i + 1); // 預約明天開始
+                        d.setDate(today.getDate() + i + 1);
                         dates.value.push({
                             fullDate: d.toISOString().split('T')[0],
                             day: d.getDate(),
@@ -524,7 +534,7 @@
                 });
 
                 return {
-                    step, stepTitle, isGlobalLoading, isSubmitting, bookingSuccess,
+                    step, stepTitle, isGlobalLoading, isSubmitting, bookingSuccess, goToPage,
                     teachers, teacherServices, dates, selectDate,
                     selectedTeacher, selectedService, tempSlot, selectedSlot,
                     form, availableSlotsForDate, totalPrice, isFormValid,
