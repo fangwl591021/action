@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生A進化CTION</title>
-    <!-- Version: 2026.04.30.V258_Remove_General_Category -->
+    <!-- Version: 2026.05.02.V259_Teacher_Profile_Upload -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -99,7 +99,7 @@
                             </a>
                             <!-- LINE 頭貼 -->
                             <div @click="navigateTo('profile')" class="w-9 h-9 rounded-full overflow-hidden bg-[#F4F5F7] border border-slate-100 cursor-pointer transition active:opacity-70">
-                                <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
+                                <img v-if="userStatus.info?.avatar || liffProfile.pictureUrl" :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover">
                                 <i v-else class="fas fa-user-circle text-[#DDE0E5] text-[36px]"></i>
                             </div>
                         </div>
@@ -129,7 +129,6 @@
                     <div class="px-4 mt-5 mb-10 grid grid-cols-2 gap-4">
                         <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm cursor-pointer">
                             <div class="w-full aspect-video bg-[#F8F9FA] relative overflow-hidden border-b border-[#EEEEEE] shrink-0">
-                                <!-- 已隱藏一般與全部的標籤邏輯 -->
                                 <div class="absolute top-2 left-2 z-10" v-if="c.type && c.type !== '一般' && c.type !== '全部'">
                                     <span class="category-pill">{{ c.type }}</span>
                                 </div>
@@ -202,9 +201,9 @@
                     
                     <div class="p-6 text-center border-b border-slate-50">
                         <div class="w-20 h-20 rounded-full mx-auto mb-3 overflow-hidden border-2 border-[#06C755] p-0.5">
-                             <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover rounded-full">
+                             <img v-if="userStatus.info?.avatar || liffProfile.pictureUrl" :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover rounded-full">
                         </div>
-                        <div class="font-black text-xl">{{ liffProfile.displayName }}</div>
+                        <div class="font-black text-xl">{{ userStatus.info?.name || liffProfile.displayName }}</div>
                         <div class="text-xs text-slate-400 mt-1 font-mono uppercase tracking-tighter">UID: {{ liffProfile.userId }}</div>
                     </div>
                     
@@ -257,9 +256,16 @@
                             <div class="profile-row flex-col !items-start gap-2"><span class="profile-label">收件地址</span><span class="profile-value text-sm text-left leading-relaxed">{{ userStatus.info?.address || '未填寫' }}</span></div>
                             
                             <!-- 🎓 導師專屬顯示區塊 -->
-                            <div class="profile-row flex-col !items-start gap-2" v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')">
-                                <span class="profile-label">導師專屬介紹 <span class="text-[10px] text-slate-400 font-normal ml-1">(顯示於預約頁面)</span></span>
-                                <span class="profile-value text-[14px] text-left leading-relaxed whitespace-pre-wrap font-medium text-slate-600 bg-slate-50 p-3 rounded-xl w-full border border-slate-100">{{ userStatus.info?.intro || '尚未填寫自我介紹' }}</span>
+                            <div v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')" class="mt-2 pt-2 border-t border-slate-100">
+                                <div class="profile-row !border-0 pb-2"><span class="profile-label text-[#06C755]"><i class="fas fa-chalkboard-teacher mr-1"></i> 導師名片設定</span></div>
+                                <div class="flex gap-3 items-start px-1 pb-4">
+                                    <div class="w-14 h-14 rounded-full overflow-hidden shrink-0 border border-slate-100 shadow-sm bg-slate-50">
+                                        <img :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        {{ userStatus.info?.intro || '尚未填寫自我介紹' }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -278,9 +284,29 @@
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="editForm.address" class="native-input border border-slate-200 bg-white" placeholder="寄送實體資料使用"></div>
                             
                             <!-- 🎓 導師專屬編輯區塊 -->
-                            <div v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')">
-                                <label class="text-xs font-bold text-slate-400 mb-1.5 block">導師專屬介紹 <span class="text-red-500">*</span></label>
-                                <textarea v-model="editForm.intro" class="native-input border border-slate-200 bg-white h-32 resize-none leading-relaxed" placeholder="請輸入您的專業背景、能為學員帶來的價值等介紹，支援多行排版..."></textarea>
+                            <div v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')" class="pt-4 border-t border-slate-100 mt-2">
+                                <div class="text-[13px] font-bold text-[#06C755] mb-4"><i class="fas fa-id-badge mr-1"></i> 導師公開名片設定</div>
+                                
+                                <div class="mb-4">
+                                    <label class="text-[12px] font-bold text-slate-400 mb-1.5 block">專業形象照</label>
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-14 h-14 rounded-full bg-slate-50 border border-slate-100 overflow-hidden shrink-0 relative shadow-sm">
+                                            <img v-if="editForm.avatar || liffProfile.pictureUrl" :src="editForm.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover">
+                                            <div v-if="isImageUploading" class="absolute inset-0 bg-white/70 flex items-center justify-center">
+                                                <i class="fas fa-spinner fa-spin text-[#06C755]"></i>
+                                            </div>
+                                        </div>
+                                        <button @click="$refs.avatarInput.click()" :disabled="isImageUploading" class="px-4 py-2 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600 bg-white shadow-sm hover:bg-slate-50 transition active:scale-95">
+                                            更換照片
+                                        </button>
+                                        <input type="file" ref="avatarInput" class="hidden" accept="image/*" @change="handleAvatarUpload">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-[12px] font-bold text-slate-400 mb-1.5 block">導師簡介</label>
+                                    <textarea v-model="editForm.intro" class="native-input border border-slate-200 bg-white h-28 resize-none leading-relaxed text-[14px]" placeholder="請輸入您的專業背景、經歷等..."></textarea>
+                                </div>
                             </div>
                             
                             <div class="pt-6"><button @click="saveProfileUpdate" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存變更</button></div>
@@ -579,7 +605,8 @@
                 const regForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 const isEditingProfile = ref(false);
                 const isPointLogsOpen = ref(false); 
-                const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '', intro: '' });
+                const isImageUploading = ref(false);
+                const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '', intro: '', avatar: '' });
                 
                 const predefinedCategories = ['會員', '喚醒階段', '蛻變階段', '完整階段', '預約類'];
                 const activeCategory = ref('會員');
@@ -746,9 +773,30 @@
                         phone: info.phone || '', 
                         industry: info.industry || '', 
                         address: info.address || '',
-                        intro: info.intro || ''
+                        intro: info.intro || '',
+                        avatar: info.avatar || ''
                     };
                     isEditingProfile.value = true;
+                };
+
+                const handleAvatarUpload = (e) => {
+                    const file = e.target.files[0];
+                    if(!file) return;
+                    isImageUploading.value = true;
+                    const reader = new FileReader();
+                    reader.onload = async (f) => {
+                        try {
+                            const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result });
+                            if(res && res.url) editForm.value.avatar = res.url;
+                        } catch(err) { 
+                            console.error(err); 
+                            alert('圖片上傳失敗');
+                        } finally { 
+                            isImageUploading.value = false; 
+                            if (e.target) e.target.value = '';
+                        }
+                    };
+                    reader.readAsDataURL(file);
                 };
 
                 const saveProfileUpdate = async () => {
@@ -977,6 +1025,7 @@
                 return { 
                     isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
                     isEditingProfile, editForm, startEditingProfile, saveProfileUpdate, isPointLogsOpen,
+                    isImageUploading, handleAvatarUpload,
                     openCourseDetail: (c) => { 
                         selectedCourse.value = c; 
                         const pm = c.paymentMethod || 'ALL'; 
@@ -990,7 +1039,7 @@
                     submitRemittance,
                     navigateTo, dailyCheckin, submitRegistration,
                     formatPrice,
-                    getCourseName: (id) => { const c = courses.value.find(x => x.id === id || x.name === id); return c ? c.name : id; },
+                    getCourseName: (id) => { const c = courses.value.find(x => x && (x.id === id || x.name === id)); return c ? c.name : id; },
                     
                     categories: predefinedCategories,
                     activeCategory,
