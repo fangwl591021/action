@@ -255,6 +255,12 @@
                             <div class="profile-row"><span class="profile-label">聯絡手機</span><span class="profile-value font-mono">{{ userStatus.info?.phone }}</span></div>
                             <div class="profile-row"><span class="profile-label">業種</span><span class="profile-value">{{ userStatus.info?.industry || '未填寫' }}</span></div>
                             <div class="profile-row flex-col !items-start gap-2"><span class="profile-label">收件地址</span><span class="profile-value text-sm text-left leading-relaxed">{{ userStatus.info?.address || '未填寫' }}</span></div>
+                            
+                            <!-- 🎓 導師專屬顯示區塊 -->
+                            <div class="profile-row flex-col !items-start gap-2" v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')">
+                                <span class="profile-label">導師專屬介紹 <span class="text-[10px] text-slate-400 font-normal ml-1">(顯示於預約頁面)</span></span>
+                                <span class="profile-value text-[14px] text-left leading-relaxed whitespace-pre-wrap font-medium text-slate-600 bg-slate-50 p-3 rounded-xl w-full border border-slate-100">{{ userStatus.info?.intro || '尚未填寫自我介紹' }}</span>
+                            </div>
                         </div>
 
                         <!-- 編輯模式 -->
@@ -270,6 +276,12 @@
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="editForm.phone" class="native-input font-mono border border-slate-200 bg-white" placeholder="09xxxxxxxx"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="例如：行銷、教育"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="editForm.address" class="native-input border border-slate-200 bg-white" placeholder="寄送實體資料使用"></div>
+                            
+                            <!-- 🎓 導師專屬編輯區塊 -->
+                            <div v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')">
+                                <label class="text-xs font-bold text-slate-400 mb-1.5 block">導師專屬介紹 <span class="text-red-500">*</span></label>
+                                <textarea v-model="editForm.intro" class="native-input border border-slate-200 bg-white h-32 resize-none leading-relaxed" placeholder="請輸入您的專業背景、能為學員帶來的價值等介紹，支援多行排版..."></textarea>
+                            </div>
                             
                             <div class="pt-6"><button @click="saveProfileUpdate" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存變更</button></div>
                         </div>
@@ -567,7 +579,7 @@
                 const regForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 const isEditingProfile = ref(false);
                 const isPointLogsOpen = ref(false); 
-                const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
+                const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '', intro: '' });
                 
                 const predefinedCategories = ['會員', '喚醒階段', '蛻變階段', '完整階段', '預約類'];
                 const activeCategory = ref('會員');
@@ -726,7 +738,15 @@
 
                 const startEditingProfile = () => {
                     const info = userStatus.value.info || {};
-                    editForm.value = { name: info.name || '', gender: info.gender || '', birthday: info.birthday || '', phone: info.phone || '', industry: info.industry || '', address: info.address || '' };
+                    editForm.value = { 
+                        name: info.name || '', 
+                        gender: info.gender || '', 
+                        birthday: info.birthday || '', 
+                        phone: info.phone || '', 
+                        industry: info.industry || '', 
+                        address: info.address || '',
+                        intro: info.intro || ''
+                    };
                     isEditingProfile.value = true;
                 };
 
