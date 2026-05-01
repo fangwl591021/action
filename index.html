@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生A進化CTION</title>
-    <!-- Version: 2026.04.30.V257_Add_Mobile_Admin_Btn -->
+    <!-- Version: 2026.04.30.V258_Remove_General_Category -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -129,8 +129,9 @@
                     <div class="px-4 mt-5 mb-10 grid grid-cols-2 gap-4">
                         <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm cursor-pointer">
                             <div class="w-full aspect-video bg-[#F8F9FA] relative overflow-hidden border-b border-[#EEEEEE] shrink-0">
-                                <div class="absolute top-2 left-2 z-10">
-                                    <span class="category-pill">{{ c.type || '一般' }}</span>
+                                <!-- 已隱藏一般與全部的標籤邏輯 -->
+                                <div class="absolute top-2 left-2 z-10" v-if="c.type && c.type !== '一般' && c.type !== '全部'">
+                                    <span class="category-pill">{{ c.type }}</span>
                                 </div>
                                 <img v-if="c.image" :src="c.image" class="absolute inset-0 w-full h-full object-cover">
                                 <div v-else class="absolute inset-0 flex items-center justify-center text-[#DDE0E5]"><i class="far fa-image text-3xl"></i></div>
@@ -389,8 +390,8 @@
                 
                 <div class="flex-1 overflow-y-auto pb-32 hide-scrollbar">
                     <div class="w-full aspect-video bg-slate-100 relative overflow-hidden">
-                        <div class="absolute top-4 left-4 z-10">
-                            <span class="category-pill !text-[12px] !px-3 !py-1.5">{{ selectedCourse.type || '一般' }}</span>
+                        <div class="absolute top-4 left-4 z-10" v-if="selectedCourse.type && selectedCourse.type !== '一般' && selectedCourse.type !== '全部'">
+                            <span class="category-pill !text-[12px] !px-3 !py-1.5">{{ selectedCourse.type }}</span>
                         </div>
                         <img v-if="selectedCourse.image" :src="selectedCourse.image" class="absolute inset-0 w-full h-full object-cover">
                         <div v-else class="absolute inset-0 flex items-center justify-center text-slate-300"><i class="far fa-image text-5xl"></i></div>
@@ -568,8 +569,8 @@
                 const isPointLogsOpen = ref(false); 
                 const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 
-                const predefinedCategories = ['一般', '會員', '喚醒階段', '蛻變階段', '完整階段'];
-                const activeCategory = ref('全部');
+                const predefinedCategories = ['會員', '喚醒階段', '蛻變階段', '完整階段'];
+                const activeCategory = ref('會員');
 
                 const showRemittanceInfoModal = ref(false); 
                 const showRemittanceModal = ref(false); const remittanceInput = ref(''); const currentOrderForRemit = ref(null);
@@ -971,6 +972,7 @@
                     
                     categories: predefinedCategories,
                     activeCategory,
+                    goToBooking: () => { window.location.href = './booking.html'; },
                     filteredCourses: computed(() => {
                         return courses.value.filter(c => {
                             if (c.isPublished === false) return false;
