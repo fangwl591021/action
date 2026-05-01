@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>預約專屬諮詢</title>
-    <!-- Version: 2026.05.02.V4_Consult_Nav_Fix -->
+    <!-- Version: 2026.05.02.V5_Consult_API_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -354,7 +354,8 @@
                         const res = await fetch(WORKER_URL, { 
                             method: 'POST', 
                             headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ action: act, payload: pl }) 
+                            // 【修復】這裡確實補上 userProfile 以防止被當作 GUEST
+                            body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {} }) 
                         });
                         const data = await res.json();
                         if (data.status !== 'success') throw new Error(data.message || '後端錯誤');
@@ -383,12 +384,15 @@
 
                 const goToPage = (url) => { window.location.href = url; };
 
+                // 這裡會放置 liffProfile
+                const liffProfile = ref({});
+
                 // 初始化 LIFF (抓取本地暫存或 LINE 資料)
                 const initLiffAndData = async () => {
                     try {
                         const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) allCourses.value = JSON.parse(cCs);
                         
-                        const data = await callApi('ADMIN_GET_DATA', {}, false);
+                        const data = await callApi('ADMIN_GET_DATA', {}, true);
                         
                         if (data) {
                             allTeachers.value = data.users || []; 
@@ -402,14 +406,12 @@
                                 await liff.init({ liffId });
                                 if (liff.isLoggedIn()) {
                                     const profile = await liff.getProfile();
+                                    liffProfile.value = profile; // 存入變數中供 callApi 使用
+                                    
                                     form.value.userId = profile.userId;
                                     form.value.name = profile.displayName;
                                     
-                                    // 【靜默更新 LINE 大頭照】確保大頭照沒存到的導師只要登入就會自動補上
-                                    if (profile.pictureUrl) {
-                                        callApi('REGISTER_USER', { userId: profile.userId, pictureUrl: profile.pictureUrl }, true).catch(()=>{});
-                                    }
-                                    
+                                    // 嘗試從本地或後台拉取真實姓名與電話
                                     const cU = localStorage.getItem(`u_${profile.userId}_${CACHE_VERSION}`);
                                     if (cU) {
                                         const parsedU = JSON.parse(cU);
