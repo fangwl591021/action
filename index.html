@@ -724,6 +724,7 @@
 
                 const submitRegistration = async () => {
                     if (!regForm.value.name || !regForm.value.phone) return alert('姓名與電話為必填');
+                    if (!liffProfile.value.userId) return alert('無法取得 LINE 授權，請確認已透過 LINE App 開啟此頁面。');
                     isLoading.value = true;
                     try {
                         const refUid = localStorage.getItem('referral_uid') || '';
@@ -751,6 +752,7 @@
                 };
 
                 const saveProfileUpdate = async () => {
+                    if (!liffProfile.value.userId) return alert('系統安全攔截：未取得 LINE ID。');
                     isLoading.value = true;
                     try {
                         const res = await callApi('REGISTER_USER', { userId: liffProfile.value.userId, ...editForm.value }, false);
