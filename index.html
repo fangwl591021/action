@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生A進化CTION</title>
-    <!-- Version: 2026.05.02.V259_Teacher_Profile_Upload -->
+    <!-- Version: 2026.05.02.V260_Profile_Accordion -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -42,7 +42,7 @@
         .course-card:active { transform: scale(0.97); }
         .category-pill { background-color: #FF5809; color: #ffffff; font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: inline-block; }
 
-        .profile-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #F4F5F7; }
+        .profile-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; }
         .profile-label { font-size: 14px; color: #888888; font-weight: 600; min-width: 80px; }
         .profile-value { font-size: 15px; color: #111111; font-weight: 800; text-align: right; }
     </style>
@@ -221,7 +221,7 @@
                         </div>
 
                         <!-- 💰 紅包明細紀錄 (可收合) -->
-                        <div v-if="!isEditingProfile" class="mb-8 animate-fade-in">
+                        <div v-if="!isEditingProfile" class="mb-5 animate-fade-in">
                             <div @click="isPointLogsOpen = !isPointLogsOpen" class="flex justify-between items-center px-4 py-3 bg-white rounded-xl border border-slate-100 shadow-sm cursor-pointer mb-2">
                                 <h3 class="text-[15px] font-black text-slate-800 flex items-center gap-2">
                                     <i class="fas fa-list-ul text-[#06C755]"></i>紅包點數明細
@@ -245,25 +245,36 @@
                             </div>
                         </div>
                         
-                        <!-- 📋 基本資料區 -->
-                        <div v-if="!isEditingProfile" class="space-y-1 animate-fade-in">
-                            <div class="profile-row border-t border-slate-100"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div>
-                            <div class="profile-row"><span class="profile-label">目前等級</span><span class="profile-value text-[#06C755] bg-green-50 px-2 py-0.5 rounded">{{ userStatus.info?.memberTier || '一般會員' }}</span></div>
-                            <div class="profile-row"><span class="profile-label">性別</span><span class="profile-value">{{ userStatus.info?.gender || '未填寫' }}</span></div>
-                            <div class="profile-row"><span class="profile-label">出生年月日</span><span class="profile-value font-mono">{{ userStatus.info?.birthday || '未填寫' }}</span></div>
-                            <div class="profile-row"><span class="profile-label">聯絡手機</span><span class="profile-value font-mono">{{ userStatus.info?.phone }}</span></div>
-                            <div class="profile-row"><span class="profile-label">業種</span><span class="profile-value">{{ userStatus.info?.industry || '未填寫' }}</span></div>
-                            <div class="profile-row flex-col !items-start gap-2"><span class="profile-label">收件地址</span><span class="profile-value text-sm text-left leading-relaxed">{{ userStatus.info?.address || '未填寫' }}</span></div>
-                            
-                            <!-- 🎓 導師專屬顯示區塊 -->
-                            <div v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')" class="mt-2 pt-2 border-t border-slate-100">
-                                <div class="profile-row !border-0 pb-2"><span class="profile-label text-[#06C755]"><i class="fas fa-chalkboard-teacher mr-1"></i> 導師名片設定</span></div>
-                                <div class="flex gap-3 items-start px-1 pb-4">
-                                    <div class="w-14 h-14 rounded-full overflow-hidden shrink-0 border border-slate-100 shadow-sm bg-slate-50">
-                                        <img :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover">
-                                    </div>
-                                    <div class="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        {{ userStatus.info?.intro || '尚未填寫自我介紹' }}
+                        <!-- 📋 基本資料區 (改為可收合卡片) -->
+                        <div v-if="!isEditingProfile" class="mb-8 animate-fade-in">
+                            <div @click="isProfileInfoOpen = !isProfileInfoOpen" class="flex justify-between items-center px-4 py-3 bg-white rounded-xl border border-slate-100 shadow-sm cursor-pointer mb-2">
+                                <h3 class="text-[15px] font-black text-slate-800 flex items-center gap-2">
+                                    <i class="fas fa-id-card text-[#06C755]"></i>個人基本資料
+                                </h3>
+                                <i class="fas text-slate-400" :class="isProfileInfoOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                            </div>
+
+                            <div v-show="isProfileInfoOpen" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in px-4">
+                                <div class="space-y-1 py-2">
+                                    <div class="profile-row border-b border-slate-50"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div>
+                                    <div class="profile-row border-b border-slate-50"><span class="profile-label">目前等級</span><span class="profile-value text-[#06C755] bg-green-50 px-2 py-0.5 rounded">{{ userStatus.info?.memberTier || '一般會員' }}</span></div>
+                                    <div class="profile-row border-b border-slate-50"><span class="profile-label">性別</span><span class="profile-value">{{ userStatus.info?.gender || '未填寫' }}</span></div>
+                                    <div class="profile-row border-b border-slate-50"><span class="profile-label">出生年月日</span><span class="profile-value font-mono">{{ userStatus.info?.birthday || '未填寫' }}</span></div>
+                                    <div class="profile-row border-b border-slate-50"><span class="profile-label">聯絡手機</span><span class="profile-value font-mono">{{ userStatus.info?.phone }}</span></div>
+                                    <div class="profile-row border-b border-slate-50"><span class="profile-label">業種</span><span class="profile-value">{{ userStatus.info?.industry || '未填寫' }}</span></div>
+                                    <div class="profile-row flex-col !items-start gap-2 border-b border-slate-50"><span class="profile-label">收件地址</span><span class="profile-value text-sm text-left leading-relaxed">{{ userStatus.info?.address || '未填寫' }}</span></div>
+                                    
+                                    <!-- 🎓 導師專屬顯示區塊 -->
+                                    <div v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')" class="mt-2 pt-2 border-t border-slate-100">
+                                        <div class="profile-row !border-0 pb-2"><span class="profile-label text-[#06C755]"><i class="fas fa-chalkboard-teacher mr-1"></i> 導師名片設定</span></div>
+                                        <div class="flex gap-3 items-start px-1 pb-4">
+                                            <div class="w-14 h-14 rounded-full overflow-hidden shrink-0 border border-slate-100 shadow-sm bg-slate-50">
+                                                <img :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover">
+                                            </div>
+                                            <div class="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                {{ userStatus.info?.intro || '尚未填寫自我介紹' }}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -604,7 +615,8 @@
                 
                 const regForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                 const isEditingProfile = ref(false);
-                const isPointLogsOpen = ref(false); 
+                const isPointLogsOpen = ref(false);
+                const isProfileInfoOpen = ref(false);
                 const isImageUploading = ref(false);
                 const editForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '', intro: '', avatar: '' });
                 
@@ -1025,6 +1037,7 @@
                 return { 
                     isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
                     isEditingProfile, editForm, startEditingProfile, saveProfileUpdate, isPointLogsOpen,
+                    isProfileInfoOpen,
                     isImageUploading, handleAvatarUpload,
                     openCourseDetail: (c) => { 
                         selectedCourse.value = c; 
