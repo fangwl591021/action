@@ -97,24 +97,40 @@
             <!-- 步驟二：導師個人頁 & 選擇諮詢項目 (連動課程) -->
             <!-- ========================================== -->
             <transition name="slide-up">
-                <div v-if="step === 2" class="bg-white min-h-screen">
-                    <!-- 導師個人首圖與介紹 -->
-                    <div class="relative w-full pt-8 pb-6 px-6 text-center border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
-                        <div class="w-24 h-24 mx-auto rounded-full bg-slate-200 mb-4 overflow-hidden border-4 border-white shadow-md">
-                            <img :src="selectedTeacher?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover">
+                <div v-if="step === 2" class="bg-[#F4F5F7] min-h-screen pb-20">
+                    <!-- 導師個人首圖與介紹 (升級為完整個人建置頁) -->
+                    <div class="bg-white pb-6 shadow-sm">
+                        <!-- 橫幅背景 -->
+                        <div class="h-28 w-full bg-gradient-to-r from-[#06C755]/90 to-[#06C755] relative overflow-hidden">
+                            <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 20px 20px;"></div>
                         </div>
-                        <h2 class="text-2xl font-black text-slate-800">{{ selectedTeacher?.name }}</h2>
-                        <div class="flex items-center justify-center gap-2 mt-2">
-                            <i class="fas fa-star text-yellow-400 text-xs"></i>
-                            <span class="text-[13px] font-bold text-slate-600">5.0 (滿分好評)</span>
+                        
+                        <!-- 頭像與基本資訊 -->
+                        <div class="px-5 relative -mt-12 text-center">
+                            <div class="w-24 h-24 mx-auto rounded-full bg-white mb-2 overflow-hidden border-4 border-white shadow-md">
+                                <img :src="selectedTeacher?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover">
+                            </div>
+                            <h2 class="text-[22px] font-black text-slate-800">{{ selectedTeacher?.name }}</h2>
+                            <div class="text-[12px] text-[#06C755] font-bold mt-1.5 bg-green-50 rounded px-2.5 py-1 inline-block border border-green-100">{{ selectedTeacher?.memberTier || '專業導師' }}</div>
+                            
+                            <div class="flex items-center justify-center gap-1.5 mt-3 text-slate-400 font-bold text-xs">
+                                <i class="fas fa-star text-yellow-400"></i> 5.0 滿分好評
+                                <span class="mx-1">·</span>
+                                <i class="fas fa-user-check"></i> {{ selectedTeacher?.consultCount || '100+' }} 人諮詢
+                            </div>
+
+                            <!-- 自我介紹專屬區塊 -->
+                            <div class="mt-6 text-left bg-slate-50 p-5 rounded-2xl border border-slate-100 relative">
+                                <div class="absolute -top-3 left-4 bg-white px-3 py-0.5 rounded-full text-[11px] font-black text-[#06C755] border border-slate-100 shadow-sm">
+                                    <i class="fas fa-quote-left mr-1 opacity-50"></i>關於導師
+                                </div>
+                                <div class="text-[14px] text-slate-600 leading-relaxed font-medium mt-1 whitespace-pre-wrap">{{ selectedTeacher?.intro || selectedTeacher?.adminNote || '專業顧問導師，為您提供專屬的個人化諮詢與指導。\n\n請從下方選擇您需要的諮詢項目，並預約適合的時段。' }}</div>
+                            </div>
                         </div>
-                        <p class="text-[13px] text-slate-500 mt-4 leading-relaxed bg-slate-50 p-4 rounded-xl text-left border border-slate-100">
-                            {{ selectedTeacher?.adminNote || '專業顧問導師，為您提供專屬的個人化諮詢與指導。請從下方選擇您需要的諮詢項目，並預約適合的時段。' }}
-                        </p>
                     </div>
 
                     <!-- 該導師的專屬諮詢項目 (從 courses 篩選) -->
-                    <div class="p-4 bg-[#F4F5F7]">
+                    <div class="p-4 mt-2">
                         <h3 class="text-[15px] font-black text-slate-800 mb-3 ml-1 flex items-center gap-2"><i class="fas fa-list-ul text-[#06C755]"></i> 可預約的諮詢項目</h3>
                         
                         <div class="space-y-3">
@@ -392,7 +408,12 @@
                         console.error('Init error:', e);
                         // 模擬開發環境容錯
                         if(allTeachers.value.length === 0) {
-                             allTeachers.value = [{userId: 'T1', name: '王宏學顧問', memberTier: '專業導師'}];
+                             allTeachers.value = [{
+                                 userId: 'T1', 
+                                 name: '王宏學顧問', 
+                                 memberTier: '專業導師',
+                                 intro: '擁有10年以上的企業輔導經驗，專精於職涯規劃、商業模式建構與心理潛能探索。\n\n過去已幫助超過500位學員突破現狀，找到人生新方向。期待能在諮詢中協助您！'
+                             }];
                              allCourses.value = [{id:'S1', name: '一對一職涯諮詢', price: 1500, type:'諮詢', instructor: '王宏學顧問'}];
                              slots.value = [{ teacherUid: 'T1', date: dates.value[0]?.fullDate, time: '14:00', status: 'OPEN' }];
                         }
