@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>預約排班中控台</title>
-    <!-- Version: 2026.05.02.V255_Consult_Admin_Instant_Load -->
+    <!-- Version: 2026.05.03.V254_Consult_Admin_Date_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -58,7 +58,6 @@
 <body class="p-0 m-0">
     <div id="app" v-cloak class="min-h-screen flex flex-col">
         
-        <!-- 登入驗證區塊 -->
         <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4 relative text-center">
             <div class="max-w-[360px] w-full bg-white rounded-2xl shadow-sm p-8 border border-slate-200 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-1.5 bg-[#06C755]"></div>
@@ -86,9 +85,7 @@
             </div>
         </div>
 
-        <!-- 系統主畫面 (完全自適應手機與電腦) -->
         <div v-else class="flex flex-col h-screen animate-fade-in">
-            <!-- 頂部 Header -->
             <header class="bg-white border-b border-slate-200 p-3 md:p-4 flex justify-between items-center sticky top-0 z-40 shadow-sm flex-wrap gap-2 shrink-0">
                 <div class="flex items-center gap-2 md:gap-4">
                     <a href="./admin.html" class="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center bg-slate-50 text-slate-500 hover:bg-slate-100 transition"><i class="fas fa-arrow-left"></i></a>
@@ -97,7 +94,7 @@
                     </h1>
                 </div>
                 <div class="flex gap-2 md:gap-3">
-                    <button @click="fetchData" class="px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition flex items-center gap-1.5 md:gap-2">
+                    <button @click="fetchData(false)" class="px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition flex items-center gap-1.5 md:gap-2">
                         <i class="fas fa-sync-alt text-[#06C755]" :class="{'fa-spin': isLoading}"></i> 重整
                     </button>
                     <button @click="logout" class="px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-bold text-red-500 bg-red-50 border border-red-100 rounded-lg shadow-sm hover:bg-red-100 transition">
@@ -106,10 +103,7 @@
                 </div>
             </header>
 
-            <!-- 內容區塊 (電腦版為左右排版，手機版為上下排版) -->
             <main class="flex-grow flex flex-col md:flex-row overflow-hidden bg-[#F8FAFC]">
-                
-                <!-- 導師清單側邊/橫向列 -->
                 <aside class="w-full md:w-72 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto hide-scrollbar smooth-scroll shadow-sm z-30 shrink-0">
                     <div class="p-3 md:p-4 border-r md:border-r-0 md:border-b border-slate-100 bg-slate-50/90 backdrop-blur-sm sticky left-0 md:top-0 z-20 shrink-0 flex flex-col justify-center min-w-[90px] md:min-w-0">
                         <div class="hidden md:block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Teacher List</div>
@@ -120,7 +114,6 @@
                         <i class="fas fa-user-slash text-2xl md:text-3xl mb-2 md:mb-3 block text-slate-200"></i>目前尚無導師
                     </div>
                     
-                    <!-- 導師卡片 -->
                     <div v-for="t in teachers" :key="t.userId" @click="selectTeacher(t)" 
                          class="shrink-0 w-44 md:w-auto p-2.5 md:p-4 border-r md:border-r-0 md:border-b border-slate-100 cursor-pointer transition-all relative overflow-hidden group flex items-center gap-2.5 md:gap-3"
                          :class="activeTeacher?.userId === t.userId ? 'bg-green-50 border-b-4 md:border-b-0 border-[#06C755] md:border-l-4' : 'hover:bg-slate-50 border-b-4 md:border-b-0 border-transparent md:border-l-4'">
@@ -134,7 +127,6 @@
                     </div>
                 </aside>
 
-                <!-- 排班操作主畫面 -->
                 <section class="flex-1 min-w-0 min-h-0 relative flex flex-col bg-[#F8FAFC]">
                     <div v-if="!activeTeacher" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 z-10 bg-[#F8FAFC]">
                         <div class="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 mb-4">
@@ -144,7 +136,6 @@
                     </div>
                     
                     <template v-else>
-                        <!-- 頂端控制面板 (固定不隨格線捲動) -->
                         <div class="shrink-0 p-3 md:p-5 bg-white border-b border-slate-200 shadow-sm z-20 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                             <div>
                                 <h2 class="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">
@@ -161,25 +152,21 @@
                             </div>
                         </div>
                         
-                        <!-- 排班網格區塊 (獨立提供 2D 滑動) -->
                         <div class="flex-1 min-h-0 overflow-auto smooth-scroll bg-[#F8FAFC] p-3 md:p-5 relative">
                             <div class="border border-slate-200 rounded-xl shadow-sm bg-white inline-block min-w-full">
                                 <div class="slot-grid pb-2" style="min-width: 2000px;">
                                     
-                                    <!-- 左上角絕對固定格子 -->
                                     <div class="slot-cell slot-time-label sticky top-0 left-0 z-20 border-r border-b shadow-[2px_2px_5px_rgba(0,0,0,0.05)] text-[11px] md:text-[12px]">時段 \ 日期</div>
                                     
-                                    <!-- 頂部日期橫排 (垂直滾動時吸頂) -->
                                     <div v-for="d in dates" :key="d.fullDate" class="slot-cell bg-slate-50 border-b border-slate-200 flex flex-col py-1 h-auto sticky top-0 z-10 shadow-[0_2px_5px_rgba(0,0,0,0.02)]">
-                                        <span class="text-[10px] text-slate-400 font-bold">{{ d.weekDay }}</span>
-                                        <span class="text-[14px] font-black text-slate-700">{{ d.day }}</span>
+                                        <!-- 加入月份顯示，更直覺 -->
+                                        <span class="text-[10px] text-slate-400 font-bold">{{ d.month }}/{{ d.day }}</span>
+                                        <span class="text-[13px] font-black text-slate-700">{{ d.weekDay }}</span>
                                     </div>
                                     
                                     <template v-for="time in timeSlots" :key="time">
-                                        <!-- 左側時間直排 (水平滾動時吸左) -->
                                         <div class="slot-cell slot-time-label sticky left-0 z-10 border-r border-b border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">{{ time }}</div>
                                         
-                                        <!-- 實際操作格子 -->
                                         <div v-for="d in dates" :key="d.fullDate" @click="handleToggleSlot(d.fullDate, time)" class="slot-cell border-b border-r border-slate-100" :class="getSlotStyle(d.fullDate, time)">
                                             <i v-if="getSlotStatus(d.fullDate, time) === 'OPEN' && !isDraftClose(d.fullDate, time)" class="fas fa-check text-[11px]"></i>
                                             <i v-if="getSlotStatus(d.fullDate, time) === 'BOOKED'" class="fas fa-lock text-[11px]"></i>
@@ -388,8 +375,20 @@
                 onMounted(() => {
                     const today = new Date(); const names = ['日', '一', '二', '三', '四', '五', '六'];
                     for (let i = 0; i < 30; i++) {
-                        const d = new Date(today); d.setDate(today.getDate() + i);
-                        dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: names[d.getDay()] });
+                        const d = new Date(today); 
+                        d.setDate(today.getDate() + i);
+                        
+                        // 修正：使用本地時區，避免 toISOString() 產生日期落差
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, '0');
+                        const dayStr = String(d.getDate()).padStart(2, '0');
+                        
+                        dates.value.push({ 
+                            fullDate: `${y}-${m}-${dayStr}`, 
+                            month: d.getMonth() + 1,
+                            day: d.getDate(), 
+                            weekDay: names[d.getDay()] 
+                        });
                     }
                     loadCache();
                     autoLineLogin();
