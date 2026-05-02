@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>預約專屬諮詢</title>
-    <!-- Version: 2026.05.03.V253_Booking_Date_Fix -->
+    <!-- Version: 2026.05.03.V254_Booking_Smart_Dates -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -45,6 +45,7 @@
         </div>
 
         <div v-else>
+            <!-- 步驟一：選擇導師 -->
             <transition name="fade">
                 <div v-if="step === 1" class="p-4">
                     <div class="mb-4">
@@ -64,6 +65,7 @@
                 </div>
             </transition>
 
+            <!-- 步驟二：導師個人頁 & 選擇諮詢項目 -->
             <transition name="slide-up">
                 <div v-if="step === 2" class="bg-[#F4F5F7] min-h-screen pb-20">
                     <div class="bg-white pb-6 shadow-sm">
@@ -86,15 +88,12 @@
                                 <div class="flex-1 flex flex-col justify-between py-0.5 pr-1"><div><div class="text-[15px] font-bold text-slate-800 line-clamp-1">{{ String(svc?.name || '').split('\n')[0] }}</div><div class="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">{{ svc.description || '點擊選擇此項目進行時段預約' }}</div></div><div class="flex justify-between items-end mt-2"><span class="text-[16px] font-black text-[#06C755]">{{ svc.priceText || ('$' + formatPrice(svc.price)) }}</span><div class="w-8 h-8 rounded-full bg-green-50 text-[#06C755] flex items-center justify-center"><i class="fas fa-arrow-right text-sm"></i></div></div></div>
                             </div>
                         </div>
-                        <div v-if="teacherServices.length === 0" class="text-center py-10 bg-white rounded-2xl border border-slate-100">
-                            <i class="fas fa-box-open text-3xl text-slate-300 mb-2 block"></i>
-                            <span class="text-[13px] font-bold text-slate-400 block mb-1">這位導師目前沒有綁定的諮詢項目</span>
-                            <span class="text-[11px] text-slate-400">請導師至「我的」>「管理預約項目」新增</span>
-                        </div>
+                        <div v-if="teacherServices.length === 0" class="text-center py-10 bg-white rounded-2xl border border-slate-100"><i class="fas fa-box-open text-3xl text-slate-300 mb-2 block"></i><span class="text-[13px] font-bold text-slate-400 block mb-1">這位導師目前沒有綁定的諮詢項目</span><span class="text-[11px] text-slate-400">請導師至「我的」>「管理預約項目」新增</span></div>
                     </div>
                 </div>
             </transition>
 
+            <!-- 步驟三：智慧過濾日期與時段 -->
             <transition name="slide-up">
                 <div v-if="step === 3" class="bg-white min-h-screen pt-4">
                     <div class="px-5 mb-5">
@@ -104,9 +103,10 @@
                         </div>
                     </div>
 
-                    <div class="px-2">
+                    <!-- 僅顯示有排班的日期 -->
+                    <div class="px-2" v-if="availableDates.length > 0">
                         <div class="flex overflow-x-auto gap-2 pb-4 mb-4 border-b border-slate-100 no-scrollbar px-3">
-                            <div v-for="d in dates" :key="d.fullDate" @click="selectDate = d.fullDate; tempSlot = null" 
+                            <div v-for="d in availableDates" :key="d.fullDate" @click="selectDate = d.fullDate; tempSlot = null" 
                                  class="min-w-[64px] py-2.5 flex flex-col items-center rounded-xl transition-colors cursor-pointer border"
                                  :class="selectDate === d.fullDate ? 'bg-[#06C755] border-[#06C755] text-white shadow-md' : 'bg-white border-slate-100 text-slate-500 active:bg-slate-50'">
                                 <span class="text-[10px] mb-0.5 font-bold">{{ d.month }}/{{ d.day }}</span>
@@ -115,19 +115,27 @@
                         </div>
                     </div>
 
+                    <!-- 時段網格 -->
                     <div class="px-5 pb-8">
-                        <h3 class="text-[14px] font-black text-slate-800 mb-4 flex items-center gap-2"><i class="far fa-clock text-[#06C755]"></i> 可預約時段</h3>
-                        <div v-if="availableSlotsForDate.length > 0" class="grid grid-cols-3 gap-3">
+                        <h3 class="text-[14px] font-black text-slate-800 mb-4 flex items-center gap-2">
+                            <i class="far fa-clock text-[#06C755]"></i> 可預約時段
+                            <span v-if="selectDate" class="text-slate-500 font-medium text-xs ml-1">({{ selectDate }})</span>
+                        </h3>
+                        
+                        <div v-if="availableDates.length > 0 && availableSlotsForDate.length > 0" class="grid grid-cols-3 gap-3">
                             <button v-for="slot in availableSlotsForDate" :key="slot.time" @click="chooseSlot(slot)" class="time-btn py-3.5 rounded-xl text-[15px] shadow-sm relative overflow-hidden" :class="{ 'disabled': slot.status !== 'OPEN', 'selected': tempSlot === slot.time }" :disabled="slot.status !== 'OPEN'">
                                 {{ slot.time }}
                                 <div v-if="slot.status === 'BOOKED'" class="absolute inset-0 bg-slate-100/50 flex items-center justify-center text-[10px] text-slate-400 font-bold">被預約</div>
                             </button>
                         </div>
-                        <div v-else class="py-12 text-center text-[13px] font-bold text-slate-400 bg-slate-50 rounded-2xl border border-slate-100"><i class="far fa-calendar-times text-3xl mb-3 block text-slate-300"></i>本日無開放預約時段<br>請選擇其他日期</div>
+                        <div v-else class="py-12 text-center text-[13px] font-bold text-slate-400 bg-slate-50 rounded-2xl border border-slate-100">
+                            <i class="far fa-calendar-times text-3xl mb-3 block text-slate-300"></i>導師近期尚無開放可預約時段<br>請稍後再試或選擇其他導師
+                        </div>
                     </div>
                 </div>
             </transition>
 
+            <!-- 步驟四：填寫聯絡資訊與確認結帳 -->
             <transition name="slide-up">
                 <div v-if="step === 4" class="p-5 pb-32">
                     <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6">
@@ -150,6 +158,7 @@
                     </div>
                 </div>
             </transition>
+
         </div>
 
         <nav v-if="step < 4 && !bookingSuccess" class="bottom-nav">
@@ -182,7 +191,7 @@
                 return;
             }
 
-            const { createApp, ref, computed, onMounted } = Vue;
+            const { createApp, ref, computed, onMounted, watch } = Vue;
 
             createApp({
                 setup() {
@@ -195,7 +204,6 @@
                     const allCourses = ref([]);
                     const slots = ref([]);
                     const occupiedLocations = ref([]); 
-                    const dates = ref([]);
                     
                     const selectedTeacher = ref(null);
                     const selectedService = ref(null);
@@ -313,6 +321,59 @@
                     };
                     const goBack = () => { if (step.value > 1) step.value--; window.scrollTo(0,0); };
 
+                    // 智慧過濾：只篩選出有排班且有空位的日期
+                    const availableDates = computed(() => {
+                        if (!selectedTeacher.value) return [];
+                        const today = new Date(); 
+                        const names = ['日', '一', '二', '三', '四', '五', '六'];
+                        const result = [];
+                        const currentLoc = selectedService.value?.location;
+                        const defaultTimes = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+
+                        for (let i = 0; i < 30; i++) {
+                            const d = new Date(today); 
+                            d.setDate(today.getDate() + i); 
+                            
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, '0');
+                            const dayStr = String(d.getDate()).padStart(2, '0');
+                            const fullDate = `${y}-${m}-${dayStr}`;
+
+                            const teacherSlots = slots.value.filter(s => s && s.teacherUid === selectedTeacher.value.userId && s.date === fullDate);
+                            
+                            const hasOpen = defaultTimes.some(time => {
+                                const s = teacherSlots.find(ts => ts && ts.time === time);
+                                let status = s ? s.status : 'CLOSED';
+                                if (status === 'OPEN' && currentLoc) {
+                                    const isLocBooked = occupiedLocations.value.some(ol => ol.date === fullDate && ol.time === time && ol.location === currentLoc);
+                                    if (isLocBooked) status = 'BOOKED';
+                                }
+                                return status === 'OPEN';
+                            });
+
+                            if (hasOpen) {
+                                result.push({ 
+                                    fullDate, 
+                                    month: d.getMonth() + 1,
+                                    day: d.getDate(), 
+                                    weekDay: names[d.getDay()] 
+                                });
+                            }
+                        }
+                        return result;
+                    });
+
+                    // 當可用日期變動時，自動選擇第一天
+                    watch(availableDates, (newDates) => {
+                        if (newDates.length > 0) {
+                            if (!newDates.find(d => d.fullDate === selectDate.value)) {
+                                selectDate.value = newDates[0].fullDate;
+                            }
+                        } else {
+                            selectDate.value = '';
+                        }
+                    });
+
                     const availableSlotsForDate = computed(() => {
                         if (!selectedTeacher.value || !selectDate.value) return [];
                         const defaultTimes = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
@@ -355,31 +416,12 @@
                     };
 
                     onMounted(() => {
-                        const today = new Date(); const names = ['日', '一', '二', '三', '四', '五', '六'];
-                        // 修改：從「今天」開始算，而不是明天，這樣導師今天開的排班才能被預約
-                        for (let i = 0; i < 14; i++) {
-                            const d = new Date(today); 
-                            d.setDate(today.getDate() + i); 
-                            
-                            // 修正：使用本地時區，避免 toISOString() 在早上被當成昨天的 Bug
-                            const y = d.getFullYear();
-                            const m = String(d.getMonth() + 1).padStart(2, '0');
-                            const dayStr = String(d.getDate()).padStart(2, '0');
-                            
-                            dates.value.push({ 
-                                fullDate: `${y}-${m}-${dayStr}`, 
-                                month: d.getMonth() + 1,
-                                day: d.getDate(), 
-                                weekDay: names[d.getDay()] 
-                            });
-                        }
-                        selectDate.value = dates.value[0].fullDate;
                         initLiffAndData();
                     });
 
                     return {
                         step, stepTitle, isGlobalLoading, isSubmitting, bookingSuccess, goToPage,
-                        teachers, teacherServices, dates, selectDate,
+                        teachers, teacherServices, availableDates, selectDate,
                         selectedTeacher, selectedService, tempSlot, selectedSlot,
                         form, availableSlotsForDate, totalPrice, isFormValid,
                         chooseTeacher, chooseService, chooseSlot, submitBooking, goBack, formatPrice
@@ -388,6 +430,7 @@
             }).mount('#app');
         };
 
+        // 啟動 Vue
         initVueApp();
     </script>
 </body>
