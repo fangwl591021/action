@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>預約專屬諮詢</title>
-    <!-- Version: 2026.05.02.V251_Booking_Responsive_Fix -->
+    <!-- Version: 2026.05.02.V252_Booking_Vue_Load_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
+    <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -111,4 +111,276 @@
                     </div>
 
                     <div class="px-5 pb-8">
-                        <h3
+                        <h3 class="text-[14px] font-black text-slate-800 mb-4 flex items-center gap-2"><i class="far fa-clock text-[#06C755]"></i> 可預約時段 ({{ selectDate }})</h3>
+                        <div v-if="availableSlotsForDate.length > 0" class="grid grid-cols-3 gap-3">
+                            <button v-for="slot in availableSlotsForDate" :key="slot.time" @click="chooseSlot(slot)" class="time-btn py-3.5 rounded-xl text-[15px] shadow-sm relative overflow-hidden" :class="{ 'disabled': slot.status !== 'OPEN', 'selected': tempSlot === slot.time }" :disabled="slot.status !== 'OPEN'">
+                                {{ slot.time }}
+                                <div v-if="slot.status === 'BOOKED'" class="absolute inset-0 bg-slate-100/50 flex items-center justify-center text-[10px] text-slate-400 font-bold">被預約</div>
+                            </button>
+                        </div>
+                        <div v-else class="py-12 text-center text-[13px] font-bold text-slate-400 bg-slate-50 rounded-2xl border border-slate-100"><i class="far fa-calendar-times text-3xl mb-3 block text-slate-300"></i>本日無開放預約時段<br>請選擇其他日期</div>
+                    </div>
+                </div>
+            </transition>
+
+            <transition name="slide-up">
+                <div v-if="step === 4" class="p-5 pb-32">
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6">
+                        <h3 class="text-[15px] font-black text-slate-800 mb-4 border-b border-slate-50 pb-3 flex items-center gap-2"><i class="fas fa-clipboard-check text-[#06C755]"></i> 預約明細確認</h3>
+                        <div class="space-y-3 text-[14px]">
+                            <div class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">諮詢項目</span><span class="font-bold text-slate-800 text-right">{{ String(selectedService?.name || '').split('\n')[0] }}</span></div>
+                            <div class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">專屬導師</span><span class="font-bold text-slate-800 text-right">{{ selectedTeacher?.name }}</span></div>
+                            <div class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">預約時間</span><span class="font-bold text-[#06C755] text-right bg-green-50 px-2 py-0.5 rounded">{{ selectedSlot?.date }} {{ selectedSlot?.time }}</span></div>
+                            <div v-if="selectedService?.location" class="flex justify-between items-start border-t border-slate-50 pt-2"><span class="text-slate-400 font-bold shrink-0">場地安排</span><span class="font-bold text-slate-600 text-right">{{ selectedService.location }}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                        <h3 class="text-[15px] font-black text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-user-edit text-[#06C755]"></i> 聯絡資訊</h3>
+                        <div class="space-y-4">
+                            <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">真實姓名 <span class="text-red-500">*</span></label><input type="text" v-model="form.name" placeholder="請輸入姓名" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] font-bold outline-none focus:border-[#06C755] focus:bg-white transition"></div>
+                            <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">手機號碼 <span class="text-red-500">*</span></label><input type="tel" v-model="form.phone" placeholder="09xxxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] font-bold font-mono outline-none focus:border-[#06C755] focus:bg-white transition"></div>
+                            <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">給導師的備註 (選填)</label><textarea v-model="form.note" rows="3" placeholder="想先讓導師了解的狀況？" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] outline-none focus:border-[#06C755] focus:bg-white transition resize-none"></textarea></div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+        </div>
+
+        <nav v-if="step < 4 && !bookingSuccess" class="bottom-nav">
+            <div @click="goToPage('./index.html')" class="nav-item"><i class="fas fa-compass"></i><span>探索</span></div>
+            <div class="nav-item nav-active"><i class="fas fa-calendar-check"></i><span>預約</span></div>
+            <div @click="goToPage('./index.html?view=orders')" class="nav-item"><i class="fas fa-receipt"></i><span>紀錄</span></div>
+            <div @click="goToPage('./index.html?view=profile')" class="nav-item"><i class="fas fa-user"></i><span>我的</span></div>
+        </nav>
+
+        <div v-if="step === 4" class="sticky-footer flex items-center justify-between">
+            <div class="flex flex-col"><span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">諮詢費用</span><span class="text-[20px] font-black text-[#111]">${{ formatPrice(totalPrice) }}</span></div>
+            <button @click="submitBooking" :disabled="!isFormValid || isSubmitting" class="bg-[#06C755] text-white px-8 py-3.5 rounded-xl font-black text-[16px] disabled:opacity-50 disabled:bg-slate-300 transition shadow-lg shadow-green-100 w-[180px] flex justify-center items-center active:scale-95"><i v-if="isSubmitting" class="fas fa-spinner fa-spin mr-2"></i>{{ isSubmitting ? '處理中' : '確認預約' }}</button>
+        </div>
+
+        <div v-if="bookingSuccess" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+            <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6 shadow-inner border border-green-100"><i class="fas fa-check text-4xl text-[#06C755]"></i></div>
+            <h2 class="text-2xl font-black text-slate-800 mb-2">預約成功！</h2>
+            <p class="text-[14px] text-slate-500 font-bold mb-8 leading-relaxed">您的專屬時段已保留。<br>詳細訂單與付款資訊已同步至您的紀錄中。</p>
+            <a href="./index.html?view=orders" class="w-full bg-[#06C755] text-white py-4 rounded-xl font-black text-[16px] shadow-lg shadow-green-100 active:scale-95 transition">前往查看報名紀錄</a>
+        </div>
+    </div>
+
+    <script>
+        const WORKER_URL = 'https://action.fangwl591021.workers.dev/'; 
+        const CACHE_VERSION = 'v256';
+
+        const initVueApp = () => {
+            // 確保 Vue 已經成功載入，否則重試
+            if (typeof Vue === 'undefined') {
+                setTimeout(initVueApp, 100);
+                return;
+            }
+
+            const { createApp, ref, computed, onMounted } = Vue;
+
+            createApp({
+                setup() {
+                    const step = ref(1);
+                    const isGlobalLoading = ref(true);
+                    const isSubmitting = ref(false);
+                    const bookingSuccess = ref(false);
+
+                    const allTeachers = ref([]);
+                    const allCourses = ref([]);
+                    const slots = ref([]);
+                    const occupiedLocations = ref([]); 
+                    const dates = ref([]);
+                    
+                    const selectedTeacher = ref(null);
+                    const selectedService = ref(null);
+                    const selectDate = ref('');
+                    const tempSlot = ref(null); 
+                    const selectedSlot = ref(null);
+
+                    const form = ref({ userId: '', name: '', phone: '', note: '' });
+
+                    const stepTitle = computed(() => {
+                        if (step.value === 1) return '選擇導師';
+                        if (step.value === 2) return '選擇諮詢項目';
+                        if (step.value === 3) return '選擇預約時段';
+                        return '確認預約內容';
+                    });
+
+                    const formatPrice = v => Number(v || 0).toLocaleString();
+
+                    const callApi = async (act, pl = {}, silent = false) => {
+                        try {
+                            const res = await fetch(WORKER_URL, { 
+                                method: 'POST', 
+                                headers: { 'Content-Type': 'application/json' }, 
+                                body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {} }) 
+                            });
+                            const data = await res.json();
+                            if (data.status !== 'success') throw new Error(data.message || '後端錯誤');
+                            return data.data;
+                        } catch(e) {
+                            if (!silent) console.error(e);
+                            throw e;
+                        }
+                    };
+
+                    const teachers = computed(() => {
+                        return allTeachers.value.filter(t => t && t.memberTier && ['專業導師', '導師'].some(tier => t.memberTier.includes(tier)));
+                    });
+
+                    const teacherServices = computed(() => {
+                        if (!selectedTeacher.value) return [];
+                        const nowTs = Date.now();
+                        return allCourses.value.filter(c => {
+                            if (!c) return false;
+                            if (c.isPublished === false) return false;
+                            if (c.publishStartDate && nowTs < new Date(c.publishStartDate).getTime()) return false;
+                            if (c.publishEndDate && nowTs > new Date(c.publishEndDate).getTime()) return false;
+
+                            const matchInstructor = c.instructor === selectedTeacher.value.name;
+                            const isConsultType = (c.type || '').includes('諮詢') || (c.name || '').includes('諮詢');
+                            return matchInstructor || (isConsultType && !c.instructor);
+                        });
+                    });
+
+                    const goToPage = (url) => { window.location.href = url; };
+
+                    const liffProfile = ref({});
+
+                    const initLiffAndData = async () => {
+                        try {
+                            const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) allCourses.value = JSON.parse(cCs);
+                            
+                            const data = await callApi('ADMIN_GET_DATA', {}, true);
+                            
+                            if (data) {
+                                allTeachers.value = data.users || []; 
+                                allCourses.value = data.courses || [];
+                                
+                                const sysSettings = data.settings || {};
+                                let liffId = String(sysSettings.liff_id || '').trim();
+                                if (liffId.includes('liff.line.me/')) liffId = liffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
+                                
+                                if (liffId) {
+                                    await liff.init({ liffId });
+                                    if (liff.isLoggedIn()) {
+                                        const profile = await liff.getProfile();
+                                        liffProfile.value = profile; 
+                                        
+                                        form.value.userId = profile.userId;
+                                        form.value.name = profile.displayName;
+                                        
+                                        if (profile.pictureUrl) {
+                                            callApi('REGISTER_USER', { userId: profile.userId, pictureUrl: profile.pictureUrl }, true).catch(()=>{});
+                                        }
+                                        
+                                        const cU = localStorage.getItem(`u_${profile.userId}_${CACHE_VERSION}`);
+                                        if (cU) {
+                                            const parsedU = JSON.parse(cU);
+                                            if (parsedU.info) {
+                                                form.value.name = parsedU.info.name || profile.displayName;
+                                                form.value.phone = parsedU.info.phone || '';
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
+                            if (slotData) {
+                                slots.value = Array.isArray(slotData) ? slotData : (slotData.slots || []);
+                                occupiedLocations.value = Array.isArray(slotData) ? [] : (slotData.occupiedLocations || []);
+                            }
+                        } catch (e) {
+                            console.error('Init error:', e);
+                            if(allTeachers.value.length === 0) {
+                                allTeachers.value = [{
+                                    userId: 'T1', name: '王宏學顧問', memberTier: '專業導師',
+                                    intro: '擁有10年以上的企業輔導經驗，專精於職涯規劃、商業模式建構與心理潛能探索。\n\n過去已幫助超過500位學員突破現狀，找到人生新方向。期待能在諮詢中協助您！'
+                                }];
+                                allCourses.value = [{id:'S1', name: '一對一職涯諮詢', price: 1500, type:'諮詢', instructor: '王宏學顧問'}];
+                                slots.value = [{ teacherUid: 'T1', date: dates.value[0]?.fullDate, time: '14:00', status: 'OPEN' }];
+                            }
+                        } finally {
+                            isGlobalLoading.value = false;
+                        }
+                    };
+
+                    const chooseTeacher = (t) => { selectedTeacher.value = t; step.value = 2; selectedService.value = null; window.scrollTo(0,0); };
+                    const chooseService = (svc) => { selectedService.value = svc; step.value = 3; tempSlot.value = null; selectedSlot.value = null; window.scrollTo(0,0); };
+                    const chooseSlot = (slot) => {
+                        if (slot.status !== 'OPEN') return;
+                        tempSlot.value = slot.time;
+                        setTimeout(() => { selectedSlot.value = { date: selectDate.value, time: slot.time }; step.value = 4; window.scrollTo(0,0); }, 250);
+                    };
+                    const goBack = () => { if (step.value > 1) step.value--; window.scrollTo(0,0); };
+
+                    const availableSlotsForDate = computed(() => {
+                        if (!selectedTeacher.value || !selectDate.value) return [];
+                        const defaultTimes = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+                        const teacherSlots = slots.value.filter(s => s && s.teacherUid === selectedTeacher.value.userId && s.date === selectDate.value);
+                        const currentLoc = selectedService.value?.location;
+
+                        return defaultTimes.map(time => {
+                            const s = teacherSlots.find(ts => ts && ts.time === time);
+                            let status = s ? s.status : 'CLOSED';
+                            if (status === 'OPEN' && currentLoc) {
+                                const isLocBooked = occupiedLocations.value.some(ol => ol.date === selectDate.value && ol.time === time && ol.location === currentLoc);
+                                if (isLocBooked) status = 'BOOKED';
+                            }
+                            return { time, status };
+                        }).filter(s => s.status === 'OPEN');
+                    });
+
+                    const totalPrice = computed(() => selectedService.value ? selectedService.value.price : 0);
+                    const isFormValid = computed(() => form.value.name.trim() !== '' && form.value.phone.trim() !== '' && selectedSlot.value !== null);
+
+                    const submitBooking = async () => {
+                        if (!isFormValid.value) return;
+                        isSubmitting.value = true;
+                        
+                        const payload = {
+                            customer: { ...form.value },
+                            service: { ...selectedService.value },
+                            teacher: { userId: selectedTeacher.value.userId, name: selectedTeacher.value.name },
+                            schedule: { ...selectedSlot.value }
+                        };
+
+                        try {
+                            const res = await callApi('CREATE_BOOKING', payload, false);
+                            if (res && res.orderId) { bookingSuccess.value = true; window.scrollTo(0,0); } 
+                            else { throw new Error('預約處理失敗'); }
+                        } catch (e) {
+                            alert(e.message || '預約失敗，時段可能已被搶走或場地衝突，請重新選擇。');
+                            initLiffAndData(); step.value = 3; 
+                        } finally { isSubmitting.value = false; }
+                    };
+
+                    onMounted(() => {
+                        const today = new Date(); const days = ['日', '一', '二', '三', '四', '五', '六'];
+                        for (let i = 0; i < 14; i++) {
+                            const d = new Date(today); d.setDate(today.getDate() + i + 1);
+                            dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: days[d.getDay()] });
+                        }
+                        selectDate.value = dates.value[0].fullDate;
+                        initLiffAndData();
+                    });
+
+                    return {
+                        step, stepTitle, isGlobalLoading, isSubmitting, bookingSuccess, goToPage,
+                        teachers, teacherServices, dates, selectDate,
+                        selectedTeacher, selectedService, tempSlot, selectedSlot,
+                        form, availableSlotsForDate, totalPrice, isFormValid,
+                        chooseTeacher, chooseService, chooseSlot, submitBooking, goBack, formatPrice
+                    };
+                }
+            }).mount('#app');
+        };
+
+        // 啟動 Vue
+        initVueApp();
+    </script>
+</body>
+</html>
