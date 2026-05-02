@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>預約排班中控台</title>
-    <!-- Version: 2026.05.02.V254_Consult_Admin_Expanded -->
+    <!-- Version: 2026.05.02.V255_Consult_Admin_Instant_Load -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -200,6 +200,7 @@
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
         const CACHE_VERSION = 'v256';
+        const CACHE_KEY = `act_admin_cache_${CACHE_VERSION}`;
 
         createApp({
             setup() {
@@ -235,8 +236,21 @@
                     }
                 };
 
-                const fetchData = async () => {
-                    isLoading.value = true;
+                const loadCache = () => {
+                    if (localStorage.getItem('act_admin_logged_in') === 'true') {
+                        isAuthenticated.value = true;
+                        try {
+                            const c = JSON.parse(localStorage.getItem(CACHE_KEY));
+                            if (c) {
+                                teachers.value = c.teachers || [];
+                                slots.value = c.slots || [];
+                            }
+                        } catch(e) {}
+                    }
+                };
+
+                const fetchData = async (silent = false) => {
+                    if (!silent && !teachers.value.length) isLoading.value = true;
                     try {
                         const data = await callApi('ADMIN_GET_DATA', {}, true);
                         if (data && data.teachers) {
@@ -246,6 +260,11 @@
                         const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
                         if (slotData) {
                             slots.value = Array.isArray(slotData) ? slotData : (slotData.slots || []);
+                        }
+
+                        if (data && slotData) {
+                            localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, slots: slots.value }));
+                            localStorage.setItem('act_admin_logged_in', 'true');
                         }
                         
                         if (activeTeacher.value) {
@@ -268,7 +287,8 @@
                                 const checkRes = await callApi('CHECK_USER', {}, true);
                                 if (checkRes && (checkRes.isAdmin || (checkRes.info && checkRes.info.memberTier && checkRes.info.memberTier.includes('導師')))) {
                                     isAuthenticated.value = true;
-                                    await fetchData();
+                                    localStorage.setItem('act_admin_logged_in', 'true');
+                                    await fetchData(true);
                                     if (!checkRes.isAdmin) {
                                         teachers.value = teachers.value.filter(t => t.userId === liffProfile.value.userId);
                                         if (teachers.value.length > 0) activeTeacher.value = teachers.value[0];
@@ -295,7 +315,8 @@
 
                         if (checkRes && (checkRes.isAdmin || (checkRes.info && checkRes.info.memberTier && checkRes.info.memberTier.includes('導師')))) {
                             isAuthenticated.value = true;
-                            await fetchData();
+                            localStorage.setItem('act_admin_logged_in', 'true');
+                            await fetchData(false);
                             if (!checkRes.isAdmin) {
                                 teachers.value = teachers.value.filter(t => t.userId === liffProfile.value.userId);
                                 if (teachers.value.length > 0) activeTeacher.value = teachers.value[0];
@@ -307,10 +328,19 @@
                 const handleLogin = () => {
                     const acc = String(loginForm.value.account || '').trim().toLowerCase();
                     const pwd = String(loginForm.value.password || '').trim();
-                    if (acc === 'admin' && pwd === '@1234') { isAuthenticated.value = true; fetchData(); } else { alert('帳號或密碼錯誤'); }
+                    if (acc === 'admin' && pwd === '@1234') { 
+                        isAuthenticated.value = true; 
+                        localStorage.setItem('act_admin_logged_in', 'true');
+                        fetchData(false); 
+                    } else { alert('帳號或密碼錯誤'); }
                 };
 
-                const logout = () => { isAuthenticated.value = false; loginForm.value = { account: '', password: '' }; };
+                const logout = () => { 
+                    isAuthenticated.value = false; 
+                    localStorage.removeItem('act_admin_logged_in');
+                    localStorage.removeItem(CACHE_KEY);
+                    loginForm.value = { account: '', password: '' }; 
+                };
 
                 const selectTeacher = (t) => { if (activeTeacher.value?.userId !== t.userId) { draftOpen.value = []; draftClose.value = []; activeTeacher.value = t; } };
 
@@ -351,7 +381,7 @@
                     isLoading.value = true;
                     try {
                         const res = await callApi('ADMIN_BATCH_TOGGLE_SLOTS', { teacherUid: activeTeacher.value.userId, draftOpen: draftOpen.value, draftClose: draftClose.value });
-                        if (res) { alert('✅ 排班結算完成！'); draftOpen.value = []; draftClose.value = []; await fetchData(); }
+                        if (res) { alert('✅ 排班結算完成！'); draftOpen.value = []; draftClose.value = []; await fetchData(true); }
                     } catch (e) { console.error(e); } finally { isLoading.value = false; }
                 };
 
@@ -361,6 +391,7 @@
                         const d = new Date(today); d.setDate(today.getDate() + i);
                         dates.value.push({ fullDate: d.toISOString().split('T')[0], day: d.getDate(), weekDay: names[d.getDay()] });
                     }
+                    loadCache();
                     autoLineLogin();
                 });
 
