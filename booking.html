@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>預約專屬諮詢</title>
-    <!-- Version: 2026.05.03.V254_Booking_Smart_Dates -->
+    <!-- Version: 2026.05.03.V255_Booking_Smart_Filter_Align -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -52,13 +52,16 @@
                         <h2 class="text-[19px] font-black text-slate-800">選擇您的專屬導師</h2>
                         <p class="text-xs text-slate-500 mt-1 font-bold">點擊查看導師介紹與諮詢項目</p>
                     </div>
+                    <!-- 優化：彈性伸縮保持卡片等高 -->
                     <div class="grid grid-cols-2 gap-3">
-                        <div v-for="t in teachers" :key="t.userId" @click="chooseTeacher(t)" class="bg-white rounded-2xl p-4 text-center shadow-sm border border-slate-100 active:scale-95 transition cursor-pointer">
-                            <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 mb-3 overflow-hidden border border-slate-100">
+                        <div v-for="t in teachers" :key="t.userId" @click="chooseTeacher(t)" class="bg-white rounded-2xl p-4 text-center shadow-sm border border-slate-100 active:scale-95 transition cursor-pointer flex flex-col h-full">
+                            <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 mb-3 overflow-hidden border border-slate-100 shrink-0">
                                 <img :src="t.avatar || t.pictureUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover">
                             </div>
-                            <div class="text-[15px] font-black text-slate-800">{{ t.name }}</div>
-                            <div class="text-[11px] text-[#06C755] font-bold mt-1 bg-green-50 rounded px-2 py-0.5 inline-block">{{ t.memberTier || '專業導師' }}</div>
+                            <div class="flex flex-col flex-1 justify-center items-center">
+                                <div class="text-[15px] font-black text-slate-800 line-clamp-2 leading-snug">{{ t.name }}</div>
+                                <div class="text-[11px] text-[#06C755] font-bold mt-2 bg-green-50 rounded px-2 py-0.5 inline-block">{{ t.memberTier || '專業導師' }}</div>
+                            </div>
                         </div>
                     </div>
                     <div v-if="teachers.length === 0" class="text-center py-12 text-slate-400 font-bold bg-white rounded-2xl border border-slate-100 mt-4"><i class="fas fa-user-slash text-3xl mb-2 block"></i>目前尚無開放預約的導師</div>
@@ -88,7 +91,11 @@
                                 <div class="flex-1 flex flex-col justify-between py-0.5 pr-1"><div><div class="text-[15px] font-bold text-slate-800 line-clamp-1">{{ String(svc?.name || '').split('\n')[0] }}</div><div class="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">{{ svc.description || '點擊選擇此項目進行時段預約' }}</div></div><div class="flex justify-between items-end mt-2"><span class="text-[16px] font-black text-[#06C755]">{{ svc.priceText || ('$' + formatPrice(svc.price)) }}</span><div class="w-8 h-8 rounded-full bg-green-50 text-[#06C755] flex items-center justify-center"><i class="fas fa-arrow-right text-sm"></i></div></div></div>
                             </div>
                         </div>
-                        <div v-if="teacherServices.length === 0" class="text-center py-10 bg-white rounded-2xl border border-slate-100"><i class="fas fa-box-open text-3xl text-slate-300 mb-2 block"></i><span class="text-[13px] font-bold text-slate-400 block mb-1">這位導師目前沒有綁定的諮詢項目</span><span class="text-[11px] text-slate-400">請導師至「我的」>「管理預約項目」新增</span></div>
+                        <div v-if="teacherServices.length === 0" class="text-center py-10 bg-white rounded-2xl border border-slate-100">
+                            <i class="fas fa-box-open text-3xl text-slate-300 mb-2 block"></i>
+                            <span class="text-[13px] font-bold text-slate-400 block mb-1">這位導師目前沒有綁定的諮詢項目</span>
+                            <span class="text-[11px] text-slate-400">請導師至「我的」>「管理預約項目」新增</span>
+                        </div>
                     </div>
                 </div>
             </transition>
@@ -324,42 +331,53 @@
                     // 智慧過濾：只篩選出有排班且有空位的日期
                     const availableDates = computed(() => {
                         if (!selectedTeacher.value) return [];
-                        const today = new Date(); 
+                        const currentLoc = selectedService.value?.location;
+                        
+                        // 找出該導師所有 "OPEN" 的排班
+                        const openSlots = slots.value.filter(s => s && s.teacherUid === selectedTeacher.value.userId && s.status === 'OPEN');
+                        
+                        // 提取出所有有空位的日期字串，並去重、排序
+                        const uniqueDateStrs = [...new Set(openSlots.map(s => s.date))].sort();
+                        
+                        // 過濾掉過去的日期
+                        const today = new Date();
+                        today.setHours(0,0,0,0);
+                        const todayTs = today.getTime();
+                        
+                        const validDateStrs = uniqueDateStrs.filter(dStr => {
+                            const d = new Date(dStr);
+                            return d.getTime() >= todayTs;
+                        });
+
                         const names = ['日', '一', '二', '三', '四', '五', '六'];
                         const result = [];
-                        const currentLoc = selectedService.value?.location;
-                        const defaultTimes = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-
-                        for (let i = 0; i < 30; i++) {
-                            const d = new Date(today); 
-                            d.setDate(today.getDate() + i); 
+                        
+                        for (const dStr of validDateStrs) {
+                            const slotsOnDay = openSlots.filter(s => s.date === dStr);
+                            let hasRealOpen = false;
                             
-                            const y = d.getFullYear();
-                            const m = String(d.getMonth() + 1).padStart(2, '0');
-                            const dayStr = String(d.getDate()).padStart(2, '0');
-                            const fullDate = `${y}-${m}-${dayStr}`;
-
-                            const teacherSlots = slots.value.filter(s => s && s.teacherUid === selectedTeacher.value.userId && s.date === fullDate);
-                            
-                            const hasOpen = defaultTimes.some(time => {
-                                const s = teacherSlots.find(ts => ts && ts.time === time);
-                                let status = s ? s.status : 'CLOSED';
-                                if (status === 'OPEN' && currentLoc) {
-                                    const isLocBooked = occupiedLocations.value.some(ol => ol.date === fullDate && ol.time === time && ol.location === currentLoc);
-                                    if (isLocBooked) status = 'BOOKED';
+                            for (const s of slotsOnDay) {
+                                let isBlocked = false;
+                                if (currentLoc) {
+                                    isBlocked = occupiedLocations.value.some(ol => ol.date === dStr && ol.time === s.time && ol.location === currentLoc);
                                 }
-                                return status === 'OPEN';
-                            });
-
-                            if (hasOpen) {
-                                result.push({ 
-                                    fullDate, 
-                                    month: d.getMonth() + 1,
-                                    day: d.getDate(), 
-                                    weekDay: names[d.getDay()] 
+                                if (!isBlocked) {
+                                    hasRealOpen = true;
+                                    break; // 只要這天有一個真正可用的時段，這天就顯示
+                                }
+                            }
+                            
+                            if (hasRealOpen) {
+                                const dObj = new Date(dStr);
+                                result.push({
+                                    fullDate: dStr,
+                                    month: dObj.getMonth() + 1,
+                                    day: dObj.getDate(),
+                                    weekDay: names[dObj.getDay()]
                                 });
                             }
                         }
+                        
                         return result;
                     });
 
@@ -376,19 +394,23 @@
 
                     const availableSlotsForDate = computed(() => {
                         if (!selectedTeacher.value || !selectDate.value) return [];
-                        const defaultTimes = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-                        const teacherSlots = slots.value.filter(s => s && s.teacherUid === selectedTeacher.value.userId && s.date === selectDate.value);
                         const currentLoc = selectedService.value?.location;
+                        
+                        // 只抓取導師在該日期有設定的時段 (無論是 OPEN 還是 BOOKED)
+                        const teacherSlots = slots.value.filter(s => 
+                            s && 
+                            s.teacherUid === selectedTeacher.value.userId && 
+                            s.date === selectDate.value
+                        );
 
-                        return defaultTimes.map(time => {
-                            const s = teacherSlots.find(ts => ts && ts.time === time);
-                            let status = s ? s.status : 'CLOSED';
+                        return teacherSlots.map(s => {
+                            let status = s.status;
                             if (status === 'OPEN' && currentLoc) {
-                                const isLocBooked = occupiedLocations.value.some(ol => ol.date === selectDate.value && ol.time === time && ol.location === currentLoc);
+                                const isLocBooked = occupiedLocations.value.some(ol => ol.date === selectDate.value && ol.time === s.time && ol.location === currentLoc);
                                 if (isLocBooked) status = 'BOOKED';
                             }
-                            return { time, status };
-                        }).filter(s => s.status === 'OPEN');
+                            return { time: s.time, status };
+                        }).sort((a, b) => a.time.localeCompare(b.time)); // 確保時間由早到晚排序
                     });
 
                     const totalPrice = computed(() => selectedService.value ? selectedService.value.price : 0);
