@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>人生A進化CTION</title>
-    <!-- Version: 2026.05.03.V272_Booking_UI_Restored -->
+    <title>人生進化ACTION</title>
+    <!-- Version: 2026.05.03.V272_Fix_Null_Pointer -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,8 +35,6 @@
         .profile-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #F4F5F7; }
         .profile-label { font-size: 14px; color: #888888; font-weight: 600; min-width: 80px; }
         .profile-value { font-size: 15px; color: #111111; font-weight: 800; text-align: right; }
-        
-        /* Booking Specific Styles */
         .time-btn { border: 1px solid #E5E5EA; color: #111; background: #FFF; transition: all 0.1s; font-weight: 700; }
         .time-btn.selected { background: #06C755; color: #FFF; border-color: #06C755; }
         .time-btn.disabled { background: #F4F5F7; color: #C7C7CC; border-color: #F4F5F7; cursor: not-allowed; }
@@ -46,7 +44,6 @@
 <body>
     <div id="app" v-cloak class="max-w-md mx-auto min-h-screen bg-[#F4F5F7] pb-[env(safe-area-inset-bottom)] relative shadow-[0_0_40px_rgba(0,0,0,0.05)] overflow-hidden">
         
-        <!-- 🟢 系統啟動載入 -->
         <transition name="fade">
             <div v-if="isGlobalLoading" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#06C755] z-[100] flex flex-col items-center justify-center text-center">
                 <div class="mb-6 flex flex-col items-center"><h1 class="text-white text-4xl font-black tracking-widest mb-1">人生進化ACTION</h1><div class="text-[#f0fdf4] text-xs font-bold tracking-widest opacity-80 uppercase">Life Action System</div></div>
@@ -56,9 +53,6 @@
             </div>
         </transition>
 
-        <!-- ========================================================== -->
-        <!-- 🤝 強制加好友引導畫面 -->
-        <!-- ========================================================== -->
         <div v-if="view === 'add_friend_prompt'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[100] flex flex-col items-center justify-center p-8 animate-fade-in text-center">
             <div class="w-24 h-24 bg-[#06C755]/10 text-[#06C755] rounded-full flex items-center justify-center text-5xl mb-6 shadow-sm border border-[#06C755]/20"><i class="fas fa-user-plus"></i></div>
             <h2 class="text-2xl font-black text-slate-800 mb-3">還差最後一步！</h2>
@@ -67,11 +61,9 @@
             <button @click="retryInit" class="text-sm font-bold text-slate-400 hover:text-slate-600 transition underline decoration-slate-300 underline-offset-4">我已經加入了，繼續進入系統</button>
         </div>
 
-        <!-- 🏠 主系統架構 -->
         <div v-if="view !== 'register' && view !== 'courseDetail' && view !== 'share' && view !== 'add_friend_prompt' && view !== 'my_courses' && view !== 'booking'" class="flex flex-col h-screen overflow-hidden">
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
-                <!-- 🌟 首頁：課程探索 -->
                 <div v-if="view === 'home'" class="animate-fade-in relative">
                     <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
                         <div class="font-black text-[#111111] text-[19px] tracking-tight">人生進化ACTION</div>
@@ -96,7 +88,6 @@
                     </div>
                 </div>
 
-                <!-- 📜 我的報名紀錄 -->
                 <div v-if="view === 'orders'" class="animate-fade-in">
                     <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-center"><h2 class="text-[17px] font-bold text-[#111111]">歷史報名紀錄</h2></div>
                     <div class="pt-2 pb-20 px-4">
@@ -105,17 +96,22 @@
                             <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ String(getCourseName(o.courseId) || '').split('\n')[0] }}</div>
                             <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">$ {{ formatPrice(o.amount) }}</div>
                             <div v-if="o.note" class="text-[13px] text-slate-500 font-bold bg-slate-50 p-3 rounded-lg mb-3 border border-slate-100 leading-relaxed whitespace-pre-wrap"><i class="fas fa-info-circle mr-1.5 text-slate-400"></i>{{ o.note }}</div>
-                            <div v-if="o.status === 'PENDING'" class="flex gap-2 border-t border-slate-100 pt-3 mt-2">
+                            
+                            <div v-if="o.status === 'PENDING' && !o.remittance" class="flex gap-2 border-t border-slate-100 pt-3 mt-2">
                                 <button @click="payOrder(o)" :disabled="isLoading" class="flex-1 py-3 rounded-xl bg-[#06C755] text-white text-[13px] font-bold active:scale-95 transition flex justify-center items-center shadow-sm"><i class="fas fa-credit-card mr-1.5"></i>線上刷卡</button>
                                 <button @click="openRemittanceModal(o)" class="flex-1 py-3 rounded-xl bg-[#111111] text-white text-[13px] font-bold active:scale-95 transition shadow-sm"><i class="fas fa-university mr-1.5"></i>轉帳回報</button>
                             </div>
-                            <div v-if="o.status === 'PENDING' && sysSettings.allow_cancel_order === 'true'" class="mt-3 text-center"><button @click="cancelOrder(o)" :disabled="isLoading" class="text-xs font-bold text-slate-400 underline py-1 hover:text-slate-600 transition">取消報名這堂課</button></div>
+                            
+                            <div v-if="o.status === 'PENDING' && o.remittance" class="mt-2 text-center bg-orange-50 border border-orange-100 text-orange-600 py-2.5 rounded-xl text-[13px] font-bold shadow-sm">
+                                <i class="fas fa-search-dollar mr-1"></i> 已回報末五碼 ({{ o.remittance }}) - 財務對帳中
+                            </div>
+                            
+                            <div v-if="o.status === 'PENDING' && sysSettings.allow_cancel_order === 'true' && !o.remittance" class="mt-3 text-center"><button @click="cancelOrder(o)" :disabled="isLoading" class="text-xs font-bold text-slate-400 underline py-1 hover:text-slate-600 transition">取消報名這堂課</button></div>
                         </div>
                         <div v-if="myOrders.length === 0" class="text-center py-12 text-[#AAAAAA] font-bold">目前還沒有報名任何課程</div>
                     </div>
                 </div>
 
-                <!-- 👤 我的檔案 -->
                 <div v-if="view === 'profile'" class="animate-fade-in bg-white min-h-screen pb-32">
                     <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><h2 class="text-[17px] font-bold text-[#111111]">學員檔案</h2><button v-if="!isEditingProfile" @click="startEditingProfile" class="text-blue-600 font-bold text-sm">修改資料</button><button v-else @click="isEditingProfile = false" class="text-slate-400 font-bold text-sm">取消</button></div>
                     <div class="p-6 text-center border-b border-slate-50">
@@ -132,7 +128,7 @@
                         <div v-if="!isEditingProfile" class="mb-5 animate-fade-in">
                             <div @click="isPointLogsOpen = !isPointLogsOpen" class="flex justify-between items-center px-4 py-3 bg-white rounded-xl border border-slate-100 shadow-sm cursor-pointer mb-2"><h3 class="text-[15px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-list-ul text-[#06C755]"></i>紅包點數明細</h3><i class="fas text-slate-400" :class="isPointLogsOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i></div>
                             <div v-show="isPointLogsOpen" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
-                                <div v-for="log in userPoints.logs" :key="log.createdAt" class="p-4 border-b border-slate-50 last:border-0 flex justify-between items-center hover:bg-slate-50 transition"><div><div class="font-bold text-[14px] text-slate-700 mb-1">{{ log.reason }}</div><div class="text-[11px] text-slate-400 font-mono">{{ log.createdAt }}</div></div><div class="font-black text-[16px]" :class="log.type.includes('ADD') || log.type.includes('EARN') ? 'text-[#06C755]' : 'text-slate-400'">{{ log.type.includes('ADD') || log.type.includes('EARN') ? '+' : '-' }}{{ log.amount }}</div></div>
+                                <div v-for="log in userPoints.logs" :key="log.createdAt" class="p-4 border-b border-slate-50 last:border-0 flex justify-between items-center hover:bg-slate-50 transition"><div><div class="font-bold text-[14px] text-slate-700 mb-1">{{ log.reason }}</div><div class="text-[11px] text-slate-400 font-mono">{{ log.createdAt }}</div></div><div class="font-black text-[16px]" :class="(log.type || '').includes('ADD') || (log.type || '').includes('EARN') ? 'text-[#06C755]' : 'text-slate-400'">{{ (log.type || '').includes('ADD') || (log.type || '').includes('EARN') ? '+' : '-' }}{{ log.amount }}</div></div>
                                 <div v-if="!userPoints.logs || userPoints.logs.length === 0" class="p-6 text-center text-slate-400 text-xs font-bold bg-slate-50/50"><i class="fas fa-box-open text-2xl mb-2 text-slate-300"></i><br>目前尚無紅包紀錄</div>
                             </div>
                         </div>
@@ -142,11 +138,11 @@
                             <div v-show="isProfileInfoOpen" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in px-4">
                                 <div class="space-y-1 py-2">
                                     <div class="profile-row border-b border-slate-50"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">目前等級</span><span class="profile-value text-[#06C755] bg-green-50 px-2 py-0.5 rounded">{{ userStatus.info?.memberTier || '一般會員' }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">性別</span><span class="profile-value">{{ userStatus.info?.gender || '未填寫' }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">出生年月日</span><span class="profile-value font-mono">{{ userStatus.info?.birthday || '未填寫' }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">聯絡手機</span><span class="profile-value font-mono">{{ userStatus.info?.phone }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">業種</span><span class="profile-value">{{ userStatus.info?.industry || '未填寫' }}</span></div><div class="profile-row flex-col !items-start gap-2 border-b border-slate-50"><span class="profile-label">收件地址</span><span class="profile-value text-sm text-left leading-relaxed">{{ userStatus.info?.address || '未填寫' }}</span></div>
-                                    <div v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')" class="mt-2 pt-2 border-t border-slate-100"><div class="profile-row !border-0 pb-2"><span class="profile-label text-[#06C755]"><i class="fas fa-chalkboard-teacher mr-1"></i> 導師名片設定</span></div><div class="flex gap-3 items-start px-1 pb-4"><div class="w-14 h-14 rounded-full overflow-hidden shrink-0 border border-slate-100 shadow-sm bg-slate-50"><img :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover"></div><div class="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">{{ userStatus.info?.intro || '尚未填寫自我介紹' }}</div></div></div>
+                                    <div v-if="(userStatus.info?.memberTier || '').includes('導師')" class="mt-2 pt-2 border-t border-slate-100"><div class="profile-row !border-0 pb-2"><span class="profile-label text-[#06C755]"><i class="fas fa-chalkboard-teacher mr-1"></i> 導師名片設定</span></div><div class="flex gap-3 items-start px-1 pb-4"><div class="w-14 h-14 rounded-full overflow-hidden shrink-0 border border-slate-100 shadow-sm bg-slate-50"><img :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover"></div><div class="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">{{ userStatus.info?.intro || '尚未填寫自我介紹' }}</div></div></div>
                                 </div>
                             </div>
                             
-                            <div v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')" class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+                            <div v-if="(userStatus.info?.memberTier || '').includes('導師')" class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
                                 <button @click="openMyCourses" class="py-3 bg-[#06C755]/10 text-[#06C755] rounded-xl font-bold border border-[#06C755]/20 flex flex-col items-center justify-center gap-1.5 active:scale-95 transition shadow-sm"><i class="fas fa-book-open text-xl"></i><span class="text-[13px]">預約項目管理</span></button>
                                 <a href="./consult_admin.html" class="py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold border border-indigo-100 flex flex-col items-center justify-center gap-1.5 active:scale-95 transition shadow-sm decoration-transparent"><i class="fas fa-calendar-check text-xl"></i><span class="text-[13px]">導師排班系統</span></a>
                             </div>
@@ -160,7 +156,7 @@
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="例如：行銷、教育"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="editForm.address" class="native-input border border-slate-200 bg-white" placeholder="寄送實體資料使用"></div>
                             
-                            <div v-if="userStatus.info?.memberTier && userStatus.info.memberTier.includes('導師')" class="pt-4 border-t border-slate-100 mt-2">
+                            <div v-if="(userStatus.info?.memberTier || '').includes('導師')" class="pt-4 border-t border-slate-100 mt-2">
                                 <div class="text-[13px] font-bold text-[#06C755] mb-4"><i class="fas fa-id-badge mr-1"></i> 導師公開名片設定</div>
                                 <div class="mb-4"><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">專業形象照</label><div class="flex items-center gap-3"><div class="w-14 h-14 rounded-full bg-slate-50 border border-slate-100 overflow-hidden shrink-0 relative shadow-sm"><img v-if="editForm.avatar || liffProfile.pictureUrl" :src="editForm.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover"><div v-if="isImageUploading" class="absolute inset-0 bg-white/70 flex items-center justify-center"><i class="fas fa-spinner fa-spin text-[#06C755]"></i></div></div><button @click="$refs.avatarInput.click()" :disabled="isImageUploading" class="px-4 py-2 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600 bg-white shadow-sm hover:bg-slate-50 transition active:scale-95">更換照片</button><input type="file" ref="avatarInput" class="hidden" accept="image/*" @change="handleAvatarUpload"></div></div>
                                 <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">導師簡介</label><textarea v-model="editForm.intro" class="native-input border border-slate-200 bg-white h-28 resize-none leading-relaxed text-[14px]" placeholder="請輸入您的專業背景、經歷等..."></textarea></div>
@@ -174,7 +170,6 @@
                 </div>
             </main>
 
-            <!-- 底部導覽列 -->
             <nav class="bottom-nav">
                 <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="openBookingFlow" class="nav-item" :class="{'nav-active': view === 'booking'}"><i class="fas fa-calendar-check"></i><span>預約</span></div>
@@ -183,116 +178,6 @@
             </nav>
         </div>
 
-        <!-- ========================================================== -->
-        <!-- 📅 SPA 預約系統模組 -->
-        <!-- ========================================================== -->
-        <div v-if="view === 'booking'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[50] flex flex-col overflow-hidden animate-fade-in">
-            <div class="header-fixed">
-                <button v-if="bookingStep > 1 && !bookingSuccess" @click="goBookingBack" class="text-[#111111] p-2 -ml-2 active:opacity-50 transition"><i class="fas fa-arrow-left text-xl"></i></button>
-                <div v-else class="w-8"></div>
-                <h1 class="text-[17px] font-black tracking-tight">{{ bookingStepTitle }}</h1>
-                <button @click="navigateTo('home')" class="text-slate-400 p-2 -mr-2 active:opacity-50 transition"><i class="fas fa-times text-xl"></i></button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto pb-[100px] hide-scrollbar relative">
-                <!-- 載入中遮罩 -->
-                <div v-if="isLoadingBooking" class="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
-                    <i class="fas fa-spinner fa-spin text-4xl text-[#06C755] mb-4"></i>
-                    <p class="text-slate-500 font-bold text-sm">載入導師與時段資訊中...</p>
-                </div>
-
-                <!-- 步驟一：選擇導師 -->
-                <transition name="fade">
-                    <div v-if="bookingStep === 1" class="p-4">
-                        <div class="mb-4"><h2 class="text-[19px] font-black text-slate-800">選擇您的專屬導師</h2><p class="text-xs text-slate-500 mt-1 font-bold">點擊查看導師介紹與諮詢項目</p></div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div v-for="t in bookingTeachers" :key="t.userId" @click="chooseTeacher(t)" class="bg-white rounded-2xl p-4 text-center shadow-sm border border-slate-100 active:scale-95 transition cursor-pointer flex flex-col h-full">
-                                <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 mb-3 overflow-hidden border border-slate-100 shrink-0"><img :src="t.avatar || t.pictureUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover"></div>
-                                <div class="flex flex-col flex-1 justify-center items-center"><div class="text-[15px] font-black text-slate-800 line-clamp-2 leading-snug">{{ t.name }}</div><div class="text-[11px] text-[#06C755] font-bold mt-2 bg-green-50 rounded px-2 py-0.5 inline-block">{{ t.memberTier || '專業導師' }}</div></div>
-                            </div>
-                        </div>
-                        <div v-if="!isLoadingBooking && bookingTeachers.length === 0" class="text-center py-12 text-slate-400 font-bold bg-white rounded-2xl border border-slate-100 mt-4"><i class="fas fa-user-slash text-3xl mb-2 block"></i>目前尚無開放預約的導師</div>
-                    </div>
-                </transition>
-
-                <!-- 步驟二：導師個人頁 & 選擇諮詢項目 -->
-                <transition name="slide-up">
-                    <div v-if="bookingStep === 2" class="bg-[#F4F5F7] min-h-screen pb-20">
-                        <div class="bg-white pb-6 shadow-sm">
-                            <div class="h-28 w-full bg-gradient-to-r from-[#06C755]/90 to-[#06C755] relative overflow-hidden"><div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 20px 20px;"></div></div>
-                            <div class="px-5 relative -mt-12 text-center">
-                                <div class="w-24 h-24 mx-auto rounded-full bg-white mb-2 overflow-hidden border-4 border-white shadow-md"><img :src="selectedTeacher?.avatar || selectedTeacher?.pictureUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover"></div>
-                                <h2 class="text-[22px] font-black text-slate-800">{{ selectedTeacher?.name }}</h2>
-                                <div class="text-[12px] text-[#06C755] font-bold mt-1.5 bg-green-50 rounded px-2.5 py-1 inline-block border border-green-100">{{ selectedTeacher?.memberTier || '專業導師' }}</div>
-                                <div class="flex items-center justify-center gap-1.5 mt-3 text-slate-400 font-bold text-xs"><i class="fas fa-star text-yellow-400"></i> 5.0 滿分好評<span class="mx-1">·</span><i class="fas fa-user-check"></i> {{ selectedTeacher?.consultCount || '100+' }} 人諮詢</div>
-                                <div class="mt-6 text-left bg-slate-50 p-5 rounded-2xl border border-slate-100 relative"><div class="absolute -top-3 left-4 bg-white px-3 py-0.5 rounded-full text-[11px] font-black text-[#06C755] border border-slate-100 shadow-sm"><i class="fas fa-quote-left mr-1 opacity-50"></i>關於導師</div><div class="text-[14px] text-slate-600 leading-relaxed font-medium mt-1 whitespace-pre-wrap">{{ selectedTeacher?.intro || selectedTeacher?.adminNote || '專業顧問導師，為您提供專屬的個人化諮詢與指導。\n\n請從下方選擇您需要的諮詢項目，並預約適合的時段。' }}</div></div>
-                            </div>
-                        </div>
-                        <div class="p-4 mt-2">
-                            <h3 class="text-[15px] font-black text-slate-800 mb-3 ml-1 flex items-center gap-2"><i class="fas fa-list-ul text-[#06C755]"></i> 可預約的諮詢項目</h3>
-                            <div class="space-y-3">
-                                <div v-for="svc in teacherServices" :key="svc.id" @click="chooseService(svc)" class="bg-white flex gap-3 p-3 border border-slate-100 rounded-2xl active:scale-[0.98] transition cursor-pointer shadow-sm">
-                                    <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-slate-50"><img v-if="svc.image" :src="svc.image" class="w-full h-full object-cover"><div v-else class="w-full h-full flex items-center justify-center text-slate-300"><i class="fas fa-chalkboard-teacher text-2xl"></i></div></div>
-                                    <div class="flex-1 flex flex-col justify-between py-0.5 pr-1"><div><div class="text-[15px] font-bold text-slate-800 line-clamp-1">{{ String(svc?.name || '').split('\n')[0] }}</div><div class="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">{{ svc.description || '點擊選擇此項目進行時段預約' }}</div></div><div class="flex justify-between items-end mt-2"><span class="text-[16px] font-black text-[#06C755]">{{ svc.priceText || ('$' + formatPrice(svc.price)) }}</span><div class="w-8 h-8 rounded-full bg-green-50 text-[#06C755] flex items-center justify-center"><i class="fas fa-arrow-right text-sm"></i></div></div></div>
-                                </div>
-                            </div>
-                            <div v-if="teacherServices.length === 0" class="text-center py-10 bg-white rounded-2xl border border-slate-100"><i class="fas fa-box-open text-3xl text-slate-300 mb-2 block"></i><span class="text-[13px] font-bold text-slate-400 block mb-1">這位導師目前沒有綁定的諮詢項目</span></div>
-                        </div>
-                    </div>
-                </transition>
-
-                <!-- 步驟三：選擇日期與時段 -->
-                <transition name="slide-up">
-                    <div v-if="bookingStep === 3" class="bg-white min-h-screen pt-4">
-                        <div class="px-5 mb-5">
-                            <div class="bg-slate-50 rounded-xl p-3 flex items-center gap-3 border border-slate-100">
-                                <div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-white border border-slate-100"><img v-if="selectedService?.image" :src="selectedService?.image" class="w-full h-full object-cover"><i v-else class="fas fa-calendar-check text-slate-300 flex justify-center items-center h-full"></i></div>
-                                <div class="flex-1 min-w-0"><div class="text-[14px] font-bold text-slate-800 truncate">{{ String(selectedService?.name || '').split('\n')[0] }}</div><div class="text-[12px] text-slate-500 mt-0.5">導師：{{ selectedTeacher?.name }}</div></div>
-                            </div>
-                        </div>
-                        <div class="px-2" v-if="availableDates.length > 0">
-                            <div class="flex overflow-x-auto gap-2 pb-4 mb-4 border-b border-slate-100 no-scrollbar px-3">
-                                <div v-for="d in availableDates" :key="d.fullDate" @click="selectDate = d.fullDate; tempSlot = null" class="min-w-[64px] py-2.5 flex flex-col items-center rounded-xl transition-colors cursor-pointer border" :class="selectDate === d.fullDate ? 'bg-[#06C755] border-[#06C755] text-white shadow-md' : 'bg-white border-slate-100 text-slate-500 active:bg-slate-50'"><span class="text-[10px] mb-0.5 font-bold">{{ d.month }}/{{ d.day }}</span><span class="text-[16px] font-black leading-none">{{ d.weekDay }}</span></div>
-                            </div>
-                        </div>
-                        <div class="px-5 pb-8">
-                            <h3 class="text-[14px] font-black text-slate-800 mb-4 flex items-center gap-2"><i class="far fa-clock text-[#06C755]"></i> 可預約時段 <span v-if="selectDate" class="text-slate-500 font-medium text-xs ml-1">({{ selectDate }})</span></h3>
-                            <div v-if="availableDates.length > 0 && availableSlotsForDate.length > 0" class="grid grid-cols-3 gap-3">
-                                <button v-for="slot in availableSlotsForDate" :key="slot.time" @click="chooseSlot(slot)" class="time-btn py-3.5 rounded-xl text-[15px] shadow-sm relative overflow-hidden" :class="{ 'disabled': slot.status !== 'OPEN', 'selected': tempSlot === slot.time }" :disabled="slot.status !== 'OPEN'">{{ slot.time }}<div v-if="slot.status === 'BOOKED'" class="absolute inset-0 bg-slate-100/50 flex items-center justify-center text-[10px] text-slate-400 font-bold">被預約</div></button>
-                            </div>
-                            <div v-else class="py-12 text-center text-[13px] font-bold text-slate-400 bg-slate-50 rounded-2xl border border-slate-100"><i class="far fa-calendar-times text-3xl mb-3 block text-slate-300"></i>導師近期尚無開放可預約時段<br>請稍後再試或選擇其他導師</div>
-                        </div>
-                    </div>
-                </transition>
-
-                <!-- 步驟四：填寫聯絡資訊與確認結帳 -->
-                <transition name="slide-up">
-                    <div v-if="bookingStep === 4" class="p-5 pb-32">
-                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6">
-                            <h3 class="text-[15px] font-black text-slate-800 mb-4 border-b border-slate-50 pb-3 flex items-center gap-2"><i class="fas fa-clipboard-check text-[#06C755]"></i> 預約明細確認</h3>
-                            <div class="space-y-3 text-[14px]">
-                                <div class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">諮詢項目</span><span class="font-bold text-slate-800 text-right">{{ String(selectedService?.name || '').split('\n')[0] }}</span></div>
-                                <div class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">專屬導師</span><span class="font-bold text-slate-800 text-right">{{ selectedTeacher?.name }}</span></div>
-                                <div class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">預約時間</span><span class="font-bold text-[#06C755] text-right bg-green-50 px-2 py-0.5 rounded">{{ selectedSlot?.date }} {{ selectedSlot?.time }}</span></div>
-                                <div v-if="selectedService?.location" class="flex justify-between items-start border-t border-slate-50 pt-2"><span class="text-slate-400 font-bold shrink-0">場地安排</span><span class="font-bold text-slate-600 text-right">{{ selectedService.location }}</span></div>
-                            </div>
-                        </div>
-                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                            <h3 class="text-[15px] font-black text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-user-edit text-[#06C755]"></i> 聯絡資訊</h3>
-                            <div class="space-y-4">
-                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">真實姓名 <span class="text-red-500">*</span></label><input type="text" v-model="bookingForm.name" placeholder="請輸入姓名" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] font-bold outline-none focus:border-[#06C755] focus:bg-white transition"></div>
-                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">手機號碼 <span class="text-red-500">*</span></label><input type="tel" v-model="bookingForm.phone" placeholder="09xxxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] font-bold font-mono outline-none focus:border-[#06C755] focus:bg-white transition"></div>
-                                <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">給導師的備註 (選填)</label><textarea v-model="bookingForm.note" rows="3" placeholder="想先讓導師了解的狀況？" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] outline-none focus:border-[#06C755] focus:bg-white transition resize-none"></textarea></div>
-                            </div>
-                        </div>
-                    </div>
-                </transition>
-            </div>
-        </div>
-
-        <!-- ========================================================== -->
-        <!-- 🎁 專屬分享好友畫面 (全版子畫面) -->
-        <!-- ========================================================== -->
         <transition name="slide-up">
             <div v-if="view === 'share'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[60] flex flex-col overflow-hidden">
                 <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center gap-4"><button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h2 class="text-[19px] font-black text-slate-800">分享專區</h2></div>
@@ -306,46 +191,6 @@
             </div>
         </transition>
 
-        <!-- ========================================================== -->
-        <!-- 📚 導師諮詢專案管理 (全版子畫面) -->
-        <!-- ========================================================== -->
-        <transition name="slide-up">
-            <div v-if="view === 'my_courses'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[80] flex flex-col h-full overflow-hidden animate-fade-in">
-                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h2 class="text-[17px] font-bold text-[#111111]">我的諮詢預約項目</h2><button @click="openEditMyCourse(null)" class="text-[#06C755] font-bold text-sm bg-green-50 px-3 py-1.5 rounded-lg border border-green-100"><i class="fas fa-plus mr-1"></i>新增</button></div>
-                <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F4F5F7] pb-32">
-                    <div v-for="c in teacherCourses" :key="c.id" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex gap-4">
-                        <div class="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-100"><img v-if="c.image" :src="c.image" class="w-full h-full object-cover"><i v-else class="fas fa-image text-slate-300 text-2xl w-full h-full flex items-center justify-center"></i></div>
-                        <div class="flex-1 flex flex-col justify-between py-0.5 min-w-0"><div><div class="flex justify-between items-start gap-2"><h3 class="font-bold text-slate-800 text-[15px] truncate">{{ String(c?.name || '').split('\n')[0] }}</h3><span class="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded" :class="c.isPublished !== false ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">{{ c.isPublished !== false ? '上架中' : '已下架' }}</span></div><div class="text-[12px] text-slate-500 mt-1">分類: {{ c.type || '預約類' }}</div></div><div class="flex justify-between items-end mt-2"><div class="font-black text-[#06C755] text-[15px]">${{ formatPrice(c.price) }}</div><button @click="openEditMyCourse(c)" class="text-[12px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition">編輯</button></div></div>
-                    </div>
-                    <div v-if="teacherCourses.length === 0" class="text-center py-12 text-slate-400 font-bold bg-white rounded-2xl border border-dashed border-slate-200"><i class="fas fa-box-open text-3xl mb-3 block text-slate-300"></i>尚無建立任何諮詢項目<br>點擊右上角「新增」開始建立</div>
-                </div>
-            </div>
-        </transition>
-
-        <!-- ========================================================== -->
-        <!-- ✏️ 編輯/新增導師預約項目表單 (全版子畫面) -->
-        <!-- ========================================================== -->
-        <transition name="slide-up">
-            <div v-if="editingMyCourse" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[100] flex flex-col h-full overflow-hidden animate-fade-in">
-                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><button @click="editingMyCourse = null" class="text-slate-400 p-2 -ml-2"><i class="fas fa-times text-xl"></i></button><h1 class="text-[17px] font-black">{{ editingMyCourse?.id?.startsWith('NEW_') ? '新增預約項目' : '編輯預約項目' }}</h1><button @click="deleteMyCourse(editingMyCourse.id)" v-if="!editingMyCourse?.id?.startsWith('NEW_')" class="text-red-500 p-2 -mr-2"><i class="fas fa-trash-alt"></i></button><div v-else class="w-8"></div></div>
-                <div class="flex-1 overflow-y-auto p-5 pb-32 space-y-5 bg-[#F4F5F7]">
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-2 block">項目首圖</label><div class="w-full aspect-video bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden cursor-pointer" @click="$refs.courseImgInput.click()"><img v-if="editingMyCourse.image" :src="editingMyCourse.image" class="absolute inset-0 w-full h-full object-cover"><div v-if="isCourseImgUploading" class="absolute inset-0 bg-white/80 flex items-center justify-center"><i class="fas fa-spinner fa-spin text-2xl text-[#06C755]"></i></div><div v-if="!editingMyCourse.image && !isCourseImgUploading" class="text-center text-slate-400"><i class="fas fa-cloud-upload-alt text-3xl mb-2"></i><div class="text-[12px] font-bold">點擊上傳圖片</div></div></div><input type="file" ref="courseImgInput" class="hidden" accept="image/*" @change="handleCourseImgUpload"></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">諮詢項目名稱 <span class="text-red-500">*</span></label><input type="text" v-model="editingMyCourse.name" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="輸入預約項目名稱"></div>
-                        <div class="grid grid-cols-2 gap-4"><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">結帳金額 <span class="text-red-500">*</span></label><input type="number" v-model.number="editingMyCourse.price" class="native-input border border-slate-200 bg-white shadow-sm font-black text-[#06C755]" placeholder="0"></div><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">分類標籤</label><input type="text" v-model="editingMyCourse.type" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：預約類"></div></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">前台顯示金額字串</label><input type="text" v-model="editingMyCourse.priceText" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：$1,500/次"></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上課/諮詢地點</label><input type="text" v-model="editingMyCourse.location" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：台北市信義區會議室A"></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">時段說明</label><input type="text" v-model="editingMyCourse.timeSlotType" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：60分鐘"></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上架狀態</label><select v-model="editingMyCourse.isPublished" class="native-input border border-slate-200 bg-white shadow-sm font-bold"><option :value="true">🟢 上架中 (公開顯示)</option><option :value="false">🔴 已下架 (隱藏)</option></select></div>
-                        <div class="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-100 mt-2"><label class="text-[13px] font-bold text-[#06C755] mb-3 block"><i class="fas fa-clock mr-1"></i> 自動上下架時間 (選填)</label><div class="grid grid-cols-2 gap-4"><div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">開放上架時間</label><input type="datetime-local" v-model="editingMyCourse.publishStartDate" class="native-input border border-slate-200 bg-white shadow-sm text-xs px-2"></div><div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">自動下架時間</label><input type="datetime-local" v-model="editingMyCourse.publishEndDate" class="native-input border border-slate-200 bg-white shadow-sm text-xs px-2"></div></div></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">詳細內容與權益說明</label><textarea v-model="editingMyCourse.description" rows="5" class="native-input border border-slate-200 bg-white shadow-sm resize-none leading-relaxed text-[14px]" placeholder="輸入詳細的諮詢內容說明、適合對象等..."></textarea></div>
-                    </div>
-                </div>
-                <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-100 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-50"><button @click="saveMyCourse" :disabled="isLoading" class="btn-primary w-full py-4 text-[17px] shadow-lg shadow-green-100/50 rounded-xl"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存項目</button></div>
-            </div>
-        </transition>
-
-        <!-- 📖 課程詳細介紹頁面 (全版子畫面) -->
         <transition name="slide-up">
             <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[60] flex flex-col overflow-hidden">
                 <div class="absolute top-0 left-0 w-full z-50 flex justify-between items-center p-4 pt-[max(env(safe-area-inset-top),16px)] bg-gradient-to-b from-black/60 to-transparent pointer-events-none"><button @click="view = 'home'" class="w-10 h-10 text-lg bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto active:scale-90 transition shadow-sm"><i class="fas fa-arrow-left"></i></button></div>
@@ -375,10 +220,43 @@
                                 <button v-if="!selectedCourse.paymentMethod || selectedCourse.paymentMethod === 'ALL' || selectedCourse.paymentMethod === 'REMITTANCE'" @click="paymentMethod = 'REMITTANCE'" class="flex-1 py-4 rounded-xl border-2 font-bold text-[14px] transition-all flex flex-col items-center justify-center gap-2" :class="paymentMethod === 'REMITTANCE' ? 'border-[#06C755] bg-green-50 text-[#06C755]' : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300'"><i class="fas fa-university text-2xl block"></i>銀行匯款</button>
                             </div>
                         </div>
-                        <div class="mt-8 border-t border-slate-100 pt-8"><h3 class="text-[17px] font-black text-[#111111] mb-5 flex items-center gap-2"><i class="fas fa-align-left text-[#06C755] text-lg"></i>詳細內容與權益</h3><div class="text-[15px] text-slate-600 leading-relaxed whitespace-pre-wrap font-medium">{{ selectedCourse.description ? selectedCourse.description : ((selectedCourse.name || '').includes('\n') ? selectedCourse.name.substring(selectedCourse.name.indexOf('\n') + 1).trim() : '暫無詳細說明') }}</div></div>
+                        <div class="mt-8 border-t border-slate-100 pt-8"><h3 class="text-[17px] font-black text-[#111111] mb-5 flex items-center gap-2"><i class="fas fa-align-left text-[#06C755] text-lg"></i>詳細內容與權益</h3><div class="text-[15px] text-slate-600 leading-relaxed whitespace-pre-wrap font-medium">{{ selectedCourse.description ? selectedCourse.description : (String(selectedCourse?.name || '').includes('\n') ? String(selectedCourse?.name || '').substring(String(selectedCourse?.name || '').indexOf('\n') + 1).trim() : '暫無詳細說明') }}</div></div>
                     </div>
                 </div>
                 <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-100 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-[70] shadow-[0_-10px_20px_rgba(0,0,0,0.03)]"><button @click="executeBooking" :disabled="isLoading || !selectedCourse.isRegistrationOpen || (selectedCourse.capacity > 0 && selectedCourse.enrolled >= selectedCourse.capacity)" class="btn-primary w-full py-4 text-[17px] shadow-lg shadow-green-100/50 rounded-xl"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ checkoutButtonText }}</button></div>
+            </div>
+        </transition>
+
+        <transition name="slide-up">
+            <div v-if="view === 'my_courses'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[80] flex flex-col h-full overflow-hidden animate-fade-in">
+                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h2 class="text-[17px] font-bold text-[#111111]">我的諮詢預約項目</h2><button @click="openEditMyCourse(null)" class="text-[#06C755] font-bold text-sm bg-green-50 px-3 py-1.5 rounded-lg border border-green-100"><i class="fas fa-plus mr-1"></i>新增</button></div>
+                <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F4F5F7] pb-32">
+                    <div v-for="c in teacherCourses" :key="c.id" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex gap-4">
+                        <div class="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-100"><img v-if="c.image" :src="c.image" class="w-full h-full object-cover"><i v-else class="fas fa-image text-slate-300 text-2xl w-full h-full flex items-center justify-center"></i></div>
+                        <div class="flex-1 flex flex-col justify-between py-0.5 min-w-0"><div><div class="flex justify-between items-start gap-2"><h3 class="font-bold text-slate-800 text-[15px] truncate">{{ String(c?.name || '').split('\n')[0] }}</h3><span class="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded" :class="c.isPublished !== false ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">{{ c.isPublished !== false ? '上架中' : '已下架' }}</span></div><div class="text-[12px] text-slate-500 mt-1">分類: {{ c.type || '預約類' }}</div></div><div class="flex justify-between items-end mt-2"><div class="font-black text-[#06C755] text-[15px]">${{ formatPrice(c.price) }}</div><button @click="openEditMyCourse(c)" class="text-[12px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition">編輯</button></div></div>
+                    </div>
+                    <div v-if="teacherCourses.length === 0" class="text-center py-12 text-slate-400 font-bold bg-white rounded-2xl border border-dashed border-slate-200"><i class="fas fa-box-open text-3xl mb-3 block text-slate-300"></i>尚無建立任何諮詢項目<br>點擊右上角「新增」開始建立</div>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="slide-up">
+            <div v-if="editingMyCourse" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[100] flex flex-col h-full overflow-hidden animate-fade-in">
+                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><button @click="editingMyCourse = null" class="text-slate-400 p-2 -ml-2"><i class="fas fa-times text-xl"></i></button><h1 class="text-[17px] font-black">{{ (editingMyCourse?.id || '').startsWith('NEW_') ? '新增預約項目' : '編輯預約項目' }}</h1><button @click="deleteMyCourse(editingMyCourse.id)" v-if="!(editingMyCourse?.id || '').startsWith('NEW_')" class="text-red-500 p-2 -mr-2"><i class="fas fa-trash-alt"></i></button><div v-else class="w-8"></div></div>
+                <div class="flex-1 overflow-y-auto p-5 pb-32 space-y-5 bg-[#F4F5F7]">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                        <div><label class="text-[13px] font-bold text-slate-400 mb-2 block">項目首圖</label><div class="w-full aspect-video bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden cursor-pointer" @click="$refs.courseImgInput.click()"><img v-if="editingMyCourse.image" :src="editingMyCourse.image" class="absolute inset-0 w-full h-full object-cover"><div v-if="isCourseImgUploading" class="absolute inset-0 bg-white/80 flex items-center justify-center"><i class="fas fa-spinner fa-spin text-2xl text-[#06C755]"></i></div><div v-if="!editingMyCourse.image && !isCourseImgUploading" class="text-center text-slate-400"><i class="fas fa-cloud-upload-alt text-3xl mb-2"></i><div class="text-[12px] font-bold">點擊上傳圖片</div></div></div><input type="file" ref="courseImgInput" class="hidden" accept="image/*" @change="handleCourseImgUpload"></div>
+                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">諮詢項目名稱 <span class="text-red-500">*</span></label><input type="text" v-model="editingMyCourse.name" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="輸入預約項目名稱"></div>
+                        <div class="grid grid-cols-2 gap-4"><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">結帳金額 <span class="text-red-500">*</span></label><input type="number" v-model.number="editingMyCourse.price" class="native-input border border-slate-200 bg-white shadow-sm font-black text-[#06C755]" placeholder="0"></div><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">分類標籤</label><input type="text" v-model="editingMyCourse.type" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：預約類"></div></div>
+                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">前台顯示金額字串</label><input type="text" v-model="editingMyCourse.priceText" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：$1,500/次"></div>
+                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上課/諮詢地點</label><input type="text" v-model="editingMyCourse.location" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：台北市信義區會議室A"></div>
+                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">時段說明</label><input type="text" v-model="editingMyCourse.timeSlotType" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：60分鐘"></div>
+                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上架狀態</label><select v-model="editingMyCourse.isPublished" class="native-input border border-slate-200 bg-white shadow-sm font-bold"><option :value="true">🟢 上架中 (公開顯示)</option><option :value="false">🔴 已下架 (隱藏)</option></select></div>
+                        <div class="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-100 mt-2"><label class="text-[13px] font-bold text-[#06C755] mb-3 block"><i class="fas fa-clock mr-1"></i> 自動上下架時間 (選填)</label><div class="grid grid-cols-2 gap-4"><div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">開放上架時間</label><input type="datetime-local" v-model="editingMyCourse.publishStartDate" class="native-input border border-slate-200 bg-white shadow-sm text-xs px-2"></div><div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">自動下架時間</label><input type="datetime-local" v-model="editingMyCourse.publishEndDate" class="native-input border border-slate-200 bg-white shadow-sm text-xs px-2"></div></div></div>
+                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">詳細內容與權益說明</label><textarea v-model="editingMyCourse.description" rows="5" class="native-input border border-slate-200 bg-white shadow-sm resize-none leading-relaxed text-[14px]" placeholder="輸入詳細的諮詢內容說明、適合對象等..."></textarea></div>
+                    </div>
+                </div>
+                <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-100 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-50"><button @click="saveMyCourse" :disabled="isLoading" class="btn-primary w-full py-4 text-[17px] shadow-lg shadow-green-100/50 rounded-xl"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存項目</button></div>
             </div>
         </transition>
 
@@ -497,7 +375,7 @@
                     <button @click="navigateTo('orders')" class="w-full bg-[#06C755] text-white py-4 rounded-xl font-black text-[16px] shadow-lg shadow-green-100 active:scale-95 transition">前往查看報名紀錄</button>
                 </div>
 
-                <!-- 底部結帳/導航列 (僅在 預約Step 4 顯示) -->
+                <!-- 底部結帳/導航列 (僅在 Step 4 顯示) -->
                 <div v-if="bookingStep === 4 && !bookingSuccess" class="sticky-footer flex items-center justify-between">
                     <div class="flex flex-col"><span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">諮詢費用</span><span class="text-[20px] font-black text-[#111]">${{ formatPrice(bookingTotalPrice) }}</span></div>
                     <button @click="submitConsultBooking" :disabled="!isBookingFormValid || isLoading" class="bg-[#06C755] text-white px-8 py-3.5 rounded-xl font-black text-[16px] disabled:opacity-50 disabled:bg-slate-300 transition shadow-lg shadow-green-100 w-[180px] flex justify-center items-center active:scale-95"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ isLoading ? '處理中' : '確認預約' }}</button>
@@ -555,7 +433,7 @@
                     const paymentMethod = ref('NEWEBPAY');
 
                     // ==========================================
-                    // Helper Functions (Move to top to avoid ReferenceError)
+                    // Helper Functions
                     // ==========================================
                     const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString();
                     const getCourseName = (id) => { 
@@ -601,10 +479,10 @@
                             const text = await res.text();
                             let json;
                             try { json = JSON.parse(text); } catch(e) { throw new Error(`後端回傳格式異常。\n(回應開頭: ${text.substring(0, 50)}...)`); }
-                            if (!json.status) throw new Error(`【GAS 版本過舊】\n系統偵測到後端尚未更新！`);
-                            if (json.status !== 'success') throw new Error(json.message || `後台尚未授權此操作 (${act})`); 
+                            if (!json.status && json.success === undefined) throw new Error(`【GAS 版本過舊】\n系統偵測到後端尚未更新！`);
+                            if (json.status && json.status !== 'success') throw new Error(json.message || `後台尚未授權此操作 (${act})`); 
                             if (act === 'GET_SETTINGS' && (!json.data || Object.keys(json.data).length === 0)) throw new Error("後台系統參數為空");
-                            return json.data;
+                            return json.data || json;
                         } catch (e) { 
                             if (!silent) alert(`❌ 系統提示：\n${e.message}`); 
                             throw e;
@@ -722,7 +600,7 @@
                     };
 
                     const bookingTeachers = computed(() => {
-                        return allTeachers.value.filter(t => t && t.memberTier && ['專業導師', '導師'].some(tier => t.memberTier.includes(tier)));
+                        return allTeachers.value.filter(t => t && t.memberTier && ['專業導師', '導師'].some(tier => (t.memberTier || '').includes(tier)));
                     });
 
                     const teacherServices = computed(() => {
