@@ -383,6 +383,40 @@
             </div>
         </transition>
 
+        <!-- 匯款帳號資訊 Modal (下單後顯示) -->
+        <transition name="fade">
+            <div v-if="showRemittanceInfoModal" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div class="bg-white rounded-2xl w-full max-w-[320px] overflow-hidden shadow-2xl animate-fade-in flex flex-col">
+                    <div class="bg-[#06C755] p-5 text-center">
+                        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 text-white text-2xl"><i class="fas fa-university"></i></div>
+                        <h3 class="text-lg font-black text-white">請記下匯款資訊</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="text-[14px] text-slate-600 leading-relaxed whitespace-pre-wrap font-medium bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6">{{ sysSettings.remittance_info || '尚未設定匯款帳號' }}</div>
+                        <div class="text-[12px] text-center text-slate-400 font-bold mb-6">匯款完成後，請至「報名紀錄」點選「轉帳回報」填寫帳號末五碼。</div>
+                        <button @click="closeRemittanceInfoModal" class="btn-primary w-full shadow-md active:scale-95">我已了解，查看報名紀錄</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 填寫匯款後五碼 Modal -->
+        <transition name="fade">
+            <div v-if="showRemittanceModal" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div class="bg-white rounded-2xl w-full max-w-[320px] p-6 shadow-2xl animate-fade-in">
+                    <h3 class="text-[17px] font-black text-slate-800 mb-2 flex items-center gap-2"><i class="fas fa-edit text-[#06C755]"></i>轉帳回報</h3>
+                    <p class="text-[12px] text-slate-500 font-medium mb-5">請輸入您匯款帳號的<span class="text-red-500 font-bold mx-1">末 5 碼</span>，以便財務為您對帳。</p>
+                    <div class="mb-6">
+                        <input type="tel" v-model="remittanceInput" maxlength="5" placeholder="例如: 12345" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-center text-3xl font-black font-mono outline-none focus:border-[#06C755] focus:bg-white transition tracking-[0.2em] text-slate-800">
+                    </div>
+                    <div class="flex gap-3">
+                        <button @click="showRemittanceModal = false" class="flex-1 py-3.5 bg-slate-100 text-slate-500 rounded-xl font-bold active:scale-95 transition text-[14px]">取消</button>
+                        <button @click="submitRemittance" :disabled="isLoading" class="flex-1 py-3.5 bg-[#06C755] text-white rounded-xl font-bold active:scale-95 transition shadow-md shadow-green-100 flex items-center justify-center gap-2 text-[14px] disabled:opacity-50"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i>確認送出</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
     </div>
 
     <script>
