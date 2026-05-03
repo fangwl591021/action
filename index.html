@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生進化ACTION</title>
-    <!-- Version: 2026.05.02.V268_Vue_Load_Fix -->
+    <!-- Version: 2026.05.03.V269_Index_Native_Action_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,7 +19,7 @@
         .btn-primary:disabled { opacity: 0.5; transform: none; background-color: #cccccc; }
         .native-input { width: 100%; border: none; background-color: #F4F5F7; border-radius: 10px; padding: 14px 16px; font-size: 15px; outline: none; color: #111111; font-weight: 600; transition: 0.2s; }
         .native-input:focus { background-color: #EAECEF; box-shadow: inset 0 0 0 2px rgba(6,199,85,0.2); }
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top: 1px solid #EEEEEE; display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); z-index: 40; }
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 28rem; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top: 1px solid #EEEEEE; display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); z-index: 40; }
         .nav-item { flex: 1; padding: 12px 0; text-align: center; color: #AAAAAA; font-size: 10px; font-weight: 800; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: 0.2s; }
         .nav-active { color: #06C755; }
         .nav-item i { font-size: 20px; }
@@ -83,12 +83,12 @@
                     </div>
                     
                     <div class="px-4 mt-5 mb-10 grid grid-cols-2 gap-4">
-                        <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm cursor-pointer">
+                        <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm cursor-pointer flex flex-col justify-between h-full">
                             <div class="w-full aspect-video bg-[#F8F9FA] relative overflow-hidden border-b border-[#EEEEEE] shrink-0">
                                 <div class="absolute top-2 left-2 z-10" v-if="c.type && c.type !== '一般' && c.type !== '全部'"><span class="category-pill">{{ c.type }}</span></div>
                                 <img v-if="c.image" :src="c.image" class="absolute inset-0 w-full h-full object-cover"><div v-else class="absolute inset-0 flex items-center justify-center text-[#DDE0E5]"><i class="far fa-image text-3xl"></i></div>
                             </div>
-                            <div class="p-4 flex-1 flex flex-col justify-between">
+                            <div class="p-4 flex flex-col flex-1 justify-between">
                                 <div class="mb-2"><div class="text-[15px] font-black text-[#111111] leading-snug mb-1 line-clamp-2">{{ String(c?.name || '').split('\n')[0] }}</div><div v-if="(c?.name || '').includes('\n')" class="text-[11px] text-slate-500 line-clamp-2 leading-relaxed font-medium">{{ c.name.substring(c.name.indexOf('\n') + 1).trim() }}</div></div>
                                 <div class="border-t border-[#F4F5F7] pt-3 mt-2 flex justify-between items-end shrink-0"><div class="text-[17px] font-black text-[#06C755] leading-none">{{ c.priceText || ('$' + formatPrice(c.price)) }}</div></div>
                             </div>
@@ -173,7 +173,7 @@
                 </div>
             </main>
 
-            <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/95 backdrop-blur border-t border-slate-100 flex justify-around pb-[env(safe-area-inset-bottom)] z-40">
+            <nav class="bottom-nav">
                 <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="goToBooking" class="nav-item"><i class="fas fa-calendar-check"></i><span>預約</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
@@ -263,20 +263,59 @@
             </div>
         </transition>
 
-        <div v-if="view === 'register'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[90] flex flex-col h-full overflow-hidden animate-fade-in"><div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center gap-4"><button @click="view = 'home'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h1 class="text-[19px] font-black">建立學員檔案</h1></div><div class="flex-1 overflow-y-auto p-6 space-y-6 pb-32"><div class="text-center mb-8"><div class="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden border border-slate-100 shadow-sm"><img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover"></div><div class="font-black text-[#111111] text-xl">{{ liffProfile.displayName }}</div><p class="text-xs text-slate-400 mt-2 leading-relaxed">請完善您的真實資料<br>以便系統派發課表與通知</p></div><div class="space-y-5"><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">真實姓名</label><input type="text" v-model="regForm.name" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="請輸入中文全名"></div><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">性別</label><select v-model="regForm.gender" class="native-input border border-slate-200 bg-white shadow-sm"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="regForm.birthday" class="native-input border border-slate-200 bg-white shadow-sm"></div><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="regForm.phone" class="native-input font-mono border border-slate-200 bg-white shadow-sm" placeholder="09xxxxxxxx"></div><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="regForm.industry" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="您的職業或專長"></div><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="regForm.address" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="寄送講義或發票使用"></div></div><div class="pt-8"><button @click="submitRegistration" :disabled="isLoading" class="btn-primary py-4 text-base rounded-xl shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認送出並開通帳號</button></div></div></div>
+        <transition name="fade">
+            <div v-if="showRemittanceInfoModal" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl transform transition-transform animate-fade-in" @click.stop>
+                    <div class="bg-[#06C755] p-6 text-center">
+                        <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-[#06C755] text-3xl mx-auto mb-3 shadow-inner">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <h3 class="text-xl font-black text-white">報名單已建立！</h3>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-[14px] text-slate-600 font-bold mb-4 text-center">請將款項匯至以下官方指定帳戶：</p>
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+                            <div class="whitespace-pre-wrap text-slate-700 font-bold text-[14px] leading-relaxed">{{ sysSettings.remittance_info || '尚未設定匯款帳號，請聯絡官方客服。' }}</div>
+                        </div>
+                        <div class="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-6 flex gap-3 items-start shadow-sm">
+                            <i class="fas fa-exclamation-triangle text-orange-500 mt-0.5 text-lg"></i>
+                            <p class="text-[12px] text-orange-700 font-bold leading-relaxed">請務必截圖保留此帳號。<br>完成匯款後，請至「報名紀錄」點擊【轉帳回報】填寫帳號末 5 碼，以便為您加速對帳。</p>
+                        </div>
+                        <button @click="closeRemittanceInfoModal" class="btn-primary py-4 rounded-xl text-[15px] shadow-lg shadow-green-100">
+                            我知道了，前往報名紀錄
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </transition>
 
-        <transition name="fade"><div v-if="showRemittanceInfoModal" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"><div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl transform transition-transform animate-fade-in" @click.stop><div class="bg-[#06C755] p-6 text-center"><div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-[#06C755] text-3xl mx-auto mb-3 shadow-inner"><i class="fas fa-check"></i></div><h3 class="text-xl font-black text-white">報名單已建立！</h3></div><div class="p-6"><p class="text-[14px] text-slate-600 font-bold mb-4 text-center">請將款項匯至以下官方指定帳戶：</p><div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6"><div class="whitespace-pre-wrap text-slate-700 font-bold text-[14px] leading-relaxed">{{ sysSettings.remittance_info || '尚未設定匯款帳號，請聯絡官方客服。' }}</div></div><div class="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-6 flex gap-3 items-start shadow-sm"><i class="fas fa-exclamation-triangle text-orange-500 mt-0.5 text-lg"></i><p class="text-[12px] text-orange-700 font-bold leading-relaxed">請務必截圖保留此帳號。<br>完成匯款後，請至「報名紀錄」點擊【轉帳回報】填寫帳號末 5 碼，以便為您加速對帳。</p></div><button @click="closeRemittanceInfoModal" class="btn-primary py-4 rounded-xl text-[15px] shadow-lg shadow-green-100">我知道了，前往報名紀錄</button></div></div></div></transition>
-
-        <transition name="slide-up"><div v-if="showRemittanceModal" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm"><div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-[max(env(safe-area-inset-bottom),24px)] transform transition-transform" @click.stop><div class="flex justify-between items-center mb-6"><h3 class="text-[19px] font-black text-[#111111]">轉帳完成回報</h3><button @click="showRemittanceModal = false" class="w-8 h-8 bg-[#F4F5F7] rounded-full text-slate-400 flex items-center justify-center text-lg active:scale-90 transition"><i class="fas fa-times"></i></button></div><div class="mb-6"><p class="text-[14px] text-slate-500 font-bold mb-4 leading-relaxed">請輸入您匯款帳號的<span class="text-[#06C755] mx-1">最後 5 碼</span><br>以便財務加速為您對帳：</p><input type="tel" v-model="remittanceInput" maxlength="5" pattern="\d*" class="native-input text-center text-4xl font-mono py-6 tracking-widest bg-slate-50 border border-slate-200 rounded-xl" placeholder="12345"></div><button @click="submitRemittance" :disabled="isLoading" class="btn-primary py-4 rounded-xl text-[16px] shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認送出回報</button></div></div></transition>
+        <transition name="slide-up">
+            <div v-if="showRemittanceModal" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm">
+                <div class="bg-white w-full max-w-md rounded-t-3xl p-6 pb-[max(env(safe-area-inset-bottom),24px)] transform transition-transform" @click.stop>
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-[19px] font-black text-[#111111]">轉帳完成回報</h3>
+                        <button @click="showRemittanceModal = false" class="w-8 h-8 bg-[#F4F5F7] rounded-full text-slate-400 flex items-center justify-center text-lg active:scale-90 transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="mb-6">
+                        <p class="text-[14px] text-slate-500 font-bold mb-4 leading-relaxed">請輸入您匯款帳號的<span class="text-[#06C755] mx-1">最後 5 碼</span><br>以便財務加速為您對帳：</p>
+                        <input type="tel" v-model="remittanceInput" maxlength="5" pattern="\d*" class="native-input text-center text-4xl font-mono py-6 tracking-widest bg-slate-50 border border-slate-200 rounded-xl" placeholder="12345">
+                    </div>
+                    <button @click="submitRemittance" :disabled="isLoading" class="btn-primary py-4 rounded-xl text-[16px] shadow-lg shadow-green-100">
+                        <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認送出回報
+                    </button>
+                </div>
+            </div>
+        </transition>
 
     </div>
 
     <script>
-        const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
-        const CACHE_VERSION = 'v256'; 
+        const WORKER_URL = 'https://action.fangwl591021.workers.dev/'; 
+        const CACHE_VERSION = 'v256';
 
         const initVueApp = () => {
-            // 確保 Vue 已經成功載入，否則重試
             if (typeof Vue === 'undefined') {
                 setTimeout(initVueApp, 100);
                 return;
