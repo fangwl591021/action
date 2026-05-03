@@ -480,7 +480,14 @@
                     // 🛡️ API 呼叫：自動挾帶 LINE ID Token 與管理員密碼
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
-                            const token = typeof liff !== 'undefined' && liff.isLoggedIn() ? liff.getIDToken() : null;
+                            let token = null;
+                            try {
+                                if (typeof liff !== 'undefined' && typeof liff.isLoggedIn === 'function') {
+                                    // 確保在 LIFF 未初始化時，不會因為報錯而阻斷整個 API 請求
+                                    token = liff.isLoggedIn() ? liff.getIDToken() : null;
+                                }
+                            } catch (err) {}
+
                             if (loginForm.value.password) pl.adminPwd = loginForm.value.password;
                             
                             const res = await fetch(WORKER_URL, {
