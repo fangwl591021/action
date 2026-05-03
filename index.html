@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生進化ACTION</title>
-    <!-- Version: 2026.05.03.V272_Fix_Null_Pointer -->
+    <!-- Version: 2026.05.04.V273_Frontend_Health_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -509,7 +509,9 @@
                         try {
                             const rawSets = await callApi('GET_SETTINGS', { _t: Date.now() }, true);
                             let sets = {}; Object.keys(rawSets).forEach(k => sets[k.toLowerCase()] = rawSets[k]);
-                            sysSettings.value = sets; localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets));
+                            sysSettings.value = sets;
+                            // 🛡️ 體檢修復：LocalStorage 爆滿防護
+                            try { localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets)); } catch(e) {}
                             
                             let finalLiffId = String(sysSettings.value.liff_id || '').trim();
                             if (finalLiffId.includes('liff.line.me/')) finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
@@ -530,7 +532,8 @@
 
                             const urlParams = new URLSearchParams(window.location.search);
                             const refCode = urlParams.get('ref');
-                            if (refCode) localStorage.setItem('referral_uid', refCode);
+                            // 🛡️ 體檢修復：LocalStorage 爆滿防護
+                            try { if (refCode) localStorage.setItem('referral_uid', refCode); } catch(e) {}
                             const viewParam = urlParams.get('view');
 
                             const [checkRes, cData, oData, pData] = await Promise.all([
@@ -546,9 +549,12 @@
                             if (pData) userPoints.value = pData;
 
                             if (uid) {
-                                localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes));
-                                localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(pData));
-                                localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
+                                // 🛡️ 體檢修復：LocalStorage 爆滿防護
+                                try {
+                                    localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes));
+                                    localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(pData));
+                                    localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
+                                } catch(e) { console.warn('LocalStorage limit reached in initApp'); }
                             }
                             
                             isGlobalLoading.value = false;
@@ -609,8 +615,10 @@
                         return courses.value.filter(c => {
                             if (!c) return false;
                             if (c.isPublished === false) return false;
-                            if (c.publishStartDate && nowTs < new Date(c.publishStartDate).getTime()) return false;
-                            if (c.publishEndDate && nowTs > new Date(c.publishEndDate).getTime()) return false;
+                            
+                            // 🛡️ 體檢修復：iOS Safari Invalid Date Bug
+                            if (c.publishStartDate && nowTs < new Date(String(c.publishStartDate).replace(/-/g, '/')).getTime()) return false;
+                            if (c.publishEndDate && nowTs > new Date(String(c.publishEndDate).replace(/-/g, '/')).getTime()) return false;
 
                             const matchInstructor = c.instructor === selectedTeacher.value.name;
                             const isConsultType = (c.type || '').includes('預約') || (c.type || '').includes('諮詢') || (c.name || '').includes('諮詢') || (c.name || '').includes('預約');
@@ -629,7 +637,8 @@
                         const todayTs = today.getTime();
                         
                         const validDateStrs = uniqueDateStrs.filter(dStr => {
-                            const d = new Date(dStr);
+                            // 🛡️ 體檢修復：iOS Safari Invalid Date Bug
+                            const d = new Date(String(dStr).replace(/-/g, '/'));
                             return d.getTime() >= todayTs;
                         });
 
@@ -649,7 +658,8 @@
                             }
                             
                             if (hasRealOpen) {
-                                const dObj = new Date(dStr);
+                                // 🛡️ 體檢修復：iOS Safari Invalid Date Bug
+                                const dObj = new Date(String(dStr).replace(/-/g, '/'));
                                 result.push({
                                     fullDate: dStr,
                                     month: dObj.getMonth() + 1,
@@ -870,6 +880,8 @@
                         const payRes = await callApi('GET_PAYMENT_PAYLOAD', { orderId: orderId, amount: amount, courseName: courseName, email: userStatus.value.info?.email || 'user@example.com', workerUrl: WORKER_URL }, false);
                         if (payRes && payRes.GatewayUrl) {
                             const form = document.createElement('form'); form.method = 'POST'; form.action = payRes.GatewayUrl; form.style.display = 'none';
+                            // 🛡️ 體檢修復：確保金流跳轉不會卡在 iFrame 內導致失敗
+                            form.target = "_top";
                             const params = { MerchantID: payRes.MerchantID, TradeInfo: payRes.TradeInfo, TradeSha: payRes.TradeSha, Version: payRes.Version };
                             for (const key in params) { const input = document.createElement('input'); input.type = 'hidden'; input.name = key; input.value = params[key]; form.appendChild(input); }
                             document.body.appendChild(form); form.submit();
@@ -932,7 +944,8 @@
                             const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
                             const courseName = (getCourseName(o.courseId) || '').split('\n')[0];
                             await initiatePayment(o.orderId, amt, courseName);
-                        } catch (e) { console.error(e); } finally { isLoading.value = false; }
+                        } catch (e) { console.error(e); isLoading.value = false; }
+                        // 移除 finally 裡的 isLoading = false，因為跳轉金流時按鈕應該保持鎖定狀態，避免重複點擊
                     };
 
                     const cancelOrder = async (o) => {
@@ -978,8 +991,11 @@
                             return courses.value.filter(c => {
                                 if (!c) return false;
                                 if (c.isPublished === false) return false;
-                                if (c.publishStartDate && nowTs < new Date(c.publishStartDate).getTime()) return false;
-                                if (c.publishEndDate && nowTs > new Date(c.publishEndDate).getTime()) return false;
+                                
+                                // 🛡️ 體檢修復：iOS Safari Invalid Date Bug
+                                if (c.publishStartDate && nowTs < new Date(String(c.publishStartDate).replace(/-/g, '/')).getTime()) return false;
+                                if (c.publishEndDate && nowTs > new Date(String(c.publishEndDate).replace(/-/g, '/')).getTime()) return false;
+                                
                                 if (activeCategory.value === '全部') return true;
                                 const searchTarget = (c.name || '') + ' ' + (c.type || '');
                                 if (activeCategory.value === '一般') return !['會員', '喚醒', '蛻變', '完整', '預約'].some(k => searchTarget.includes(k));
