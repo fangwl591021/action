@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.05.03.V260_Admin_Syntax_Fix -->
+    <!-- Version: 2026.05.04.V261_Admin_Export_Report -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -108,6 +108,7 @@
                     <h2 class="text-2xl font-bold text-slate-800">{{ currentViewName }}</h2>
                     <div class="flex items-center gap-3">
                         <div class="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded text-green-700 text-xs font-bold mr-2"><div class="w-2 h-2 rounded-full bg-[#06C755] animate-pulse"></div><span>通道正常</span></div>
+                        <button @click="downloadSalesReport" class="btn-outline text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"><i class="fas fa-file-csv mr-2"></i>匯出報表</button>
                         <button @click="forceSyncFromCloud" class="btn-outline text-red-600 border-red-200 bg-red-50 hover:bg-red-100"><i class="fas fa-download mr-2"></i>強制同步</button>
                         <button @click="fetchData(false)" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
                         <button @click="triggerBackup" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-hdd mr-2"></i>資料備份</button>
@@ -704,6 +705,49 @@
                         return result;
                     });
 
+                    // 🚀 CSV 報表秒速匯出邏輯
+                    const downloadSalesReport = () => {
+                        const validOrders = orders.value.filter(o => o && o.status === 'PAID');
+                        if(validOrders.length === 0) {
+                            alert("目前沒有已付款的訂單可供匯出。");
+                            return;
+                        }
+
+                        const totalRev = validOrders.reduce((sum, o) => sum + (Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0), 0);
+
+                        // \uFEFF 是 BOM 標記，可防止 Windows Excel 打開 CSV 時中文變成亂碼
+                        let csvContent = "\uFEFF"; 
+                        csvContent += "訂單編號,建立時間,學員姓名,聯絡電話,課程與服務名稱,實付金額,付款狀態,管理備註\n";
+
+                        validOrders.forEach(o => {
+                            // 將字串中的雙引號轉換為兩個雙引號，並用雙引號包覆整格，防止內容包含逗號導致跑版
+                            let courseName = `"${String(getCourseName(o.courseId) || '').replace(/"/g, '""')}"`;
+                            let name = `"${String(o.name || '').replace(/"/g, '""')}"`;
+                            let phone = `"${String(o.phone || '').replace(/"/g, '""')}"`;
+                            let amount = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
+                            let status = o.status === 'PAID' ? '已完款' : o.status;
+                            let note = `"${String(o.note || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+
+                            csvContent += `${o.orderId},${o.createdAt},${name},${phone},${courseName},${amount},${status},${note}\n`;
+                        });
+
+                        // 建立安全下載連結
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        const today = new Date().toISOString().split('T')[0];
+
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", `宏學_業績報表_${today}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+
+                        alert(`✅ 報表下載成功！\n共匯出 ${validOrders.length} 筆有效訂單，總營收 $${totalRev.toLocaleString()}。`);
+                    };
+
                     const triggerBackup = async () => {
                         if(!confirm('確定要觸發資料庫備份嗎？')) return;
                         isLoading.value = true;
@@ -913,7 +957,8 @@
                         openNewCourseModal, openEditModal, saveCourse, copyCourse, syncToCalendar,
                         handleBannerUpload, saveSettings, openEnrollments, openCourseOrdersModal,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
-                        openSysConfigModal, saveSysConfig, handleApproveTeacher, getCourseName, formatPrice
+                        openSysConfigModal, saveSysConfig, handleApproveTeacher, getCourseName, formatPrice,
+                        downloadSalesReport /* 加入匯出函數 */
                     };
                 }
             }).mount('#app');
