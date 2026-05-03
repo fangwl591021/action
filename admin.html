@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.05.03.V256_Admin_Payment_Logs -->
+    <!-- Version: 2026.05.03.V258_Admin_Orders_Search_Sort -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -47,6 +47,7 @@
         .tag-blue { background-color: #eff6ff; color: #2563eb; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; }
         .tag-gray { background-color: #f1f5f9; color: #94a3b8; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; }
         .tag-green { background-color: #f0fdf4; color: #06C755; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+        .tag-orange { background-color: #FF5809; color: #ffffff; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -153,7 +154,11 @@
                             <thead><tr><th>姓名</th><th>聯絡電話</th><th>目前等級</th><th>註冊日期</th><th class="text-right">操作</th></tr></thead>
                             <tbody>
                                 <tr v-for="u in filteredMembers" :key="u.userId">
-                                    <td class="font-bold text-slate-800">{{ u.name }}</td><td class="font-mono text-slate-500">{{ u.phone }}</td><td><span class="tag-green">{{ u.memberTier }}</span></td><td class="text-slate-400 text-sm font-mono">{{ u.createdAt }}</td><td class="text-right"><button @click="openMemberDetail(u)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">CRM 檔案</button></td>
+                                    <td class="font-bold text-slate-800">{{ u.name }}</td>
+                                    <td class="font-mono text-slate-500">{{ u.phone }}</td>
+                                    <td><span class="tag-orange">{{ u.memberTier }}</span></td>
+                                    <td class="text-slate-400 text-sm font-mono">{{ u.createdAt }}</td>
+                                    <td class="text-right"><button @click="openMemberDetail(u)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">CRM 檔案</button></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -209,11 +214,14 @@
                 </div>
 
                 <div v-if="view === 'orders'" class="animate-fade-in">
+                    <div class="px-6 py-4 flex gap-3 border-b border-slate-100 bg-white">
+                        <div class="relative w-full max-w-sm"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="orderSearch" placeholder="搜尋單號、姓名、電話、課程..." class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
+                    </div>
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
                         <table class="admin-table">
                             <thead><tr><th>單號 / 日期</th><th>課程</th><th>學員</th><th>金額</th><th>狀態</th><th class="text-right">操作</th></tr></thead>
                             <tbody>
-                                <tr v-for="o in orders" :key="o.orderId">
+                                <tr v-for="o in filteredOrders" :key="o.orderId">
                                     <td><div class="font-mono font-bold text-[13px] text-slate-500">{{o.orderId}}</div><div class="text-[11px] text-slate-400 mt-0.5">{{o.createdAt}}</div></td>
                                     <td class="font-bold text-slate-700">{{ String(getCourseName(o.courseId) || '').split('\n')[0] }}</td>
                                     <td class="font-bold">{{o.name}}</td>
@@ -221,6 +229,7 @@
                                     <td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{o.status==='PAID'?'已完款':'待付'}}</span></td>
                                     <td class="text-right"><button @click="openOrderEditModal(o)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">維護</button></td>
                                 </tr>
+                                <tr v-if="!filteredOrders.length"><td colspan="6" class="text-center py-20 text-slate-300 font-bold">找不到符合條件的訂單</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -446,6 +455,7 @@
                     
                     const memberSearch = ref('');
                     const courseSearchQuery = ref('');
+                    const orderSearch = ref('');
                     const approveForm = ref({ uid: '', rent: 0, comm: 0 });
                     
                     const isImageUploading = ref(false);
@@ -664,6 +674,32 @@
                         return courses.value.filter(c => c && ((c.name && c.name.toLowerCase().includes(q)) || (c.type && c.type.toLowerCase().includes(q)) || (c.id && c.id.toLowerCase().includes(q))));
                     });
 
+                    const filteredOrders = computed(() => {
+                        let result = orders.value.filter(o => o);
+                        
+                        // 依照建立時間降序排列 (最新的在前)
+                        result.sort((a, b) => {
+                            const tA = new Date(a.createdAt).getTime() || 0;
+                            const tB = new Date(b.createdAt).getTime() || 0;
+                            return tB - tA;
+                        });
+
+                        // 進行搜尋過濾
+                        if (orderSearch.value) {
+                            const q = orderSearch.value.toLowerCase().trim();
+                            result = result.filter(o => {
+                                const cName = getCourseName(o.courseId) || '';
+                                return (
+                                    (o.orderId && o.orderId.toLowerCase().includes(q)) ||
+                                    (o.name && o.name.toLowerCase().includes(q)) ||
+                                    (o.phone && o.phone.includes(q)) ||
+                                    (cName.toLowerCase().includes(q))
+                                );
+                            });
+                        }
+                        return result;
+                    });
+
                     const triggerBackup = async () => {
                         if(!confirm('確定要觸發資料庫備份嗎？')) return;
                         isLoading.value = true;
@@ -863,6 +899,7 @@
                         users, teachers, courses, orders, sysSettings, paymentLogs,
                         currentViewName, totalRevenue, courseStatsFiltered,
                         memberSearch, filteredMembers, courseSearchQuery, filteredAdminCourses,
+                        orderSearch, filteredOrders,
                         approveForm, isImageUploading, editingCourse,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
