@@ -488,7 +488,9 @@
                                 }
                             } catch (err) {}
 
+                            // 修復：支援跨頁面重新整理的 Session 授權狀態
                             if (loginForm.value.password) pl.adminPwd = loginForm.value.password;
+                            else if (sessionStorage.getItem('act_admin_pwd')) pl.adminPwd = sessionStorage.getItem('act_admin_pwd');
                             
                             const res = await fetch(WORKER_URL, {
                                 method: 'POST',
@@ -543,8 +545,13 @@
                                     occupiedLocations.value = Array.isArray(slotData) ? [] : (slotData.occupiedLocations || []);
                                 }
 
-                                localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value }));
-                                localStorage.setItem('act_admin_logged_in', 'true');
+                                // 修復：防範未來營運資料過大導致 LocalStorage 爆量當機
+                                try {
+                                    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value }));
+                                    localStorage.setItem('act_admin_logged_in', 'true');
+                                } catch(cacheError) {
+                                    console.warn('LocalStorage 快取空間已滿，系統將改為即時連線模式');
+                                }
                             }
                         } catch(e) {
                             console.error(e);
@@ -632,6 +639,7 @@
                         if (acc === 'admin' && pwd === '@1234') {
                             isAuthenticated.value = true;
                             localStorage.setItem('act_admin_logged_in', 'true');
+                            sessionStorage.setItem('act_admin_pwd', pwd); // 將密碼暫存於分頁中，防止重整後權限遺失
                             fetchData(false);
                         } else {
                             alert('帳號或密碼錯誤');
@@ -642,6 +650,7 @@
                         isAuthenticated.value = false;
                         localStorage.removeItem('act_admin_logged_in');
                         localStorage.removeItem(CACHE_KEY);
+                        sessionStorage.removeItem('act_admin_pwd'); // 登出時一併清除
                         loginForm.value = { account: '', password: '' };
                     };
 
@@ -689,10 +698,10 @@
                     const filteredOrders = computed(() => {
                         let result = orders.value.filter(o => o);
                         
-                        // 依照建立時間降序排列 (最新的在前)
+                        // 修復：將日期中的 - 替換為 /，防止 Safari (iPhone/Mac) 解析 Invalid Date 導致排序崩潰
                         result.sort((a, b) => {
-                            const tA = new Date(a.createdAt).getTime() || 0;
-                            const tB = new Date(b.createdAt).getTime() || 0;
+                            const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
+                            const tB = new Date(String(b.createdAt).replace(/-/g, '/')).getTime() || 0;
                             return tB - tA;
                         });
 
@@ -742,7 +751,9 @@
                         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement("a");
-                        const today = new Date().toISOString().split('T')[0];
+                        
+                        // 修復：鎖定為台灣時區，防止早上 8 點前匯出報表變成「昨天」的日期
+                        const today = new Date().toLocaleString('zh-TW', {timeZone: 'Asia/Taipei', hour12: false}).split(' ')[0].replace(/\//g, '-');
 
                         link.setAttribute("href", url);
                         link.setAttribute("download", `宏學_業績報表_${today}.csv`);
@@ -881,7 +892,12 @@
                     
                     const openCourseOrdersModal = (course) => {
                         selectedCourseForOrders.value = course;
-                        selectedCourseOrders.value = orders.value.filter(o => o && (o.courseId === course.id || o.courseId === course.name) && o.status !== 'CANCELLED').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                        // 修復：解決 Safari (iPhone/Mac) 在報名名單排序時的 Invalid Date 錯誤
+                        selectedCourseOrders.value = orders.value.filter(o => o && (o.courseId === course.id || o.courseId === course.name) && o.status !== 'CANCELLED').sort((a, b) => {
+                            const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
+                            const tB = new Date(String(b.createdAt).replace(/-/g, '/')).getTime() || 0;
+                            return tB - tA;
+                        });
                         showOrdersModal.value = true;
                     };
 
