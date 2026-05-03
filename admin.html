@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.05.03.V258_Admin_Orders_Search_Sort -->
+    <!-- Version: 2026.05.03.V260_Admin_Syntax_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -476,12 +476,16 @@
                     const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, '')).toLocaleString();
                     const getCourseName = (id) => { const c = courses.value.find(x => x && (x.id === id || x.name === id)); return c ? c.name : id; };
 
+                    // 🛡️ API 呼叫：自動挾帶 LINE ID Token 與管理員密碼
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
+                            const token = typeof liff !== 'undefined' && liff.isLoggedIn() ? liff.getIDToken() : null;
+                            if (loginForm.value.password) pl.adminPwd = loginForm.value.password;
+                            
                             const res = await fetch(WORKER_URL, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {} })
+                                body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {}, idToken: token })
                             });
                             const text = await res.text();
                             let json;
