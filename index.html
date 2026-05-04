@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生進化ACTION</title>
-    <!-- Version: 2026.05.04.V275_iOS_Zoom_And_Jpeg_Fallback -->
+    <!-- Version: 2026.05.04.V276_Booking_Bottom_Nav -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,6 @@
                         <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">聯絡手機 <span class="text-red-500">*</span></label><input type="tel" v-model="regForm.phone" class="native-input font-mono border border-slate-200 bg-[#F4F5F7]" placeholder="09xxxxxxxx"></div>
                         <div class="grid grid-cols-2 gap-3">
                             <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">性別</label><select v-model="regForm.gender" class="native-input border border-slate-200 bg-[#F4F5F7]"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
-                            <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 日期選擇器觸發放大 -->
                             <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">出生年月日</label><input type="date" v-model="regForm.birthday" class="native-input border border-slate-200 bg-[#F4F5F7] text-[16px]"></div>
                         </div>
                         <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">目前業種 (選填)</label><input type="text" v-model="regForm.industry" class="native-input border border-slate-200 bg-[#F4F5F7]" placeholder="例如：行銷、教育、自由業"></div>
@@ -188,7 +187,6 @@
                         <div v-else class="space-y-5 animate-fade-in">
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">真實姓名</label><input type="text" v-model="editForm.name" class="native-input border border-slate-200 bg-white" placeholder="請輸入真實姓名"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">性別</label><select v-model="editForm.gender" class="native-input border border-slate-200 bg-white"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
-                            <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 日期選擇器觸發放大 -->
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="editForm.birthday" class="native-input border border-slate-200 bg-white text-[16px]"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="editForm.phone" class="native-input font-mono border border-slate-200 bg-white" placeholder="09xxxxxxxx"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="例如：行銷、教育"></div>
@@ -197,7 +195,6 @@
                             <div v-if="(userStatus.info?.memberTier || '').includes('導師')" class="pt-4 border-t border-slate-100 mt-2">
                                 <div class="text-[13px] font-bold text-[#06C755] mb-4"><i class="fas fa-id-badge mr-1"></i> 導師公開名片設定</div>
                                 <div class="mb-4"><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">專業形象照</label><div class="flex items-center gap-3"><div class="w-14 h-14 rounded-full bg-slate-50 border border-slate-100 overflow-hidden shrink-0 relative shadow-sm"><img v-if="editForm.avatar || liffProfile.pictureUrl" :src="editForm.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover"><div v-if="isImageUploading" class="absolute inset-0 bg-white/70 flex items-center justify-center"><i class="fas fa-spinner fa-spin text-[#06C755]"></i></div></div><button @click="$refs.avatarInput.click()" :disabled="isImageUploading" class="px-4 py-2 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600 bg-white shadow-sm hover:bg-slate-50 transition active:scale-95">更換照片</button><input type="file" ref="avatarInput" class="hidden" accept="image/*" @change="handleAvatarUpload"></div></div>
-                                <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 輸入框觸發放大 -->
                                 <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">導師簡介</label><textarea v-model="editForm.intro" class="native-input border border-slate-200 bg-white h-28 resize-none leading-relaxed text-[16px]" placeholder="請輸入您的專業背景、經歷等..."></textarea></div>
                             </div>
                             
@@ -227,80 +224,6 @@
                     <div class="w-full bg-white rounded-3xl p-6 border border-slate-100 text-center shadow-sm mb-6"><div class="flex items-center justify-center gap-2 mb-4"><i class="fas fa-qrcode text-[#06C755] text-xl"></i><h3 class="text-[17px] font-black text-slate-800">現場掃碼邀約加入</h3></div><div class="bg-slate-50 rounded-2xl p-4 inline-block mx-auto border border-slate-100"><img :src="'https://quickchart.io/qr?text=' + encodeURIComponent(shareUrl) + '&size=200'" class="w-48 h-48 object-contain"></div><p class="text-[12px] text-slate-400 font-bold mt-4">請好友打開 LINE 掃描器，直接掃描上方條碼</p></div>
                     <div class="w-full p-5 bg-white rounded-2xl border border-slate-100 text-xs text-slate-500 leading-relaxed font-medium shadow-sm mb-8 text-left"><p class="font-bold text-slate-700 mb-2"><i class="fas fa-info-circle mr-1 text-[#06C755]"></i> 推薦獎勵說明：</p><ul class="list-disc pl-4 space-y-1.5"><li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得紅包點數。</li><li>每成功邀請一位，您將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_refer || 0 }}</span> 點。</li><li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新紅包。</li></ul></div>
                 </div>
-            </div>
-        </transition>
-
-        <transition name="slide-up">
-            <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[60] flex flex-col overflow-hidden">
-                <div class="absolute top-0 left-0 w-full z-50 flex justify-between items-center p-4 pt-[max(env(safe-area-inset-top),16px)] bg-gradient-to-b from-black/60 to-transparent pointer-events-none"><button @click="view = 'home'" class="w-10 h-10 text-lg bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto active:scale-90 transition shadow-sm"><i class="fas fa-arrow-left"></i></button></div>
-                <div class="flex-1 overflow-y-auto pb-32 hide-scrollbar">
-                    <div class="w-full aspect-video bg-slate-100 relative overflow-hidden"><div class="absolute top-4 left-4 z-10" v-if="selectedCourse.type && selectedCourse.type !== '一般' && selectedCourse.type !== '全部'"><span class="category-pill !text-[12px] !px-3 !py-1.5">{{ selectedCourse.type }}</span></div><img v-if="selectedCourse.image" :src="selectedCourse.image" class="absolute inset-0 w-full h-full object-cover"><div v-else class="absolute inset-0 flex items-center justify-center text-slate-300"><i class="far fa-image text-5xl"></i></div></div>
-                    <div class="p-6 mt-2">
-                        <h1 class="text-2xl font-black text-slate-800 mb-3 leading-normal">{{ String(selectedCourse?.name || '').split('\n')[0] }}</h1>
-                        <div class="text-3xl font-black text-[#06C755] mb-8">{{ selectedCourse.priceText || ('$' + formatPrice(selectedCourse.price)) }}</div>
-                        <div class="bg-[#F8F9FA] rounded-2xl p-5 space-y-4 border border-[#EEEEEE]">
-                            <div v-if="selectedCourse.timeSlotType" class="flex gap-4"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm text-base"><i class="far fa-clock"></i></div><div><div class="text-[13px] text-slate-400 font-bold mb-1">時段說明</div><div class="text-[15px] font-bold text-slate-700">{{ selectedCourse.timeSlotType }}</div></div></div>
-                            <div v-if="selectedCourse.startDate" class="flex gap-4"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm text-base"><i class="far fa-calendar-alt"></i></div><div><div class="text-[13px] text-slate-400 font-bold mb-1">開課日期</div><div class="text-[15px] font-bold text-slate-700">{{ selectedCourse.startDate }} <span v-if="selectedCourse.endDate">~ {{ selectedCourse.endDate }}</span></div></div></div>
-                            <div v-if="selectedCourse.location" class="flex gap-4"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm text-base"><i class="fas fa-map-marker-alt"></i></div><div><div class="text-[13px] text-slate-400 font-bold mb-1">上課地點</div><div class="text-[15px] font-bold text-slate-700">{{ selectedCourse.location }}</div></div></div>
-                            <div v-if="selectedCourse.instructor" class="flex gap-4"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shrink-0 shadow-sm text-base"><i class="fas fa-chalkboard-teacher"></i></div><div><div class="text-[13px] text-slate-400 font-bold mb-1">授課導師</div><div class="text-[15px] font-bold text-slate-700">{{ selectedCourse.instructor }}</div></div></div>
-                        </div>
-                        <div class="mt-8 border-t border-slate-100 pt-6" v-if="selectedCourse.price > 0">
-                            <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-calculator text-[#06C755] text-lg"></i>結帳試算</h3>
-                            <div class="bg-[#F8F9FA] rounded-2xl p-5 space-y-3 border border-[#EEEEEE]">
-                                <div class="flex justify-between items-center text-[15px] font-bold text-slate-600"><span>課程定價</span><span>$ {{ formatPrice(selectedCourse.price) }}</span></div>
-                                <div v-if="pointsToUse > 0" class="flex justify-between items-center text-[15px] font-bold text-red-500"><span>紅包點數折抵 <span class="text-xs ml-1">({{ selectedCourse.discountRule === 'RULE_A' ? '上限20%' : (selectedCourse.discountRule === 'RULE_B' ? '上限50%' : '全額') }})</span></span><span>- {{ formatPrice(pointsToUse) }} 點</span></div>
-                                <div class="pt-3 border-t border-[#EEEEEE] flex justify-between items-center text-[18px] font-black text-[#111111] mt-2"><span>實際應付</span><span class="text-[#06C755] text-[19px]">$ {{ formatPrice(finalPrice) }}</span></div>
-                            </div>
-                        </div>
-                        <div class="mt-6 border-t border-slate-100 pt-6" v-if="finalPrice > 0">
-                            <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-wallet text-[#06C755] text-lg"></i>選擇付款方式</h3>
-                            <div class="flex gap-3">
-                                <button v-if="!selectedCourse.paymentMethod || selectedCourse.paymentMethod === 'ALL' || selectedCourse.paymentMethod === 'NEWEBPAY'" @click="paymentMethod = 'NEWEBPAY'" class="flex-1 py-4 rounded-xl border-2 font-bold text-[14px] transition-all flex flex-col items-center justify-center gap-2" :class="paymentMethod === 'NEWEBPAY' ? 'border-[#06C755] bg-green-50 text-[#06C755]' : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300'"><i class="fas fa-credit-card text-2xl block"></i>線上刷卡</button>
-                                <button v-if="!selectedCourse.paymentMethod || selectedCourse.paymentMethod === 'ALL' || selectedCourse.paymentMethod === 'REMITTANCE'" @click="paymentMethod = 'REMITTANCE'" class="flex-1 py-4 rounded-xl border-2 font-bold text-[14px] transition-all flex flex-col items-center justify-center gap-2" :class="paymentMethod === 'REMITTANCE' ? 'border-[#06C755] bg-green-50 text-[#06C755]' : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300'"><i class="fas fa-university text-2xl block"></i>銀行匯款</button>
-                            </div>
-                        </div>
-                        <div class="mt-8 border-t border-slate-100 pt-8"><h3 class="text-[17px] font-black text-[#111111] mb-5 flex items-center gap-2"><i class="fas fa-align-left text-[#06C755] text-lg"></i>詳細內容與權益</h3><div class="text-[15px] text-slate-600 leading-relaxed whitespace-pre-wrap font-medium">{{ selectedCourse.description ? selectedCourse.description : (String(selectedCourse?.name || '').includes('\n') ? String(selectedCourse?.name || '').substring(String(selectedCourse?.name || '').indexOf('\n') + 1).trim() : '暫無詳細說明') }}</div></div>
-                    </div>
-                </div>
-                <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-100 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-[70] shadow-[0_-10px_20px_rgba(0,0,0,0.03)]"><button @click="executeBooking" :disabled="isLoading || !selectedCourse.isRegistrationOpen || (selectedCourse.capacity > 0 && selectedCourse.enrolled >= selectedCourse.capacity)" class="btn-primary w-full py-4 text-[17px] shadow-lg shadow-green-100/50 rounded-xl"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ checkoutButtonText }}</button></div>
-            </div>
-        </transition>
-
-        <transition name="slide-up">
-            <div v-if="view === 'my_courses'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[80] flex flex-col h-full overflow-hidden animate-fade-in">
-                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h2 class="text-[17px] font-bold text-[#111111]">我的諮詢預約項目</h2><button @click="openEditMyCourse(null)" class="text-[#06C755] font-bold text-sm bg-green-50 px-3 py-1.5 rounded-lg border border-green-100"><i class="fas fa-plus mr-1"></i>新增</button></div>
-                <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F4F5F7] pb-32">
-                    <div v-for="c in teacherCourses" :key="c.id" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex gap-4">
-                        <div class="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-100"><img v-if="c.image" :src="c.image" class="w-full h-full object-cover"><i v-else class="fas fa-image text-slate-300 text-2xl w-full h-full flex items-center justify-center"></i></div>
-                        <div class="flex-1 flex flex-col justify-between py-0.5 min-w-0"><div><div class="flex justify-between items-start gap-2"><h3 class="font-bold text-slate-800 text-[15px] truncate">{{ String(c?.name || '').split('\n')[0] }}</h3><span class="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded" :class="c.isPublished !== false ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">{{ c.isPublished !== false ? '上架中' : '已下架' }}</span></div><div class="text-[12px] text-slate-500 mt-1">分類: {{ c.type || '預約類' }}</div></div><div class="flex justify-between items-end mt-2"><div class="font-black text-[#06C755] text-[15px]">${{ formatPrice(c.price) }}</div><button @click="openEditMyCourse(c)" class="text-[12px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition">編輯</button></div></div>
-                    </div>
-                    <div v-if="teacherCourses.length === 0" class="text-center py-12 text-slate-400 font-bold bg-white rounded-2xl border border-dashed border-slate-200"><i class="fas fa-box-open text-3xl mb-3 block text-slate-300"></i>尚無建立任何諮詢項目<br>點擊右上角「新增」開始建立</div>
-                </div>
-            </div>
-        </transition>
-
-        <transition name="slide-up">
-            <div v-if="editingMyCourse" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[100] flex flex-col h-full overflow-hidden animate-fade-in">
-                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><button @click="editingMyCourse = null" class="text-slate-400 p-2 -ml-2"><i class="fas fa-times text-xl"></i></button><h1 class="text-[17px] font-black">{{ (editingMyCourse?.id || '').startsWith('NEW_') ? '新增預約項目' : '編輯預約項目' }}</h1><button @click="deleteMyCourse(editingMyCourse.id)" v-if="!(editingMyCourse?.id || '').startsWith('NEW_')" class="text-red-500 p-2 -mr-2"><i class="fas fa-trash-alt"></i></button><div v-else class="w-8"></div></div>
-                <div class="flex-1 overflow-y-auto p-5 pb-32 space-y-5 bg-[#F4F5F7]">
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-2 block">項目首圖</label><div class="w-full aspect-video bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden cursor-pointer" @click="$refs.courseImgInput.click()"><img v-if="editingMyCourse.image" :src="editingMyCourse.image" class="absolute inset-0 w-full h-full object-cover"><div v-if="isCourseImgUploading" class="absolute inset-0 bg-white/80 flex items-center justify-center"><i class="fas fa-spinner fa-spin text-2xl text-[#06C755]"></i></div><div v-if="!editingMyCourse.image && !isCourseImgUploading" class="text-center text-slate-400"><i class="fas fa-cloud-upload-alt text-3xl mb-2"></i><div class="text-[12px] font-bold">點擊上傳圖片</div></div></div><input type="file" ref="courseImgInput" class="hidden" accept="image/*" @change="handleCourseImgUpload"></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">諮詢項目名稱 <span class="text-red-500">*</span></label><input type="text" v-model="editingMyCourse.name" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="輸入預約項目名稱"></div>
-                        <div class="grid grid-cols-2 gap-4"><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">結帳金額 <span class="text-red-500">*</span></label><input type="number" v-model.number="editingMyCourse.price" class="native-input border border-slate-200 bg-white shadow-sm font-black text-[#06C755]" placeholder="0"></div><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">分類標籤</label><input type="text" v-model="editingMyCourse.type" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：預約類"></div></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">前台顯示金額字串</label><input type="text" v-model="editingMyCourse.priceText" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：$1,500/次"></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上課/諮詢地點</label><input type="text" v-model="editingMyCourse.location" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：台北市信義區會議室A"></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">時段說明</label><input type="text" v-model="editingMyCourse.timeSlotType" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：60分鐘"></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上架狀態</label><select v-model="editingMyCourse.isPublished" class="native-input border border-slate-200 bg-white shadow-sm font-bold"><option :value="true">🟢 上架中 (公開顯示)</option><option :value="false">🔴 已下架 (隱藏)</option></select></div>
-                        <div class="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-100 mt-2"><label class="text-[13px] font-bold text-[#06C755] mb-3 block"><i class="fas fa-clock mr-1"></i> 自動上下架時間 (選填)</label><div class="grid grid-cols-2 gap-4">
-                            <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 日期選擇器觸發放大 -->
-                            <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">開放上架時間</label><input type="datetime-local" v-model="editingMyCourse.publishStartDate" class="native-input border border-slate-200 bg-white shadow-sm text-[16px] px-2"></div>
-                            <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">自動下架時間</label><input type="datetime-local" v-model="editingMyCourse.publishEndDate" class="native-input border border-slate-200 bg-white shadow-sm text-[16px] px-2"></div>
-                        </div></div>
-                        <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 多行輸入框觸發放大 -->
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">詳細內容與權益說明</label><textarea v-model="editingMyCourse.description" rows="5" class="native-input border border-slate-200 bg-white shadow-sm resize-none leading-relaxed text-[16px]" placeholder="輸入詳細的諮詢內容說明、適合對象等..."></textarea></div>
-                    </div>
-                </div>
-                <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-100 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-50"><button @click="saveMyCourse" :disabled="isLoading" class="btn-primary w-full py-4 text-[17px] shadow-lg shadow-green-100/50 rounded-xl"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存項目</button></div>
             </div>
         </transition>
 
@@ -402,7 +325,6 @@
                             <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                                 <h3 class="text-[15px] font-black text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-user-edit text-[#06C755]"></i> 聯絡資訊</h3>
                                 <div class="space-y-4">
-                                    <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 輸入框觸發放大 -->
                                     <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">真實姓名 <span class="text-red-500">*</span></label><input type="text" v-model="bookingForm.name" placeholder="請輸入姓名" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[16px] font-bold outline-none focus:border-[#06C755] focus:bg-white transition"></div>
                                     <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">手機號碼 <span class="text-red-500">*</span></label><input type="tel" v-model="bookingForm.phone" placeholder="09xxxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[16px] font-bold font-mono outline-none focus:border-[#06C755] focus:bg-white transition"></div>
                                     <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">給導師的備註 (選填)</label><textarea v-model="bookingForm.note" rows="3" placeholder="想先讓導師了解的狀況？" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[16px] outline-none focus:border-[#06C755] focus:bg-white transition resize-none"></textarea></div>
@@ -421,10 +343,18 @@
                 </div>
 
                 <!-- 底部結帳/導航列 (僅在 Step 4 顯示) -->
-                <div v-if="bookingStep === 4 && !bookingSuccess" class="sticky-footer flex items-center justify-between">
+                <div v-if="bookingStep === 4 && !bookingSuccess" class="sticky-footer flex items-center justify-between z-[60]">
                     <div class="flex flex-col"><span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">諮詢費用</span><span class="text-[20px] font-black text-[#111]">${{ formatPrice(bookingTotalPrice) }}</span></div>
                     <button @click="submitConsultBooking" :disabled="!isBookingFormValid || isLoading" class="bg-[#06C755] text-white px-8 py-3.5 rounded-xl font-black text-[16px] disabled:opacity-50 disabled:bg-slate-300 transition shadow-lg shadow-green-100 w-[180px] flex justify-center items-center active:scale-95"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ isLoading ? '處理中' : '確認預約' }}</button>
                 </div>
+
+                <!-- 🛡️ 修復：加入底部導航列給預約頁面 (Step 1~3 顯示) -->
+                <nav v-if="bookingStep < 4 && !bookingSuccess" class="bottom-nav z-[60]">
+                    <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
+                    <div @click="openBookingFlow" class="nav-item" :class="{'nav-active': view === 'booking'}"><i class="fas fa-calendar-check"></i><span>預約</span></div>
+                    <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
+                    <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile'}"><i class="fas fa-user"></i><span>我的</span></div>
+                </nav>
             </div>
         </transition>
 
@@ -452,7 +382,6 @@
                     <h3 class="text-[17px] font-black text-slate-800 mb-2 flex items-center gap-2"><i class="fas fa-edit text-[#06C755]"></i>轉帳回報</h3>
                     <p class="text-[12px] text-slate-500 font-medium mb-5">請輸入您匯款帳號的<span class="text-red-500 font-bold mx-1">末 5 碼</span>，以便財務為您對帳。</p>
                     <div class="mb-6">
-                        <!-- 🛡️ 體檢修復：加入 text-3xl(36px) 已大於 16px，無自動放大問題 -->
                         <input type="tel" v-model="remittanceInput" maxlength="5" placeholder="例如: 12345" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-center text-3xl font-black font-mono outline-none focus:border-[#06C755] focus:bg-white transition tracking-[0.2em] text-slate-800">
                     </div>
                     <div class="flex gap-3">
@@ -512,9 +441,6 @@
                     const currentOrderForRemit = ref(null);
                     const paymentMethod = ref('NEWEBPAY');
 
-                    // ==========================================
-                    // 🛡️ 修復：前端即時圖片壓縮引擎 (防 Worker Payload 塞爆)
-                    // ==========================================
                     const compressImage = (file, maxWidth = 800) => {
                         return new Promise((resolve, reject) => {
                             const reader = new FileReader();
@@ -537,7 +463,6 @@
                                     const ctx = canvas.getContext('2d');
                                     ctx.drawImage(img, 0, 0, width, height);
                                     
-                                    // 🛡️ 體檢修復：改用 image/jpeg，因為某些舊版 iOS Safari 不支援導出 webp 會產生 10MB 的 PNG 原檔
                                     resolve(canvas.toDataURL('image/jpeg', 0.8));
                                 };
                                 img.onerror = (err) => reject(err);
@@ -546,18 +471,12 @@
                         });
                     };
 
-                    // ==========================================
-                    // Helper Functions
-                    // ==========================================
                     const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString();
                     const getCourseName = (id) => { 
                         const c = courses.value.find(x => x && (x.id === id || x.name === id)); 
                         return c ? c.name : id; 
                     };
 
-                    // ==========================================
-                    // 預約模組整合狀態 (Booking App variables)
-                    // ==========================================
                     const bookingStep = ref(1);
                     const isLoadingBooking = ref(false);
                     const bookingSuccess = ref(false);
@@ -624,7 +543,6 @@
                             const rawSets = await callApi('GET_SETTINGS', { _t: Date.now() }, true);
                             let sets = {}; Object.keys(rawSets).forEach(k => sets[k.toLowerCase()] = rawSets[k]);
                             sysSettings.value = sets;
-                            // 🛡️ 體檢修復：LocalStorage 爆滿防護
                             try { localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets)); } catch(e) {}
                             
                             let finalLiffId = String(sysSettings.value.liff_id || '').trim();
@@ -646,7 +564,6 @@
 
                             const urlParams = new URLSearchParams(window.location.search);
                             const refCode = urlParams.get('ref');
-                            // 🛡️ 體檢修復：LocalStorage 爆滿防護
                             try { if (refCode) localStorage.setItem('referral_uid', refCode); } catch(e) {}
                             const viewParam = urlParams.get('view');
 
@@ -663,7 +580,6 @@
                             if (pData) userPoints.value = pData;
 
                             if (uid) {
-                                // 🛡️ 體檢修復：LocalStorage 爆滿防護
                                 try {
                                     localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes));
                                     localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(pData));
@@ -685,14 +601,11 @@
                     };
 
                     const navigateTo = (t) => {
-                        // 如果尚未註冊，跳轉至自訂的會員註冊頁面
-                        if ((t === 'profile' || t === 'orders' || t === 'share') && !userStatus.value.registered) { view.value = 'register'; window.scrollTo(0, 0); return; }
+                        if ((t === 'profile' || t === 'orders' || t === 'share' || t === 'booking') && !userStatus.value.registered) { view.value = 'register'; window.scrollTo(0, 0); return; }
+                        if (t === 'booking') { openBookingFlow(); return; }
                         view.value = t; window.scrollTo(0, 0);
                     };
 
-                    // ==========================================
-                    // 預約模組整合邏輯 (Booking App Methods)
-                    // ==========================================
                     const openBookingFlow = async () => {
                         if (!userStatus.value.registered) { view.value = 'register'; return; }
                         view.value = 'booking';
@@ -700,7 +613,6 @@
                         bookingSuccess.value = false;
                         window.scrollTo(0, 0);
 
-                        // Lazy load booking data
                         if (allTeachers.value.length === 0) {
                             isLoadingBooking.value = true;
                             try {
@@ -713,7 +625,6 @@
                                     occupiedLocations.value = Array.isArray(slotData) ? [] : (slotData.occupiedLocations || []);
                                 }
 
-                                // Auto-fill form from profile
                                 bookingForm.value.name = userStatus.value.info?.name || liffProfile.value.displayName;
                                 bookingForm.value.phone = userStatus.value.info?.phone || '';
                             } catch(e) { console.error(e); } finally { isLoadingBooking.value = false; }
@@ -731,7 +642,6 @@
                             if (!c) return false;
                             if (c.isPublished === false) return false;
                             
-                            // 🛡️ 體檢修復：iOS Safari Invalid Date Bug
                             if (c.publishStartDate && nowTs < new Date(String(c.publishStartDate).replace(/-/g, '/')).getTime()) return false;
                             if (c.publishEndDate && nowTs > new Date(String(c.publishEndDate).replace(/-/g, '/')).getTime()) return false;
 
@@ -752,7 +662,6 @@
                         const todayTs = today.getTime();
                         
                         const validDateStrs = uniqueDateStrs.filter(dStr => {
-                            // 🛡️ 體檢修復：iOS Safari Invalid Date Bug
                             const d = new Date(String(dStr).replace(/-/g, '/'));
                             return d.getTime() >= todayTs;
                         });
@@ -773,7 +682,6 @@
                             }
                             
                             if (hasRealOpen) {
-                                // 🛡️ 體檢修復：iOS Safari Invalid Date Bug
                                 const dObj = new Date(String(dStr).replace(/-/g, '/'));
                                 result.push({
                                     fullDate: dStr,
@@ -837,14 +745,12 @@
                             if (res && res.orderId) { 
                                 bookingSuccess.value = true; 
                                 window.scrollTo(0,0); 
-                                // 背景重整訂單列表
                                 const oData = await callApi('GET_USER_ORDERS', {}, true);
                                 if (oData) myOrders.value = oData;
                             } 
                             else { throw new Error('預約處理失敗'); }
                         } catch (e) {
                             alert(e.message || '預約失敗，時段可能已被搶走或場地衝突，請重新選擇。');
-                            // 重新拉取排班資料
                             const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
                             if (slotData) {
                                 slots.value = Array.isArray(slotData) ? slotData : (slotData.slots || []);
@@ -876,7 +782,6 @@
                         if(!file) return;
                         isImageUploading.value = true;
                         try {
-                            // 🛡️ 體檢修復：呼叫壓縮函數防爆
                             const compressedBase64 = await compressImage(file);
                             const res = await callApi('UPLOAD_IMAGE', { imageBase64: compressedBase64 });
                             if(res && res.url) editForm.value.avatar = res.url;
@@ -915,7 +820,6 @@
                         if(!file) return;
                         isCourseImgUploading.value = true;
                         try {
-                            // 🛡️ 體檢修復：呼叫壓縮函數防爆
                             const compressedBase64 = await compressImage(file);
                             const res = await callApi('UPLOAD_IMAGE', { imageBase64: compressedBase64 });
                             if(res && res.url) editingMyCourse.value.image = res.url;
@@ -999,7 +903,6 @@
                         const payRes = await callApi('GET_PAYMENT_PAYLOAD', { orderId: orderId, amount: amount, courseName: courseName, email: userStatus.value.info?.email || 'user@example.com', workerUrl: WORKER_URL }, false);
                         if (payRes && payRes.GatewayUrl) {
                             const form = document.createElement('form'); form.method = 'POST'; form.action = payRes.GatewayUrl; form.style.display = 'none';
-                            // 🛡️ 體檢修復：確保金流跳轉不會卡在 iFrame 內導致失敗
                             form.target = "_top";
                             const params = { MerchantID: payRes.MerchantID, TradeInfo: payRes.TradeInfo, TradeSha: payRes.TradeSha, Version: payRes.Version };
                             for (const key in params) { const input = document.createElement('input'); input.type = 'hidden'; input.name = key; input.value = params[key]; form.appendChild(input); }
@@ -1064,7 +967,6 @@
                             const courseName = (getCourseName(o.courseId) || '').split('\n')[0];
                             await initiatePayment(o.orderId, amt, courseName);
                         } catch (e) { console.error(e); isLoading.value = false; }
-                        // 移除 finally 裡的 isLoading = false，因為跳轉金流時按鈕應該保持鎖定狀態，避免重複點擊
                     };
 
                     const cancelOrder = async (o) => {
@@ -1111,7 +1013,6 @@
                                 if (!c) return false;
                                 if (c.isPublished === false) return false;
                                 
-                                // 🛡️ 體檢修復：iOS Safari Invalid Date Bug
                                 if (c.publishStartDate && nowTs < new Date(String(c.publishStartDate).replace(/-/g, '/')).getTime()) return false;
                                 if (c.publishEndDate && nowTs > new Date(String(c.publishEndDate).replace(/-/g, '/')).getTime()) return false;
                                 
@@ -1123,17 +1024,14 @@
                             });
                         }),
                         shareUrl, shareToFriend, copyShareUrl,
-                        // Booking Variables
                         bookingStep, isLoadingBooking, bookingSuccess, bookingTeachers, teacherServices, availableDates, selectDate, selectedTeacher, selectedService, tempSlot, selectedSlot, bookingForm, availableSlotsForDate, bookingTotalPrice, isBookingFormValid, bookingStepTitle,
-                        // Booking Methods
                         openBookingFlow, chooseTeacher, chooseService, chooseSlot, submitConsultBooking, goBookingBack,
-                        goToBooking: openBookingFlow // Alias for template compatibility
+                        goToBooking: openBookingFlow
                     };
                 }
             }).mount('#app');
         };
 
-        // 確保 Vue 載入後才執行應用
         initVueApp();
     </script>
 </body>
