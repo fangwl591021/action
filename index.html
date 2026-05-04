@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生進化ACTION</title>
-    <!-- Version: 2026.05.04.V274_Register_UI_And_Compression -->
+    <!-- Version: 2026.05.04.V275_iOS_Zoom_And_Jpeg_Fallback -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,7 +17,8 @@
         .btn-primary { background-color: #06C755; color: white; font-weight: 800; padding: 14px 20px; border-radius: 12px; text-align: center; font-size: 16px; width: 100%; transition: transform 0.1s; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .btn-primary:active { transform: scale(0.98); }
         .btn-primary:disabled { opacity: 0.5; transform: none; background-color: #cccccc; }
-        .native-input { width: 100%; border: none; background-color: #F4F5F7; border-radius: 10px; padding: 14px 16px; font-size: 15px; outline: none; color: #111111; font-weight: 600; transition: 0.2s; }
+        /* 🛡️ 體檢修復：將 font-size 提升至 16px，防止 iOS Safari 點擊輸入框時強制放大畫面 */
+        .native-input { width: 100%; border: none; background-color: #F4F5F7; border-radius: 10px; padding: 14px 16px; font-size: 16px; outline: none; color: #111111; font-weight: 600; transition: 0.2s; }
         .native-input:focus { background-color: #EAECEF; box-shadow: inset 0 0 0 2px rgba(6,199,85,0.2); }
         .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 28rem; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top: 1px solid #EEEEEE; display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); z-index: 40; }
         .nav-item { flex: 1; padding: 12px 0; text-align: center; color: #AAAAAA; font-size: 10px; font-weight: 800; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: 0.2s; }
@@ -61,7 +62,6 @@
             <button @click="retryInit" class="text-sm font-bold text-slate-400 hover:text-slate-600 transition underline decoration-slate-300 underline-offset-4">我已經加入了，繼續進入系統</button>
         </div>
 
-        <!-- 🛡️ 修復：補齊遺失的會員註冊 UI 頁面 -->
         <transition name="slide-up">
             <div v-if="view === 'register'" class="fixed inset-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[60] flex flex-col overflow-hidden animate-fade-in">
                 <div class="header-fixed border-none pb-0">
@@ -83,7 +83,8 @@
                         <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">聯絡手機 <span class="text-red-500">*</span></label><input type="tel" v-model="regForm.phone" class="native-input font-mono border border-slate-200 bg-[#F4F5F7]" placeholder="09xxxxxxxx"></div>
                         <div class="grid grid-cols-2 gap-3">
                             <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">性別</label><select v-model="regForm.gender" class="native-input border border-slate-200 bg-[#F4F5F7]"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
-                            <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">出生年月日</label><input type="date" v-model="regForm.birthday" class="native-input border border-slate-200 bg-[#F4F5F7] text-[13px]"></div>
+                            <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 日期選擇器觸發放大 -->
+                            <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">出生年月日</label><input type="date" v-model="regForm.birthday" class="native-input border border-slate-200 bg-[#F4F5F7] text-[16px]"></div>
                         </div>
                         <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">目前業種 (選填)</label><input type="text" v-model="regForm.industry" class="native-input border border-slate-200 bg-[#F4F5F7]" placeholder="例如：行銷、教育、自由業"></div>
                         <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block ml-1">聯絡地址 (選填)</label><input type="text" v-model="regForm.address" class="native-input border border-slate-200 bg-[#F4F5F7]" placeholder="若有實體教材寄送需求請填寫"></div>
@@ -187,7 +188,8 @@
                         <div v-else class="space-y-5 animate-fade-in">
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">真實姓名</label><input type="text" v-model="editForm.name" class="native-input border border-slate-200 bg-white" placeholder="請輸入真實姓名"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">性別</label><select v-model="editForm.gender" class="native-input border border-slate-200 bg-white"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="editForm.birthday" class="native-input border border-slate-200 bg-white text-[13px]"></div>
+                            <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 日期選擇器觸發放大 -->
+                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="editForm.birthday" class="native-input border border-slate-200 bg-white text-[16px]"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="editForm.phone" class="native-input font-mono border border-slate-200 bg-white" placeholder="09xxxxxxxx"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="例如：行銷、教育"></div>
                             <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="editForm.address" class="native-input border border-slate-200 bg-white" placeholder="寄送實體資料使用"></div>
@@ -195,7 +197,8 @@
                             <div v-if="(userStatus.info?.memberTier || '').includes('導師')" class="pt-4 border-t border-slate-100 mt-2">
                                 <div class="text-[13px] font-bold text-[#06C755] mb-4"><i class="fas fa-id-badge mr-1"></i> 導師公開名片設定</div>
                                 <div class="mb-4"><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">專業形象照</label><div class="flex items-center gap-3"><div class="w-14 h-14 rounded-full bg-slate-50 border border-slate-100 overflow-hidden shrink-0 relative shadow-sm"><img v-if="editForm.avatar || liffProfile.pictureUrl" :src="editForm.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover"><div v-if="isImageUploading" class="absolute inset-0 bg-white/70 flex items-center justify-center"><i class="fas fa-spinner fa-spin text-[#06C755]"></i></div></div><button @click="$refs.avatarInput.click()" :disabled="isImageUploading" class="px-4 py-2 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600 bg-white shadow-sm hover:bg-slate-50 transition active:scale-95">更換照片</button><input type="file" ref="avatarInput" class="hidden" accept="image/*" @change="handleAvatarUpload"></div></div>
-                                <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">導師簡介</label><textarea v-model="editForm.intro" class="native-input border border-slate-200 bg-white h-28 resize-none leading-relaxed text-[14px]" placeholder="請輸入您的專業背景、經歷等..."></textarea></div>
+                                <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 輸入框觸發放大 -->
+                                <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">導師簡介</label><textarea v-model="editForm.intro" class="native-input border border-slate-200 bg-white h-28 resize-none leading-relaxed text-[16px]" placeholder="請輸入您的專業背景、經歷等..."></textarea></div>
                             </div>
                             
                             <div class="pt-6"><button @click="saveProfileUpdate" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存變更</button></div>
@@ -288,8 +291,13 @@
                         <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上課/諮詢地點</label><input type="text" v-model="editingMyCourse.location" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：台北市信義區會議室A"></div>
                         <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">時段說明</label><input type="text" v-model="editingMyCourse.timeSlotType" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：60分鐘"></div>
                         <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上架狀態</label><select v-model="editingMyCourse.isPublished" class="native-input border border-slate-200 bg-white shadow-sm font-bold"><option :value="true">🟢 上架中 (公開顯示)</option><option :value="false">🔴 已下架 (隱藏)</option></select></div>
-                        <div class="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-100 mt-2"><label class="text-[13px] font-bold text-[#06C755] mb-3 block"><i class="fas fa-clock mr-1"></i> 自動上下架時間 (選填)</label><div class="grid grid-cols-2 gap-4"><div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">開放上架時間</label><input type="datetime-local" v-model="editingMyCourse.publishStartDate" class="native-input border border-slate-200 bg-white shadow-sm text-xs px-2"></div><div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">自動下架時間</label><input type="datetime-local" v-model="editingMyCourse.publishEndDate" class="native-input border border-slate-200 bg-white shadow-sm text-xs px-2"></div></div></div>
-                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">詳細內容與權益說明</label><textarea v-model="editingMyCourse.description" rows="5" class="native-input border border-slate-200 bg-white shadow-sm resize-none leading-relaxed text-[14px]" placeholder="輸入詳細的諮詢內容說明、適合對象等..."></textarea></div>
+                        <div class="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-100 mt-2"><label class="text-[13px] font-bold text-[#06C755] mb-3 block"><i class="fas fa-clock mr-1"></i> 自動上下架時間 (選填)</label><div class="grid grid-cols-2 gap-4">
+                            <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 日期選擇器觸發放大 -->
+                            <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">開放上架時間</label><input type="datetime-local" v-model="editingMyCourse.publishStartDate" class="native-input border border-slate-200 bg-white shadow-sm text-[16px] px-2"></div>
+                            <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">自動下架時間</label><input type="datetime-local" v-model="editingMyCourse.publishEndDate" class="native-input border border-slate-200 bg-white shadow-sm text-[16px] px-2"></div>
+                        </div></div>
+                        <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 多行輸入框觸發放大 -->
+                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">詳細內容與權益說明</label><textarea v-model="editingMyCourse.description" rows="5" class="native-input border border-slate-200 bg-white shadow-sm resize-none leading-relaxed text-[16px]" placeholder="輸入詳細的諮詢內容說明、適合對象等..."></textarea></div>
                     </div>
                 </div>
                 <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-100 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-50"><button @click="saveMyCourse" :disabled="isLoading" class="btn-primary w-full py-4 text-[17px] shadow-lg shadow-green-100/50 rounded-xl"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存項目</button></div>
@@ -394,9 +402,10 @@
                             <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                                 <h3 class="text-[15px] font-black text-slate-800 mb-4 flex items-center gap-2"><i class="fas fa-user-edit text-[#06C755]"></i> 聯絡資訊</h3>
                                 <div class="space-y-4">
-                                    <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">真實姓名 <span class="text-red-500">*</span></label><input type="text" v-model="bookingForm.name" placeholder="請輸入姓名" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] font-bold outline-none focus:border-[#06C755] focus:bg-white transition"></div>
-                                    <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">手機號碼 <span class="text-red-500">*</span></label><input type="tel" v-model="bookingForm.phone" placeholder="09xxxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] font-bold font-mono outline-none focus:border-[#06C755] focus:bg-white transition"></div>
-                                    <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">給導師的備註 (選填)</label><textarea v-model="bookingForm.note" rows="3" placeholder="想先讓導師了解的狀況？" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[15px] outline-none focus:border-[#06C755] focus:bg-white transition resize-none"></textarea></div>
+                                    <!-- 🛡️ 體檢修復：加入 text-[16px] 防止 iOS 輸入框觸發放大 -->
+                                    <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">真實姓名 <span class="text-red-500">*</span></label><input type="text" v-model="bookingForm.name" placeholder="請輸入姓名" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[16px] font-bold outline-none focus:border-[#06C755] focus:bg-white transition"></div>
+                                    <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">手機號碼 <span class="text-red-500">*</span></label><input type="tel" v-model="bookingForm.phone" placeholder="09xxxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[16px] font-bold font-mono outline-none focus:border-[#06C755] focus:bg-white transition"></div>
+                                    <div><label class="text-[12px] font-bold text-slate-400 block mb-1.5">給導師的備註 (選填)</label><textarea v-model="bookingForm.note" rows="3" placeholder="想先讓導師了解的狀況？" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-[16px] outline-none focus:border-[#06C755] focus:bg-white transition resize-none"></textarea></div>
                                 </div>
                             </div>
                         </div>
@@ -443,6 +452,7 @@
                     <h3 class="text-[17px] font-black text-slate-800 mb-2 flex items-center gap-2"><i class="fas fa-edit text-[#06C755]"></i>轉帳回報</h3>
                     <p class="text-[12px] text-slate-500 font-medium mb-5">請輸入您匯款帳號的<span class="text-red-500 font-bold mx-1">末 5 碼</span>，以便財務為您對帳。</p>
                     <div class="mb-6">
+                        <!-- 🛡️ 體檢修復：加入 text-3xl(36px) 已大於 16px，無自動放大問題 -->
                         <input type="tel" v-model="remittanceInput" maxlength="5" placeholder="例如: 12345" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-center text-3xl font-black font-mono outline-none focus:border-[#06C755] focus:bg-white transition tracking-[0.2em] text-slate-800">
                     </div>
                     <div class="flex gap-3">
@@ -527,8 +537,8 @@
                                     const ctx = canvas.getContext('2d');
                                     ctx.drawImage(img, 0, 0, width, height);
                                     
-                                    // 壓縮為 WebP 格式，品質 0.8，可將 10MB 照片壓縮至 ~200KB
-                                    resolve(canvas.toDataURL('image/webp', 0.8));
+                                    // 🛡️ 體檢修復：改用 image/jpeg，因為某些舊版 iOS Safari 不支援導出 webp 會產生 10MB 的 PNG 原檔
+                                    resolve(canvas.toDataURL('image/jpeg', 0.8));
                                 };
                                 img.onerror = (err) => reject(err);
                             };
