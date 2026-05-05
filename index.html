@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生進化ACTION</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
-    <!-- Version: 2026.05.06.V283_Keep_Original_Layout_With_Routes -->
+    <!-- Version: 2026.05.07.V285_UI_And_Routing_Fix -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -148,7 +148,6 @@
                     </div>
                 </div>
 
-                <!-- 🛡️ 恢復原本「我的」頁面的配置，並保留 URL 獨立跳轉能力 -->
                 <div v-if="view === 'profile'" class="animate-fade-in bg-white min-h-screen pb-32">
                     <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><h2 class="text-[17px] font-bold text-[#111111]">學員檔案</h2><button v-if="!isEditingProfile" @click="startEditingProfile" class="text-blue-600 font-bold text-sm">修改資料</button><button v-else @click="isEditingProfile = false" class="text-slate-400 font-bold text-sm">取消</button></div>
                     <div class="p-6 text-center border-b border-slate-50">
@@ -156,13 +155,10 @@
                         <div class="font-black text-xl">{{ userStatus.info?.name || liffProfile.displayName }}</div><div class="text-xs text-slate-400 mt-1 font-mono uppercase tracking-tighter">UID: {{ liffProfile.userId }}</div>
                     </div>
                     <div class="p-6">
-                        <div class="bg-gradient-to-br from-red-600 to-red-800 rounded-2xl p-6 text-white shadow-lg mb-6 relative overflow-hidden">
+                        <div class="bg-gradient-to-br from-red-600 to-red-800 rounded-2xl p-6 text-white shadow-lg mb-6 relative overflow-hidden shrink-0">
                             <div class="absolute right-0 top-0 opacity-10 text-8xl -mt-4 -mr-2"><i class="fas fa-envelope-open-text"></i></div>
                             <div class="text-[13px] text-red-200 font-bold mb-1 relative z-10">紅包帳戶餘額</div><div class="text-4xl font-black mb-4 relative z-10">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
-                            <div class="flex gap-2 relative z-10 mt-6">
-                                <button @click="dailyCheckin" class="flex-1 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-white/10 flex items-center justify-center gap-1"><i class="fas fa-calendar-check text-green-300"></i>每日打卡送紅包</button>
-                                <button @click="navigateTo('share')" class="flex-1 py-3 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-1"><i class="fas fa-share-alt"></i>分享專區</button>
-                            </div>
+                            <div class="flex gap-2 relative z-10 mt-6"><button @click="dailyCheckin" class="flex-1 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-white/10 flex items-center justify-center gap-1"><i class="fas fa-calendar-check text-green-300"></i>每日打卡送紅包</button><button @click="navigateTo('share')" class="flex-1 py-3 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-1"><i class="fas fa-share-alt"></i>分享專區</button></div>
                         </div>
 
                         <div v-if="!isEditingProfile" class="mb-5 animate-fade-in">
@@ -218,7 +214,7 @@
             </nav>
         </div>
 
-        <!-- 獨立 ACTION 1：分享專區 (URL: ?view=share) -->
+        <!-- 🛡️ 修復：加入獨立 ACTION 1 分享專區路由支援 -->
         <transition name="slide-up">
             <div v-if="view === 'share'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[70] flex flex-col overflow-hidden">
                 <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
@@ -227,7 +223,7 @@
                     <div class="w-8"></div>
                 </div>
                 <div class="flex-1 overflow-y-auto p-5 flex flex-col pb-40">
-                    <div class="w-full bg-white rounded-3xl p-6 border border-slate-100 text-center shadow-sm relative overflow-hidden mb-6 mt-2">
+                    <div class="w-full bg-white rounded-3xl p-6 border border-slate-100 text-center shadow-sm relative overflow-hidden mb-6 mt-2 shrink-0">
                         <div class="absolute -right-4 -top-4 text-red-500/5 text-8xl"><i class="fas fa-envelope-open-text"></i></div>
                         <div class="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden border-[3px] border-white shadow-md relative z-10">
                             <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
@@ -245,7 +241,7 @@
                         </button>
                     </div>
                     
-                    <div class="w-full bg-white rounded-3xl p-6 border border-slate-100 text-center shadow-sm mb-6">
+                    <div class="w-full bg-white rounded-3xl p-6 border border-slate-100 text-center shadow-sm mb-6 shrink-0">
                         <div class="flex items-center justify-center gap-2 mb-4"><i class="fas fa-qrcode text-[#06C755] text-xl"></i><h3 class="text-[17px] font-black text-slate-800">現場掃碼加入</h3></div>
                         <div class="bg-slate-50 rounded-2xl p-4 inline-block mx-auto border border-slate-100">
                             <img :src="'https://quickchart.io/qr?text=' + encodeURIComponent(shareUrl) + '&size=200'" class="w-48 h-48 object-contain">
@@ -253,7 +249,7 @@
                         <p class="text-[12px] text-slate-400 font-bold mt-4">請好友打開 LINE 掃描器，直接掃描上方條碼</p>
                     </div>
                     
-                    <div class="w-full p-5 bg-white rounded-2xl border border-slate-100 text-xs text-slate-500 leading-relaxed font-medium shadow-sm mb-8 text-left">
+                    <div class="w-full p-5 bg-white rounded-2xl border border-slate-100 text-xs text-slate-500 leading-relaxed font-medium shadow-sm mb-8 text-left shrink-0">
                         <p class="font-bold text-slate-700 mb-2"><i class="fas fa-info-circle mr-1 text-[#06C755]"></i> 推薦獎勵說明：</p>
                         <ul class="list-disc pl-4 space-y-1.5">
                             <li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得紅包點數。</li>
@@ -265,7 +261,7 @@
             </div>
         </transition>
 
-        <!-- 獨立 ACTION 2：邀約紀錄 (URL: ?view=referrals) -->
+        <!-- 🛡️ 修復：獨立 ACTION 2 邀約紀錄 (解決數字被切掉的版面問題) -->
         <transition name="slide-up">
             <div v-if="view === 'referrals'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[70] flex flex-col overflow-hidden">
                 <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
@@ -274,12 +270,12 @@
                     <div class="w-8"></div>
                 </div>
                 <div class="flex-1 overflow-y-auto p-5 flex flex-col pb-40">
-                    <div class="bg-blue-500 rounded-3xl p-6 text-white text-center shadow-lg mb-6 relative overflow-hidden">
+                    <div class="bg-blue-500 rounded-3xl py-8 px-6 text-white text-center shadow-lg mb-6 relative overflow-hidden shrink-0">
                         <i class="fas fa-user-friends absolute -right-4 -bottom-4 text-7xl opacity-20"></i>
-                        <div class="text-[13px] font-bold mb-1 opacity-90 relative z-10">成功邀約人數</div>
-                        <div class="text-5xl font-black relative z-10">{{ userStatus.referrals?.length || 0 }} <span class="text-lg font-medium">人</span></div>
+                        <div class="text-[13px] font-bold mb-2 opacity-90 relative z-10">成功邀約人數</div>
+                        <div class="text-[3rem] leading-tight font-black relative z-10 py-1">{{ userStatus.referrals?.length || 0 }} <span class="text-lg font-medium">人</span></div>
                     </div>
-                    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
+                    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in shrink-0">
                         <div v-for="r in userStatus.referrals" :key="r.date" class="p-4 border-b border-slate-50 flex justify-between items-center">
                             <div class="font-bold text-[14px] text-slate-700"><i class="fas fa-user-circle text-slate-300 mr-2 text-xl align-middle"></i>{{ r.name }}</div>
                             <div class="text-[12px] text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded">{{ r.date }}</div>
@@ -292,7 +288,7 @@
             </div>
         </transition>
 
-        <!-- 獨立 ACTION 3：紅包明細 (URL: ?view=points) -->
+        <!-- 🛡️ 修復：獨立 ACTION 3 紅包明細 (解決數字被切掉的版面問題) -->
         <transition name="slide-up">
             <div v-if="view === 'points'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[70] flex flex-col overflow-hidden">
                 <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
@@ -301,13 +297,13 @@
                     <div class="w-8"></div>
                 </div>
                 <div class="flex-1 overflow-y-auto p-5 flex flex-col pb-40">
-                    <div class="bg-gradient-to-br from-red-600 to-red-800 rounded-3xl p-6 text-white text-center shadow-lg mb-6 relative overflow-hidden">
+                    <div class="bg-gradient-to-br from-red-600 to-red-800 rounded-3xl py-8 px-6 text-white text-center shadow-lg mb-6 relative overflow-hidden shrink-0">
                         <i class="fas fa-envelope-open-text absolute -right-4 -bottom-4 text-7xl opacity-20"></i>
-                        <div class="text-[13px] font-bold mb-1 opacity-90 relative z-10">目前紅包餘額</div>
-                        <div class="text-5xl font-black relative z-10">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-lg font-medium">點</span></div>
+                        <div class="text-[13px] font-bold mb-2 opacity-90 relative z-10">目前紅包餘額</div>
+                        <div class="text-[3rem] leading-tight font-black relative z-10 py-1">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-lg font-medium">點</span></div>
                     </div>
                     <h3 class="text-[14px] font-black text-slate-800 mb-3 flex items-center gap-2"><i class="fas fa-history text-red-500"></i> 點數異動紀錄</h3>
-                    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
+                    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in shrink-0">
                         <div v-for="log in userPoints.logs" :key="log.createdAt" class="p-4 border-b border-slate-50 last:border-0 flex justify-between items-center hover:bg-slate-50 transition">
                             <div>
                                 <div class="font-bold text-[14px] text-slate-700 mb-1">{{ log.reason }}</div>
@@ -699,8 +695,23 @@
                     const initApp = async () => {
                         hasInitError.value = false;
                         
+                        const urlParams = newSearchParams(window.location.search);
+                        const refCode = urlParams.get('ref');
+                        const viewParam = urlParams.get('view');
+                        if (refCode) {
+                            try { localStorage.setItem('referral_uid', refCode); } catch(e) {}
+                        }
+
+                        // 🛡️ 修復閃爍：優先同步快取，實作「樂觀路由」，如果已經登入就直接切換過去，不回首頁
                         syncLocal(null);
-                        if (courses.value.length > 0) isGlobalLoading.value = false; 
+                        if (userStatus.value.registered) {
+                            if (viewParam && viewParam !== 'register' && viewParam !== 'booking') {
+                                view.value = viewParam; // 瞬間跳到紅包或邀約頁
+                            } else if (!viewParam) {
+                                view.value = 'home';
+                            }
+                            if (courses.value.length > 0) isGlobalLoading.value = false; 
+                        }
 
                         try {
                             const rawSets = await callApi('GET_SETTINGS', { _t: Date.now() }, true);
@@ -725,11 +736,6 @@
 
                             syncLocal(uid);
 
-                            const urlParams = new URLSearchParams(window.location.search);
-                            const refCode = urlParams.get('ref');
-                            try { if (refCode) localStorage.setItem('referral_uid', refCode); } catch(e) {}
-                            const viewParam = urlParams.get('view');
-
                             const [checkRes, cData, oData, pData] = await Promise.all([
                                 callApi('CHECK_USER', {}, true), 
                                 callApi('GET_COURSES', {}, true), 
@@ -750,9 +756,7 @@
                                 } catch(e) { console.warn('LocalStorage limit reached in initApp'); }
                             }
                             
-                            isGlobalLoading.value = false;
-                            
-                            // 🚀 ACTION 解耦：支援直接進入特定的單獨功能頁面，並且將原本「我的」介面保留。
+                            // 再次確保最新的路由正確
                             if (viewParam) {
                                 if (!userStatus.value.registered && viewParam !== 'register') {
                                     view.value = 'register';
@@ -762,7 +766,7 @@
                                 } else if (userStatus.value.registered) {
                                     if (viewParam === 'booking') openBookingFlow();
                                     else {
-                                        view.value = viewParam; // 支援: 'share', 'referrals', 'points'
+                                        view.value = viewParam; 
                                         window.scrollTo(0, 0);
                                     }
                                 }
@@ -772,6 +776,9 @@
                                     window.scrollTo(0, 0);
                                 }
                             }
+
+                            // 最終解除 Loading
+                            isGlobalLoading.value = false;
 
                         } catch (e) { 
                             console.error("Init Error", e); 
@@ -939,6 +946,11 @@
                             bookingStep.value = 3; 
                         } finally { isLoading.value = false; }
                     };
+
+                    // 確保 URL 解析相容不同瀏覽器
+                    function newSearchParams(search) {
+                        return typeof URLSearchParams !== 'undefined' ? new URLSearchParams(search) : { get: () => null };
+                    }
 
                     const submitRegistration = async () => {
                         if (!regForm.value.name || !regForm.value.phone) return alert('姓名與電話為必填');
