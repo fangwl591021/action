@@ -1,1103 +1,1024 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>商機引擎後台 ADMIN DASHBOARD</title>
-  
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Google Fonts & Icons -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-
-  <!-- 引入 Cropper.js -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-
-  <style>
-    body { font-family: 'Inter', 'Noto Sans TC', sans-serif; background-color: #f8f9fa; }
-    
-    .nav-item { transition: all 0.2s ease; }
-    .nav-item.active { background-color: #eff6ff; color: #2563eb; } 
-    .nav-item:not(.active) { color: #64748b; } 
-    .nav-item:not(.active):hover { background-color: #f8fafc; color: #475569; } 
-    
-    .data-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .data-table th { background-color: #f8fafc; padding: 12px 16px; font-size: 13px; color: #64748b; font-weight: normal; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
-    .data-table td { padding: 12px 16px; font-size: 14px; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-    .data-table tr:hover { background-color: #f8fafc; }
-    
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-    /* 後台專用裁切器修正 */
-    #admin-cropper-modal {
-      position: fixed !important;
-      inset: 0 !important;
-      height: 100dvh !important;
-      max-height: 100dvh !important;
-    }
-    #admin-cropper-container {
-      flex: 1 1 0% !important;
-      min-height: 0 !important;
-      height: 0 !important;
-      position: relative !important;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>宏學管理站</title>
+    <!-- Version: 2026.05.08.V288_Admin_Reverted_With_Links -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [v-cloak] { display: none !important; }
+        body { background-color: #ffffff; color: #334155; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .sidebar { width: 240px; background: #ffffff; border-right: 1px solid #f1f5f9; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 50; }
+        .sidebar-brand { padding: 24px 24px; font-size: 22px; font-weight: 900; color: #06C755; letter-spacing: -0.5px; }
+        .nav-group-header { padding: 14px 24px 6px; font-size: 14px; font-weight: 800; color: #06C755; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 14px 24px; cursor: pointer; transition: 0.2s; color: #64748b; font-weight: 700; font-size: 15px; border-right: 4px solid transparent; }
+        .nav-active { background-color: #f0fdf4; color: #06C755; border-right: 4px solid #06C755; }
+        .main-content { margin-left: 240px; min-width: 0; flex: 1; padding-bottom: 40px; }
+        .page-header { background: white; border-bottom: 1px solid #f1f5f9; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 40; }
+        .admin-table-container { width: 100%; overflow-x: auto; background: #ffffff; }
+        .admin-table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        .admin-table thead th { padding: 16px 24px; background: #ffffff; font-size: 13px; font-weight: 800; color: #64748b; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+        .admin-table tbody td { padding: 20px 24px; font-size: 14px; vertical-align: top; border-bottom: 1px solid #f1f5f9; }
+        .btn-green-main { background-color: #06C755; color: white; font-weight: 700; padding: 10px 20px; border-radius: 6px; transition: 0.2s; text-align: center; font-size: 14px; cursor: pointer; }
+        .btn-green-main:hover { background-color: #05a647; }
+        .btn-green-main:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-outline { border: 1px solid #e2e8f0; background: white; color: #64748b; font-weight: 700; padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: 0.2s; }
+        .btn-outline:hover { background: #f8fafc; color: #1e293b; }
+        .input-label { font-size: 13px; font-weight: 800; color: #64748b; margin-bottom: 6px; display: block; }
+        .input-field { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 14px; outline: none; background: #fff; font-weight: 600; color: #1e293b; }
+        .input-field:focus { border-color: #06C755; box-shadow: 0 0 0 2px rgba(6, 199, 85, 0.1); }
+        .section-title { font-size: 16px; font-weight: 800; color: #1e293b; border-left: 4px solid #06C755; padding-left: 10px; margin-bottom: 20px; }
+        .status-badge { font-weight: 800; padding: 4px 10px; border-radius: 4px; font-size: 12px; }
+        .status-pill-paid { background-color: #DCFCE7; color: #166534; }
+        .status-pill-waiting { background-color: #FEF3C7; color: #92400E; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .modal-body { background: white; width: 100%; max-width: 600px; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); max-height: 90vh; }
+        .modal-body-lg { max-width: 1000px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; border: 2px solid white; }
+        .animate-fade-in { animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .tag-blue { background-color: #eff6ff; color: #2563eb; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+        .tag-gray { background-color: #f1f5f9; color: #94a3b8; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+        .tag-green { background-color: #f0fdf4; color: #06C755; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+        .tag-orange { background-color: #FF5809; color: #ffffff; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+    </style>
 </head>
-<body class="text-slate-800 h-screen flex overflow-hidden relative">
-
-  <!-- 全域載入遮罩 -->
-  <div id="loading-screen" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center transition-opacity duration-300">
-    <span class="material-symbols-outlined animate-spin text-5xl text-blue-600 mb-4">refresh</span>
-    <p id="loading-text" class="text-slate-500 font-bold tracking-widest text-sm">系統初始化與安全驗證中...</p>
-  </div>
-
-  <!-- Toast 通知容器 -->
-  <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] flex flex-col gap-2 pointer-events-none w-max"></div>
-
-  <!-- 左側邊欄 (Sidebar) -->
-  <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 relative shrink-0">
-    <div class="h-24 flex items-center px-6 border-b border-slate-100 shrink-0">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-600/30 shrink-0">
-          <span class="material-symbols-outlined text-[24px]">shield_person</span>
-        </div>
-        <div>
-          <h1 class="font-black text-slate-800 text-lg leading-tight tracking-wide">商機引擎後台</h1>
-          <p class="text-[10px] font-bold text-slate-400 tracking-wider">ADMIN DASHBOARD</p>
-        </div>
-      </div>
-    </div>
-
-    <nav class="flex-1 py-6 px-4 flex flex-col gap-6 overflow-y-auto no-scrollbar">
-      <div>
-        <p class="text-xs font-bold text-slate-400 mb-2 px-2">系統管理</p>
-        <div class="flex flex-col gap-1">
-          <a href="#" onclick="switchTab('users')" id="nav-users" class="nav-item active flex items-center px-4 py-3 rounded-xl text-sm font-bold">
-            <span class="material-symbols-outlined mr-3 text-[20px]">manage_accounts</span>
-            用戶與商家權限
-          </a>
-          <a href="#" onclick="switchTab('activities')" id="nav-activities" class="nav-item flex items-center px-4 py-3 rounded-xl text-sm font-bold">
-            <span class="material-symbols-outlined mr-3 text-[20px]">event_note</span>
-            全站活動監控
-          </a>
-          <a href="#" onclick="switchTab('cards')" id="nav-cards" class="nav-item flex items-center px-4 py-3 rounded-xl text-sm font-bold">
-            <span class="material-symbols-outlined mr-3 text-[20px]">badge</span>
-            全站名片庫
-          </a>
-        </div>
-      </div>
-
-      <div>
-        <p class="text-xs font-bold text-slate-400 mb-2 px-2">數據中心</p>
-        <div class="flex flex-col gap-1">
-          <a href="#" onclick="switchTab('finance')" id="nav-finance" class="nav-item flex items-center px-4 py-3 rounded-xl text-sm font-bold">
-            <span class="material-symbols-outlined mr-3 text-[20px]">insights</span>
-            營運財務報表
-          </a>
-          <a href="#" onclick="switchTab('import')" id="nav-import" class="nav-item flex items-center px-4 py-3 rounded-xl text-sm font-bold">
-            <span class="material-symbols-outlined mr-3 text-[20px]">upload_file</span>
-            批次名單匯入
-          </a>
-        </div>
-      </div>
-    </nav>
-  </aside>
-
-  <!-- 右側主內容區 -->
-  <div class="flex-1 flex flex-col overflow-hidden">
-    
-    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-0 shrink-0">
-      <h2 id="page-title" class="text-lg font-bold text-slate-700">用戶與商家權限</h2>
-      
-      <div class="flex items-center gap-4">
-        <div class="flex items-center gap-2">
-          <img id="admin-avatar" src="https://via.placeholder.com/150" class="w-8 h-8 rounded-full border border-slate-200 object-cover">
-          <span id="admin-name" class="text-sm font-bold text-slate-600">管理員</span>
-        </div>
-        <button onclick="liff.logout(); window.location.reload();" class="text-sm text-red-500 font-bold px-3 py-1.5 rounded hover:bg-red-50 transition-colors">登出</button>
-      </div>
-    </header>
-
-    <main class="flex-1 overflow-y-auto p-8 bg-[#f8f9fa]">
-      
-      <!-- Tab: Users -->
-      <div id="tab-users" class="tab-content">
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
-            <h3 class="font-bold text-slate-700">全站會員與商家名單</h3>
-            <button onclick="loadUsers()" class="text-sm border border-slate-200 text-slate-600 px-3 py-1.5 rounded hover:bg-slate-50 flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">refresh</span> 重新整理</button>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>姓名</th>
-                  <th>LINE ID</th>
-                  <th>手機</th>
-                  <th>所屬網 / 店代碼</th>
-                  <th>權限級別</th>
-                  <th class="text-right">操作</th>
-                </tr>
-              </thead>
-              <tbody id="users-table-body">
-                <tr><td colspan="6" class="text-center py-8 text-slate-400">載入中...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab: Activities -->
-      <div id="tab-activities" class="tab-content hidden space-y-6">
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <span class="text-slate-500 font-bold text-sm">篩選租戶 (歸屬網)：</span>
-            <select id="act-tenant-filter" onchange="renderActivities()" class="border border-slate-200 rounded px-3 py-1.5 text-sm text-slate-700 outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="all">全站所有活動</option>
-            </select>
-          </div>
-          <button onclick="loadActivities()" class="text-sm border border-slate-200 text-slate-600 px-3 py-1.5 rounded hover:bg-slate-50 flex items-center gap-1">
-            <span class="material-symbols-outlined text-[16px]">refresh</span> 重新整理
-          </button>
-        </div>
-
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>活動名稱</th>
-                  <th>所屬租戶</th>
-                  <th>活動時間</th>
-                  <th>費用</th>
-                  <th>報名狀況</th>
-                  <th>狀態</th>
-                </tr>
-              </thead>
-              <tbody id="acts-table-body">
-                <tr><td colspan="6" class="text-center py-8 text-slate-400">請稍候，載入資料中...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab: Cards (全站名片庫) -->
-      <div id="tab-cards" class="tab-content hidden space-y-6">
-        
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex flex-col md:flex-row items-start md:items-center gap-4 flex-1">
-            <div class="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full md:w-80 focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
-              <span class="material-symbols-outlined text-slate-400 text-[18px] mr-2">search</span>
-              <input type="text" id="card-search-input" oninput="renderCards()" placeholder="搜尋姓名、電話、公司或標籤..." class="bg-transparent border-none outline-none text-sm w-full text-slate-700">
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-slate-500 font-bold text-sm">歸屬網：</span>
-              <select id="card-tenant-filter" onchange="renderCards()" class="border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm text-slate-700 outline-none focus:ring-1 focus:ring-blue-500 transition-all">
-                <option value="all">全站名單</option>
-              </select>
-            </div>
-          </div>
-          <button onclick="loadCards()" class="text-sm border border-slate-200 text-slate-600 bg-white px-4 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-1 shrink-0 shadow-sm">
-            <span class="material-symbols-outlined text-[16px]">refresh</span> 重新整理
-          </button>
-        </div>
-
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>姓名</th>
-                  <th>公司與職稱</th>
-                  <th>聯絡電話</th>
-                  <th>歸屬網</th>
-                  <th>標籤 / 備註</th>
-                  <th class="text-center w-20">操作</th>
-                </tr>
-              </thead>
-              <tbody id="cards-table-body">
-                <tr><td colspan="6" class="text-center py-8 text-slate-400">載入中...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab: Finance -->
-      <div id="tab-finance" class="tab-content hidden space-y-6">
-        <div class="grid grid-cols-4 gap-6">
-          <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <p class="text-slate-400 text-xs font-bold mb-1">總註冊人數</p>
-            <h3 class="text-3xl font-black text-slate-700" id="stat-users">-</h3>
-          </div>
-          <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <p class="text-slate-400 text-xs font-bold mb-1">總名片數</p>
-            <h3 class="text-3xl font-black text-slate-700" id="stat-cards">-</h3>
-          </div>
-          <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <p class="text-slate-400 text-xs font-bold mb-1">上架活動數</p>
-            <h3 class="text-3xl font-black text-slate-700" id="stat-acts">-</h3>
-          </div>
-          <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <p class="text-slate-400 text-xs font-bold mb-1">累積報名總數</p>
-            <h3 class="text-3xl font-black text-slate-700" id="stat-regs">-</h3>
-          </div>
-        </div>
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex items-center justify-center h-64">
-          <p class="text-slate-400 text-sm">此處未來可擴充財務對帳圖表與匯出功能</p>
-        </div>
-      </div>
-
-      <!-- Tab: Import -->
-      <div id="tab-import" class="tab-content hidden">
-         <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8 flex flex-col items-center justify-center h-64 text-slate-400">
-           <span class="material-symbols-outlined text-4xl mb-2 text-slate-300">upload_file</span>
-           <p>批次名單匯入功能建置中...</p>
-         </div>
-      </div>
-
-    </main>
-  </div>
-
-  <!-- 🎨 所見即所得：名片編輯彈窗 Modal (寬廣雙欄式) -->
-  <div id="modal-card-edit" class="fixed inset-0 bg-slate-900/60 z-[1000] hidden flex items-center justify-center backdrop-blur-sm transition-opacity p-4">
-    <!-- 加大最大寬度到 1200px，高度拉滿至 95vh -->
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[1200px] h-[95vh] overflow-hidden flex flex-col animate-[fade-in_0.2s_ease-out]">
-      
-      <!-- 頂部頁籤切換 -->
-      <div class="px-6 flex justify-between items-center border-b border-slate-200 bg-white pt-3 shrink-0">
-        <div class="flex gap-6">
-          <button id="tab-btn-crm" onclick="switchModalTab('crm')" class="pb-3 border-b-2 border-blue-600 font-bold text-blue-600 outline-none">客戶 CRM 資料</button>
-          <button id="tab-btn-visual" onclick="switchModalTab('visual')" class="pb-3 border-b-2 border-transparent font-bold text-slate-500 hover:text-slate-700 outline-none transition-colors">✨ 視覺與版型設定</button>
-        </div>
-        <button onclick="closeEditCardModal()" class="text-slate-400 hover:text-slate-700 transition-colors pb-3 outline-none">
-          <span class="material-symbols-outlined">close</span>
-        </button>
-      </div>
-      
-      <!-- 左右雙欄版面 -->
-      <div class="flex flex-col md:flex-row flex-1 overflow-hidden bg-slate-50">
-        
-        <!-- 左側：設定表單區 (自適應填滿剩餘寬度) -->
-        <div class="flex-1 flex flex-col bg-white overflow-y-auto p-6 md:p-8 no-scrollbar">
-          <input type="hidden" id="edit-c-rowid">
-          
-          <!-- 頁籤內容 1：CRM 基本資料 -->
-          <div id="modal-body-crm" class="space-y-6">
-            <div>
-              <label class="block text-sm font-bold text-slate-500 mb-1.5">姓名 <span class="text-red-500">*</span></label>
-              <input type="text" id="edit-c-name" oninput="updateAdminCardPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-colors" placeholder="請輸入姓名">
-            </div>
-            <div class="grid grid-cols-2 gap-5">
-              <div>
-                <label class="block text-sm font-bold text-slate-500 mb-1.5">公司名稱</label>
-                <input type="text" id="edit-c-company" oninput="updateAdminCardPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-colors">
-              </div>
-              <div>
-                <label class="block text-sm font-bold text-slate-500 mb-1.5">職稱</label>
-                <input type="text" id="edit-c-title" oninput="updateAdminCardPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-colors">
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-5">
-              <div>
-                <label class="block text-sm font-bold text-slate-500 mb-1.5">聯絡電話</label>
-                <input type="text" id="edit-c-phone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-colors font-mono">
-              </div>
-              <div>
-                <label class="block text-sm font-bold text-slate-500 mb-1.5 flex justify-between">歸屬網 <span class="text-[11px] font-normal text-blue-500">轉移擁有者</span></label>
-                <input type="text" id="edit-c-network" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-colors" placeholder="填寫 admin 或 店代碼">
-              </div>
-            </div>
-            <div>
-              <label class="block text-sm font-bold text-slate-500 mb-1.5">自訂標籤 (多個請用空格分開)</label>
-              <input type="text" id="edit-c-tags" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-blue-600 font-bold outline-none focus:border-blue-500 focus:bg-white transition-colors" placeholder="#VIP #潛在客戶">
-            </div>
-            <div>
-              <label class="block text-sm font-bold text-slate-500 mb-1.5">內部備註</label>
-              <textarea id="edit-c-notes" rows="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-colors resize-none" placeholder="寫下對此客戶的備註..."></textarea>
-            </div>
-          </div>
-
-          <!-- 頁籤內容 2：數位名片設定 -->
-          <div id="modal-body-visual" class="hidden space-y-6">
-            <div class="grid grid-cols-2 gap-5">
-              <!-- 完美移植手機版的膠囊切換選單 -->
-              <div>
-                <label class="block text-sm font-bold text-slate-500 mb-2">名片版型</label>
-                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl h-[46px]">
-                  <label class="flex-1 text-center cursor-pointer m-0 h-full">
-                    <input type="radio" name="edit-v-layout" value="landscape" class="peer sr-only" onchange="updateAdminCardPreview()">
-                    <div class="rounded-lg peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow-sm text-slate-500 font-bold text-[13px] tracking-tight transition-all h-full flex items-center justify-center">標準(Mega)</div>
-                  </label>
-                  <label class="flex-1 text-center cursor-pointer m-0 h-full">
-                    <input type="radio" name="edit-v-layout" value="portrait" class="peer sr-only" onchange="updateAdminCardPreview()">
-                    <div class="rounded-lg peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow-sm text-slate-500 font-bold text-[13px] tracking-tight transition-all h-full flex items-center justify-center">滿版(Giga)</div>
-                  </label>
-                  <label class="flex-1 text-center cursor-pointer m-0 h-full">
-                    <input type="radio" name="edit-v-layout" value="square" class="peer sr-only" onchange="updateAdminCardPreview()">
-                    <div class="rounded-lg peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow-sm text-slate-500 font-bold text-[13px] tracking-tight transition-all h-full flex items-center justify-center">正方(1:1)</div>
-                  </label>
+<body>
+    <div id="app" v-cloak>
+        <div v-if="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4 relative text-center">
+            <div class="max-w-[360px] w-full bg-white rounded-2xl shadow-sm p-8 border border-slate-200 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-[#06C755]"></div>
+                <div class="mb-8">
+                    <div class="w-14 h-14 bg-[#f0fdf4] text-[#06C755] rounded-xl flex items-center justify-center text-2xl mx-auto mb-4 border border-[#dcfce7]"><i class="fas fa-shield-alt"></i></div>
+                    <h2 class="text-xl font-bold text-slate-800">宏學管理站</h2>
+                    <p class="text-slate-500 text-sm mt-1.5 font-medium">系統安全驗證</p>
                 </div>
-              </div>
-
-              <!-- 對齊與顏色 -->
-              <div>
-                <label class="block text-sm font-bold text-slate-500 mb-2">排版與顏色</label>
-                <div class="flex gap-2 h-[46px]">
-                  <select id="edit-v-align" onchange="updateAdminCardPreview()" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm text-slate-800 outline-none focus:border-blue-500">
-                    <option value="center">置中對齊</option>
-                    <option value="start">靠左對齊</option>
-                    <option value="end">靠右對齊</option>
-                  </select>
-                  <input type="color" id="edit-v-color" onchange="updateAdminCardPreview()" value="#666666" class="w-[46px] h-full p-0 border border-slate-200 rounded-xl cursor-pointer bg-white">
+                <div class="space-y-4">
+                    <button @click="lineLogin" :disabled="isLoading" class="w-full py-3.5 bg-[#06C755] text-white rounded-lg font-bold text-sm shadow-sm hover:bg-[#05b04a] transition flex items-center justify-center gap-2 active:scale-95">
+                        <i v-if="isLoading" class="fas fa-spinner fa-spin"></i><i v-else class="fab fa-line text-lg"></i>
+                        {{ isLoading ? '身分驗證中...' : 'LINE 授權一鍵登入' }}
+                    </button>
+                    <div class="relative flex items-center py-3">
+                        <div class="flex-grow border-t border-slate-100"></div><span class="shrink-0 px-3 text-[11px] text-slate-400 font-bold uppercase tracking-widest">或使用備用密碼登入</span><div class="flex-grow border-t border-slate-100"></div>
+                    </div>
+                    <input type="text" v-model="loginForm.account" placeholder="管理員帳號" class="input-field w-full text-center bg-slate-50">
+                    <input type="password" v-model="loginForm.password" placeholder="登入密碼" class="input-field w-full text-center bg-slate-50" @keyup.enter="handleLogin">
+                    <button @click="handleLogin" class="w-full py-3 bg-slate-800 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-slate-700 transition mt-2">密碼登入</button>
                 </div>
-              </div>
             </div>
-
-            <!-- 圖片上傳區 -->
-            <div>
-              <label class="block text-sm font-bold text-slate-500 mb-1.5">封面圖片網址</label>
-              <div class="flex gap-2">
-                <input type="text" id="edit-v-img" oninput="updateAdminCardPreview()" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-colors font-mono" placeholder="https://...">
-                <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-white px-5 py-3 rounded-xl text-sm font-bold flex items-center gap-1 transition-colors whitespace-nowrap shadow-sm">
-                  <span class="material-symbols-outlined text-[18px]">upload</span> 上傳圖片
-                  <input type="file" class="hidden" accept="image/*" onchange="openAdminCropper(this)">
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-sm font-bold text-slate-500 mb-1.5">名片服務說明 (支援換行)</label>
-              <textarea id="edit-v-desc" oninput="updateAdminCardPreview()" rows="5" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-colors resize-none" placeholder="請填寫公司介紹與服務項目..."></textarea>
-            </div>
-            
-            <div class="pt-6 border-t border-slate-100">
-              <div class="flex justify-between items-center mb-4">
-                <label class="block text-sm font-bold text-slate-500">LINE 動作按鈕設定</label>
-                <button type="button" onclick="addAdminCardButton()" class="text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors font-bold">+ 新增按鈕</button>
-              </div>
-              <div id="admin-edit-buttons-list" class="space-y-3">
-                <!-- 按鈕列表動態渲染 -->
-              </div>
-            </div>
-          </div>
         </div>
 
-        <!-- 右側：手機預覽區 (Live Preview) -->
-        <!-- ✅ 修正：改為 LINE 聊天室藍底，釋放 Padding，讓卡片真實呈現滿版張力 -->
-        <div class="w-full md:w-[480px] bg-[#8baccc] flex flex-col items-center justify-start overflow-y-auto shrink-0 border-l border-slate-200/50 shadow-inner">
-           <!-- 頂部模擬狀態列 -->
-           <div class="w-full bg-black/5 text-center py-2 text-white/90 text-xs tracking-widest sticky top-0 z-10 font-bold backdrop-blur-sm shadow-sm">
-             LINE 聊天室呈現預覽
-           </div>
-           
-           <!-- ✅ 修正：移除多餘邊界，放大卡片寬度至 400px，保證不失真、不擁擠 -->
-           <div class="w-full px-6 py-8 flex justify-center pb-16">
-              <div id="admin-card-preview-area" class="w-full max-w-[400px] bg-white rounded-[24px] shadow-xl overflow-hidden relative shrink-0 border border-black/5">
-                 <!-- 預覽畫面將由 JS 動態注入 -->
-              </div>
-           </div>
+        <div v-else class="flex min-h-screen">
+            <aside class="sidebar">
+                <div class="sidebar-brand">宏學管理站</div>
+                <nav class="flex-grow mt-2 overflow-y-auto hide-scrollbar">
+                    <div class="nav-group mb-2">
+                        <div @click="toggleGroup('groupA')" class="nav-group-header"><span>📦 營運中心</span><i class="fas" :class="groups.groupA ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
+                        <div v-show="groups.groupA" class="animate-fade-in">
+                            <div @click="switchView('dashboard')" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie w-6 text-center"></i>營運統計</div>
+                            <div @click="switchView('calendar')" class="nav-item" :class="{'nav-active': view === 'calendar'}"><i class="far fa-calendar-alt w-6 text-center"></i>日曆檢視</div>
+                            <div @click="switchView('members')" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-6 text-center"></i>學員 CRM</div>
+                            <div @click="switchView('courses')" class="nav-item" :class="{'nav-active': view === 'courses' || view === 'course_edit' || view === 'course_enrollments'}"><i class="fas fa-book w-6 text-center"></i>課程管理</div>
+                            <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation' || view === 'sys_config'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約諮詢</div>
+                            <div @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders' || view === 'order_edit'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
+                            <div @click="switchView('payment_logs')" class="nav-item" :class="{'nav-active': view === 'payment_logs'}"><i class="fas fa-credit-card w-6 text-center"></i>刷卡紀錄</div>
+                        </div>
+                    </div>
+                    <div class="nav-group mt-2 border-t border-slate-50 pt-2">
+                        <div @click="toggleGroup('groupB')" class="nav-group-header"><span>🛠️ 營運工具</span><i class="fas" :class="groups.groupB ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
+                        <div v-show="groups.groupB" class="animate-fade-in">
+                            <a href="./consult_admin.html" class="nav-item text-indigo-600"><i class="fas fa-calendar-check w-6 text-center"></i>預約排班系統</a>
+                            <div @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
+                            <div @click="switchView('settings')" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>系統設定</div>
+                        </div>
+                    </div>
+                </nav>
+                <div class="p-4 border-t border-slate-100"><button @click="logout" class="w-full py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-50 transition">安全登出</button></div>
+            </aside>
+
+            <main class="main-content relative">
+                <header class="page-header">
+                    <h2 class="text-2xl font-bold text-slate-800">{{ currentViewName }}</h2>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded text-green-700 text-xs font-bold mr-2"><div class="w-2 h-2 rounded-full bg-[#06C755] animate-pulse"></div><span>通道正常</span></div>
+                        <button @click="downloadSalesReport" class="btn-outline text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"><i class="fas fa-file-csv mr-2"></i>匯出報表</button>
+                        <button @click="forceSyncFromCloud" class="btn-outline text-red-600 border-red-200 bg-red-50 hover:bg-red-100"><i class="fas fa-download mr-2"></i>強制同步</button>
+                        <button @click="fetchData(false)" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
+                        <button @click="triggerBackup" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-hdd mr-2"></i>資料備份</button>
+                        <button @click="runHealthCheck" class="btn-outline text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100"><i class="fas fa-stethoscope mr-2"></i>系統健檢</button>
+                    </div>
+                </header>
+
+                <div v-if="view === 'dashboard'" class="p-6 animate-fade-in">
+                    <div class="grid grid-cols-4 gap-4 mb-6">
+                        <div v-for="(val, label) in { '實收總額': '$'+totalRevenue, '系統會員': users.length, '上架課程': courses.length, '預約導師': teachers.length }" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="text-[12px] font-bold text-slate-400 uppercase mb-1 tracking-widest">{{ label }}</div>
+                            <div class="text-2xl font-black text-slate-800">{{ val }}</div>
+                        </div>
+                    </div>
+                    <div class="admin-table-container !m-0 !rounded-xl overflow-hidden border-slate-200">
+                        <table class="admin-table">
+                            <thead class="bg-slate-50"><tr><th>課程服務名稱</th><th class="text-center">報名數</th><th>應收</th><th class="text-orange-600">待收</th><th class="text-[#06C755]">實收</th></tr></thead>
+                            <tbody>
+                                <tr v-for="c in courseStatsFiltered" :key="c.id">
+                                    <td class="font-bold text-slate-700 text-base max-w-[250px] truncate">{{ c.name }} </td>
+                                    <td class="px-4 py-4 border-b text-center"><button @click="openCourseOrdersModal(c)" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 px-4 py-2 rounded-xl font-black transition-all inline-flex items-center gap-2 shadow-sm border border-indigo-100 active:scale-95">{{ c.totalOrders || 0 }} <i class="fas fa-users text-xs opacity-80"></i></button></td>
+                                    <td class="text-base font-bold text-slate-500">$ {{ c.totalExpected.toLocaleString() }}</td>
+                                    <td class="text-orange-500 font-bold text-base">$ {{ c.pendingAmount.toLocaleString() }}</td>
+                                    <td class="text-[#06C755] font-black text-lg">$ {{ c.paidAmount.toLocaleString() }}</td>
+                                </tr>
+                                <tr v-if="!courseStatsFiltered.length"><td colspan="5" class="text-center py-20 text-slate-300 font-bold">目前尚無營收數據資料</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-if="view === 'calendar'" class="animate-fade-in p-6 h-[calc(100vh-100px)]">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm w-full h-full overflow-hidden">
+                        <iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Asia%2FTaipei&showPrint=0&src=ZDUyMDgyNzIzOGMyYjI0MDE5MTYxY2E1N2FiOTI1YjI3N2E4YmNlNjE5YTFkYzI3NzViZjc4MGVkNzMwOGI3NEBncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%23f09300" style="border-width:0" width="100%" height="100%" frameborder="0" scrolling="yes"></iframe>
+                    </div>
+                </div>
+
+                <div v-if="view === 'members'" class="animate-fade-in">
+                    <div class="px-6 py-4 flex gap-3 border-b border-slate-100 bg-white">
+                        <div class="relative w-full max-w-sm"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="memberSearch" placeholder="搜尋姓名、電話、ID..." class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
+                    </div>
+                    <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
+                        <table class="admin-table">
+                            <thead><tr><th>姓名</th><th>聯絡電話</th><th>目前等級</th><th>註冊日期</th><th class="text-right">操作</th></tr></thead>
+                            <tbody>
+                                <tr v-for="u in filteredMembers" :key="u.userId">
+                                    <td class="font-bold text-slate-800">{{ u.name }}</td>
+                                    <td class="font-mono text-slate-500">{{ u.phone }}</td>
+                                    <td><span class="tag-orange">{{ u.memberTier }}</span></td>
+                                    <td class="text-slate-400 text-sm font-mono">{{ u.createdAt }}</td>
+                                    <td class="text-right"><button @click="openMemberDetail(u)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">CRM 檔案</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-if="view === 'courses'" class="animate-fade-in">
+                    <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
+                        <div class="flex gap-3"><div class="relative w-72"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="courseSearchQuery" placeholder="搜尋課程內容..." class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div></div>
+                        <button @click="openNewCourseModal" class="btn-green-main !py-2"><i class="fas fa-plus mr-2"></i>新增課程</button>
+                    </div>
+                    <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
+                        <table class="admin-table">
+                            <thead><tr><th style="min-width: 250px">課程內容</th><th style="min-width: 150px">時間</th><th>費用</th><th>報名狀況</th><th class="text-right">系統維護</th></tr></thead>
+                            <tbody>
+                                <tr v-for="c in filteredAdminCourses" :key="c.id">
+                                    <td><div class="font-bold text-slate-800 text-[15px] mb-1">{{ String(c?.name || '').split('\n')[0] }}</div><div class="text-slate-500 text-xs mb-1.5">時段：{{ c.timeSlotType || '未填寫' }}</div><span class="tag-gray font-mono">{{ c.id }}</span></td>
+                                    <td><span class="tag-blue mb-1.5">{{ c.type || '一般' }}</span><div class="text-sm text-slate-500 font-bold mt-1">{{ c.startDate ? c.startDate : '' }} ~ {{ c.endDate ? c.endDate : '' }}</div></td>
+                                    <td><div class="font-black text-[#06C755] text-lg">$ {{ formatPrice(c.price) }}</div><div v-if="c.priceText" class="text-xs font-bold text-slate-500 mt-1">{{ c.priceText }}</div></td>
+                                    <td><div class="text-slate-600 font-bold mb-1">{{ c.enrolled || 0 }} / {{ c.capacity || 0 }} 人</div><button @click="openEnrollments(c)" class="btn-outline !py-1 !px-3 text-xs bg-white">報名名單</button><div class="mt-2"><span class="status-badge" :class="c.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'">{{ c.isPublished ? '🟢 已上架' : '🔴 已下架' }}</span></div></td>
+                                    <td class="text-right"><div class="flex justify-end items-center gap-4"><i class="fas fa-calendar-plus text-slate-300 hover:text-orange-500 cursor-pointer text-lg transition" title="同步至日曆" @click="syncToCalendar(c)"></i><i class="far fa-copy text-slate-300 hover:text-slate-800 cursor-pointer text-lg transition" title="複製課程" @click="copyCourse(c)"></i><button @click="openEditModal(c)" class="text-[14px] text-blue-600 font-bold hover:underline text-sm ml-2">進階設定</button></div></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-if="view === 'consultation'" class="p-6 animate-fade-in space-y-6">
+                    <div class="flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="w-1/3 p-6 border-r border-slate-100 bg-slate-50/20">
+                            <h3 class="section-title">核准師資入駐</h3>
+                            <div class="space-y-5 mt-5">
+                                <select v-model="approveForm.uid" class="input-field text-[17px]"><option value="">-- 選擇學員 --</option><option v-for="u in users" :key="u.userId" :value="u.userId">{{ String(u.name || '') }}</option></select>
+                                <div class="flex gap-4"><div class="flex-1"><label class="text-[15px] font-bold text-slate-400">時段租金 (扣點)</label><input type="number" v-model="approveForm.rent" class="input-field mt-1 font-bold text-slate-700"></div><div class="flex-1"><label class="text-[15px] font-bold text-slate-400">平台抽成%</label><input type="number" v-model="approveForm.comm" class="input-field mt-1 font-bold text-slate-700"></div></div>
+                                <button @click="handleApproveTeacher" :disabled="!approveForm.uid || isLoading" class="w-full py-4 bg-[#06C755] text-white rounded-lg text-[17px] font-bold shadow-md transition disabled:opacity-50">啟動導師分表模式</button>
+                            </div>
+                        </div>
+                        <div class="w-2/3 p-6">
+                            <h3 class="section-title">目前活躍導師</h3>
+                            <table class="admin-table mt-4 !min-w-0 w-full">
+                                <thead><tr><th>導師姓名</th><th>系統抽成設定</th><th>導師自訂收費</th><th class="text-right">系統設定</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="t in teachers" :key="t.userId">
+                                        <td class="font-bold text-slate-800 text-[18px]">{{ String(t.name || '') }}</td>
+                                        <td><div class="flex items-center gap-3"><span class="bg-indigo-50 text-indigo-700 font-mono text-[15px] px-3 py-1.5 rounded border border-indigo-100">{{ t.config?.rent || 0 }}P / {{ t.config?.comm || 0 }}%</span><button @click="openSysConfigModal(t)" class="text-slate-400 hover:text-indigo-600 transition text-lg"><i class="fas fa-edit"></i></button></div></td>
+                                        <td><div class="font-black text-[#06C755] text-[22px]">$ {{ formatPrice(t.config?.price || 0) }}</div><div v-if="t.config?.acceptPoints" class="text-[14px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded inline-block mt-1 border border-red-100">最高可抵 {{ t.config?.maxPoints || 0 }} 點</div><div v-else class="text-[14px] font-bold text-slate-400 mt-1">不接受折抵</div></td>
+                                        <td class="text-right"><a href="./consult_admin.html" class="text-blue-600 font-bold hover:underline bg-blue-50 px-4 py-2 text-[16px] rounded-lg border border-blue-100 shadow-sm inline-block">排班控制</a></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="view === 'orders'" class="animate-fade-in">
+                    <div class="px-6 py-4 flex gap-3 border-b border-slate-100 bg-white">
+                        <div class="relative w-full max-w-sm"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="orderSearch" placeholder="搜尋單號、姓名、電話、課程..." class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
+                    </div>
+                    <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
+                        <table class="admin-table">
+                            <thead><tr><th>單號 / 日期</th><th>課程</th><th>學員</th><th>金額</th><th>狀態</th><th class="text-right">操作</th></tr></thead>
+                            <tbody>
+                                <tr v-for="o in filteredOrders" :key="o.orderId">
+                                    <td><div class="font-mono font-bold text-[13px] text-slate-500">{{o.orderId}}</div><div class="text-[11px] text-slate-400 mt-0.5">{{o.createdAt}}</div></td>
+                                    <td class="font-bold text-slate-700">{{ String(getCourseName(o.courseId) || '').split('\n')[0] }}</td>
+                                    <td class="font-bold">{{o.name}}</td>
+                                    <td class="font-bold text-[#06C755] text-lg">${{formatPrice(o.amount)}}</td>
+                                    <td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{o.status==='PAID'?'已完款':'待付'}}</span></td>
+                                    <td class="text-right"><button @click="openOrderEditModal(o)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">維護</button></td>
+                                </tr>
+                                <tr v-if="!filteredOrders.length"><td colspan="6" class="text-center py-20 text-slate-300 font-bold">找不到符合條件的訂單</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-if="view === 'payment_logs'" class="animate-fade-in">
+                    <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
+                        <table class="admin-table">
+                            <thead><tr><th>接收時間</th><th>商店單號</th><th>刷卡金額</th><th>交易狀態</th><th>系統訊息</th></tr></thead>
+                            <tbody>
+                                <tr v-for="log in paymentLogs" :key="log.timestamp + log.orderNo">
+                                    <td class="font-mono text-[12px] text-slate-500">{{ log.timestamp }}</td>
+                                    <td class="font-mono font-bold text-slate-700">{{ log.orderNo }}</td>
+                                    <td class="font-bold text-[#06C755] text-lg">${{ formatPrice(log.amount) }}</td>
+                                    <td><span class="status-badge" :class="log.status === 'SUCCESS' ? 'status-pill-paid' : 'bg-red-100 text-red-700'">{{ log.status }}</span></td>
+                                    <td class="text-sm text-slate-600">{{ log.message }}</td>
+                                </tr>
+                                <tr v-if="!paymentLogs.length"><td colspan="5" class="text-center py-12 text-slate-400 font-bold">目前尚無金流通知紀錄</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div v-if="view === 'richmenu'" class="h-[calc(100vh-73px)]"><iframe src="./menu.html" class="w-full h-full border-0"></iframe></div>
+                
+                <div v-if="view === 'settings'" class="p-8 animate-fade-in max-w-4xl mx-auto space-y-8">
+                    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                        <div class="section-title !mb-6">首頁頂部橫幅 (Banner) 高效上傳 (Cloudflare R2)</div>
+                        <div class="w-full aspect-[21/9] bg-slate-50 rounded-lg overflow-hidden border mb-5 flex items-center justify-center relative">
+                            <img v-if="sysSettings.banner_image" :src="sysSettings.banner_image" class="w-full h-full object-cover">
+                            <div v-else class="text-slate-300 font-bold text-sm uppercase">尚未設定橫幅</div>
+                            <div v-if="isImageUploading" class="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center"><i class="fas fa-spinner fa-spin text-4xl text-[#06C755] mb-2"></i><span class="font-bold text-slate-700">R2 雲端上傳中...</span></div>
+                        </div>
+                        <input type="text" v-model="sysSettings.banner_image" class="input-field mb-5 font-mono text-sm" placeholder="Banner 圖片網址 (R2 URL)" readonly>
+                        <button @click="$refs.bannerInput.click()" :disabled="isImageUploading" class="w-full py-3 border border-slate-200 rounded font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 transition shadow-sm disabled:opacity-50"><i class="fas fa-cloud-upload-alt mr-2"></i>上傳圖片至 R2 儲存桶</button>
+                        <input type="file" ref="bannerInput" class="hidden" accept="image/*" @change="handleBannerUpload">
+                    </div>
+                    
+                    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
+                        <div class="section-title !mb-4 text-red-700 border-red-500">紅包獎勵、LIFF 與社群連結</div>
+                        <div class="mb-6"><label class="input-label">系統主 LIFF ID</label><input type="text" v-model="sysSettings.liff_id" class="input-field font-mono"></div>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                            <div><label class="input-label">註冊系統 (點)</label><input type="number" v-model="sysSettings.reward_register" class="input-field font-bold text-[#06C755]"></div>
+                            <div><label class="input-label">自己加OA好友 (點)</label><input type="number" v-model="sysSettings.reward_add_friend" class="input-field font-bold text-[#06C755]"></div>
+                            <div><label class="input-label">受邀註冊/被加 (點)</label><input type="number" v-model="sysSettings.reward_referred" class="input-field font-bold text-[#06C755]"></div>
+                            <div><label class="input-label">推薦好友 (點)</label><input type="number" v-model="sysSettings.reward_refer" class="input-field font-bold text-[#06C755]"></div>
+                            <div><label class="input-label">每日打卡 (點)</label><input type="number" v-model="sysSettings.reward_daily" class="input-field font-bold text-[#06C755]"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-8">
+                            <div><label class="input-label">LINE OA 網址</label><input type="text" v-model="sysSettings.link_lineoa" class="input-field text-sm"></div>
+                            <div><label class="input-label">Facebook 網址</label><input type="text" v-model="sysSettings.link_fb" class="input-field text-sm"></div>
+                            <div><label class="input-label">Instagram 網址</label><input type="text" v-model="sysSettings.link_ig" class="input-field text-sm"></div>
+                            <div><label class="input-label">TikTok 網址</label><input type="text" v-model="sysSettings.link_tiktok" class="input-field text-sm"></div>
+                        </div>
+                        
+                        <div class="section-title !mb-4 text-orange-700 border-orange-500 mt-8">官方匯款帳號設定</div>
+                        <div class="mb-8"><label class="input-label">匯款資訊 (將顯示於前台結帳頁面)</label><textarea v-model="sysSettings.remittance_info" class="input-field h-32 resize-none leading-relaxed"></textarea></div>
+                        
+                        <div class="section-title !mb-4 text-purple-700 border-purple-500 mt-8">前台體驗開關</div>
+                        <div class="mb-8 flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div><div class="font-bold text-slate-700 text-sm">開放學員自行取消報名</div><div class="text-xs text-slate-400 mt-1">啟用後，學員可在「待付款」訂單下方看見取消按鈕</div></div>
+                            <select v-model="sysSettings.allow_cancel_order" class="input-field !w-32 !py-2 !text-sm font-bold bg-white"><option value="true">🟢 啟用</option><option value="false">🔴 停用</option></select>
+                        </div>
+
+                        <div class="section-title !mb-4 text-blue-800 border-blue-500">藍新金流 API 設定</div>
+                        <div class="grid grid-cols-1 gap-4 mb-8">
+                            <div><label class="input-label">商店代號 (MerchantID)</label><input type="text" v-model="sysSettings.newebpay_merchant_id" class="input-field font-mono"></div>
+                            <div class="grid grid-cols-2 gap-4"><div><label class="input-label">HashKey</label><input type="text" v-model="sysSettings.newebpay_hash_key" class="input-field font-mono text-sm"></div><div><label class="input-label">HashIV</label><input type="text" v-model="sysSettings.newebpay_hash_iv" class="input-field font-mono text-sm"></div></div>
+                        </div>
+                        <button @click="saveSettings" :disabled="isLoading" class="btn-green-main w-full py-4 text-[16px] mt-4"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i> 確認儲存並同步雲端參數</button>
+                    </div>
+
+                    <!-- LINE 圖文選單綁定提示 -->
+                    <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100 shadow-sm mt-6">
+                        <div class="font-black text-indigo-800 mb-3"><i class="fas fa-link mr-1"></i> LINE 圖文選單/Postback 綁定連結</div>
+                        <p class="text-[13px] text-slate-600 font-bold mb-4 leading-relaxed">請將以下連結設定至您的 LINE 官方帳號，即可讓學員點擊後全螢幕開啟單一專屬功能。若學員尚未註冊，系統會自動攔截並引導註冊。</p>
+                        <div class="space-y-2">
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">1. 分享專區</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=share</code>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">2. 註冊領紅包</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=register</code>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">3. 邀約名單</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=referrals</code>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">4. 紅包點數明細</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=points</code>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">5. 預約服務</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=booking</code>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">6. 每日簽到打卡</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-[#06C755] font-black truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=checkin</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
 
-      </div>
-
-      <!-- 底部儲存按鈕區 -->
-      <div class="px-8 py-5 bg-white border-t border-slate-200 flex justify-end gap-3 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
-        <button onclick="closeEditCardModal()" class="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">取消</button>
-        <button id="btn-save-card" onclick="saveCardEdit()" class="px-8 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl shadow-md hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2">
-          <span class="material-symbols-outlined text-[18px]">save</span> 儲存變更
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ✂️ 後台專用圖片裁切彈窗 -->
-  <div id="admin-cropper-modal" class="fixed inset-0 bg-slate-900/95 z-[2000] hidden flex flex-col transition-opacity duration-300">
-    <div id="admin-cropper-container" class="flex-1 relative flex items-center justify-center p-4">
-      <img id="admin-cropper-image" class="block max-w-full max-h-full mx-auto shadow-2xl">
-    </div>
-    <div class="h-20 bg-black flex items-center justify-between px-8 shrink-0 border-t border-slate-800">
-      <button onclick="closeAdminCropper()" class="text-white hover:text-slate-300 font-bold text-sm px-4 py-2 transition-colors">取消</button>
-      <button id="btn-admin-confirm-crop" class="bg-[#06C755] text-white px-8 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-[#06C755]/30 hover:bg-[#05b34c] transition-colors flex items-center gap-1">
-        <span class="material-symbols-outlined text-[18px]">crop</span> 確認裁切
-      </button>
-    </div>
-  </div>
-
-  <style>
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateY(15px) scale(0.98); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-  </style>
-
-  <!-- Scripts -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script>
-    const LIFF_ID = "2009886448-2UHnJgyT"; 
-    const WORKER_URL = "https://line-engine.fangwl591021.workers.dev/"; 
-    
-    let adminProfile = null;
-    let allUsersData = [];
-    let allCardsData = [];
-    let allActivitiesData = [];
-    let currentEditButtons = []; 
-    let adminCropperInstance = null;
-
-    // 統一 Toast 提示
-    function showToast(msg, isError = false) {
-      const container = document.getElementById('toast-container');
-      if (!container) return;
-      const toast = document.createElement('div');
-      toast.className = `px-5 py-3 rounded-full shadow-xl text-sm font-bold text-white transition-all duration-300 flex items-center gap-2 ${isError ? 'bg-red-500' : 'bg-slate-800'}`;
-      toast.innerHTML = `<span class="material-symbols-outlined text-[18px]">${isError ? 'error' : 'check_circle'}</span> ${msg}`;
-      container.appendChild(toast);
-      
-      toast.animate([
-        { opacity: 0, transform: 'translateY(-20px)' },
-        { opacity: 1, transform: 'translateY(0)' }
-      ], { duration: 300, fill: 'forwards' });
-
-      setTimeout(() => {
-        const anim = toast.animate([
-          { opacity: 1, transform: 'translateY(0)' },
-          { opacity: 0, transform: 'translateY(-20px)' }
-        ], { duration: 300, fill: 'forwards' });
-        anim.onfinish = () => toast.remove();
-      }, 3000);
-    }
-
-    async function fetchAPI(action, payload = {}) {
-      try {
-        if (liff.isLoggedIn()) { payload.lineAccessToken = liff.getAccessToken(); }
-        payload.userId = adminProfile?.userId || '';
-        payload.role = 'admin'; 
-        
-        const res = await fetch(WORKER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, payload })
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error);
-        return data.data || data;
-      } catch (err) {
-        console.error("API Error:", err);
-        showToast(err.message, true);
-        return null;
-      }
-    }
-
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      
-      document.getElementById('tab-' + tabId).classList.remove('hidden');
-      document.getElementById('nav-' + tabId).classList.add('active');
-      document.getElementById('page-title').innerText = document.getElementById('nav-' + tabId).innerText.trim();
-
-      if (tabId === 'users' && allUsersData.length === 0) loadUsers();
-      if (tabId === 'cards' && allCardsData.length === 0) loadCards();
-      if (tabId === 'activities' && allActivitiesData.length === 0) loadActivities();
-    }
-
-    // ================== 會員管理區塊 ==================
-    async function loadUsers() {
-      const tbody = document.getElementById('users-table-body');
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400">載入中...</td></tr>';
-      
-      const res = await fetchAPI('getAllUsers');
-      if (res && Array.isArray(res)) {
-        allUsersData = res;
-        document.getElementById('stat-users').innerText = res.length; 
-        
-        if (res.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400">尚無會員資料</td></tr>';
-          return;
-        }
-
-        tbody.innerHTML = res.map(u => {
-          let roleBadge = u.role === 'admin' ? '<span class="text-red-500 font-bold">管理員</span>' : 
-                          (u.role === 'store' ? '<span class="text-blue-600 font-bold">店長</span>' : 
-                          '<span class="text-slate-400">一般</span>');
-          return `
-            <tr>
-              <td class="font-bold text-slate-700">${escapeHTML(u.name || '未命名')}</td>
-              <td class="text-xs text-slate-400">${u.userId ? u.userId.substring(0,8)+'...' : ''}</td>
-              <td>${escapeHTML(u.phone || '-')}</td>
-              <td class="text-sm">${escapeHTML(u.networkId || 'admin')} <span class="text-xs text-slate-400 ml-1">${escapeHTML(u.storeid || '')}</span></td>
-              <td>${roleBadge}</td>
-              <td class="text-right">
-                <select onchange="updateRole('${u.userId}', this.value)" class="text-sm border border-slate-200 rounded px-2 py-1 bg-white outline-none">
-                  <option value="user" ${u.role==='user'?'selected':''}>設為一般</option>
-                  <option value="store" ${u.role==='store'?'selected':''}>設為店長</option>
-                  <option value="admin" ${u.role==='admin'?'selected':''}>設為總管</option>
-                </select>
-              </td>
-            </tr>
-          `;
-        }).join('');
-        
-        if(allActivitiesData.length > 0) updateTenantFilter(); 
-        if(allCardsData.length > 0) updateCardTenantFilter();
-      }
-    }
-
-    async function updateRole(targetUserId, newRole) {
-      if(!confirm(`確定要將此用戶變更為 ${newRole} 嗎？`)) {
-        loadUsers(); 
-        return;
-      }
-      const res = await fetchAPI('updateUserRole', { targetUserId: targetUserId, newRole: newRole });
-      if (res) {
-        showToast('權限已更新');
-        loadUsers();
-      }
-    }
-
-    // ================== 📇 全站名片庫 (CRM) 區塊 ==================
-    async function loadCards() {
-      const tbody = document.getElementById('cards-table-body');
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400">資料撈取中，請稍候...</td></tr>';
-
-      const res = await fetchAPI('getCardContacts');
-      if (res && Array.isArray(res)) {
-        allCardsData = res;
-        document.getElementById('stat-cards').innerText = res.length;
-        updateCardTenantFilter();
-        renderCards();
-      } else {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-400">無法取得名片資料，請重新整理</td></tr>';
-      }
-    }
-
-    function updateCardTenantFilter() {
-      const filter = document.getElementById('card-tenant-filter');
-      const currentVal = filter.value;
-      
-      const tenants = new Set();
-      allCardsData.forEach(c => {
-         let net = String(c['歸屬網'] || '').trim();
-         if (net === '') net = 'admin';
-         tenants.add(net);
-      });
-
-      let html = '<option value="all">全站所有名單</option>';
-      Array.from(tenants).sort().forEach(t => {
-         let tenantName = t;
-         if (allUsersData && allUsersData.length > 0) {
-             const userObj = allUsersData.find(u => u.networkId === t || u.userId === t);
-             if (userObj && userObj.name) {
-                 tenantName = `${userObj.name} (${t.substring(0,6)}...)`;
-             } else if (t === 'admin') {
-                 tenantName = `官方直營 (admin)`;
-             }
-         } else if (t === 'admin') {
-             tenantName = `官方直營 (admin)`;
-         }
-         html += `<option value="${t}">${escapeHTML(tenantName)}</option>`;
-      });
-
-      filter.innerHTML = html;
-      if (Array.from(filter.options).some(opt => opt.value === currentVal)) {
-        filter.value = currentVal;
-      }
-    }
-
-    function renderCards() {
-      const tbody = document.getElementById('cards-table-body');
-      const searchStr = document.getElementById('card-search-input').value.toLowerCase().trim();
-      const filterNet = document.getElementById('card-tenant-filter').value;
-      
-      let filtered = allCardsData;
-
-      if (filterNet !== 'all') {
-          filtered = filtered.filter(c => {
-              let net = String(c['歸屬網'] || '').trim();
-              if (net === '') net = 'admin';
-              return net === filterNet;
-          });
-      }
-
-      if (searchStr !== '') {
-          filtered = filtered.filter(c => {
-             const str = [
-               c['姓名'], c['公司名稱'], c['職稱'], c['手機號碼'], c['公司電話'], c['標籤'], c['建檔人/備註']
-             ].join(' ').toLowerCase();
-             return str.includes(searchStr);
-          });
-      }
-
-      if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400">找不到符合的名單</td></tr>';
-          return;
-      }
-
-      tbody.innerHTML = filtered.map(c => {
-        const company = escapeHTML(c['公司名稱'] || '');
-        const title = escapeHTML(c['職稱'] || '');
-        const companyTitle = [company, title].filter(Boolean).join(' / ') || '<span class="text-slate-300">-</span>';
-        const phone = escapeHTML(c['手機號碼'] || c['公司電話'] || '-');
-        const network = escapeHTML(c['歸屬網'] || 'admin');
-        
-        let tagHtml = '';
-        if (c['標籤']) {
-          tagHtml += String(c['標籤']).split(' ').map(t => `<span class="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded mr-1">${escapeHTML(t)}</span>`).join('');
-        }
-        const notes = escapeHTML(c['建檔人/備註'] || '');
-        const tagNote = [tagHtml, notes].filter(Boolean).join('<br>') || '<span class="text-slate-300">-</span>';
-
-        return `
-          <tr>
-            <td class="font-bold text-slate-700">${escapeHTML(c['姓名'] || '未命名')}</td>
-            <td class="text-sm text-slate-600">${companyTitle}</td>
-            <td class="font-mono text-sm">${phone}</td>
-            <td class="text-sm text-blue-600 font-bold">${network}</td>
-            <td class="text-xs text-slate-500 leading-relaxed">${tagNote}</td>
-            <td class="text-center">
-               <button onclick="openEditCardModal('${c.rowId}')" class="text-slate-400 hover:text-blue-600 transition-colors p-1" title="名片編輯設定">
-                 <span class="material-symbols-outlined text-[20px]">edit_note</span>
-               </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    // 📋 名片編輯器切換 Modal Tabs
-    function switchModalTab(tabType) {
-      if (tabType === 'crm') {
-        document.getElementById('tab-btn-crm').className = "pb-3 border-b-2 border-blue-600 font-bold text-blue-600 outline-none";
-        document.getElementById('tab-btn-visual').className = "pb-3 border-b-2 border-transparent font-bold text-slate-500 hover:text-slate-700 outline-none transition-colors";
-        document.getElementById('modal-body-crm').classList.remove('hidden');
-        document.getElementById('modal-body-visual').classList.add('hidden');
-      } else {
-        document.getElementById('tab-btn-visual').className = "pb-3 border-b-2 border-blue-600 font-bold text-blue-600 outline-none";
-        document.getElementById('tab-btn-crm').className = "pb-3 border-b-2 border-transparent font-bold text-slate-500 hover:text-slate-700 outline-none transition-colors";
-        document.getElementById('modal-body-visual').classList.remove('hidden');
-        document.getElementById('modal-body-crm').classList.add('hidden');
-      }
-    }
-
-    // 📋 打開名片雙層編修彈窗
-    function openEditCardModal(rowId) {
-      const card = allCardsData.find(c => String(c.rowId) === String(rowId));
-      if (!card) return;
-
-      document.getElementById('edit-c-rowid').value = card.rowId;
-      document.getElementById('edit-c-name').value = card['姓名'] || '';
-      document.getElementById('edit-c-company').value = card['公司名稱'] || '';
-      document.getElementById('edit-c-title').value = card['職稱'] || '';
-      document.getElementById('edit-c-phone').value = card['手機號碼'] || card['公司電話'] || '';
-      document.getElementById('edit-c-network').value = card['歸屬網'] || '';
-      document.getElementById('edit-c-tags').value = card['標籤'] || '';
-      document.getElementById('edit-c-notes').value = card['建檔人/備註'] || '';
-
-      let cfg = {};
-      try { cfg = JSON.parse(card['自訂名片設定'] || '{}'); } catch(e){}
-      
-      let layoutVal = cfg.layoutStyle || 'landscape';
-      let layoutRadio = document.querySelector(`input[name="edit-v-layout"][value="${layoutVal}"]`);
-      if (layoutRadio) layoutRadio.checked = true;
-
-      document.getElementById('edit-v-img').value = cfg.imgUrl || card['名片圖檔'] || '';
-      document.getElementById('edit-v-desc').value = cfg.desc || card['服務項目'] || '';
-      document.getElementById('edit-v-align').value = cfg.descAlign || 'center';
-      document.getElementById('edit-v-color').value = cfg.descColor || '#666666';
-      
-      currentEditButtons = cfg.buttons || [];
-      renderAdminCardButtons();
-
-      switchModalTab('crm'); 
-      document.getElementById('modal-card-edit').classList.remove('hidden');
-      updateAdminCardPreview(); 
-    }
-
-    // 🎨 所見即所得：即時更新右側手機預覽
-    function updateAdminCardPreview() {
-      const area = document.getElementById('admin-card-preview-area');
-      
-      const name = document.getElementById('edit-c-name').value || '姓名';
-      const company = document.getElementById('edit-c-company').value;
-      const title = document.getElementById('edit-c-title').value;
-      
-      let rawService = document.getElementById('edit-v-desc').value;
-      if (!rawService) rawService = [company, title].filter(Boolean).join(' / ');
-      const service = String(rawService).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-
-      const layoutEl = document.querySelector('input[name="edit-v-layout"]:checked');
-      const layoutStyle = layoutEl ? layoutEl.value : 'landscape';
-
-      const imgUrl = document.getElementById('edit-v-img').value || 'https://images.unsplash.com/photo-1616628188550-808682f3926d?w=800&q=80';
-      const align = document.getElementById('edit-v-align').value || 'center';
-      const color = document.getElementById('edit-v-color').value || '#666666';
-
-      let ratioCSS = '20/13';
-      if (layoutStyle === 'portrait') ratioCSS = '2/3';
-      if (layoutStyle === 'square') ratioCSS = '1/1';
-
-      const alignMap = { 'start': 'left', 'center': 'center', 'end': 'right' };
-      const textAlign = alignMap[align];
-
-      const btnsHtml = currentEditButtons.map(btn =>
-        `<div class="block py-3 rounded-xl text-white text-center text-[14px] font-black mb-2.5 shadow-sm" style="background:${btn.c||'#06C755'}">${escapeHTML(btn.l||'按鈕')}</div>`
-      ).join('');
-
-      // ✅ 將外框與 Padding 完全移除，呈現真實的邊到邊 (Edge-to-Edge) 視覺
-      area.innerHTML = `
-        <div class="flex flex-col w-full h-full bg-white pb-6">
-          <div class="relative bg-slate-100 bg-cover bg-center transition-all duration-300 shadow-sm" style="aspect-ratio: ${ratioCSS}; background-image:url('${imgUrl}');">
-            <div class="absolute top-4 left-4 bg-[#FF0000] text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm tracking-widest">分享</div>
-          </div>
-          <div class="p-6 text-center">
-            <div class="font-black text-[22px] text-slate-800 leading-tight mb-2">${escapeHTML(name)}</div>
-            <div class="text-[14px] font-medium leading-relaxed" style="color: ${color}; text-align: ${textAlign};">${service}</div>
-          </div>
-          ${btnsHtml ? `<div class="px-6">${btnsHtml}</div>` : ''}
-        </div>
-      `;
-    }
-
-    // 📋 渲染管理員彈窗內的按鈕清單
-    function renderAdminCardButtons() {
-      const container = document.getElementById('admin-edit-buttons-list');
-      if (currentEditButtons.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-400">目前沒有設定任何按鈕</p>';
-      } else {
-        container.innerHTML = currentEditButtons.map((b, i) => `
-          <div class="flex gap-2 items-center bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm">
-            <input type="color" value="${b.c || '#06C755'}" class="w-10 h-10 p-0 cursor-pointer rounded-lg shrink-0 border border-slate-200 bg-white" onchange="currentEditButtons[${i}].c=this.value; updateAdminCardPreview()">
-            <div class="flex-1 flex flex-col gap-1.5">
-              <input type="text" value="${escapeHTML(b.l || '')}" placeholder="按鈕顯示文字" class="w-full text-[13px] font-bold bg-slate-50 border-none outline-none focus:ring-1 focus:ring-blue-500 rounded px-2.5 py-1.5" oninput="currentEditButtons[${i}].l=this.value; updateAdminCardPreview()">
-              <input type="text" value="${escapeHTML(b.u || '')}" placeholder="https://..." class="w-full text-xs font-mono bg-slate-50 border-none outline-none focus:ring-1 focus:ring-blue-500 rounded px-2.5 py-1.5" oninput="currentEditButtons[${i}].u=this.value">
+        <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
+            <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[900px] !rounded-xl bg-white">
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
+                    <h3 class="text-[21px] font-black text-slate-800">{{ editingCourse?.id && String(editingCourse.id).startsWith('NEW_') ? '新增課程/方案' : '編輯：' + String(editingCourse?.name || '').split('\n')[0] }}</h3>
+                    <button @click="editingCourse = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button>
+                </div>
+                <div class="p-8 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar">
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+                        <h4 class="font-bold text-[18px] text-slate-700 mb-5 border-b pb-2">基本資訊</h4>
+                        <div class="grid grid-cols-2 gap-5">
+                            <div class="col-span-2"><label class="input-label">課程或方案名稱 (支援換行)</label><textarea v-model="editingCourse.name" class="input-field h-24 resize-none font-bold text-slate-800"></textarea></div>
+                            <div><label class="input-label">前台顯示價格字串</label><input type="text" v-model="editingCourse.priceText" class="input-field text-slate-600"></div>
+                            <div><label class="input-label">單一分類標籤</label><input type="text" v-model="editingCourse.type" class="input-field font-bold text-blue-600"></div>
+                            <div><label class="input-label">實際結帳金額</label><input type="number" v-model.number="editingCourse.price" class="input-field font-black text-[#06C755]"></div>
+                            <div><label class="input-label">招生人數上限</label><input type="number" v-model.number="editingCourse.capacity" class="input-field"></div>
+                            <div><label class="input-label">開始日期</label><input type="date" v-model="editingCourse.startDate" class="input-field"></div>
+                            <div><label class="input-label">結束日期</label><input type="date" v-model="editingCourse.endDate" class="input-field"></div>
+                            <div><label class="input-label">時段說明</label><input type="text" v-model="editingCourse.timeSlotType" class="input-field"></div>
+                            <div><label class="input-label">授課導師</label><input type="text" v-model="editingCourse.instructor" class="input-field"></div>
+                            <div><label class="input-label">上課地點</label><input type="text" v-model="editingCourse.location" class="input-field"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <h4 class="font-bold text-[18px] text-slate-700 mb-5 border-b pb-2">內容與權限</h4>
+                        <div class="grid grid-cols-2 gap-5">
+                            <div class="col-span-2"><label class="input-label">詳細介紹說明</label><textarea v-model="editingCourse.description" class="input-field h-40 resize-none leading-relaxed"></textarea></div>
+                            <div class="col-span-2 border-t pt-5 mt-2 grid grid-cols-2 gap-5">
+                                <div><label class="input-label">上架狀態</label><select v-model="editingCourse.isPublished" class="input-field font-bold"><option :value="true">🟢 公開顯示</option><option :value="false">🔴 隱藏下架</option></select></div>
+                                <div><label class="input-label">報名開關</label><select v-model="editingCourse.isRegistrationOpen" class="input-field font-bold"><option :value="true">✅ 開放購買</option><option :value="false">⏸️ 暫停購買</option></select></div>
+                                <div><label class="input-label">開放上架時間 (選填)</label><input type="datetime-local" v-model="editingCourse.publishStartDate" class="input-field text-sm"></div>
+                                <div><label class="input-label">自動下架時間 (選填)</label><input type="datetime-local" v-model="editingCourse.publishEndDate" class="input-field text-sm"></div>
+                                <div><label class="input-label">紅包折抵規則</label><select v-model="editingCourse.discountRule" class="input-field font-bold"><option value="NONE">❌ 不可折抵</option><option value="RULE_A">🟡 20% 折抵</option><option value="RULE_B">🟠 50% 折抵</option><option value="RULE_D">🟣 60% 折抵</option><option value="RULE_C">🟢 100% 全額折抵</option></select></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl">
+                    <button @click="editingCourse = null" class="text-[16px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button>
+                    <button @click="saveCourse" :disabled="isLoading" class="btn-green-main px-8 text-[17px] py-3"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存</button>
+                </div>
             </div>
-            <button onclick="currentEditButtons.splice(${i},1); renderAdminCardButtons(); updateAdminCardPreview()" class="text-red-400 bg-red-50 hover:bg-red-100 p-2.5 rounded-lg shrink-0 transition-colors"><span class="material-symbols-outlined text-[18px]">delete</span></button>
-          </div>
-        `).join('');
-      }
-      updateAdminCardPreview(); 
-    }
+        </div>
 
-    function addAdminCardButton() {
-      currentEditButtons.push({ l: '新按鈕', u: '', c: '#06C755' });
-      renderAdminCardButtons();
-    }
+        <div v-if="showOrdersModal" class="modal-mask" @click.self="showOrdersModal = false">
+            <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[1000px] !rounded-xl bg-white">
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
+                    <h3 class="text-[21px] font-black text-slate-800">報名單統計：{{ String(selectedCourseForOrders?.name || '').split('\n')[0] }}</h3>
+                    <button @click="showOrdersModal = false" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button>
+                </div>
+                <div class="p-6 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <table class="admin-table !min-w-0 w-full">
+                            <thead class="bg-slate-50"><tr><th class="py-3 px-4">單號 / 建立時間</th><th class="py-3 px-4">學員姓名</th><th class="py-3 px-4">聯絡電話</th><th class="py-3 px-4">實付金額</th><th class="py-3 px-4">付款狀態</th><th class="py-3 px-4">學員備註</th></tr></thead>
+                            <tbody>
+                                <tr v-for="o in currentCourseOrders" :key="o.orderId" class="border-b border-slate-50 hover:bg-slate-50">
+                                    <td class="py-4 px-4"><div class="font-mono font-bold text-[14px] text-slate-500">{{ String(o.orderId || '') }}</div><div class="text-[12px] text-slate-400 mt-1">{{ String(o.createdAt || '') }}</div></td>
+                                    <td class="py-4 px-4 font-bold text-[16px] text-slate-800">{{ String(o.name || '') }}</td>
+                                    <td class="py-4 px-4 font-mono text-[15px] text-slate-600">{{ String(o.phone || '未填寫') }}</td>
+                                    <td class="py-4 px-4 font-black text-[#06C755] text-[16px]">$ {{ formatPrice(o.amount) }}</td>
+                                    <td class="py-4 px-4"><span :class="o.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge px-3 py-1">{{ o.status === 'PAID' ? '✅ 已完款' : '⏳ 待付' }}</span></td>
+                                    <td class="py-4 px-4 text-[13px] text-slate-500 whitespace-pre-wrap max-w-[250px] leading-relaxed">{{ String(o.note || '-') }}</td>
+                                </tr>
+                                <tr v-if="!currentCourseOrders.length"><td colspan="6" class="text-center py-12 text-slate-400 font-bold text-[15px]">目前尚無報名紀錄</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-white flex justify-end items-center border-t border-slate-200 rounded-b-xl"><button @click="showOrdersModal = false" class="btn-green-main px-8 text-[16px] py-2.5">確認並關閉</button></div>
+            </div>
+        </div>
 
-    function closeEditCardModal() {
-      document.getElementById('modal-card-edit').classList.add('hidden');
-    }
+        <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
+            <div class="modal-body p-0 animate-fade-in !max-w-[500px] !rounded-xl bg-white">
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100"><h3 class="text-[21px] font-black text-slate-800">訂單狀態維護：{{ editingOrder?.orderId }}</h3><button @click="editingOrder = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button></div>
+                <div class="p-8 bg-slate-50 space-y-5 custom-scrollbar max-h-[70vh] overflow-y-auto">
+                    <div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field font-bold"><option value="PENDING">⏳ 待付款</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option></select></div>
+                    <div><label class="input-label">實付金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field font-black text-[#06C755]"></div>
+                    <div><label class="input-label">訂單備註</label><textarea v-model="editingOrder.note" class="input-field h-24 resize-none leading-relaxed text-[15px]"></textarea></div>
+                </div>
+                <div class="px-6 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl"><button @click="editingOrder = null" class="text-[16px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button><button @click="saveOrderUpdate" :disabled="isLoading" class="btn-green-main px-8 text-[17px] py-3"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>儲存變更</button></div>
+            </div>
+        </div>
 
-    // ✂️ 開啟後台專用圖片裁切器
-    function openAdminCropper(input) {
-      const file = input.files[0];
-      if (!file) return;
+        <div v-if="activeMember" class="modal-mask" @click.self="activeMember = null" style="z-index: 1000;">
+            <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[1000px] !rounded-xl bg-white shadow-2xl">
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100 shadow-sm z-10 relative"><h3 class="text-[19px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-address-card text-[#06C755]"></i> 會員檔案：{{ activeMember?.name }} <span class="text-[13px] font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 ml-3">UID: {{ activeMember?.userId }}</span></h3><button @click="activeMember = null" class="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><i class="fas fa-times text-xl"></i></button></div>
+                <div class="p-8 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar grid grid-cols-1 md:grid-cols-12 gap-8">
+                    <div class="md:col-span-7 space-y-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-user-edit text-indigo-500"></i> 基本資料</h4>
+                            <div class="grid grid-cols-2 gap-5">
+                                <div><label class="input-label">姓名</label><input type="text" v-model="activeMember.name" class="input-field font-bold"></div>
+                                <div><label class="input-label">手機</label><input type="tel" v-model="activeMember.phone" class="input-field font-mono font-bold"></div>
+                                <div><label class="input-label">等級</label><select v-model="activeMember.memberTier" class="input-field font-bold text-[#06C755]"><option v-for="t in memberTiers" :key="t" :value="t">{{t}}</option></select></div>
+                                <div><label class="input-label">業種</label><input type="text" v-model="activeMember.industry" class="input-field"></div>
+                                <div><label class="input-label">性別</label><select v-model="activeMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div>
+                                <div><label class="input-label">生日</label><input type="date" v-model="activeMember.birthday" class="input-field font-mono text-sm"></div>
+                                <div class="col-span-2"><label class="input-label">聯絡地址</label><input type="text" v-model="activeMember.address" class="input-field"></div>
+                                <!-- 🚀 新增：推薦人 UID 修改欄位 -->
+                                <div class="col-span-2"><label class="input-label">推薦人 UID (供測試或補登用，若無請留空)</label><input type="text" v-model="activeMember.referrerUid" class="input-field font-mono text-sm text-blue-600" placeholder="請貼上介紹人的 LINE UID"></div>
+                            </div>
+                            <button @click="deleteMember(activeMember)" class="mt-5 w-full py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"><i class="fas fa-trash-alt mr-2"></i>刪除此學員檔案</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-comment-dots text-orange-500"></i> 管理員備註</h4><textarea v-model="activeMember.adminNote" class="input-field h-32 resize-none leading-relaxed text-[15px]" placeholder="紀錄學員個案狀況..."></textarea></div>
+                    </div>
+                    <div class="md:col-span-5 flex flex-col space-y-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center relative overflow-hidden"><i class="fas fa-gift absolute -right-4 -bottom-4 text-red-50 text-8xl"></i><div class="text-[13px] font-bold text-slate-400 mb-1 relative z-10">可用紅包餘額</div><div class="text-[40px] font-black text-red-50 mb-6 relative z-10">{{ (activeMemberPoints.balance || 0).toLocaleString() }} <span class="text-base font-bold text-slate-400">點</span></div><div class="flex gap-3 relative z-10"><button @click="openPointActionModal('MANUAL_ADD')" class="flex-1 py-3 bg-green-50 text-green-600 rounded-xl font-bold border border-green-200 hover:bg-green-100 transition shadow-sm flex items-center justify-center gap-2 active:scale-95"><i class="fas fa-plus-circle"></i>贈點</button><button @click="openPointActionModal('MANUAL_DEDUCT')" class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-200 hover:bg-red-100 transition shadow-sm flex items-center justify-center gap-2 active:scale-95"><i class="fas fa-minus-circle"></i>扣點</button></div></div>
+                        <div class="flex-grow bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[350px]"><div class="p-4 bg-slate-50 border-b border-slate-100 text-[13px] font-bold text-slate-500 flex items-center gap-2"><i class="fas fa-history"></i> 紅包歷史紀錄</div><div class="overflow-y-auto custom-scrollbar flex-grow p-3"><div v-for="log in activeMemberPoints.logs" :key="log.logId" class="p-3 border-b border-slate-100 last:border-0 flex justify-between items-center hover:bg-slate-50 rounded-lg transition"><div><div class="font-bold text-[14px] text-slate-700 mb-0.5">{{ log.reason }}</div><div class="text-[11px] text-slate-400 font-mono">{{ log.createdAt }}</div></div><div class="font-black text-[17px]" :class="(log.type || '').includes('ADD')||(log.type || '').includes('EARN')?'text-[#06C755]':'text-red-500'">{{ (log.type || '').includes('ADD')||(log.type || '').includes('EARN')?'+':'-' }}{{ log.amount }}</div></div><div v-if="!activeMemberPoints.logs || activeMemberPoints.logs.length === 0" class="p-8 text-center text-slate-400 text-[13px] font-bold"><i class="fas fa-folder-open text-3xl text-slate-200 mb-2 block"></i>目前尚無紀錄</div></div></div>
+                    </div>
+                </div>
+                <div class="px-8 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl z-10 relative"><button @click="activeMember = null" class="text-[15px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button><button @click="saveMemberDetail" :disabled="isLoading" class="btn-green-main px-10 py-3.5 text-[17px] shadow-lg active:scale-95 flex items-center gap-2"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i><i v-else class="fas fa-save"></i>{{ isLoading ? '儲存中...' : '儲存檔案變更' }}</button></div>
+            </div>
+        </div>
 
-      const layoutEl = document.querySelector('input[name="edit-v-layout"]:checked');
-      const layout = layoutEl ? layoutEl.value : 'landscape';
-      let uploadRatio = NaN;
-      if (layout === 'landscape') uploadRatio = 20 / 13;
-      else if (layout === 'portrait') uploadRatio = 2 / 3;
-      else if (layout === 'square') uploadRatio = 1 / 1;
+        <div v-if="editingPointAction" class="modal-mask" style="z-index: 1100;" @click.self="editingPointAction = null">
+            <div class="modal-body p-8 animate-fade-in bg-white rounded-2xl max-w-sm shadow-2xl border border-slate-100"><h3 class="text-xl font-black mb-6 flex items-center gap-2" :class="editingPointAction.type==='MANUAL_ADD'?'text-[#06C755]':'text-red-500'"><i class="fas" :class="editingPointAction.type==='MANUAL_ADD'?'fa-arrow-circle-up':'fa-arrow-circle-down'"></i> {{ editingPointAction.type==='MANUAL_ADD' ? '手動贈送點數' : '手動扣除點數' }}</h3><div class="space-y-5"><div><label class="input-label text-slate-500">異動金額 (點)</label><input type="number" v-model.number="editingPointAction.amount" class="input-field text-3xl font-black text-center text-slate-800 bg-slate-50" placeholder="0"></div><div><label class="input-label text-slate-500">原因 / 備註</label><input type="text" v-model="editingPointAction.reason" class="input-field font-bold" placeholder="請填寫原因..."></div><div class="flex gap-3 pt-5 border-t border-slate-100"><button @click="editingPointAction = null" class="flex-1 py-3.5 bg-slate-100 text-slate-500 rounded-xl font-bold hover:bg-slate-200 transition">取消</button><button @click="submitPointAction" :disabled="isLoading" class="flex-1 py-3.5 text-white rounded-xl font-bold shadow-md active:scale-95 transition flex justify-center items-center gap-2" :class="editingPointAction.type==='MANUAL_ADD'?'bg-[#06C755] hover:bg-[#05a647]':'bg-red-500 hover:bg-red-600'"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i>確認執行</button></div></div></div>
+        </div>
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const modal = document.getElementById('admin-cropper-modal');
-        const img = document.getElementById('admin-cropper-image');
-        
-        img.style.display = 'block';
-        img.style.maxWidth = '100%';
-        img.style.maxHeight = '100%';
-        
-        modal.classList.remove('hidden');
+        <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
+            <div class="modal-body modal-body-lg animate-fade-in"><div class="px-6 py-5 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm"><h3 class="text-lg font-bold text-slate-800">{{ String(activeEnrollmentCourse?.name || '').split('\n')[0] }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400 text-3xl"><i class="fas fa-times"></i></button></div><div class="flex-grow overflow-y-auto p-8"><div class="bg-blue-50 p-6 rounded-xl border border-blue-200 mb-8 flex items-center gap-6 shadow-sm"><div class="flex-grow"><label class="text-xs font-bold text-blue-600 mb-1.5 block uppercase tracking-wider">導師簽到管理密碼</label><input type="text" v-model="activeEnrollmentCourse.checkinPwd" class="input-field border-blue-300 bg-white font-mono font-bold" placeholder="請設定密碼"></div><button @click="generateCheckinLink(activeEnrollmentCourse)" class="bg-blue-600 text-white px-8 py-3.5 rounded-lg font-bold mt-5 shadow-lg hover:bg-blue-700 transition">更新密碼</button></div><table class="admin-table !m-0 !min-w-full border rounded-lg"><thead><tr class="bg-slate-50"><th>姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>出席標記</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId" class="border-b last:border-0"><td class="font-bold text-slate-800">{{ o.name }}</td><td class="font-mono text-sm text-slate-500">{{ o.phone }}</td><td class="font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付' }}</span></td><td><select v-model="o.attendance" @change="updateOrderAttendance(o)" class="input-field !py-1.5 !text-xs w-28 font-black"><option value="">未標記</option><option value="ATTENDED">出席</option><option value="ABSENT">缺席</option></select></td></tr></tbody></table></div></div>
+        </div>
 
-        img.onload = () => {
-          const confirmBtn = document.getElementById('btn-admin-confirm-crop');
-          confirmBtn.setAttribute('onclick', 'confirmAdminCrop()');
-          confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">crop</span> 確認裁切';
-          confirmBtn.disabled = false;
+        <div v-if="editingSysConfig" class="modal-mask" @click.self="editingSysConfig = null">
+            <div class="modal-body p-8 animate-fade-in bg-white rounded-xl max-w-sm shadow-2xl"><h3 class="text-lg font-bold mb-6 flex items-center text-indigo-700"><i class="fas fa-sliders-h mr-2"></i>系統抽成與租金設定</h3><div class="text-[13px] font-bold text-slate-500 mb-4">導師：{{ editingSysConfig?.name }}</div><div class="space-y-4"><div><label class="input-label">時段租金 (開班扣點)</label><input type="number" v-model.number="editingSysConfig.rent" class="input-field font-bold text-slate-700"></div><div><label class="input-label">平台抽成 (%)</label><input type="number" v-model.number="editingSysConfig.comm" class="input-field font-bold text-slate-700"></div><div><div class="flex items-center gap-3 mb-2"><label class="input-label mb-0">接受紅包折抵</label><input type="checkbox" v-model="editingSysConfig.acceptPoints" class="w-5 h-5"></div><div v-if="editingSysConfig.acceptPoints"><label class="input-label">最高可折抵點數</label><input type="number" v-model.number="editingSysConfig.maxPoints" class="input-field font-bold"></div></div><div><label class="input-label">導師自訂收費 (NTD)</label><input type="number" v-model.number="editingSysConfig.price" class="input-field font-black text-[#06C755]"></div><div class="flex gap-3 pt-4"><button @click="editingSysConfig = null" class="flex-1 py-3 bg-slate-100 text-slate-500 rounded-lg font-bold hover:bg-slate-200 transition">取消</button><button @click="saveSysConfig" :disabled="isLoading" class="flex-1 py-3 bg-indigo-600 text-white rounded-lg font-bold shadow-md hover:bg-indigo-700 active:scale-95 transition"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認更新</button></div></div></div>
+        </div>
 
-          if (adminCropperInstance) adminCropperInstance.destroy();
-          
-          setTimeout(() => {
-            adminCropperInstance = new Cropper(img, {
-              aspectRatio: uploadRatio,
-              viewMode: 1,
-              dragMode: 'move',
-              autoCropArea: 0.95,
-              guides: true,
-              center: true,
-              highlight: false
-            });
-          }, 150);
+    </div>
+
+    <script>
+        const initVueApp = () => {
+            if (typeof Vue === 'undefined') {
+                setTimeout(initVueApp, 100);
+                return;
+            }
+
+            const { createApp, ref, computed, onMounted } = Vue;
+            const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
+            const CACHE_VERSION = 'v256'; 
+            const CACHE_KEY = `act_admin_cache_${CACHE_VERSION}`;
+
+            createApp({
+                setup() {
+                    const isAuthenticated = ref(false);
+                    const loginForm = ref({ account: '', password: '' });
+                    const view = ref('dashboard');
+                    const groups = ref({ groupA: true, groupB: true });
+                    const isLoading = ref(false);
+                    const liffProfile = ref({});
+                    
+                    const memberTiers = ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師'];
+                    
+                    const users = ref([]);
+                    const teachers = ref([]);
+                    const courses = ref([]);
+                    const orders = ref([]);
+                    const sysSettings = ref({});
+                    const slots = ref([]);
+                    const occupiedLocations = ref([]);
+                    const paymentLogs = ref([]);
+                    
+                    const memberSearch = ref('');
+                    const courseSearchQuery = ref('');
+                    const orderSearch = ref('');
+                    const approveForm = ref({ uid: '', rent: 0, comm: 0 });
+                    
+                    const isImageUploading = ref(false);
+                    const editingCourse = ref(null);
+                    const activeEnrollmentCourse = ref(null);
+                    const courseOrders = ref([]);
+                    const editingOrder = ref(null);
+                    const editingSysConfig = ref(null);
+
+                    const showOrdersModal = ref(false);
+                    const selectedCourseForOrders = ref(null);
+                    const selectedCourseOrders = ref([]);
+
+                    const activeMember = ref(null);
+                    const activeMemberPoints = ref({ balance: 0, logs: [] });
+                    const editingPointAction = ref(null);
+                    
+                    const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, '')).toLocaleString();
+                    const getCourseName = (id) => { const c = courses.value.find(x => x && (x.id === id || x.name === id)); return c ? c.name : id; };
+
+                    const callApi = async (act, pl = {}, silent = false) => {
+                        try {
+                            let token = null;
+                            try {
+                                if (typeof liff !== 'undefined' && typeof liff.isLoggedIn === 'function') {
+                                    token = liff.isLoggedIn() ? liff.getIDToken() : null;
+                                }
+                            } catch (err) {}
+
+                            if (loginForm.value.password) pl.adminPwd = loginForm.value.password;
+                            else if (sessionStorage.getItem('act_admin_pwd')) pl.adminPwd = sessionStorage.getItem('act_admin_pwd');
+                            
+                            const res = await fetch(WORKER_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {}, idToken: token })
+                            });
+                            const text = await res.text();
+                            let json;
+                            try { json = JSON.parse(text); } catch(e) { throw new Error('伺服器回傳格式錯誤'); }
+                            if (json.status !== 'success') throw new Error(json.message || '後台執行失敗');
+                            return json.data;
+                        } catch (e) {
+                            if (!silent) alert(`API Error: ${e.message}`);
+                            throw e;
+                        }
+                    };
+
+                    const loadCache = () => {
+                        if (localStorage.getItem('act_admin_logged_in') === 'true') {
+                            isAuthenticated.value = true;
+                            try {
+                                const c = JSON.parse(localStorage.getItem(CACHE_KEY));
+                                if (c) {
+                                    users.value = c.users || [];
+                                    teachers.value = c.teachers || [];
+                                    courses.value = c.courses || [];
+                                    orders.value = c.orders || [];
+                                    sysSettings.value = c.settings || {};
+                                    slots.value = c.slots || [];
+                                    occupiedLocations.value = c.occupiedLocations || [];
+                                    paymentLogs.value = c.paymentLogs || [];
+                                }
+                            } catch(e) {}
+                        }
+                    };
+
+                    const fetchData = async (silent = false) => {
+                        if (!silent && !users.value.length) isLoading.value = true;
+                        try {
+                            const data = await callApi('ADMIN_GET_DATA', {}, true);
+                            if (data) {
+                                users.value = data.users || [];
+                                teachers.value = data.teachers || [];
+                                courses.value = (data.courses || []).filter(c => c !== null);
+                                orders.value = data.orders || [];
+                                sysSettings.value = data.settings || {};
+                                paymentLogs.value = data.paymentLogs || [];
+                                
+                                const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
+                                if (slotData) {
+                                    slots.value = Array.isArray(slotData) ? slotData : (slotData.slots || []);
+                                    occupiedLocations.value = Array.isArray(slotData) ? [] : (slotData.occupiedLocations || []);
+                                }
+
+                                try {
+                                    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value }));
+                                    localStorage.setItem('act_admin_logged_in', 'true');
+                                } catch(cacheError) {
+                                    console.warn('LocalStorage 快取空間已滿，系統將改為即時連線模式');
+                                }
+                            }
+                        } catch(e) {
+                            console.error(e);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const forceSyncFromCloud = async () => {
+                        if (!confirm('⚠️ 確定要從雲端強制同步最新資料嗎？\n\n注意：您在本頁面未儲存的修改將會遺失！')) {
+                            return;
+                        }
+                        isLoading.value = true;
+                        try {
+                            await fetchData(true);
+                            alert('✅ 資料同步完成！已從雲端載入最新資料。');
+                        } catch(e) { 
+                            console.error(e); 
+                            alert('同步失敗：' + e.message);
+                        } finally { 
+                            isLoading.value = false; 
+                        }
+                    };
+
+                    const autoLineLogin = async () => {
+                        try {
+                            const data = await callApi('GET_SETTINGS', {}, true);
+                            let finalLiffId = String(data.liff_id || '').trim();
+                            if (finalLiffId.includes('liff.line.me/')) {
+                                finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
+                            }
+                            if (finalLiffId) {
+                                await liff.init({ liffId: finalLiffId });
+                                if (liff.isLoggedIn()) {
+                                    liffProfile.value = await liff.getProfile();
+                                    const checkRes = await callApi('CHECK_USER', {}, true);
+                                    if (checkRes && checkRes.isAdmin) {
+                                        isAuthenticated.value = true;
+                                        localStorage.setItem('act_admin_logged_in', 'true');
+                                        fetchData(true);
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.log('Silent LIFF login skip:', e);
+                        }
+                    };
+
+                    const lineLogin = async () => {
+                        isLoading.value = true;
+                        try {
+                            const data = await callApi('GET_SETTINGS', {}, false);
+                            let finalLiffId = String(data.liff_id || '').trim();
+                            if (finalLiffId.includes('liff.line.me/')) {
+                                finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
+                            }
+                            if (!finalLiffId) throw new Error('管理員尚未設定系統主 LIFF ID');
+
+                            await liff.init({ liffId: finalLiffId });
+                            if (!liff.isLoggedIn()) {
+                                liff.login({ redirectUri: window.location.href });
+                                return;
+                            }
+
+                            liffProfile.value = await liff.getProfile();
+                            const checkRes = await callApi('CHECK_USER', {}, false);
+
+                            if (checkRes && checkRes.isAdmin) {
+                                isAuthenticated.value = true;
+                                localStorage.setItem('act_admin_logged_in', 'true');
+                                fetchData(false);
+                            } else {
+                                alert('⛔ 您的 LINE 帳號沒有管理權限，無法登入。');
+                            }
+                        } catch (e) {
+                            alert(`登入失敗: ${e.message}`);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const handleLogin = () => {
+                        const acc = String(loginForm.value.account || '').trim().toLowerCase();
+                        const pwd = String(loginForm.value.password || '').trim();
+                        if (acc === 'admin' && pwd === '@1234') {
+                            isAuthenticated.value = true;
+                            localStorage.setItem('act_admin_logged_in', 'true');
+                            sessionStorage.setItem('act_admin_pwd', pwd);
+                            fetchData(false);
+                        } else {
+                            alert('帳號或密碼錯誤');
+                        }
+                    };
+
+                    const logout = () => {
+                        isAuthenticated.value = false;
+                        localStorage.removeItem('act_admin_logged_in');
+                        localStorage.removeItem(CACHE_KEY);
+                        sessionStorage.removeItem('act_admin_pwd');
+                        loginForm.value = { account: '', password: '' };
+                    };
+
+                    const toggleGroup = (groupName) => { groups.value[groupName] = !groups.value[groupName]; };
+                    const switchView = (viewName) => { view.value = viewName; };
+
+                    const currentViewName = computed(() => {
+                        const map = { 'dashboard': '營運統計中心', 'calendar': '日曆檢視', 'members': '學員 CRM', 'courses': '課程管理', 'consultation': '預約諮詢排班', 'orders': '訂單維護', 'payment_logs': '刷卡紀錄', 'richmenu': '圖文選單管理', 'settings': '系統參數設定' };
+                        return map[view.value] || '管理站';
+                    });
+
+                    const totalRevenue = computed(() => {
+                        return orders.value.filter(o => o && o.status === 'PAID').reduce((sum, o) => {
+                            const amt = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
+                            return sum + amt;
+                        }, 0).toLocaleString();
+                    });
+
+                    const courseStatsFiltered = computed(() => {
+                        return courses.value.filter(c => c).map(c => {
+                            const courseOrders = orders.value.filter(o => o && (o.courseId === c.id || o.courseId === c.name) && o.status !== 'CANCELLED');
+                            const totalOrders = courseOrders.length;
+                            let paidAmount = 0, pendingAmount = 0;
+                            courseOrders.forEach(o => {
+                                const amt = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
+                                if (o.status === 'PAID') paidAmount += amt;
+                                else pendingAmount += amt;
+                            });
+                            return { id: c.id, name: String(c.name || '').split('\n')[0], totalOrders, totalExpected: paidAmount + pendingAmount, paidAmount, pendingAmount };
+                        }).sort((a,b) => b.totalOrders - a.totalOrders);
+                    });
+
+                    const filteredMembers = computed(() => {
+                        if (!memberSearch.value) return users.value.filter(u => u);
+                        const q = memberSearch.value.toLowerCase();
+                        return users.value.filter(u => u && ((u.name && u.name.toLowerCase().includes(q)) || (u.phone && u.phone.includes(q)) || (u.userId && u.userId.toLowerCase().includes(q))));
+                    });
+
+                    const filteredAdminCourses = computed(() => {
+                        if (!courseSearchQuery.value) return courses.value.filter(c => c);
+                        const q = courseSearchQuery.value.toLowerCase();
+                        return courses.value.filter(c => c && ((c.name && c.name.toLowerCase().includes(q)) || (c.type && c.type.toLowerCase().includes(q)) || (c.id && c.id.toLowerCase().includes(q))));
+                    });
+
+                    const filteredOrders = computed(() => {
+                        let result = orders.value.filter(o => o);
+                        
+                        result.sort((a, b) => {
+                            const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
+                            const tB = new Date(String(b.createdAt).replace(/-/g, '/')).getTime() || 0;
+                            return tB - tA;
+                        });
+
+                        if (orderSearch.value) {
+                            const q = orderSearch.value.toLowerCase().trim();
+                            result = result.filter(o => {
+                                const cName = getCourseName(o.courseId) || '';
+                                return (
+                                    (o.orderId && o.orderId.toLowerCase().includes(q)) ||
+                                    (o.name && o.name.toLowerCase().includes(q)) ||
+                                    (o.phone && o.phone.includes(q)) ||
+                                    (cName.toLowerCase().includes(q))
+                                );
+                            });
+                        }
+                        return result;
+                    });
+
+                    const downloadSalesReport = () => {
+                        const validOrders = orders.value.filter(o => o && o.status === 'PAID');
+                        if(validOrders.length === 0) {
+                            alert("目前沒有已付款的訂單可供匯出。");
+                            return;
+                        }
+
+                        const totalRev = validOrders.reduce((sum, o) => sum + (Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0), 0);
+                        let csvContent = "\uFEFF"; 
+                        csvContent += "訂單編號,建立時間,學員姓名,聯絡電話,課程與服務名稱,實付金額,付款狀態,管理備註\n";
+
+                        validOrders.forEach(o => {
+                            let courseName = `"${String(getCourseName(o.courseId) || '').replace(/"/g, '""')}"`;
+                            let name = `"${String(o.name || '').replace(/"/g, '""')}"`;
+                            let phone = `"${String(o.phone || '').replace(/"/g, '""')}"`;
+                            let amount = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
+                            let status = o.status === 'PAID' ? '已完款' : o.status;
+                            let note = `"${String(o.note || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+
+                            csvContent += `${o.orderId},${o.createdAt},${name},${phone},${courseName},${amount},${status},${note}\n`;
+                        });
+
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        
+                        const today = new Date().toLocaleString('zh-TW', {timeZone: 'Asia/Taipei', hour12: false}).split(' ')[0].replace(/\//g, '-');
+
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", `宏學_業績報表_${today}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+
+                        alert(`✅ 報表下載成功！\n共匯出 ${validOrders.length} 筆有效訂單，總營收 $${totalRev.toLocaleString()}。`);
+                    };
+
+                    const triggerBackup = async () => {
+                        if(!confirm('確定要觸發資料庫備份嗎？')) return;
+                        isLoading.value = true;
+                        try { await callApi('ADMIN_TRIGGER_BACKUP', {}); alert('備份完成'); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const runHealthCheck = async () => {
+                        isLoading.value = true;
+                        try { const res = await callApi('SYSTEM_HEALTH_CHECK', {}); if(res && res.log) alert(res.log.join('\n')); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const openMemberDetail = async (u) => {
+                        activeMember.value = JSON.parse(JSON.stringify(u));
+                        isLoading.value = true;
+                        try {
+                            const points = await callApi('GET_USER_POINTS', { targetUid: u.userId });
+                            if(points) activeMemberPoints.value = points;
+                        } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const saveMemberDetail = async () => {
+                        if (!activeMember.value || !activeMember.value.userId) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value });
+                            if(res) {
+                                alert('✅ 學員檔案更新成功！');
+                                activeMember.value = null;
+                                await fetchData(true); 
+                            }
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const deleteMember = async (m) => {
+                        if(!confirm(`⚠️ 警告：確定要永久刪除學員 ${m.name} 嗎？\n刪除後該學員需重新註冊，此操作無法復原！`)) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_DELETE_MEMBER', { targetUid: m.userId });
+                            if(res) {
+                                alert('🗑️ 已成功刪除該學員');
+                                activeMember.value = null;
+                                await fetchData(true);
+                            }
+                        } catch(e) { console.error(e); alert('刪除失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const openPointActionModal = (type) => { editingPointAction.value = { type: type, amount: '', reason: '' }; };
+
+                    const submitPointAction = async () => {
+                        const amt = Number(editingPointAction.value.amount);
+                        if (!activeMember.value || !activeMember.value.userId) return;
+                        if (!amt || amt <= 0) return alert('請輸入大於 0 的金額');
+                        if (!editingPointAction.value.reason) return alert('請填寫異動原因');
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_MANAGE_POINTS', { uid: activeMember.value.userId, amount: amt, type: editingPointAction.value.type, reason: editingPointAction.value.reason, operator: 'Admin' });
+                            if (res) {
+                                alert('✅ 點數調整成功！已記錄於流水帳。');
+                                editingPointAction.value = null;
+                                const points = await callApi('GET_USER_POINTS', { targetUid: activeMember.value.userId });
+                                if(points) activeMemberPoints.value = points;
+                            }
+                        } catch(e) { console.error(e); alert('調整失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const openNewCourseModal = () => {
+                        editingCourse.value = { id: 'NEW_' + Date.now(), name: '', priceText: '', type: '一般', price: 0, capacity: 0, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', publishStartDate: '', publishEndDate: '', instructor: '', location: '', description: '', image: '', isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] };
+                    };
+
+                    const openEditModal = (c) => { editingCourse.value = JSON.parse(JSON.stringify(c)); };
+
+                    const saveCourse = async () => {
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_UPDATE_COURSE', editingCourse.value);
+                            if(res) {
+                                alert('✅ 課程儲存成功');
+                                const idx = courses.value.findIndex(c => c && c.id === editingCourse.value.id);
+                                if (idx > -1) courses.value[idx] = JSON.parse(JSON.stringify(editingCourse.value));
+                                else courses.value.unshift(JSON.parse(JSON.stringify(editingCourse.value)));
+                                editingCourse.value = null;
+                            }
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const copyCourse = (c) => {
+                        const copy = JSON.parse(JSON.stringify(c));
+                        copy.id = 'NEW_' + Date.now();
+                        copy.name = copy.name + ' (複製)';
+                        openEditModal(copy);
+                    };
+
+                    const syncToCalendar = async (c) => {
+                        isLoading.value = true;
+                        try { await callApi('ADMIN_SYNC_CALENDAR', { courseId: c.id }); alert('日曆同步成功'); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const handleBannerUpload = (e) => {
+                        const file = e.target.files[0];
+                        if(!file) return;
+                        isImageUploading.value = true;
+                        const reader = new FileReader();
+                        reader.onload = async (f) => {
+                            try {
+                                const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result });
+                                if(res && res.url) sysSettings.value.banner_image = res.url;
+                            } catch(e) { console.error(e); } finally { isImageUploading.value = false; }
+                        };
+                        reader.readAsDataURL(file);
+                    };
+
+                    const saveSettings = async () => {
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value);
+                            if(res) alert('✅ 設定儲存成功！');
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const openEnrollments = (c) => {
+                        activeEnrollmentCourse.value = JSON.parse(JSON.stringify(c));
+                        courseOrders.value = orders.value.filter(o => o && (o.courseId === c.id || o.courseId === c.name) && o.status !== 'CANCELLED');
+                    };
+                    
+                    const openCourseOrdersModal = (course) => {
+                        selectedCourseForOrders.value = course;
+                        selectedCourseOrders.value = orders.value.filter(o => o && (o.courseId === course.id || o.courseId === course.name) && o.status !== 'CANCELLED').sort((a, b) => {
+                            const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
+                            const tB = new Date(String(b.createdAt).replace(/-/g, '/')).getTime() || 0;
+                            return tB - tA;
+                        });
+                        showOrdersModal.value = true;
+                    };
+
+                    const generateCheckinLink = async (c) => {
+                        if(!c.checkinPwd) return alert('請先填寫密碼');
+                        isLoading.value = true;
+                        try { await callApi('ADMIN_SET_CHECKIN_PWD', { courseId: c.id, checkinPwd: c.checkinPwd }); alert('簽到密碼更新成功'); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const updateOrderAttendance = async (o) => {
+                        isLoading.value = true;
+                        try { await callApi('ADMIN_UPDATE_ORDER', { orderId: o.orderId, attendance: o.attendance }); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const openOrderEditModal = (o) => { editingOrder.value = JSON.parse(JSON.stringify(o)); };
+
+                    const saveOrderUpdate = async () => {
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_UPDATE_ORDER', { orderId: editingOrder.value.orderId, status: editingOrder.value.status, amount: editingOrder.value.amount, note: editingOrder.value.note });
+                            if(res) {
+                                alert('✅ 訂單更新成功');
+                                const idx = orders.value.findIndex(o => o && o.orderId === editingOrder.value.orderId);
+                                if (idx > -1) {
+                                    orders.value[idx].status = editingOrder.value.status;
+                                    orders.value[idx].amount = editingOrder.value.amount;
+                                    orders.value[idx].note = editingOrder.value.note;
+                                }
+                                editingOrder.value = null;
+                            }
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const openSysConfigModal = (t) => {
+                        editingSysConfig.value = { userId: t.userId, name: t.name, rent: t.config?.rent || 0, comm: t.config?.comm || 0, price: t.config?.price || 0, acceptPoints: t.config?.acceptPoints || false, maxPoints: t.config?.maxPoints || 0 };
+                    };
+
+                    const saveSysConfig = async () => {
+                        isLoading.value = true;
+                        try {
+                            const teacherObj = users.value.find(u => u && u.userId === editingSysConfig.value.userId);
+                            if (teacherObj) {
+                                teacherObj.config = { rent: editingSysConfig.value.rent, comm: editingSysConfig.value.comm, price: editingSysConfig.value.price, acceptPoints: editingSysConfig.value.acceptPoints, maxPoints: editingSysConfig.value.maxPoints };
+                                await callApi('ADMIN_UPDATE_MEMBER', { memberData: teacherObj });
+                                alert('✅ 抽成設定更新成功');
+                                const teacherIdx = teachers.value.findIndex(t => t && t.userId === editingSysConfig.value.userId);
+                                if (teacherIdx > -1) teachers.value[teacherIdx].config = teacherObj.config;
+                                editingSysConfig.value = null;
+                            }
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const handleApproveTeacher = async () => {
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_APPROVE_TEACHER', { teacherUid: approveForm.value.uid, rentPrice: approveForm.value.rent, commissionRate: approveForm.value.comm });
+                            if(res) { alert('導師核准成功'); fetchData(true); approveForm.value = { uid: '', rent: 0, comm: 0 }; }
+                        } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const currentCourseOrders = computed(() => selectedCourseOrders.value);
+
+                    onMounted(() => { 
+                        loadCache();
+                        autoLineLogin(); 
+                    });
+
+                    return {
+                        isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers,
+                        users, teachers, courses, orders, sysSettings, paymentLogs,
+                        currentViewName, totalRevenue, courseStatsFiltered,
+                        memberSearch, filteredMembers, courseSearchQuery, filteredAdminCourses,
+                        orderSearch, filteredOrders,
+                        approveForm, isImageUploading, editingCourse,
+                        activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig,
+                        showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
+                        activeMember, activeMemberPoints, editingPointAction,
+                        lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, forceSyncFromCloud,
+                        triggerBackup, runHealthCheck, openMemberDetail, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
+                        openNewCourseModal, openEditModal, saveCourse, copyCourse, syncToCalendar,
+                        handleBannerUpload, saveSettings, openEnrollments, openCourseOrdersModal,
+                        generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
+                        openSysConfigModal, saveSysConfig, handleApproveTeacher, getCourseName, formatPrice,
+                        downloadSalesReport
+                    };
+                }
+            }).mount('#app');
         };
-        img.src = e.target.result;
-        input.value = ''; 
-      };
-      reader.readAsDataURL(file);
-    }
 
-    function closeAdminCropper() {
-      document.getElementById('admin-cropper-modal').classList.add('hidden');
-      if (adminCropperInstance) {
-        adminCropperInstance.destroy();
-        adminCropperInstance = null;
-      }
-    }
-
-    async function confirmAdminCrop() {
-      if (!adminCropperInstance) return;
-      const btn = document.getElementById('btn-admin-confirm-crop');
-      btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[18px]">refresh</span> 處理中...';
-      btn.disabled = true;
-
-      let size = 800;
-      let quality = 0.8;
-      
-      const canvas = adminCropperInstance.getCroppedCanvas({
-        maxWidth: size,
-        maxHeight: size,
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: 'high',
-      });
-      
-      let base64Image = canvas.toDataURL('image/jpeg', quality);
-
-      while (base64Image.length > 660000 && quality > 0.3) {
-        quality -= 0.15;
-        base64Image = adminCropperInstance.getCroppedCanvas({ maxWidth: size, maxHeight: size }).toDataURL('image/jpeg', quality);
-      }
-
-      closeAdminCropper();
-
-      const targetInput = document.getElementById('edit-v-img');
-      const originalVal = targetInput.value;
-      targetInput.value = '圖片上傳中...';
-      showToast('⏳ 圖片上傳中...');
-      
-      try {
-        const res = await fetchAPI('uploadImageToR2', { base64Image: base64Image });
-        if (res && res.url) {
-          targetInput.value = res.url;
-          updateAdminCardPreview(); 
-          showToast('✅ 圖片已成功上傳');
-        } else {
-          throw new Error('上傳失敗');
-        }
-      } catch (err) {
-        targetInput.value = originalVal;
-        showToast('⚠️ ' + err.message, true);
-      }
-    }
-
-    // 📋 儲存雙層編修的變更
-    async function saveCardEdit() {
-      const rowId = document.getElementById('edit-c-rowid').value;
-      const name = document.getElementById('edit-c-name').value.trim();
-      if (!name) {
-        showToast('姓名為必填欄位！', true);
-        return;
-      }
-
-      const btn = document.getElementById('btn-save-card');
-      const originalBtnHTML = btn.innerHTML;
-      btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[16px]">refresh</span> 儲存中...';
-      btn.disabled = true;
-
-      const updateData = {
-        '姓名': name,
-        '公司名稱': document.getElementById('edit-c-company').value.trim(),
-        '職稱': document.getElementById('edit-c-title').value.trim(),
-        '手機號碼': document.getElementById('edit-c-phone').value.trim(),
-        '歸屬網': document.getElementById('edit-c-network').value.trim(),
-        '標籤': document.getElementById('edit-c-tags').value.trim(),
-        '建檔人/備註': document.getElementById('edit-c-notes').value.trim()
-      };
-
-      let cfg = {};
-      const cardIndex = allCardsData.findIndex(c => String(c.rowId) === String(rowId));
-      if (cardIndex !== -1) {
-        try { cfg = JSON.parse(allCardsData[cardIndex]['自訂名片設定'] || '{}'); } catch(e){}
-      }
-      
-      const layoutEl = document.querySelector('input[name="edit-v-layout"]:checked');
-      cfg.layoutStyle = layoutEl ? layoutEl.value : 'landscape';
-      
-      cfg.imgUrl = document.getElementById('edit-v-img').value.trim();
-      cfg.desc = document.getElementById('edit-v-desc').value;
-      cfg.descAlign = document.getElementById('edit-v-align').value;
-      cfg.descColor = document.getElementById('edit-v-color').value;
-      cfg.buttons = currentEditButtons;
-
-      updateData['名片圖檔'] = cfg.imgUrl;
-      updateData['服務項目'] = cfg.desc; 
-      updateData['自訂名片設定'] = JSON.stringify(cfg);
-
-      const res = await fetchAPI('updateCard', { rowId: rowId, data: updateData });
-      
-      btn.innerHTML = originalBtnHTML;
-      btn.disabled = false;
-
-      if (res) {
-        if (cardIndex !== -1) {
-          allCardsData[cardIndex] = { ...allCardsData[cardIndex], ...updateData };
-        }
-        closeEditCardModal();
-        renderCards();
-        showToast('✅ 數位名片儲存成功！');
-      }
-    }
-
-
-    // ================== 活動統計區塊 ==================
-    async function loadActivities() {
-      const tbody = document.getElementById('acts-table-body');
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400">資料撈取中，請稍候...</td></tr>';
-      
-      const res = await fetchAPI('getPublicActivities');
-      if (res && Array.isArray(res)) {
-        allActivitiesData = res;
-        document.getElementById('stat-acts').innerText = res.length;
-        updateTenantFilter();
-        renderActivities();
-      } else {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-400">無法取得活動資料，請重新整理</td></tr>';
-      }
-    }
-
-    function updateTenantFilter() {
-      const filter = document.getElementById('act-tenant-filter');
-      const currentVal = filter.value;
-      
-      const tenants = new Set();
-      allActivitiesData.forEach(act => {
-         let creator = String(act['建立者ID'] || '').trim();
-         if (creator === '') creator = 'admin';
-         tenants.add(creator);
-      });
-
-      let html = '<option value="all">全站所有活動</option>';
-      Array.from(tenants).sort().forEach(t => {
-         let tenantName = t;
-         if (allUsersData && allUsersData.length > 0) {
-             const userObj = allUsersData.find(u => u.networkId === t || u.userId === t);
-             if (userObj && userObj.name) {
-                 tenantName = `${userObj.name} (${t.substring(0,6)}...)`;
-             } else if (t === 'admin') {
-                 tenantName = `官方直營 (admin)`;
-             }
-         } else if (t === 'admin') {
-             tenantName = `官方直營 (admin)`;
-         }
-         html += `<option value="${t}">${escapeHTML(tenantName)}</option>`;
-      });
-
-      filter.innerHTML = html;
-      
-      let hasValue = false;
-      for (let i = 0; i < filter.options.length; i++) {
-        if (filter.options[i].value === currentVal) hasValue = true;
-      }
-      if (hasValue) filter.value = currentVal;
-    }
-
-    function renderActivities() {
-      const filterVal = document.getElementById('act-tenant-filter').value;
-      const tbody = document.getElementById('acts-table-body');
-      
-      let filtered = allActivitiesData;
-      let totalRegs = 0;
-
-      allActivitiesData.forEach(act => { totalRegs += (parseInt(act['報名人數']) || 0); });
-      document.getElementById('stat-regs').innerText = totalRegs;
-
-      if (filterVal !== 'all') {
-          filtered = allActivitiesData.filter(act => {
-              let creator = String(act['建立者ID'] || '').trim();
-              if (creator === '') creator = 'admin';
-              return creator === filterVal;
-          });
-      }
-
-      const rows = filtered.map(act => {
-          const regs = parseInt(act['報名人數']) || 0;
-          const checkins = parseInt(act['已到人數']) || 0;
-          const price = parseInt(act['金額']) || 0;
-          const priceText = price === 0 ? '<span class="text-blue-600 font-bold">免費</span>' : `$${price}`;
-          const timeText = (act['開始時間'] || '').substring(0, 16);
-          
-          let statusText = (act['狀態'] === '上架' || !act['狀態']) ? 
-              '<span class="text-blue-500 font-bold">上架中</span>' : '<span class="text-slate-400">已下架</span>';
-
-          let creatorStr = String(act['建立者ID'] || '').trim() || 'admin';
-          if(creatorStr.length > 10) creatorStr = creatorStr.substring(0,8) + '...';
-
-          return `
-            <tr>
-              <td class="font-bold text-slate-700">${escapeHTML(act['活動名稱'] || '未命名')}</td>
-              <td class="text-xs text-blue-600 font-bold">${escapeHTML(creatorStr)}</td>
-              <td class="text-sm">${escapeHTML(timeText)}</td>
-              <td>${priceText}</td>
-              <td class="text-sm"><span class="font-bold text-slate-700">${regs}</span> 報名 / ${checkins} 報到</td>
-              <td>${statusText}</td>
-            </tr>
-          `;
-      });
-
-      if (filtered.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">目前沒有建立任何活動</td></tr>`;
-      } else {
-          tbody.innerHTML = rows.join('');
-      }
-    }
-
-    function escapeHTML(str) {
-      return String(str || '').replace(/[&<>'"]/g, tag => ({
-          '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-        }[tag] || tag));
-    }
-
-    async function initAdmin() {
-      try {
-        await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) {
-          liff.login({ redirectUri: window.location.href });
-          return;
-        }
-
-        adminProfile = await liff.getProfile();
-        document.getElementById('admin-name').innerText = adminProfile.displayName;
-        document.getElementById('admin-avatar').src = adminProfile.pictureUrl || 'https://via.placeholder.com/150';
-
-        const userCheck = await fetchAPI('checkUser', { userId: adminProfile.userId });
-        
-        if (userCheck && userCheck.isRegistered && (userCheck.info.role === 'admin' || userCheck.info.role === 'store')) {
-          document.getElementById('loading-screen').style.opacity = '0';
-          setTimeout(() => document.getElementById('loading-screen').classList.add('hidden'), 300);
-          
-          switchTab('users');
-          loadCards();
-          loadActivities();
-
-        } else {
-          document.getElementById('loading-text').innerText = "權限不足，您不是系統管理員。";
-          document.getElementById('loading-screen').querySelector('span').innerText = "block";
-          document.getElementById('loading-screen').querySelector('span').classList.remove('animate-spin');
-          document.getElementById('loading-screen').querySelector('span').classList.add('text-red-500');
-        }
-      } catch (err) {
-        document.getElementById('loading-text').innerText = "系統連線錯誤，請重新整理。";
-        console.error(err);
-      }
-    }
-
-    document.addEventListener("DOMContentLoaded", initAdmin);
-  </script>
+        initVueApp();
+    </script>
 </body>
 </html>
