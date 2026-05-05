@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器</title>
-    <!-- Version: 2026.04.28.V236_Deploy_Payload_Fixed -->
+    <!-- Version: 2026.05.08.V290_Canvas_Base64_Extraction_Fixed -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -155,14 +155,14 @@
                                 try {
                                     const res = await ApiHelper.call('UPLOAD_IMAGE', { imageBase64: b64 });
                                     if (res && res.url) {
+                                        // 上傳成功，將 R2 URL 載入畫布
                                         MenuModule.load(file.name, "{}", res.url); 
-                                        savedBase64Image = b64; 
                                     } else {
                                         throw new Error('R2 URL 回傳失敗');
                                     }
                                 } catch (err) {
+                                    // 若失敗則退回使用純 Base64
                                     MenuModule.load(file.name, "{}", b64);
-                                    savedBase64Image = b64;
                                 } finally {
                                     btn.innerHTML = origHtml; btn.disabled = false;
                                 }
@@ -172,17 +172,41 @@
                         reader.readAsDataURL(file); 
                     }); 
                 },
-                getCurrentBase64: () => savedBase64Image,
+                getCurrentBase64: () => {
+                    // 🛡️ 核心修復：如果目前是網址 (URL)，利用畫布 (Canvas) 將其無損轉換回 Base64 字串，以符合 LINE API 規範
+                    if (savedBase64Image && savedBase64Image.startsWith('data:image')) {
+                        return savedBase64Image;
+                    }
+                    if (canvas && canvas.backgroundImage && canvas.backgroundImage._element) {
+                        try {
+                            const tempCvs = document.createElement('canvas');
+                            tempCvs.width = canvas.backgroundImage.width;
+                            tempCvs.height = canvas.backgroundImage.height;
+                            const tCtx = tempCvs.getContext('2d');
+                            tCtx.drawImage(canvas.backgroundImage._element, 0, 0);
+                            return tempCvs.toDataURL('image/jpeg', 0.9);
+                        } catch(e) {
+                            console.error("Canvas 轉換 Base64 失敗:", e);
+                        }
+                    }
+                    return savedBase64Image;
+                },
                 load: function(name, jsonStr, base64) {
                     try {
                         savedBase64Image = base64; 
                         document.getElementById('canvas-placeholder').style.display = 'none';
                         var data = {}; try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
+                        
+                        // 🛡️ 核心修復：加入 crossOrigin 參數，讓從雲端載回來的圖片也能被轉換為 Base64
                         var tempImg = new Image();
+                        tempImg.crossOrigin = "anonymous";
                         tempImg.onload = () => {
                             var ratio = tempImg.height / tempImg.width; currentImgHeight = Math.round(2500 * ratio);
                             canvas.setWidth(600); canvas.setHeight(600 * ratio);
-                            fabric.Image.fromURL(base64, (img) => { canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { scaleX: 600 / img.width, scaleY: (600 * ratio) / img.height }); this.importAreas(data.areas || [], 600 / 2500); });
+                            fabric.Image.fromURL(base64, (img) => { 
+                                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), { scaleX: 600 / img.width, scaleY: (600 * ratio) / img.height }); 
+                                this.importAreas(data.areas || [], 600 / 2500); 
+                            }, { crossOrigin: 'anonymous' });
                         }; 
                         tempImg.onerror = () => { alert('載入底圖失敗，格式可能有誤或網址失效'); };
                         tempImg.src = base64;
@@ -292,18 +316,25 @@
                     else if (Math.abs(h - 843) < 100) menuObj.size.height = 843;
                     else return showError(`您上傳的圖片比例不符合 LINE 規範！\n目前尺寸為：2500x${h}\nLINE 規定必須為：2500x1686 (大選單) 或 2500x843 (小選單)\n請重新裁切圖片後上傳。`);
 
+                    // 🛡️ 核心修復：強制將圖片轉回 Base64
+                    const b64ToSend = this.getCurrentBase64();
+                    if (!b64ToSend || !b64ToSend.startsWith('data:image')) {
+                        return showError('❌ 缺少「選單底圖」！LINE 官方規定部署時必須夾帶圖片。請在畫面上重新上傳您的圖片。');
+                    }
+
                     const btn = document.getElementById('deploy-submit-btn');
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>部署中...';
                     btn.disabled = true;
                     
                     try {
                         const data = await ApiHelper.call('DEPLOY_RICH_MENU', { 
-                            // ✅ 暴力兼容：同時發送新舊版變數，Worker 一定收得到
-                            richMenuObj: menuObj, 
-                            imageBase64: savedBase64Image,
-                            menuObject: menuObj,
-                            menuObj: menuObj,
-                            image: savedBase64Image
+                            // 🛡️ 核心修復：將物件完整拆解，精準對應 Worker 後端的變數名稱
+                            richMenuConfig: menuObj, 
+                            imageBase64: b64ToSend,
+                            areas: menuObj.areas,
+                            size: menuObj.size,
+                            name: menuObj.name,
+                            chatBarText: menuObj.chatBarText
                         }); 
                         if(data) {
                             alert('✅ 部署成功！請至 LINE 官方帳號查看最新選單。'); 
@@ -312,7 +343,7 @@
                     } catch (e) {
                         showError(e.message);
                     } finally {
-                        btn.innerHTML = '<i class="fas fa-rocket mr-2"></i>啟動部署';
+                        btn.innerHTML = '啟動部署';
                         btn.disabled = false;
                     }
                 }
@@ -335,16 +366,19 @@
                     
                     const name = document.getElementById('save-filename').value;
                     
+                    // 只儲存 URL (如果它有被轉成 R2 URL)，這樣就不會塞爆 LocalStorage
+                    const imageToSave = MenuModule.getCurrentBase64(); 
+
                     if (isNew || !currentId) { 
                         const newId = Date.now().toString(); 
-                        saves.unshift({ id: newId, name: name, date: new Date().toLocaleString(), data: json, image: base64 }); 
+                        saves.unshift({ id: newId, name: name, date: new Date().toLocaleString(), data: json, image: imageToSave }); 
                         currentId = newId; 
                     } else { 
                         const idx = saves.findIndex(x => x.id === currentId); 
-                        if (idx > -1) saves[idx] = { id: currentId, name: name, date: new Date().toLocaleString(), data: json, image: base64 }; 
+                        if (idx > -1) saves[idx] = { id: currentId, name: name, date: new Date().toLocaleString(), data: json, image: imageToSave }; 
                     }
 
-                    // ✅ 防爆容量機制：嘗試儲存，若空間不足則拋棄最舊的再試，最多保留 5 筆
+                    // 防爆機制
                     let success = false;
                     while(!success && saves.length > 0) {
                         try {
@@ -352,9 +386,9 @@
                             success = true;
                         } catch(e) {
                             if (saves.length > 1) {
-                                saves.pop(); // 丟棄最後一個
+                                saves.pop();
                             } else {
-                                break; // 連一個都存不下
+                                break; 
                             }
                         }
                     }
