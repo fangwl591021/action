@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生進化ACTION</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
-    <!-- Version: 2026.05.05.V281_Clean_Architecture -->
+    <!-- Version: 2026.05.06.V283_Keep_Original_Layout_With_Routes -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -97,7 +97,7 @@
             </div>
         </transition>
 
-        <div v-if="view !== 'register' && view !== 'courseDetail' && view !== 'share' && view !== 'add_friend_prompt' && view !== 'my_courses' && view !== 'booking'" class="flex flex-col h-screen overflow-hidden">
+        <div v-if="view !== 'register' && view !== 'courseDetail' && view !== 'share' && view !== 'referrals' && view !== 'points' && view !== 'add_friend_prompt' && view !== 'my_courses' && view !== 'booking'" class="flex flex-col h-screen overflow-hidden">
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
                 <div v-if="view === 'home'" class="animate-fade-in relative">
@@ -148,6 +148,7 @@
                     </div>
                 </div>
 
+                <!-- 🛡️ 恢復原本「我的」頁面的配置，並保留 URL 獨立跳轉能力 -->
                 <div v-if="view === 'profile'" class="animate-fade-in bg-white min-h-screen pb-32">
                     <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><h2 class="text-[17px] font-bold text-[#111111]">學員檔案</h2><button v-if="!isEditingProfile" @click="startEditingProfile" class="text-blue-600 font-bold text-sm">修改資料</button><button v-else @click="isEditingProfile = false" class="text-slate-400 font-bold text-sm">取消</button></div>
                     <div class="p-6 text-center border-b border-slate-50">
@@ -158,7 +159,10 @@
                         <div class="bg-gradient-to-br from-red-600 to-red-800 rounded-2xl p-6 text-white shadow-lg mb-6 relative overflow-hidden">
                             <div class="absolute right-0 top-0 opacity-10 text-8xl -mt-4 -mr-2"><i class="fas fa-envelope-open-text"></i></div>
                             <div class="text-[13px] text-red-200 font-bold mb-1 relative z-10">紅包帳戶餘額</div><div class="text-4xl font-black mb-4 relative z-10">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
-                            <div class="flex gap-2 relative z-10 mt-6"><button @click="dailyCheckin" class="flex-1 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-white/10 flex items-center justify-center gap-1"><i class="fas fa-calendar-check text-green-300"></i>每日打卡送紅包</button><button @click="navigateTo('share')" class="flex-1 py-3 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-1"><i class="fas fa-share-alt"></i>分享專區</button></div>
+                            <div class="flex gap-2 relative z-10 mt-6">
+                                <button @click="dailyCheckin" class="flex-1 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-white/10 flex items-center justify-center gap-1"><i class="fas fa-calendar-check text-green-300"></i>每日打卡送紅包</button>
+                                <button @click="navigateTo('share')" class="flex-1 py-3 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-1"><i class="fas fa-share-alt"></i>分享專區</button>
+                            </div>
                         </div>
 
                         <div v-if="!isEditingProfile" class="mb-5 animate-fade-in">
@@ -206,7 +210,7 @@
                 </div>
             </main>
 
-            <nav class="bottom-nav">
+            <nav class="bottom-nav z-[60]">
                 <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="openBookingFlow" class="nav-item" :class="{'nav-active': view === 'booking'}"><i class="fas fa-calendar-check"></i><span>預約</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
@@ -214,15 +218,109 @@
             </nav>
         </div>
 
+        <!-- 獨立 ACTION 1：分享專區 (URL: ?view=share) -->
         <transition name="slide-up">
-            <div v-if="view === 'share'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[60] flex flex-col overflow-hidden">
-                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center gap-4"><button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h2 class="text-[19px] font-black text-slate-800">分享專區</h2></div>
+            <div v-if="view === 'share'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[70] flex flex-col overflow-hidden">
+                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
+                    <button @click="navigateTo('profile')" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button>
+                    <h2 class="text-[19px] font-black text-slate-800">分享 ACTION</h2>
+                    <div class="w-8"></div>
+                </div>
                 <div class="flex-1 overflow-y-auto p-5 flex flex-col pb-40">
-                    <div class="w-full bg-white rounded-3xl p-6 border border-slate-100 text-center shadow-sm relative overflow-hidden mb-6 mt-2"><div class="absolute -right-4 -top-4 text-red-500/5 text-8xl"><i class="fas fa-envelope-open-text"></i></div><div class="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden border-[3px] border-white shadow-md relative z-10"><img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover"></div><h3 class="text-lg font-black text-slate-800 relative z-10">{{ liffProfile.displayName }} 邀請您</h3><p class="text-[13px] text-slate-500 font-bold mt-1.5 relative z-10">成為「人生進化ACTION」專屬會員</p></div>
-                    <div class="w-full mb-6 animate-fade-in"><div class="flex justify-between items-center mb-2 px-1"><h3 class="text-[14px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-user-friends text-[#06C755]"></i>我的邀請成功名單</h3><span class="text-[11px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">共 {{ userStatus.referrals?.length || 0 }} 人</span></div><div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden"><div v-for="r in userStatus.referrals" :key="r.date" class="p-3 border-b border-slate-50 flex justify-between items-center"><div class="font-bold text-[13px] text-slate-700"><i class="fas fa-user-circle text-slate-300 mr-2 text-lg align-middle"></i>{{ r.name }}</div><div class="text-[11px] text-slate-400 font-mono">{{ r.date }}</div></div><div v-if="!userStatus.referrals || userStatus.referrals.length === 0" class="p-5 text-center text-slate-400 text-[12px] font-bold bg-slate-50/50">目前尚無成功邀請紀錄<br>快傳送卡片給好友吧！</div></div></div>
-                    <div class="w-full space-y-3 mb-6"><button @click="shareToFriend" class="w-full py-4 bg-[#06C755] text-white rounded-2xl text-[16px] font-black active:scale-95 transition shadow-lg shadow-green-100 flex items-center justify-center gap-2"><i class="fas fa-paper-plane"></i> 傳送卡片給 LINE 好友</button><button @click="copyShareUrl" class="w-full py-4 bg-white text-slate-600 border border-slate-200 rounded-2xl text-[15px] font-black active:scale-95 transition flex items-center justify-center gap-2 hover:bg-slate-50 shadow-sm"><i class="fas fa-link"></i> 複製專屬邀請連結</button></div>
-                    <div class="w-full bg-white rounded-3xl p-6 border border-slate-100 text-center shadow-sm mb-6"><div class="flex items-center justify-center gap-2 mb-4"><i class="fas fa-qrcode text-[#06C755] text-xl"></i><h3 class="text-[17px] font-black text-slate-800">現場掃碼邀約加入</h3></div><div class="bg-slate-50 rounded-2xl p-4 inline-block mx-auto border border-slate-100"><img :src="'https://quickchart.io/qr?text=' + encodeURIComponent(shareUrl) + '&size=200'" class="w-48 h-48 object-contain"></div><p class="text-[12px] text-slate-400 font-bold mt-4">請好友打開 LINE 掃描器，直接掃描上方條碼</p></div>
-                    <div class="w-full p-5 bg-white rounded-2xl border border-slate-100 text-xs text-slate-500 leading-relaxed font-medium shadow-sm mb-8 text-left"><p class="font-bold text-slate-700 mb-2"><i class="fas fa-info-circle mr-1 text-[#06C755]"></i> 推薦獎勵說明：</p><ul class="list-disc pl-4 space-y-1.5"><li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得紅包點數。</li><li>每成功邀請一位，您將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_refer || 0 }}</span> 點。</li><li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新紅包。</li></ul></div>
+                    <div class="w-full bg-white rounded-3xl p-6 border border-slate-100 text-center shadow-sm relative overflow-hidden mb-6 mt-2">
+                        <div class="absolute -right-4 -top-4 text-red-500/5 text-8xl"><i class="fas fa-envelope-open-text"></i></div>
+                        <div class="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden border-[3px] border-white shadow-md relative z-10">
+                            <img v-if="liffProfile.pictureUrl" :src="liffProfile.pictureUrl" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="text-lg font-black text-slate-800 relative z-10">{{ liffProfile.displayName }} 邀請您</h3>
+                        <p class="text-[13px] text-slate-500 font-bold mt-1.5 relative z-10">成為「人生進化ACTION」專屬會員</p>
+                    </div>
+                    
+                    <div class="w-full space-y-3 mb-6">
+                        <button @click="shareToFriend" class="w-full py-4 bg-[#06C755] text-white rounded-2xl text-[16px] font-black active:scale-95 transition shadow-lg shadow-green-100 flex items-center justify-center gap-2">
+                            <i class="fas fa-paper-plane"></i> 傳送卡片給 LINE 好友
+                        </button>
+                        <button @click="copyShareUrl" class="w-full py-4 bg-white text-slate-600 border border-slate-200 rounded-2xl text-[15px] font-black active:scale-95 transition flex items-center justify-center gap-2 hover:bg-slate-50 shadow-sm">
+                            <i class="fas fa-link"></i> 複製專屬邀請連結
+                        </button>
+                    </div>
+                    
+                    <div class="w-full bg-white rounded-3xl p-6 border border-slate-100 text-center shadow-sm mb-6">
+                        <div class="flex items-center justify-center gap-2 mb-4"><i class="fas fa-qrcode text-[#06C755] text-xl"></i><h3 class="text-[17px] font-black text-slate-800">現場掃碼加入</h3></div>
+                        <div class="bg-slate-50 rounded-2xl p-4 inline-block mx-auto border border-slate-100">
+                            <img :src="'https://quickchart.io/qr?text=' + encodeURIComponent(shareUrl) + '&size=200'" class="w-48 h-48 object-contain">
+                        </div>
+                        <p class="text-[12px] text-slate-400 font-bold mt-4">請好友打開 LINE 掃描器，直接掃描上方條碼</p>
+                    </div>
+                    
+                    <div class="w-full p-5 bg-white rounded-2xl border border-slate-100 text-xs text-slate-500 leading-relaxed font-medium shadow-sm mb-8 text-left">
+                        <p class="font-bold text-slate-700 mb-2"><i class="fas fa-info-circle mr-1 text-[#06C755]"></i> 推薦獎勵說明：</p>
+                        <ul class="list-disc pl-4 space-y-1.5">
+                            <li>好友透過您的專屬連結或條碼註冊成功後，雙方皆可自動獲得紅包點數。</li>
+                            <li>每成功邀請一位，您將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_refer || 0 }}</span> 點。</li>
+                            <li>新好友註冊將獲得 <span class="text-red-500 font-bold">{{ sysSettings.reward_register || 0 }}</span> 點迎新紅包。</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 獨立 ACTION 2：邀約紀錄 (URL: ?view=referrals) -->
+        <transition name="slide-up">
+            <div v-if="view === 'referrals'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[70] flex flex-col overflow-hidden">
+                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
+                    <button @click="navigateTo('profile')" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button>
+                    <h2 class="text-[19px] font-black text-slate-800">邀約 ACTION</h2>
+                    <div class="w-8"></div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-5 flex flex-col pb-40">
+                    <div class="bg-blue-500 rounded-3xl p-6 text-white text-center shadow-lg mb-6 relative overflow-hidden">
+                        <i class="fas fa-user-friends absolute -right-4 -bottom-4 text-7xl opacity-20"></i>
+                        <div class="text-[13px] font-bold mb-1 opacity-90 relative z-10">成功邀約人數</div>
+                        <div class="text-5xl font-black relative z-10">{{ userStatus.referrals?.length || 0 }} <span class="text-lg font-medium">人</span></div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
+                        <div v-for="r in userStatus.referrals" :key="r.date" class="p-4 border-b border-slate-50 flex justify-between items-center">
+                            <div class="font-bold text-[14px] text-slate-700"><i class="fas fa-user-circle text-slate-300 mr-2 text-xl align-middle"></i>{{ r.name }}</div>
+                            <div class="text-[12px] text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded">{{ r.date }}</div>
+                        </div>
+                        <div v-if="!userStatus.referrals || userStatus.referrals.length === 0" class="p-8 text-center text-slate-400 text-[13px] font-bold bg-slate-50/50">
+                            目前尚無成功邀請紀錄<br>快前往分享專區傳送卡片吧！
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 獨立 ACTION 3：紅包明細 (URL: ?view=points) -->
+        <transition name="slide-up">
+            <div v-if="view === 'points'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[70] flex flex-col overflow-hidden">
+                <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
+                    <button @click="navigateTo('profile')" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button>
+                    <h2 class="text-[19px] font-black text-slate-800">紅包 ACTION</h2>
+                    <div class="w-8"></div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-5 flex flex-col pb-40">
+                    <div class="bg-gradient-to-br from-red-600 to-red-800 rounded-3xl p-6 text-white text-center shadow-lg mb-6 relative overflow-hidden">
+                        <i class="fas fa-envelope-open-text absolute -right-4 -bottom-4 text-7xl opacity-20"></i>
+                        <div class="text-[13px] font-bold mb-1 opacity-90 relative z-10">目前紅包餘額</div>
+                        <div class="text-5xl font-black relative z-10">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-lg font-medium">點</span></div>
+                    </div>
+                    <h3 class="text-[14px] font-black text-slate-800 mb-3 flex items-center gap-2"><i class="fas fa-history text-red-500"></i> 點數異動紀錄</h3>
+                    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
+                        <div v-for="log in userPoints.logs" :key="log.createdAt" class="p-4 border-b border-slate-50 last:border-0 flex justify-between items-center hover:bg-slate-50 transition">
+                            <div>
+                                <div class="font-bold text-[14px] text-slate-700 mb-1">{{ log.reason }}</div>
+                                <div class="text-[11px] text-slate-400 font-mono">{{ log.createdAt }}</div>
+                            </div>
+                            <div class="font-black text-[18px]" :class="(log.type || '').includes('ADD') || (log.type || '').includes('EARN') ? 'text-[#06C755]' : 'text-slate-400'">
+                                {{ (log.type || '').includes('ADD') || (log.type || '').includes('EARN') ? '+' : '-' }}{{ log.amount }}
+                            </div>
+                        </div>
+                        <div v-if="!userPoints.logs || userPoints.logs.length === 0" class="p-8 text-center text-slate-400 text-[13px] font-bold bg-slate-50/50">
+                            目前尚無紅包紀錄
+                        </div>
+                    </div>
                 </div>
             </div>
         </transition>
@@ -420,12 +518,6 @@
                     <button @click="submitConsultBooking" :disabled="!isBookingFormValid || isLoading" class="bg-[#06C755] text-white px-8 py-3.5 rounded-xl font-black text-[16px] disabled:opacity-50 disabled:bg-slate-300 transition shadow-lg shadow-green-100 w-[180px] flex justify-center items-center active:scale-95"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ isLoading ? '處理中' : '確認預約' }}</button>
                 </div>
 
-                <nav v-if="bookingStep < 4 && !bookingSuccess" class="bottom-nav z-[60]">
-                    <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
-                    <div @click="openBookingFlow" class="nav-item" :class="{'nav-active': view === 'booking'}"><i class="fas fa-calendar-check"></i><span>預約</span></div>
-                    <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
-                    <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile'}"><i class="fas fa-user"></i><span>我的</span></div>
-                </nav>
             </div>
         </transition>
 
@@ -660,8 +752,26 @@
                             
                             isGlobalLoading.value = false;
                             
-                            if (viewParam === 'share' && userStatus.value.registered) view.value = 'share';
-                            if (viewParam === 'booking' && userStatus.value.registered) openBookingFlow();
+                            // 🚀 ACTION 解耦：支援直接進入特定的單獨功能頁面，並且將原本「我的」介面保留。
+                            if (viewParam) {
+                                if (!userStatus.value.registered && viewParam !== 'register') {
+                                    view.value = 'register';
+                                    window.scrollTo(0, 0);
+                                } else if (userStatus.value.registered && viewParam === 'register') {
+                                    view.value = 'home';
+                                } else if (userStatus.value.registered) {
+                                    if (viewParam === 'booking') openBookingFlow();
+                                    else {
+                                        view.value = viewParam; // 支援: 'share', 'referrals', 'points'
+                                        window.scrollTo(0, 0);
+                                    }
+                                }
+                            } else {
+                                if (!userStatus.value.registered) {
+                                    view.value = 'register';
+                                    window.scrollTo(0, 0);
+                                }
+                            }
 
                         } catch (e) { 
                             console.error("Init Error", e); 
@@ -672,7 +782,7 @@
                     };
 
                     const navigateTo = (t) => {
-                        if ((t === 'profile' || t === 'orders' || t === 'share' || t === 'booking') && !userStatus.value.registered) { view.value = 'register'; window.scrollTo(0, 0); return; }
+                        if (!userStatus.value.registered) { view.value = 'register'; window.scrollTo(0, 0); return; }
                         if (t === 'booking') { openBookingFlow(); return; }
                         view.value = t; window.scrollTo(0, 0);
                     };
