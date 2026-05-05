@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.05.08.V288_Admin_Reverted_With_Links -->
+    <!-- Version: 2026.05.08.V292_Admin_MemberCard_Template -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -96,6 +96,8 @@
                         <div v-show="groups.groupB" class="animate-fade-in">
                             <a href="./consult_admin.html" class="nav-item text-indigo-600"><i class="fas fa-calendar-check w-6 text-center"></i>預約排班系統</a>
                             <div @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
+                            <!-- 🚀 改名為機器人與專區卡片 -->
+                            <div @click="switchView('flex_rules')" class="nav-item" :class="{'nav-active': view === 'flex_rules'}"><i class="fas fa-robot w-6 text-center"></i>機器人與專區卡片</div>
                             <div @click="switchView('settings')" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>系統設定</div>
                         </div>
                     </div>
@@ -255,6 +257,41 @@
                 </div>
                 
                 <div v-if="view === 'richmenu'" class="h-[calc(100vh-73px)]"><iframe src="./menu.html" class="w-full h-full border-0"></iframe></div>
+
+                <!-- 🚀 升級：機器人與會員卡片專區 -->
+                <div v-if="view === 'flex_rules'" class="p-8 animate-fade-in">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-black text-slate-800">自動回覆與會員專區卡片</h2>
+                        <button @click="openEditFlexRule(null)" class="btn-green-main shadow-sm"><i class="fas fa-plus mr-1"></i>新增觸發規則</button>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <table class="admin-table !min-w-0 w-full">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[13px]">
+                                    <th class="p-4 font-bold">觸發關鍵字 / Postback</th>
+                                    <th class="p-4 font-bold">回覆類型</th>
+                                    <th class="p-4 font-bold">狀態</th>
+                                    <th class="p-4 font-bold text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="rule in flexRules" :key="rule.id" class="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition">
+                                    <td class="p-4 font-bold text-slate-800">{{ rule.keyword }}</td>
+                                    <td class="p-4"><span class="status-badge" :class="rule.replyType === 'FLEX' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'">{{ rule.replyType === 'FLEX' ? 'FLEX 卡片' : '純文字' }}</span></td>
+                                    <td class="p-4"><span class="status-badge" :class="rule.active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">{{ rule.active !== false ? '啟用中' : '已停用' }}</span></td>
+                                    <td class="p-4 text-right">
+                                        <button @click="openEditFlexRule(rule)" class="text-blue-500 hover:text-blue-700 font-bold text-sm mr-4 transition"><i class="fas fa-edit"></i></button>
+                                        <button @click="deleteFlexRule(rule.id)" class="text-red-500 hover:text-red-700 font-bold text-sm transition"><i class="fas fa-trash-alt"></i></button>
+                                    </td>
+                                </tr>
+                                <tr v-if="flexRules.length === 0">
+                                    <td colspan="4" class="p-12 text-center text-slate-400 font-bold"><i class="fas fa-robot text-3xl mb-3 block text-slate-300"></i>尚無設定任何觸發規則</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
                 
                 <div v-if="view === 'settings'" class="p-8 animate-fade-in max-w-4xl mx-auto space-y-8">
                     <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
@@ -329,14 +366,75 @@
                                 <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">5. 預約服務</div>
                                 <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=booking</code>
                             </div>
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-indigo-100">
+                            <div class="text-[13px] font-bold text-slate-600 flex items-center mb-2"><i class="fas fa-magic text-[#06C755] mr-2"></i> 原生聊天室觸發功能 (Postback / 文字訊息)</div>
                             <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
                                 <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">6. 每日簽到打卡</div>
-                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-[#06C755] font-black truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=checkin</code>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-[#06C755] font-black truncate">每日簽到送紅包</code>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </main>
+        </div>
+
+        <!-- 🚀 升級：機器人與專區卡片編輯視窗 -->
+        <div v-if="editingFlexRule" class="modal-mask" @click.self="editingFlexRule = null" style="z-index: 1000;">
+            <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[700px] !rounded-xl bg-white shadow-2xl">
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100 shadow-sm z-10 relative">
+                    <h3 class="text-[19px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-robot text-[#06C755]"></i> {{ (editingFlexRule?.id || '').startsWith('NEW_') ? '新增觸發規則' : '編輯觸發規則' }}</h3>
+                    <button @click="editingFlexRule = null" class="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="p-8 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar space-y-6">
+                    
+                    <!-- 🎁 一鍵載入範本按鈕 -->
+                    <div v-if="editingFlexRule.replyType === 'FLEX'" class="bg-indigo-50 border border-indigo-100 rounded-xl p-5 mb-2 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div>
+                            <div class="font-black text-indigo-700 text-[15px] mb-1"><i class="fas fa-magic mr-1.5"></i> 快速套用範本</div>
+                            <div class="text-[13px] text-slate-500 font-bold leading-relaxed">一鍵生成「會員專區 Flex 卡片」，並自動綁定您的 LIFF 系統專屬連結！</div>
+                        </div>
+                        <button @click="loadMemberCardTemplate" class="bg-indigo-600 text-white font-bold text-[14px] px-6 py-2.5 rounded-lg shadow-md hover:bg-indigo-700 transition active:scale-95 whitespace-nowrap"><i class="fas fa-download mr-1.5"></i> 載入會員卡片</button>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <label class="block text-[14px] font-bold text-slate-700 mb-2">觸發關鍵字 / Postback Data <span class="text-red-500">*</span></label>
+                        <input type="text" v-model="editingFlexRule.keyword" class="input-field bg-slate-50 font-bold mb-2" placeholder="例如：ACTION會員專區">
+                        <p class="text-[12px] text-slate-500 font-bold"><i class="fas fa-info-circle text-[#06C755] mr-1"></i> 請將圖文選單編輯器中的「回傳 Data」設為此關鍵字，即可無縫觸發！</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-5">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <label class="block text-[14px] font-bold text-slate-700 mb-2">回覆類型</label>
+                            <select v-model="editingFlexRule.replyType" class="input-field bg-slate-50 font-bold text-indigo-700">
+                                <option value="FLEX">🎴 FLEX 卡片 (JSON)</option>
+                                <option value="TEXT">💬 純文字訊息</option>
+                            </select>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <label class="block text-[14px] font-bold text-slate-700 mb-2">規則狀態</label>
+                            <select v-model="editingFlexRule.active" class="input-field bg-slate-50 font-bold">
+                                <option :value="true">🟢 啟用中</option>
+                                <option :value="false">🔴 停用</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="block text-[14px] font-bold text-slate-700">回覆內容 (Payload) <span class="text-red-500">*</span></label>
+                            <a v-if="editingFlexRule.replyType === 'FLEX'" href="https://developers.line.biz/flex-simulator/" target="_blank" class="text-[12px] text-blue-500 hover:text-blue-700 font-bold transition flex items-center gap-1"><i class="fas fa-external-link-alt"></i> 開啟 LINE Flex Simulator</a>
+                        </div>
+                        <textarea v-model="editingFlexRule.payload" rows="12" class="input-field bg-slate-50 font-mono text-[12px] leading-relaxed resize-y" :placeholder="editingFlexRule.replyType === 'FLEX' ? '請將 Simulator 右上角的 JSON (View as JSON) 複製貼上於此...\n\n(系統支援自動補齊，您只需貼上 contents 陣列內的物件即可)' : '請輸入要回覆的純文字訊息...'"></textarea>
+                    </div>
+                </div>
+                <div class="px-8 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl z-10 relative">
+                    <button @click="editingFlexRule = null" class="text-[15px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button>
+                    <button @click="saveFlexRule" :disabled="isLoading" class="btn-green-main px-10 py-3.5 text-[17px] shadow-lg active:scale-95 flex items-center gap-2"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i>{{ isLoading ? '儲存中...' : '儲存觸發規則' }}</button>
+                </div>
+            </div>
         </div>
 
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
@@ -436,7 +534,6 @@
                                 <div><label class="input-label">性別</label><select v-model="activeMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div>
                                 <div><label class="input-label">生日</label><input type="date" v-model="activeMember.birthday" class="input-field font-mono text-sm"></div>
                                 <div class="col-span-2"><label class="input-label">聯絡地址</label><input type="text" v-model="activeMember.address" class="input-field"></div>
-                                <!-- 🚀 新增：推薦人 UID 修改欄位 -->
                                 <div class="col-span-2"><label class="input-label">推薦人 UID (供測試或補登用，若無請留空)</label><input type="text" v-model="activeMember.referrerUid" class="input-field font-mono text-sm text-blue-600" placeholder="請貼上介紹人的 LINE UID"></div>
                             </div>
                             <button @click="deleteMember(activeMember)" class="mt-5 w-full py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"><i class="fas fa-trash-alt mr-2"></i>刪除此學員檔案</button>
@@ -497,6 +594,7 @@
                     const slots = ref([]);
                     const occupiedLocations = ref([]);
                     const paymentLogs = ref([]);
+                    const flexRules = ref([]); // 🚀 新增 FlexRules 狀態
                     
                     const memberSearch = ref('');
                     const courseSearchQuery = ref('');
@@ -509,6 +607,7 @@
                     const courseOrders = ref([]);
                     const editingOrder = ref(null);
                     const editingSysConfig = ref(null);
+                    const editingFlexRule = ref(null); // 🚀 新增 FlexRule 編輯狀態
 
                     const showOrdersModal = ref(false);
                     const selectedCourseForOrders = ref(null);
@@ -563,6 +662,7 @@
                                     slots.value = c.slots || [];
                                     occupiedLocations.value = c.occupiedLocations || [];
                                     paymentLogs.value = c.paymentLogs || [];
+                                    flexRules.value = c.flexRules || []; // 🚀 讀取快取中的 FlexRules
                                 }
                             } catch(e) {}
                         }
@@ -579,6 +679,7 @@
                                 orders.value = data.orders || [];
                                 sysSettings.value = data.settings || {};
                                 paymentLogs.value = data.paymentLogs || [];
+                                flexRules.value = data.flexRules || []; // 🚀 更新 FlexRules
                                 
                                 const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
                                 if (slotData) {
@@ -587,7 +688,7 @@
                                 }
 
                                 try {
-                                    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value }));
+                                    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value, flexRules: flexRules.value }));
                                     localStorage.setItem('act_admin_logged_in', 'true');
                                 } catch(cacheError) {
                                     console.warn('LocalStorage 快取空間已滿，系統將改為即時連線模式');
@@ -698,7 +799,7 @@
                     const switchView = (viewName) => { view.value = viewName; };
 
                     const currentViewName = computed(() => {
-                        const map = { 'dashboard': '營運統計中心', 'calendar': '日曆檢視', 'members': '學員 CRM', 'courses': '課程管理', 'consultation': '預約諮詢排班', 'orders': '訂單維護', 'payment_logs': '刷卡紀錄', 'richmenu': '圖文選單管理', 'settings': '系統參數設定' };
+                        const map = { 'dashboard': '營運統計中心', 'calendar': '日曆檢視', 'members': '學員 CRM', 'courses': '課程管理', 'consultation': '預約諮詢排班', 'orders': '訂單維護', 'payment_logs': '刷卡紀錄', 'richmenu': '圖文選單管理', 'settings': '系統參數設定', 'flex_rules': '機器人與專區卡片' };
                         return map[view.value] || '管理站';
                     });
 
@@ -989,6 +1090,343 @@
                         } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
+                    // 🚀 核心升級：FLEX 規則編輯器 CRUD
+                    const openEditFlexRule = (rule) => {
+                        if (rule) {
+                            editingFlexRule.value = JSON.parse(JSON.stringify(rule));
+                        } else {
+                            editingFlexRule.value = {
+                                id: 'FR_' + Date.now(),
+                                keyword: '',
+                                replyType: 'FLEX',
+                                payload: '',
+                                active: true
+                            };
+                        }
+                    };
+
+                    const saveFlexRule = async () => {
+                        if (!editingFlexRule.value.keyword || !editingFlexRule.value.payload) return alert('觸發關鍵字與回覆內容為必填！');
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_SAVE_REPLY_RULE', editingFlexRule.value);
+                            if (res && res.success) {
+                                alert('✅ 觸發規則儲存成功！');
+                                editingFlexRule.value = null;
+                                fetchData(true);
+                            }
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const deleteFlexRule = async (id) => {
+                        if (!confirm('確定要永久刪除此規則嗎？')) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_DELETE_REPLY_RULE', { id });
+                            if (res && res.success) fetchData(true);
+                        } catch(e) {} finally { isLoading.value = false; }
+                    };
+
+                    // 🎁 一鍵載入「會員專區卡片」範本
+                    const loadMemberCardTemplate = () => {
+                        const liffId = sysSettings.value.liff_id || '';
+                        let cleanLiffId = String(liffId).trim();
+                        if (cleanLiffId.includes('liff.line.me/')) {
+                            cleanLiffId = cleanLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
+                        }
+                        if (!cleanLiffId) {
+                            alert("⚠️ 請先在「系統設定」綁定您的系統主 LIFF ID，系統才能為您產生專屬連結喔！");
+                            return;
+                        }
+                        
+                        const baseLiff = `https://liff.line.me/${cleanLiffId}`;
+                        
+                        const template = {
+                          "type": "bubble",
+                          "size": "giga",
+                          "header": {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": [
+                              {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                  {
+                                    "type": "text",
+                                    "text": "🧑",
+                                    "size": "xxl",
+                                    "align": "center"
+                                  }
+                                ],
+                                "width": "40px",
+                                "height": "40px",
+                                "backgroundColor": "#ffffff",
+                                "cornerRadius": "25px",
+                                "justifyContent": "center",
+                                "action": {
+                                  "type": "uri",
+                                  "label": "會員專區入口",
+                                  "uri": `${baseLiff}?view=profile`
+                                }
+                              },
+                              {
+                                "type": "text",
+                                "text": "會員專區",
+                                "weight": "bold",
+                                "size": "md",
+                                "color": "#ffffff",
+                                "gravity": "center",
+                                "margin": "md"
+                              }
+                            ],
+                            "paddingAll": "10px",
+                            "backgroundColor": "#00A600"
+                          },
+                          "body": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                              {
+                                "type": "box",
+                                "layout": "horizontal",
+                                "contents": [
+                                  {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                      {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                          {
+                                            "type": "text",
+                                            "text": "🎁",
+                                            "size": "3xl",
+                                            "align": "center"
+                                          }
+                                        ],
+                                        "width": "60px",
+                                        "height": "60px",
+                                        "backgroundColor": "#FFE5E0",
+                                        "cornerRadius": "30px",
+                                        "justifyContent": "center",
+                                        "action": {
+                                          "type": "uri",
+                                          "label": "action",
+                                          "uri": `${baseLiff}?view=points`
+                                        }
+                                      },
+                                      {
+                                        "type": "text",
+                                        "text": "紅包明細",
+                                        "size": "xs",
+                                        "align": "center",
+                                        "margin": "sm",
+                                        "color": "#666666"
+                                      }
+                                    ],
+                                    "flex": 1,
+                                    "spacing": "xs",
+                                    "action": {
+                                      "type": "message",
+                                      "label": "購物金明細",
+                                      "text": "會員購物金明細"
+                                    },
+                                    "alignItems": "center"
+                                  },
+                                  {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                      {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                          {
+                                            "type": "text",
+                                            "text": "📅",
+                                            "size": "3xl",
+                                            "align": "center"
+                                          }
+                                        ],
+                                        "width": "60px",
+                                        "height": "60px",
+                                        "backgroundColor": "#E0F0FF",
+                                        "cornerRadius": "30px",
+                                        "justifyContent": "center",
+                                        "action": {
+                                          "type": "uri",
+                                          "label": "action",
+                                          "uri": `${baseLiff}?view=register`
+                                        }
+                                      },
+                                      {
+                                        "type": "text",
+                                        "text": "註冊會員",
+                                        "size": "xs",
+                                        "align": "center",
+                                        "margin": "sm",
+                                        "color": "#666666"
+                                      }
+                                    ],
+                                    "flex": 1,
+                                    "spacing": "xs",
+                                    "action": {
+                                      "type": "message",
+                                      "label": "註冊資料",
+                                      "text": "會員註冊資料"
+                                    },
+                                    "alignItems": "center"
+                                  },
+                                  {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                      {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                          {
+                                            "type": "text",
+                                            "text": "📍",
+                                            "size": "3xl",
+                                            "align": "center"
+                                          }
+                                        ],
+                                        "width": "60px",
+                                        "height": "60px",
+                                        "backgroundColor": "#E8FFE0",
+                                        "cornerRadius": "30px",
+                                        "justifyContent": "center",
+                                        "action": {
+                                          "type": "uri",
+                                          "label": "action",
+                                          "uri": `${baseLiff}?view=referrals`
+                                        }
+                                      },
+                                      {
+                                        "type": "text",
+                                        "text": "分享列表",
+                                        "size": "xs",
+                                        "align": "center",
+                                        "margin": "sm",
+                                        "color": "#666666"
+                                      }
+                                    ],
+                                    "flex": 1,
+                                    "spacing": "xs",
+                                    "action": {
+                                      "type": "message",
+                                      "label": "分享列表",
+                                      "text": "會員分享列表"
+                                    },
+                                    "alignItems": "center"
+                                  },
+                                  {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                      {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                          {
+                                            "type": "text",
+                                            "text": "✅",
+                                            "size": "3xl",
+                                            "align": "center"
+                                          }
+                                        ],
+                                        "width": "60px",
+                                        "height": "60px",
+                                        "backgroundColor": "#E8E0FF",
+                                        "cornerRadius": "30px",
+                                        "justifyContent": "center",
+                                        "action": {
+                                          "type": "uri",
+                                          "label": "action",
+                                          "uri": `${baseLiff}?view=checkin`
+                                        }
+                                      },
+                                      {
+                                        "type": "text",
+                                        "text": "每日簽到",
+                                        "size": "xs",
+                                        "align": "center",
+                                        "margin": "sm",
+                                        "color": "#666666"
+                                      }
+                                    ],
+                                    "flex": 1,
+                                    "spacing": "xs",
+                                    "action": {
+                                      "type": "message",
+                                      "label": "每日簽到",
+                                      "text": "每日簽到"
+                                    },
+                                    "alignItems": "center"
+                                  },
+                                  {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                      {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                          {
+                                            "type": "text",
+                                            "text": "💰",
+                                            "size": "3xl",
+                                            "align": "center"
+                                          }
+                                        ],
+                                        "width": "60px",
+                                        "height": "60px",
+                                        "backgroundColor": "#FFF9E0",
+                                        "cornerRadius": "30px",
+                                        "justifyContent": "center",
+                                        "action": {
+                                          "type": "uri",
+                                          "label": "action",
+                                          "uri": `${baseLiff}?view=share`
+                                        }
+                                      },
+                                      {
+                                        "type": "text",
+                                        "text": "分享好友",
+                                        "size": "xs",
+                                        "align": "center",
+                                        "margin": "sm",
+                                        "color": "#666666"
+                                      }
+                                    ],
+                                    "flex": 1,
+                                    "spacing": "xs",
+                                    "action": {
+                                      "type": "message",
+                                      "label": "分享好友",
+                                      "text": "分享好友"
+                                    },
+                                    "alignItems": "center"
+                                  }
+                                ],
+                                "spacing": "md",
+                                "margin": "lg"
+                              }
+                            ],
+                            "paddingAll": "20px"
+                          }
+                        };
+                        
+                        editingFlexRule.value.keyword = "ACTION會員專區";
+                        editingFlexRule.value.replyType = "FLEX";
+                        editingFlexRule.value.payload = JSON.stringify(template, null, 2);
+                        
+                        alert("✅ 範本已成功載入！\n所有的按鈕連結已經自動換成了您的專屬 LIFF 網址。\n\n請確認內容無誤後，點擊右下角「儲存觸發規則」即可生效。");
+                    };
+
                     const currentCourseOrders = computed(() => selectedCourseOrders.value);
 
                     onMounted(() => { 
@@ -998,12 +1436,12 @@
 
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers,
-                        users, teachers, courses, orders, sysSettings, paymentLogs,
+                        users, teachers, courses, orders, sysSettings, paymentLogs, flexRules,
                         currentViewName, totalRevenue, courseStatsFiltered,
                         memberSearch, filteredMembers, courseSearchQuery, filteredAdminCourses,
                         orderSearch, filteredOrders,
                         approveForm, isImageUploading, editingCourse,
-                        activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig,
+                        activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
                         activeMember, activeMemberPoints, editingPointAction,
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, forceSyncFromCloud,
@@ -1012,12 +1450,13 @@
                         handleBannerUpload, saveSettings, openEnrollments, openCourseOrdersModal,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, getCourseName, formatPrice,
-                        downloadSalesReport
+                        downloadSalesReport, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate
                     };
                 }
             }).mount('#app');
         };
 
+        // 確保 Vue 載入後才執行應用
         initVueApp();
     </script>
 </body>
