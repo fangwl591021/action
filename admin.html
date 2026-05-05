@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.05.04.V261_Admin_Export_Report -->
+    <!-- Version: 2026.05.08.V288_Admin_Reverted_With_Links -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -301,35 +301,40 @@
                             <div><label class="input-label">商店代號 (MerchantID)</label><input type="text" v-model="sysSettings.newebpay_merchant_id" class="input-field font-mono"></div>
                             <div class="grid grid-cols-2 gap-4"><div><label class="input-label">HashKey</label><input type="text" v-model="sysSettings.newebpay_hash_key" class="input-field font-mono text-sm"></div><div><label class="input-label">HashIV</label><input type="text" v-model="sysSettings.newebpay_hash_iv" class="input-field font-mono text-sm"></div></div>
                         </div>
-                        <button @click="saveSettings" class="btn-green-main w-full py-4 shadow-md active:scale-98 transition">確認儲存並同步雲端參數</button>
+                        <button @click="saveSettings" :disabled="isLoading" class="btn-green-main w-full py-4 text-[16px] mt-4"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i> 確認儲存並同步雲端參數</button>
                     </div>
 
-                    <!-- 🚀 新增：LINE 整合專用連結提示區塊 -->
-                    <div class="bg-indigo-50 p-8 rounded-xl border border-indigo-100 shadow-sm relative overflow-hidden mt-8">
-                        <div class="section-title !mb-4 text-indigo-700 border-indigo-500">LINE 圖文選單/Postback 綁定連結提示</div>
-                        <p class="text-[14px] text-slate-700 font-bold mb-4">請將以下連結設定至您的 LINE 官方帳號圖文選單，或自動回覆訊息中，即可實現單一功能快速啟動：</p>
-                        
-                        <div class="space-y-3">
-                            <div class="bg-white p-4 rounded-lg border border-indigo-100 flex items-center justify-between">
-                                <div><span class="text-indigo-600 font-black mr-2">1. 分享 ACTION</span><span class="text-slate-500 text-sm font-bold">(跳出專屬QR碼與分享按鈕)</span></div>
-                                <code class="text-sm bg-slate-50 px-3 py-1.5 rounded font-mono font-bold text-slate-600">https://liff.line.me/{{sysSettings.liff_id}}?view=share</code>
+                    <!-- LINE 圖文選單綁定提示 -->
+                    <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100 shadow-sm mt-6">
+                        <div class="font-black text-indigo-800 mb-3"><i class="fas fa-link mr-1"></i> LINE 圖文選單/Postback 綁定連結</div>
+                        <p class="text-[13px] text-slate-600 font-bold mb-4 leading-relaxed">請將以下連結設定至您的 LINE 官方帳號，即可讓學員點擊後全螢幕開啟單一專屬功能。若學員尚未註冊，系統會自動攔截並引導註冊。</p>
+                        <div class="space-y-2">
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">1. 分享專區</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=share</code>
                             </div>
-                            <div class="bg-white p-4 rounded-lg border border-indigo-100 flex items-center justify-between">
-                                <div><span class="text-indigo-600 font-black mr-2">2. 註冊 ACTION</span><span class="text-slate-500 text-sm font-bold">(完成會員註冊與領取紅包)</span></div>
-                                <code class="text-sm bg-slate-50 px-3 py-1.5 rounded font-mono font-bold text-slate-600">https://liff.line.me/{{sysSettings.liff_id}}?view=register</code>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">2. 註冊領紅包</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=register</code>
                             </div>
-                            <div class="bg-white p-4 rounded-lg border border-indigo-100 flex items-center justify-between">
-                                <div><span class="text-indigo-600 font-black mr-2">3. 邀約 ACTION</span><span class="text-slate-500 text-sm font-bold">(統計成功邀約者名單)</span></div>
-                                <code class="text-sm bg-slate-50 px-3 py-1.5 rounded font-mono font-bold text-slate-600">https://liff.line.me/{{sysSettings.liff_id}}?view=referrals</code>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">3. 邀約名單</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=referrals</code>
                             </div>
-                            <div class="bg-white p-4 rounded-lg border border-indigo-100 flex items-center justify-between">
-                                <div><span class="text-indigo-600 font-black mr-2">4. 紅包 ACTION</span><span class="text-slate-500 text-sm font-bold">(紅包點數明細列表)</span></div>
-                                <code class="text-sm bg-slate-50 px-3 py-1.5 rounded font-mono font-bold text-slate-600">https://liff.line.me/{{sysSettings.liff_id}}?view=points</code>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">4. 紅包點數明細</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=points</code>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">5. 預約服務</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=booking</code>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">6. 每日簽到打卡</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-[#06C755] font-black truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=checkin</code>
                             </div>
                         </div>
-                        <p class="text-[13px] text-slate-500 mt-5 font-bold"><i class="fas fa-info-circle mr-1"></i> 智慧路由機制：若用戶尚未註冊，點擊上方任何一個連結皆會自動被攔截，並優先引導至「註冊 ACTION」畫面，註冊完畢才會放行。</p>
                     </div>
-
                 </div>
             </main>
         </div>
@@ -423,7 +428,17 @@
                 <div class="p-8 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar grid grid-cols-1 md:grid-cols-12 gap-8">
                     <div class="md:col-span-7 space-y-6">
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-user-edit text-indigo-500"></i> 基本資料</h4>
-                            <div class="grid grid-cols-2 gap-5"><div><label class="input-label">姓名</label><input type="text" v-model="activeMember.name" class="input-field font-bold"></div><div><label class="input-label">手機</label><input type="tel" v-model="activeMember.phone" class="input-field font-mono font-bold"></div><div><label class="input-label">等級</label><select v-model="activeMember.memberTier" class="input-field font-bold text-[#06C755]"><option v-for="t in memberTiers" :key="t" :value="t">{{t}}</option></select></div><div><label class="input-label">業種</label><input type="text" v-model="activeMember.industry" class="input-field"></div><div><label class="input-label">性別</label><select v-model="activeMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div><div><label class="input-label">生日</label><input type="date" v-model="activeMember.birthday" class="input-field font-mono text-sm"></div><div class="col-span-2"><label class="input-label">聯絡地址</label><input type="text" v-model="activeMember.address" class="input-field"></div></div>
+                            <div class="grid grid-cols-2 gap-5">
+                                <div><label class="input-label">姓名</label><input type="text" v-model="activeMember.name" class="input-field font-bold"></div>
+                                <div><label class="input-label">手機</label><input type="tel" v-model="activeMember.phone" class="input-field font-mono font-bold"></div>
+                                <div><label class="input-label">等級</label><select v-model="activeMember.memberTier" class="input-field font-bold text-[#06C755]"><option v-for="t in memberTiers" :key="t" :value="t">{{t}}</option></select></div>
+                                <div><label class="input-label">業種</label><input type="text" v-model="activeMember.industry" class="input-field"></div>
+                                <div><label class="input-label">性別</label><select v-model="activeMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div>
+                                <div><label class="input-label">生日</label><input type="date" v-model="activeMember.birthday" class="input-field font-mono text-sm"></div>
+                                <div class="col-span-2"><label class="input-label">聯絡地址</label><input type="text" v-model="activeMember.address" class="input-field"></div>
+                                <!-- 🚀 新增：推薦人 UID 修改欄位 -->
+                                <div class="col-span-2"><label class="input-label">推薦人 UID (供測試或補登用，若無請留空)</label><input type="text" v-model="activeMember.referrerUid" class="input-field font-mono text-sm text-blue-600" placeholder="請貼上介紹人的 LINE UID"></div>
+                            </div>
                             <button @click="deleteMember(activeMember)" class="mt-5 w-full py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"><i class="fas fa-trash-alt mr-2"></i>刪除此學員檔案</button>
                         </div>
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-comment-dots text-orange-500"></i> 管理員備註</h4><textarea v-model="activeMember.adminNote" class="input-field h-32 resize-none leading-relaxed text-[15px]" placeholder="紀錄學員個案狀況..."></textarea></div>
@@ -506,18 +521,15 @@
                     const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, '')).toLocaleString();
                     const getCourseName = (id) => { const c = courses.value.find(x => x && (x.id === id || x.name === id)); return c ? c.name : id; };
 
-                    // 🛡️ API 呼叫：自動挾帶 LINE ID Token 與管理員密碼
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
                             let token = null;
                             try {
                                 if (typeof liff !== 'undefined' && typeof liff.isLoggedIn === 'function') {
-                                    // 確保在 LIFF 未初始化時，不會因為報錯而阻斷整個 API 請求
                                     token = liff.isLoggedIn() ? liff.getIDToken() : null;
                                 }
                             } catch (err) {}
 
-                            // 修復：支援跨頁面重新整理的 Session 授權狀態
                             if (loginForm.value.password) pl.adminPwd = loginForm.value.password;
                             else if (sessionStorage.getItem('act_admin_pwd')) pl.adminPwd = sessionStorage.getItem('act_admin_pwd');
                             
@@ -574,7 +586,6 @@
                                     occupiedLocations.value = Array.isArray(slotData) ? [] : (slotData.occupiedLocations || []);
                                 }
 
-                                // 修復：防範未來營運資料過大導致 LocalStorage 爆量當機
                                 try {
                                     localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value }));
                                     localStorage.setItem('act_admin_logged_in', 'true');
@@ -668,7 +679,7 @@
                         if (acc === 'admin' && pwd === '@1234') {
                             isAuthenticated.value = true;
                             localStorage.setItem('act_admin_logged_in', 'true');
-                            sessionStorage.setItem('act_admin_pwd', pwd); // 將密碼暫存於分頁中，防止重整後權限遺失
+                            sessionStorage.setItem('act_admin_pwd', pwd);
                             fetchData(false);
                         } else {
                             alert('帳號或密碼錯誤');
@@ -679,7 +690,7 @@
                         isAuthenticated.value = false;
                         localStorage.removeItem('act_admin_logged_in');
                         localStorage.removeItem(CACHE_KEY);
-                        sessionStorage.removeItem('act_admin_pwd'); // 登出時一併清除
+                        sessionStorage.removeItem('act_admin_pwd');
                         loginForm.value = { account: '', password: '' };
                     };
 
@@ -727,14 +738,12 @@
                     const filteredOrders = computed(() => {
                         let result = orders.value.filter(o => o);
                         
-                        // 修復：將日期中的 - 替換為 /，防止 Safari (iPhone/Mac) 解析 Invalid Date 導致排序崩潰
                         result.sort((a, b) => {
                             const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
                             const tB = new Date(String(b.createdAt).replace(/-/g, '/')).getTime() || 0;
                             return tB - tA;
                         });
 
-                        // 進行搜尋過濾
                         if (orderSearch.value) {
                             const q = orderSearch.value.toLowerCase().trim();
                             result = result.filter(o => {
@@ -750,7 +759,6 @@
                         return result;
                     });
 
-                    // 🚀 CSV 報表秒速匯出邏輯
                     const downloadSalesReport = () => {
                         const validOrders = orders.value.filter(o => o && o.status === 'PAID');
                         if(validOrders.length === 0) {
@@ -759,13 +767,10 @@
                         }
 
                         const totalRev = validOrders.reduce((sum, o) => sum + (Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0), 0);
-
-                        // \uFEFF 是 BOM 標記，可防止 Windows Excel 打開 CSV 時中文變成亂碼
                         let csvContent = "\uFEFF"; 
                         csvContent += "訂單編號,建立時間,學員姓名,聯絡電話,課程與服務名稱,實付金額,付款狀態,管理備註\n";
 
                         validOrders.forEach(o => {
-                            // 將字串中的雙引號轉換為兩個雙引號，並用雙引號包覆整格，防止內容包含逗號導致跑版
                             let courseName = `"${String(getCourseName(o.courseId) || '').replace(/"/g, '""')}"`;
                             let name = `"${String(o.name || '').replace(/"/g, '""')}"`;
                             let phone = `"${String(o.phone || '').replace(/"/g, '""')}"`;
@@ -776,12 +781,10 @@
                             csvContent += `${o.orderId},${o.createdAt},${name},${phone},${courseName},${amount},${status},${note}\n`;
                         });
 
-                        // 建立安全下載連結
                         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement("a");
                         
-                        // 修復：鎖定為台灣時區，防止早上 8 點前匯出報表變成「昨天」的日期
                         const today = new Date().toLocaleString('zh-TW', {timeZone: 'Asia/Taipei', hour12: false}).split(' ')[0].replace(/\//g, '-');
 
                         link.setAttribute("href", url);
@@ -921,7 +924,6 @@
                     
                     const openCourseOrdersModal = (course) => {
                         selectedCourseForOrders.value = course;
-                        // 修復：解決 Safari (iPhone/Mac) 在報名名單排序時的 Invalid Date 錯誤
                         selectedCourseOrders.value = orders.value.filter(o => o && (o.courseId === course.id || o.courseId === course.name) && o.status !== 'CANCELLED').sort((a, b) => {
                             const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
                             const tB = new Date(String(b.createdAt).replace(/-/g, '/')).getTime() || 0;
@@ -1010,13 +1012,12 @@
                         handleBannerUpload, saveSettings, openEnrollments, openCourseOrdersModal,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, getCourseName, formatPrice,
-                        downloadSalesReport /* 加入匯出函數 */
+                        downloadSalesReport
                     };
                 }
             }).mount('#app');
         };
 
-        // 確保 Vue 載入後才執行應用
         initVueApp();
     </script>
 </body>
