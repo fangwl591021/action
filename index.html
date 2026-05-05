@@ -690,29 +690,23 @@
                         } catch(e) {}
                     };
 
-                    // 確保 URL 解析相容不同瀏覽器
-                    function newSearchParams(search) {
-                        return typeof URLSearchParams !== 'undefined' ? new URLSearchParams(search) : { get: () => null };
-                    }
-
                     const initApp = async () => {
                         hasInitError.value = false;
                         
-                        const urlParams = newSearchParams(window.location.search);
+                        const urlParams = typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location.search) : { get: () => null };
                         const refCode = urlParams.get('ref');
                         const viewParam = urlParams.get('view');
                         if (refCode) {
                             try { localStorage.setItem('referral_uid', refCode); } catch(e) {}
                         }
 
-                        // 先同步本地資料，若已登入則不強制轉跳首頁，直接看要不要開特定 ACTION
+                        // 先同步本地資料，若已登入則不強制轉跳首頁
                         syncLocal(null);
                         
                         if (userStatus.value.registered) {
-                            if (viewParam && viewParam !== 'register' && viewParam !== 'booking') {
+                            if (viewParam && viewParam !== 'register' && viewParam !== 'booking' && viewParam !== 'checkin') {
                                 view.value = viewParam; 
                             } else if (viewParam === 'register') {
-                                // 🛡️ 雙用表單：舊學員依然進入 Register，但帶入原資料供修改
                                 view.value = 'register';
                                 if (userStatus.value.info) {
                                     regForm.value = {
@@ -724,6 +718,8 @@
                                         address: userStatus.value.info.address || ''
                                     };
                                 }
+                            } else if (viewParam === 'checkin') {
+                                // 略過首頁，背景等待載入後自動觸發打卡
                             } else if (!viewParam) {
                                 view.value = 'home';
                             }
@@ -773,13 +769,12 @@
                                 } catch(e) { console.warn('LocalStorage limit reached in initApp'); }
                             }
                             
-                            // 再次確保最新的路由正確 (以防本地快取是錯的)
+                            // 再次確保最新的路由正確
                             if (viewParam) {
                                 if (!userStatus.value.registered && viewParam !== 'register') {
                                     view.value = 'register';
                                     window.scrollTo(0, 0);
                                 } else if (userStatus.value.registered && viewParam === 'register') {
-                                    // 🛡️ 雙用表單：舊學員依然進入 Register，但帶入原資料供修改
                                     view.value = 'register';
                                     if (userStatus.value.info) {
                                         regForm.value = {
@@ -794,6 +789,10 @@
                                     window.scrollTo(0, 0);
                                 } else if (userStatus.value.registered) {
                                     if (viewParam === 'booking') openBookingFlow();
+                                    else if (viewParam === 'checkin') {
+                                        // 🚀 自動呼叫打卡功能
+                                        dailyCheckin();
+                                    }
                                     else {
                                         view.value = viewParam; 
                                         window.scrollTo(0, 0);
@@ -1098,10 +1097,23 @@
                     };
 
                     const dailyCheckin = async () => {
+                        isLoading.value = true;
                         try {
                             const res = await callApi('DAILY_CHECKIN', {}, false);
-                            if (res) { alert(`🎁 領取紅包點數成功！獲得 ${res.earned} 點`); window.location.reload(); }
-                        } catch(e) { console.error(e); }
+                            if (res) { 
+                                alert(`🎁 領取紅包點數成功！獲得 ${res.earned} 點`); 
+                            }
+                        } catch(e) { 
+                            console.error(e); 
+                        } finally {
+                            try {
+                                const pData = await callApi('GET_USER_POINTS', {}, true);
+                                if (pData) userPoints.value = pData;
+                            } catch(e) {}
+                            view.value = 'points';
+                            window.scrollTo(0, 0);
+                            isLoading.value = false;
+                        }
                     };
 
                     const shareUrl = computed(() => {
