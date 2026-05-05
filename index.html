@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>人生進化ACTION</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
-    <!-- Version: 2026.05.07.V285_UI_And_Routing_Fix -->
+    <!-- Version: 2026.05.08.V287_Dual_Purpose_Register -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -66,8 +66,10 @@
             <div v-if="view === 'register'" class="fixed inset-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[60] flex flex-col overflow-hidden animate-fade-in">
                 <div class="header-fixed border-none pb-0">
                     <div class="w-8"></div>
-                    <h1 class="text-[17px] font-black tracking-tight text-slate-800">建立學員檔案</h1>
-                    <div class="w-8"></div>
+                    <!-- 🛡️ 雙用表單：動態標題 -->
+                    <h1 class="text-[17px] font-black tracking-tight text-slate-800">{{ userStatus.registered ? '更新學員檔案' : '建立學員檔案' }}</h1>
+                    <button v-if="userStatus.registered" @click="navigateTo('home')" class="text-slate-400 active:opacity-50 transition p-2 -mr-2"><i class="fas fa-times text-xl"></i></button>
+                    <div v-else class="w-8"></div>
                 </div>
                 <div class="flex-1 overflow-y-auto p-6 pb-32 space-y-5 hide-scrollbar">
                     <div class="text-center mb-6 mt-2">
@@ -75,7 +77,8 @@
                             <img :src="liffProfile.pictureUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover">
                         </div>
                         <h2 class="text-[19px] font-black text-slate-800">歡迎，{{ liffProfile.displayName }}</h2>
-                        <p class="text-[13px] text-slate-500 font-bold mt-1.5">請填寫真實資料以保障您的購課與預約權益</p>
+                        <!-- 🛡️ 雙用表單：動態文案 -->
+                        <p class="text-[13px] text-slate-500 font-bold mt-1.5">{{ userStatus.registered ? '您可以在此處隨時更新您的聯絡資訊' : '請填寫真實資料以保障您的購課與預約權益' }}</p>
                     </div>
                     
                     <div class="space-y-4">
@@ -91,7 +94,7 @@
                 </div>
                 <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-100 p-4 pb-[max(env(safe-area-inset-bottom),16px)] z-50">
                     <button @click="submitRegistration" :disabled="isLoading || !regForm.name || !regForm.phone" class="btn-primary w-full py-4 text-[17px] shadow-lg shadow-green-100/50 rounded-xl">
-                        <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認註冊並進入系統
+                        <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ userStatus.registered ? '確認修改資料' : '確認註冊並進入系統' }}
                     </button>
                 </div>
             </div>
@@ -148,32 +151,47 @@
                     </div>
                 </div>
 
-                <div v-if="view === 'profile'" class="animate-fade-in bg-white min-h-screen pb-32">
-                    <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><h2 class="text-[17px] font-bold text-[#111111]">學員檔案</h2><button v-if="!isEditingProfile" @click="startEditingProfile" class="text-blue-600 font-bold text-sm">修改資料</button><button v-else @click="isEditingProfile = false" class="text-slate-400 font-bold text-sm">取消</button></div>
-                    <div class="p-6 text-center border-b border-slate-50">
-                        <div class="w-20 h-20 rounded-full mx-auto mb-3 overflow-hidden border-2 border-[#06C755] p-0.5"><img v-if="userStatus.info?.avatar || liffProfile.pictureUrl" :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover rounded-full"></div>
-                        <div class="font-black text-xl">{{ userStatus.info?.name || liffProfile.displayName }}</div><div class="text-xs text-slate-400 mt-1 font-mono uppercase tracking-tighter">UID: {{ liffProfile.userId }}</div>
-                    </div>
-                    <div class="p-6">
-                        <div class="bg-gradient-to-br from-red-600 to-red-800 rounded-2xl p-6 text-white shadow-lg mb-6 relative overflow-hidden shrink-0">
-                            <div class="absolute right-0 top-0 opacity-10 text-8xl -mt-4 -mr-2"><i class="fas fa-envelope-open-text"></i></div>
-                            <div class="text-[13px] text-red-200 font-bold mb-1 relative z-10">紅包帳戶餘額</div><div class="text-4xl font-black mb-4 relative z-10">{{ (userPoints.balance || 0).toLocaleString() }} <span class="text-sm font-medium">點</span></div>
-                            <div class="flex gap-2 relative z-10 mt-6"><button @click="dailyCheckin" class="flex-1 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-white/10 flex items-center justify-center gap-1"><i class="fas fa-calendar-check text-green-300"></i>每日打卡送紅包</button><button @click="navigateTo('share')" class="flex-1 py-3 bg-yellow-400/20 hover:bg-yellow-400/30 rounded-xl text-[13px] font-bold active:scale-95 transition border border-yellow-400/30 text-yellow-300 flex items-center justify-center gap-1"><i class="fas fa-share-alt"></i>分享專區</button></div>
+                <div v-if="view === 'profile'" class="animate-fade-in bg-[#F4F5F7] min-h-screen pb-32">
+                    <div class="bg-white pb-6 shadow-sm border-b border-slate-100">
+                        <div class="h-24 w-full bg-gradient-to-r from-slate-800 to-slate-900 relative overflow-hidden">
+                            <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 20px 20px;"></div>
+                            <button @click="navigateTo('register')" class="absolute top-4 right-4 text-white/80 hover:text-white bg-white/10 px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-sm shadow-sm transition active:scale-95"><i class="fas fa-pen mr-1"></i>編輯</button>
                         </div>
+                        <div class="px-5 relative -mt-10 text-center">
+                            <div class="w-24 h-24 mx-auto rounded-full bg-white mb-2 overflow-hidden border-[4px] border-white shadow-md relative">
+                                <img v-if="userStatus.info?.avatar || liffProfile.pictureUrl" :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover">
+                                <i v-else class="fas fa-user-circle text-[#DDE0E5] text-6xl flex items-center justify-center h-full"></i>
+                            </div>
+                            <div class="font-black text-xl text-slate-800 mt-1">{{ userStatus.info?.name || liffProfile.displayName }}</div>
+                            <div class="text-[12px] text-[#06C755] font-bold mt-1 bg-green-50 rounded px-2.5 py-0.5 inline-block border border-green-100">{{ userStatus.info?.memberTier || '一般會員' }}</div>
+                        </div>
+                    </div>
 
-                        <div v-if="!isEditingProfile" class="mb-5 animate-fade-in">
-                            <div @click="isPointLogsOpen = !isPointLogsOpen" class="flex justify-between items-center px-4 py-3 bg-white rounded-xl border border-slate-100 shadow-sm cursor-pointer mb-2"><h3 class="text-[15px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-list-ul text-[#06C755]"></i>紅包點數明細</h3><i class="fas text-slate-400" :class="isPointLogsOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i></div>
-                            <div v-show="isPointLogsOpen" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
-                                <div v-for="log in userPoints.logs" :key="log.createdAt" class="p-4 border-b border-slate-50 last:border-0 flex justify-between items-center hover:bg-slate-50 transition"><div><div class="font-bold text-[14px] text-slate-700 mb-1">{{ log.reason }}</div><div class="text-[11px] text-slate-400 font-mono">{{ log.createdAt }}</div></div><div class="font-black text-[16px]" :class="(log.type || '').includes('ADD') || (log.type || '').includes('EARN') ? 'text-[#06C755]' : 'text-slate-400'">{{ (log.type || '').includes('ADD') || (log.type || '').includes('EARN') ? '+' : '-' }}{{ log.amount }}</div></div>
-                                <div v-if="!userPoints.logs || userPoints.logs.length === 0" class="p-6 text-center text-slate-400 text-xs font-bold bg-slate-50/50"><i class="fas fa-box-open text-2xl mb-2 text-slate-300"></i><br>目前尚無紅包紀錄</div>
+                    <div class="p-5">
+                        <div class="grid grid-cols-3 gap-3 mb-6 animate-fade-in">
+                            <div @click="navigateTo('points')" class="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm active:scale-95 transition cursor-pointer">
+                                <i class="fas fa-envelope-open-text text-3xl text-red-500 mb-2 block"></i>
+                                <div class="text-[12px] font-bold text-slate-700">紅包ACTION</div>
+                            </div>
+                            <div @click="navigateTo('share')" class="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm active:scale-95 transition cursor-pointer">
+                                <i class="fas fa-qrcode text-3xl text-[#06C755] mb-2 block"></i>
+                                <div class="text-[12px] font-bold text-slate-700">分享ACTION</div>
+                            </div>
+                            <div @click="navigateTo('referrals')" class="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm active:scale-95 transition cursor-pointer">
+                                <i class="fas fa-user-friends text-3xl text-blue-500 mb-2 block"></i>
+                                <div class="text-[12px] font-bold text-slate-700">邀約ACTION</div>
                             </div>
                         </div>
+
+                        <div class="mb-8 text-center animate-fade-in">
+                             <button @click="dailyCheckin" class="bg-white border border-slate-200 text-slate-600 rounded-full px-6 py-3.5 text-[14px] font-bold shadow-sm active:scale-95 transition flex items-center justify-center gap-2 mx-auto w-full max-w-[240px]"><i class="fas fa-calendar-check text-green-500 text-lg"></i> 每日打卡領取紅包</button>
+                        </div>
                         
-                        <div v-if="!isEditingProfile" class="mb-8 animate-fade-in">
+                        <div class="mb-8 animate-fade-in">
                             <div @click="isProfileInfoOpen = !isProfileInfoOpen" class="flex justify-between items-center px-4 py-3 bg-white rounded-xl border border-slate-100 shadow-sm cursor-pointer mb-2"><h3 class="text-[15px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-id-card text-[#06C755]"></i>個人基本資料</h3><i class="fas text-slate-400" :class="isProfileInfoOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i></div>
                             <div v-show="isProfileInfoOpen" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in px-4">
                                 <div class="space-y-1 py-2">
-                                    <div class="profile-row border-b border-slate-50"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">目前等級</span><span class="profile-value text-[#06C755] bg-green-50 px-2 py-0.5 rounded">{{ userStatus.info?.memberTier || '一般會員' }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">性別</span><span class="profile-value">{{ userStatus.info?.gender || '未填寫' }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">出生年月日</span><span class="profile-value font-mono">{{ userStatus.info?.birthday || '未填寫' }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">聯絡手機</span><span class="profile-value font-mono">{{ userStatus.info?.phone }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">業種</span><span class="profile-value">{{ userStatus.info?.industry || '未填寫' }}</span></div><div class="profile-row flex-col !items-start gap-2 border-b border-slate-50"><span class="profile-label">收件地址</span><span class="profile-value text-sm text-left leading-relaxed">{{ userStatus.info?.address || '未填寫' }}</span></div>
+                                    <div class="profile-row border-b border-slate-50"><span class="profile-label">真實姓名</span><span class="profile-value">{{ userStatus.info?.name }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">性別</span><span class="profile-value">{{ userStatus.info?.gender || '未填寫' }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">出生年月日</span><span class="profile-value font-mono">{{ userStatus.info?.birthday || '未填寫' }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">聯絡手機</span><span class="profile-value font-mono">{{ userStatus.info?.phone }}</span></div><div class="profile-row border-b border-slate-50"><span class="profile-label">業種</span><span class="profile-value">{{ userStatus.info?.industry || '未填寫' }}</span></div><div class="profile-row flex-col !items-start gap-2 border-b border-slate-50"><span class="profile-label">收件地址</span><span class="profile-value text-sm text-left leading-relaxed">{{ userStatus.info?.address || '未填寫' }}</span></div>
                                     <div v-if="(userStatus.info?.memberTier || '').includes('導師')" class="mt-2 pt-2 border-t border-slate-100"><div class="profile-row !border-0 pb-2"><span class="profile-label text-[#06C755]"><i class="fas fa-chalkboard-teacher mr-1"></i> 導師名片設定</span></div><div class="flex gap-3 items-start px-1 pb-4"><div class="w-14 h-14 rounded-full overflow-hidden shrink-0 border border-slate-100 shadow-sm bg-slate-50"><img :src="userStatus.info?.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover"></div><div class="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">{{ userStatus.info?.intro || '尚未填寫自我介紹' }}</div></div></div>
                                 </div>
                             </div>
@@ -184,23 +202,6 @@
                             </div>
                         </div>
 
-                        <div v-else class="space-y-5 animate-fade-in">
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">真實姓名</label><input type="text" v-model="editForm.name" class="native-input border border-slate-200 bg-white" placeholder="請輸入真實姓名"></div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">性別</label><select v-model="editForm.gender" class="native-input border border-slate-200 bg-white"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">出生年月日</label><input type="date" v-model="editForm.birthday" class="native-input border border-slate-200 bg-white text-[16px]"></div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">聯絡手機</label><input type="tel" v-model="editForm.phone" class="native-input font-mono border border-slate-200 bg-white" placeholder="09xxxxxxxx"></div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">業種</label><input type="text" v-model="editForm.industry" class="native-input border border-slate-200 bg-white" placeholder="例如：行銷、教育"></div>
-                            <div><label class="text-xs font-bold text-slate-400 mb-1.5 block">收件地址</label><input type="text" v-model="editForm.address" class="native-input border border-slate-200 bg-white" placeholder="寄送實體資料使用"></div>
-                            
-                            <div v-if="(userStatus.info?.memberTier || '').includes('導師')" class="pt-4 border-t border-slate-100 mt-2">
-                                <div class="text-[13px] font-bold text-[#06C755] mb-4"><i class="fas fa-id-badge mr-1"></i> 導師公開名片設定</div>
-                                <div class="mb-4"><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">專業形象照</label><div class="flex items-center gap-3"><div class="w-14 h-14 rounded-full bg-slate-50 border border-slate-100 overflow-hidden shrink-0 relative shadow-sm"><img v-if="editForm.avatar || liffProfile.pictureUrl" :src="editForm.avatar || liffProfile.pictureUrl" class="w-full h-full object-cover"><div v-if="isImageUploading" class="absolute inset-0 bg-white/70 flex items-center justify-center"><i class="fas fa-spinner fa-spin text-[#06C755]"></i></div></div><button @click="$refs.avatarInput.click()" :disabled="isImageUploading" class="px-4 py-2 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600 bg-white shadow-sm hover:bg-slate-50 transition active:scale-95">更換照片</button><input type="file" ref="avatarInput" class="hidden" accept="image/*" @change="handleAvatarUpload"></div></div>
-                                <div><label class="text-[12px] font-bold text-slate-400 mb-1.5 block">導師簡介</label><textarea v-model="editForm.intro" class="native-input border border-slate-200 bg-white h-28 resize-none leading-relaxed text-[16px]" placeholder="請輸入您的專業背景、經歷等..."></textarea></div>
-                            </div>
-                            
-                            <div class="pt-6"><button @click="saveProfileUpdate" :disabled="isLoading" class="btn-primary shadow-lg shadow-green-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存變更</button></div>
-                        </div>
-                        
                         <div v-if="userStatus.isAdmin" class="mt-8 animate-fade-in"><div class="text-xs font-bold text-slate-400 text-center mb-3 tracking-widest uppercase">系統管理員專區</div><a href="./mobile_admin.html" class="w-full py-4 bg-[#06C755] text-white rounded-2xl font-black shadow-lg shadow-green-100 flex items-center justify-center gap-3 active:scale-95 transition mb-3"><i class="fas fa-mobile-alt text-white text-xl"></i>進入行動管理台</a><a href="./admin.html" class="w-full py-4 bg-slate-800 text-white rounded-2xl font-black shadow-lg flex items-center justify-center gap-3 active:scale-95 transition border border-slate-700"><i class="fas fa-desktop text-[#06C755] text-xl"></i>切換至電腦版後台</a></div>
                     </div>
                 </div>
@@ -214,7 +215,6 @@
             </nav>
         </div>
 
-        <!-- 🛡️ 修復：加入獨立 ACTION 1 分享專區路由支援 -->
         <transition name="slide-up">
             <div v-if="view === 'share'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[70] flex flex-col overflow-hidden">
                 <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
@@ -261,7 +261,6 @@
             </div>
         </transition>
 
-        <!-- 🛡️ 修復：獨立 ACTION 2 邀約紀錄 (解決數字被切掉的版面問題) -->
         <transition name="slide-up">
             <div v-if="view === 'referrals'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[70] flex flex-col overflow-hidden">
                 <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
@@ -288,7 +287,6 @@
             </div>
         </transition>
 
-        <!-- 🛡️ 修復：獨立 ACTION 3 紅包明細 (解決數字被切掉的版面問題) -->
         <transition name="slide-up">
             <div v-if="view === 'points'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[70] flex flex-col overflow-hidden">
                 <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
@@ -692,6 +690,11 @@
                         } catch(e) {}
                     };
 
+                    // 確保 URL 解析相容不同瀏覽器
+                    function newSearchParams(search) {
+                        return typeof URLSearchParams !== 'undefined' ? new URLSearchParams(search) : { get: () => null };
+                    }
+
                     const initApp = async () => {
                         hasInitError.value = false;
                         
@@ -702,11 +705,25 @@
                             try { localStorage.setItem('referral_uid', refCode); } catch(e) {}
                         }
 
-                        // 🛡️ 修復閃爍：優先同步快取，實作「樂觀路由」，如果已經登入就直接切換過去，不回首頁
+                        // 先同步本地資料，若已登入則不強制轉跳首頁，直接看要不要開特定 ACTION
                         syncLocal(null);
+                        
                         if (userStatus.value.registered) {
                             if (viewParam && viewParam !== 'register' && viewParam !== 'booking') {
-                                view.value = viewParam; // 瞬間跳到紅包或邀約頁
+                                view.value = viewParam; 
+                            } else if (viewParam === 'register') {
+                                // 🛡️ 雙用表單：舊學員依然進入 Register，但帶入原資料供修改
+                                view.value = 'register';
+                                if (userStatus.value.info) {
+                                    regForm.value = {
+                                        name: userStatus.value.info.name || '',
+                                        gender: userStatus.value.info.gender || '',
+                                        birthday: userStatus.value.info.birthday || '',
+                                        phone: userStatus.value.info.phone || '',
+                                        industry: userStatus.value.info.industry || '',
+                                        address: userStatus.value.info.address || ''
+                                    };
+                                }
                             } else if (!viewParam) {
                                 view.value = 'home';
                             }
@@ -756,13 +773,25 @@
                                 } catch(e) { console.warn('LocalStorage limit reached in initApp'); }
                             }
                             
-                            // 再次確保最新的路由正確
+                            // 再次確保最新的路由正確 (以防本地快取是錯的)
                             if (viewParam) {
                                 if (!userStatus.value.registered && viewParam !== 'register') {
                                     view.value = 'register';
                                     window.scrollTo(0, 0);
                                 } else if (userStatus.value.registered && viewParam === 'register') {
-                                    view.value = 'home';
+                                    // 🛡️ 雙用表單：舊學員依然進入 Register，但帶入原資料供修改
+                                    view.value = 'register';
+                                    if (userStatus.value.info) {
+                                        regForm.value = {
+                                            name: userStatus.value.info.name || '',
+                                            gender: userStatus.value.info.gender || '',
+                                            birthday: userStatus.value.info.birthday || '',
+                                            phone: userStatus.value.info.phone || '',
+                                            industry: userStatus.value.info.industry || '',
+                                            address: userStatus.value.info.address || ''
+                                        };
+                                    }
+                                    window.scrollTo(0, 0);
                                 } else if (userStatus.value.registered) {
                                     if (viewParam === 'booking') openBookingFlow();
                                     else {
@@ -789,7 +818,19 @@
                     };
 
                     const navigateTo = (t) => {
-                        if (!userStatus.value.registered) { view.value = 'register'; window.scrollTo(0, 0); return; }
+                        if (!userStatus.value.registered && t !== 'register') { view.value = 'register'; window.scrollTo(0, 0); return; }
+                        
+                        if (t === 'register' && userStatus.value.registered && userStatus.value.info) {
+                            regForm.value = {
+                                name: userStatus.value.info.name || '',
+                                gender: userStatus.value.info.gender || '',
+                                birthday: userStatus.value.info.birthday || '',
+                                phone: userStatus.value.info.phone || '',
+                                industry: userStatus.value.info.industry || '',
+                                address: userStatus.value.info.address || ''
+                            };
+                        }
+
                         if (t === 'booking') { openBookingFlow(); return; }
                         view.value = t; window.scrollTo(0, 0);
                     };
@@ -947,11 +988,6 @@
                         } finally { isLoading.value = false; }
                     };
 
-                    // 確保 URL 解析相容不同瀏覽器
-                    function newSearchParams(search) {
-                        return typeof URLSearchParams !== 'undefined' ? new URLSearchParams(search) : { get: () => null };
-                    }
-
                     const submitRegistration = async () => {
                         if (!regForm.value.name || !regForm.value.phone) return alert('姓名與電話為必填');
                         if (!liffProfile.value.userId) return alert('無法取得 LINE 授權，請確認已透過 LINE App 開啟此頁面。');
@@ -959,7 +995,13 @@
                         try {
                             const refUid = localStorage.getItem('referral_uid') || '';
                             const res = await callApi('REGISTER_USER', { userId: liffProfile.value.userId, pictureUrl: liffProfile.value.pictureUrl, referrerUid: refUid, ...regForm.value }, false);
-                            if (res) { localStorage.removeItem('referral_uid'); window.location.reload(); }
+                            if (res) { 
+                                localStorage.removeItem('referral_uid'); 
+                                if (userStatus.value.registered) {
+                                    alert('✅ 資料更新成功！');
+                                }
+                                window.location.reload(); 
+                            }
                         } catch (e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
@@ -1186,7 +1228,7 @@
 
                     return { 
                         isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
-                        isEditingProfile, editForm, startEditingProfile, saveProfileUpdate, isPointLogsOpen,
+                        isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                         isProfileInfoOpen, isImageUploading, handleAvatarUpload,
                         teacherCourses, editingMyCourse, isCourseImgUploading, openMyCourses, openEditMyCourse, handleCourseImgUpload, saveMyCourse, deleteMyCourse,
                         openCourseDetail: (c) => { 
