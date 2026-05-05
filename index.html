@@ -613,18 +613,19 @@
                         bookingSuccess.value = false;
                         window.scrollTo(0, 0);
 
+                        // Lazy load booking data
                         if (allTeachers.value.length === 0) {
                             isLoadingBooking.value = true;
                             try {
-                                const data = await callApi('ADMIN_GET_DATA', {}, true);
-                                if (data) allTeachers.value = data.users || [];
-                                
-                                const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
-                                if (slotData) {
-                                    slots.value = Array.isArray(slotData) ? slotData : (slotData.slots || []);
-                                    occupiedLocations.value = Array.isArray(slotData) ? [] : (slotData.occupiedLocations || []);
+                                // 🛡️ 修復：改為呼叫無需權限的 GET_BOOKING_DATA
+                                const data = await callApi('GET_BOOKING_DATA', {}, true);
+                                if (data) {
+                                    allTeachers.value = data.teachers || [];
+                                    slots.value = data.slots || [];
+                                    occupiedLocations.value = data.occupiedLocations || [];
                                 }
 
+                                // Auto-fill form from profile
                                 bookingForm.value.name = userStatus.value.info?.name || liffProfile.value.displayName;
                                 bookingForm.value.phone = userStatus.value.info?.phone || '';
                             } catch(e) { console.error(e); } finally { isLoadingBooking.value = false; }
@@ -737,7 +738,8 @@
                             customer: { ...bookingForm.value },
                             service: { ...selectedService.value },
                             teacher: { userId: selectedTeacher.value.userId, name: selectedTeacher.value.name },
-                            schedule: { ...selectedSlot.value }
+                            schedule: { ...selectedSlot.value },
+                            pointsUsed: pointsToUse.value // 🛡️ 傳遞給後台進行安全扣除
                         };
 
                         try {
@@ -745,16 +747,18 @@
                             if (res && res.orderId) { 
                                 bookingSuccess.value = true; 
                                 window.scrollTo(0,0); 
+                                // 背景重整訂單列表
                                 const oData = await callApi('GET_USER_ORDERS', {}, true);
                                 if (oData) myOrders.value = oData;
                             } 
                             else { throw new Error('預約處理失敗'); }
                         } catch (e) {
                             alert(e.message || '預約失敗，時段可能已被搶走或場地衝突，請重新選擇。');
-                            const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
+                            // 重新拉取排班資料
+                            const slotData = await callApi('GET_BOOKING_DATA', {}, true);
                             if (slotData) {
-                                slots.value = Array.isArray(slotData) ? slotData : (slotData.slots || []);
-                                occupiedLocations.value = Array.isArray(slotData) ? [] : (slotData.occupiedLocations || []);
+                                slots.value = slotData.slots || [];
+                                occupiedLocations.value = slotData.occupiedLocations || [];
                             }
                             bookingStep.value = 3; 
                         } finally { isLoading.value = false; }
@@ -837,7 +841,8 @@
                             editingMyCourse.value.instructor = userStatus.value.info?.name || liffProfile.value.displayName;
                             editingMyCourse.value.teacherUid = liffProfile.value.userId;
                             if (!editingMyCourse.value.type) editingMyCourse.value.type = '預約類';
-                            const res = await callApi('ADMIN_UPDATE_COURSE', editingMyCourse.value, false);
+                            // 🛡️ 修復：導師編輯改為呼叫專屬 TEACHER_UPDATE_COURSE
+                            const res = await callApi('TEACHER_UPDATE_COURSE', editingMyCourse.value, false);
                             if (res) {
                                 alert('✅ 項目儲存成功'); editingMyCourse.value = null;
                                 const refreshed = await callApi('TEACHER_GET_MY_COURSES', { instructorName: userStatus.value.info?.name, teacherUid: liffProfile.value.userId }, false);
@@ -944,9 +949,9 @@
                         if (!confirm(confirmMsg)) return;
                         isLoading.value = true;
                         try {
-                            if (pointsToUse.value > 0) { await callApi('ADMIN_MANAGE_POINTS', { uid: liffProfile.value.userId, type: 'SYSTEM_SPEND', amount: pointsToUse.value, reason: `報名折抵: ${cName}`, operator: 'System' }, false); }
                             const noteText = pointsToUse.value > 0 ? `紅包點數折抵 ${pointsToUse.value} 點` : '';
-                            const res = await callApi('REGISTER', { courseId: selectedCourse.value.id, amount: finalPrice.value, note: noteText }, false);
+                            // 🛡️ 修復：移除獨立的 ADMIN_MANAGE_POINTS 呼叫，統一帶入 pointsUsed 交由後端扣款
+                            const res = await callApi('REGISTER', { courseId: selectedCourse.value.id, amount: finalPrice.value, note: noteText, pointsUsed: pointsToUse.value }, false);
                             if (res && res.orderId) {
                                 if (finalPrice.value > 0) {
                                     if (paymentMethod.value === 'NEWEBPAY') { await initiatePayment(res.orderId, finalPrice.value, cName); return; } 
