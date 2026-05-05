@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖文選單編輯器</title>
-    <!-- Version: 2026.05.08.V290_Canvas_Base64_Extraction_Fixed -->
+    <!-- Version: 2026.05.08.V291_Postback_Fix -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -173,7 +173,6 @@
                     }); 
                 },
                 getCurrentBase64: () => {
-                    // 🛡️ 核心修復：如果目前是網址 (URL)，利用畫布 (Canvas) 將其無損轉換回 Base64 字串，以符合 LINE API 規範
                     if (savedBase64Image && savedBase64Image.startsWith('data:image')) {
                         return savedBase64Image;
                     }
@@ -197,7 +196,6 @@
                         document.getElementById('canvas-placeholder').style.display = 'none';
                         var data = {}; try { data = JSON.parse(decodeURIComponent(jsonStr || "{}")); } catch(e) {}
                         
-                        // 🛡️ 核心修復：加入 crossOrigin 參數，讓從雲端載回來的圖片也能被轉換為 Base64
                         var tempImg = new Image();
                         tempImg.crossOrigin = "anonymous";
                         tempImg.onload = () => {
@@ -225,7 +223,6 @@
                 updateOutput: function() {
                     var scale = 2500 / canvas.getWidth();
                     var areas = canvas.getObjects('rect').map(o => {
-                        // ✅ 邊界防呆：確保數值不會出現負數，也絕對不會超出圖片最大尺寸
                         let x = Math.max(0, Math.round(o.left * scale));
                         let y = Math.max(0, Math.round(o.top * scale));
                         let w = Math.round(o.getScaledWidth() * scale);
@@ -247,19 +244,51 @@
                         var type = a.action.type || "uri";
                         var html = `<div class='font-black mb-3 text-xs text-slate-400 uppercase tracking-tighter'>區域 #${idx+1}</div>
                         <select class='w-full border mb-3 p-3 rounded-lg text-[14px] font-bold bg-slate-50' onchange='MenuModule.updateAreaProp(${idx}, "type", this.value)'>
-                            <option value="uri" ${type==="uri"?"selected":""}>開啟網址 (URI)</option><option value="message" ${type==="message"?"selected":""}>傳送文字 (Message)</option><option value="postback" ${type==="postback"?"selected":""}>回傳指令 (Postback)</option><option value="richmenuswitch" ${type==="richmenuswitch"?"selected":""}>切換選單 (Switch)</option>
+                            <option value="uri" ${type==="uri"?"selected":""}>開啟網址 (URI)</option>
+                            <option value="message" ${type==="message"?"selected":""}>傳送文字 (Message)</option>
+                            <option value="postback" ${type==="postback"?"selected":""}>回傳指令 (Postback)</option>
+                            <option value="richmenuswitch" ${type==="richmenuswitch"?"selected":""}>切換選單 (Switch)</option>
                         </select>`;
-                        if (type === 'uri') html += `<input class='w-full border p-3 text-xs font-mono rounded-lg' value='${a.action.uri || ""}' placeholder='https://' onchange='MenuModule.updateAreaProp(${idx}, "uri", this.value)'>`;
-                        else if (type === 'message') html += `<input class='w-full border p-3 text-xs rounded-lg' value='${a.action.text || ""}' placeholder='點擊後發送的文字' onchange='MenuModule.updateAreaProp(${idx}, "text", this.value)'>`;
-                        else if (type === 'postback') html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg' value='${a.action.data || ""}' placeholder='參數如 action=1' onchange='MenuModule.updateAreaProp(${idx}, "data", this.value)'><input class='w-full border p-3 text-xs rounded-lg' value='${a.action.text || ""}' placeholder='按鈕顯示文字' onchange='MenuModule.updateAreaProp(${idx}, "text", this.value)'>`;
-                        else if (type === 'richmenuswitch') html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg' value='${a.action.richMenuAliasId || ""}' placeholder='別名 Alias ID' onchange='MenuModule.updateAreaProp(${idx}, "richMenuAliasId", this.value)'><input class='w-full border p-3 text-xs rounded-lg' value='${a.action.data || ""}' placeholder='參數 data' onchange='MenuModule.updateAreaProp(${idx}, "data", this.value)'>`;
+                        
+                        if (type === 'uri') {
+                            html += `<input class='w-full border p-3 text-xs font-mono rounded-lg' value='${a.action.uri || ""}' placeholder='https://' onchange='MenuModule.updateAreaProp(${idx}, "uri", this.value)'>`;
+                        } else if (type === 'message') {
+                            html += `<input class='w-full border p-3 text-xs rounded-lg' value='${a.action.text || ""}' placeholder='點擊後發送的文字' onchange='MenuModule.updateAreaProp(${idx}, "text", this.value)'>`;
+                        } else if (type === 'postback') {
+                            html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg bg-indigo-50 border-indigo-200 text-indigo-700 font-bold placeholder-indigo-300' value='${a.action.data || ""}' placeholder='回傳 Data (須跟後台"觸發關鍵字"完全相同)' onchange='MenuModule.updateAreaProp(${idx}, "data", this.value)'>
+                                     <input class='w-full border p-3 text-xs rounded-lg' value='${a.action.displayText || a.action.text || ""}' placeholder='畫面上顯示的文字 (讓學員知道有點成功)' onchange='MenuModule.updateAreaProp(${idx}, "displayText", this.value)'>`;
+                        } else if (type === 'richmenuswitch') {
+                            html += `<input class='w-full border mb-2 p-3 text-xs font-mono rounded-lg' value='${a.action.richMenuAliasId || ""}' placeholder='別名 Alias ID' onchange='MenuModule.updateAreaProp(${idx}, "richMenuAliasId", this.value)'>
+                                     <input class='w-full border p-3 text-xs rounded-lg' value='${a.action.data || ""}' placeholder='參數 data' onchange='MenuModule.updateAreaProp(${idx}, "data", this.value)'>`;
+                        }
                         
                         html += `<button onclick='MenuModule.removeAreaFromCanvas(${idx})' class='w-full mt-3 py-2 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition'>刪除區域</button>`;
                         
                         div.innerHTML = html; container.appendChild(div);
                     });
                 },
-                updateAreaProp: function(idx, prop, val) { var objects = canvas.getObjects('rect'); if(objects[idx]) { if(prop==="type") { var old = objects[idx].action; objects[idx].action = { type: val }; if(val==="uri") objects[idx].action.uri = old.uri || ""; else if(val==="message") objects[idx].action.text = old.text || ""; } else { objects[idx].action[prop] = val; } this.updateOutput(); } },
+                updateAreaProp: function(idx, prop, val) { 
+                    var objects = canvas.getObjects('rect'); 
+                    if(objects[idx]) { 
+                        if(prop==="type") { 
+                            var old = objects[idx].action; 
+                            objects[idx].action = { type: val }; 
+                            if(val==="uri") objects[idx].action.uri = old.uri || ""; 
+                            else if(val==="message") objects[idx].action.text = old.text || ""; 
+                            else if(val==="postback") {
+                                objects[idx].action.data = old.data || "";
+                                objects[idx].action.displayText = old.displayText || old.text || "";
+                            }
+                            else if(val==="richmenuswitch") {
+                                objects[idx].action.richMenuAliasId = old.richMenuAliasId || "";
+                                objects[idx].action.data = old.data || "";
+                            }
+                        } else { 
+                            objects[idx].action[prop] = val; 
+                        } 
+                        this.updateOutput(); 
+                    } 
+                },
                 removeAreaFromCanvas: function(idx) { var objects = canvas.getObjects('rect'); if(objects[idx]) { canvas.remove(objects[idx]); this.updateOutput(); } },
                 importAreas: function(areas, scale) { canvas.getObjects('rect').forEach(o => canvas.remove(o)); areas.forEach(a => { var r = new fabric.Rect({ left: a.bounds.x * scale, top: a.bounds.y * scale, width: a.bounds.width * scale, height: a.bounds.height * scale, fill: 'rgba(84, 192, 97, 0.3)', stroke: '#54C061', strokeWidth: 1 }); r.action = a.action; canvas.add(r); }); canvas.renderAll(); this.updateOutput(); },
                 openDeployModal: () => { 
@@ -290,19 +319,20 @@
                     if (!menuObj.chatBarText) return showError('左側「選單列文字」不可為空！');
                     if (!menuObj.areas || menuObj.areas.length === 0) return showError('請至少在畫面上劃定一個熱區！');
                     
-                    // ✅ 深度淨化 Action：剔除殘留無效屬性，防止 LINE 解析失敗
+                    // ✅ 深度淨化 Action：確保 Postback 的 Data 必填，並且正確支援 displayText
                     for (let i = 0; i < menuObj.areas.length; i++) {
                         const action = menuObj.areas[i].action;
                         if (action.type === 'message' && !action.text) return showError(`區域 #${i+1} 尚未填寫「傳送文字」內容！`);
                         if (action.type === 'uri' && !action.uri) return showError(`區域 #${i+1} 尚未填寫「開啟網址」連結！`);
-                        if (action.type === 'postback' && !action.data) return showError(`區域 #${i+1} 尚未填寫「回傳指令」！`);
+                        if (action.type === 'postback' && !action.data) return showError(`區域 #${i+1} 尚未填寫「回傳 Data」！這是觸發後台功能的必填參數。`);
                         
                         const pureAction = { type: action.type };
                         if (action.type === 'uri') pureAction.uri = action.uri;
                         if (action.type === 'message') pureAction.text = action.text;
                         if (action.type === 'postback') {
                             pureAction.data = action.data;
-                            if (action.text) pureAction.text = action.text;
+                            if (action.displayText) pureAction.displayText = action.displayText;
+                            else if (action.text) pureAction.displayText = action.text;
                         }
                         if (action.type === 'richmenuswitch') {
                             pureAction.richMenuAliasId = action.richMenuAliasId;
@@ -316,7 +346,6 @@
                     else if (Math.abs(h - 843) < 100) menuObj.size.height = 843;
                     else return showError(`您上傳的圖片比例不符合 LINE 規範！\n目前尺寸為：2500x${h}\nLINE 規定必須為：2500x1686 (大選單) 或 2500x843 (小選單)\n請重新裁切圖片後上傳。`);
 
-                    // 🛡️ 核心修復：強制將圖片轉回 Base64
                     const b64ToSend = this.getCurrentBase64();
                     if (!b64ToSend || !b64ToSend.startsWith('data:image')) {
                         return showError('❌ 缺少「選單底圖」！LINE 官方規定部署時必須夾帶圖片。請在畫面上重新上傳您的圖片。');
@@ -328,7 +357,6 @@
                     
                     try {
                         const data = await ApiHelper.call('DEPLOY_RICH_MENU', { 
-                            // 🛡️ 核心修復：將物件完整拆解，精準對應 Worker 後端的變數名稱
                             richMenuConfig: menuObj, 
                             imageBase64: b64ToSend,
                             areas: menuObj.areas,
@@ -365,8 +393,6 @@
                     try { json = JSON.parse(document.getElementById('json-output').value); } catch(e) {}
                     
                     const name = document.getElementById('save-filename').value;
-                    
-                    // 只儲存 URL (如果它有被轉成 R2 URL)，這樣就不會塞爆 LocalStorage
                     const imageToSave = MenuModule.getCurrentBase64(); 
 
                     if (isNew || !currentId) { 
@@ -378,7 +404,6 @@
                         if (idx > -1) saves[idx] = { id: currentId, name: name, date: new Date().toLocaleString(), data: json, image: imageToSave }; 
                     }
 
-                    // 防爆機制
                     let success = false;
                     while(!success && saves.length > 0) {
                         try {
