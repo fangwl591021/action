@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.05.08.V296_Admin_WP_Manual_Sync -->
+    <!-- Version: 2026.05.08.V297_Color_And_Auto_Sync_UI -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -331,14 +331,13 @@
                             <select v-model="sysSettings.allow_cancel_order" class="input-field !w-32 !py-2 !text-sm font-bold bg-white"><option value="true">🟢 啟用</option><option value="false">🔴 停用</option></select>
                         </div>
 
-                        <!-- 🚀 外部 API 單向備份同步設定 (包含遷徙邏輯說明) -->
                         <div class="section-title !mb-4 text-emerald-700 border-emerald-500 mt-8">WordPress 點數系統串接 (資料備份與遷徙)</div>
                         <div class="mb-8 flex items-center justify-between bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
                             <div>
                                 <div class="font-bold text-slate-700 text-sm">啟用點數單向同步</div>
                                 <div class="text-[13px] text-slate-500 mt-1 font-bold">
                                     開啟後系統會執行兩大自動化動作：<br>
-                                    1. <b>自動遷徙偵測</b>：若未註冊學員在舊系統有餘額，註冊時會自動併入 ACTION。<br>
+                                    1. <b>自動遷徙偵測</b>：若未註冊學員在舊系統有餘額，查閱時會自動無感併入 ACTION。<br>
                                     2. <b>背景備份</b>：所有的加/扣點都會同步記錄至 WordPress。
                                 </div>
                             </div>
@@ -558,18 +557,18 @@
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-comment-dots text-orange-500"></i> 管理員備註</h4><textarea v-model="activeMember.adminNote" class="input-field h-32 resize-none leading-relaxed text-[15px]" placeholder="紀錄學員個案狀況..."></textarea></div>
                     </div>
                     <div class="md:col-span-5 flex flex-col space-y-6">
-                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center relative overflow-hidden"><i class="fas fa-gift absolute -right-4 -bottom-4 text-red-50 text-8xl"></i><div class="text-[13px] font-bold text-slate-400 mb-1 relative z-10">可用紅包餘額</div><div class="text-[40px] font-black text-red-50 mb-6 relative z-10">{{ (activeMemberPoints.balance || 0).toLocaleString() }} <span class="text-base font-bold text-slate-400">點</span></div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center relative overflow-hidden"><i class="fas fa-gift absolute -right-4 -bottom-4 text-red-50 text-8xl"></i><div class="text-[13px] font-bold text-slate-400 mb-1 relative z-10">可用紅包餘額</div>
+                            <div class="text-[40px] font-black text-red-600 mb-6 relative z-10">{{ (activeMemberPoints.balance || 0).toLocaleString() }} <span class="text-base font-bold text-slate-400">點</span></div>
                             <div class="flex gap-3 relative z-10">
                                 <button @click="openPointActionModal('MANUAL_ADD')" class="flex-1 py-3 bg-green-50 text-green-600 rounded-xl font-bold border border-green-200 hover:bg-green-100 transition shadow-sm flex items-center justify-center gap-2 active:scale-95"><i class="fas fa-plus-circle"></i>贈點</button>
                                 <button @click="openPointActionModal('MANUAL_DEDUCT')" class="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-200 hover:bg-red-100 transition shadow-sm flex items-center justify-center gap-2 active:scale-95"><i class="fas fa-minus-circle"></i>扣點</button>
-                                <!-- 🚀 補登舊點數按鈕 -->
-                                <button v-if="sysSettings.wp_sync_enabled === 'true'" @click="syncWPPointsFromCRM" class="flex-1 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold border border-indigo-200 hover:bg-indigo-100 transition shadow-sm flex items-center justify-center gap-2 active:scale-95" title="從 WordPress 撈取餘額並補登"><i class="fas fa-cloud-download-alt"></i>補登舊點數</button>
+                                <button v-if="sysSettings.wp_sync_enabled === 'true'" @click="syncWPPointsFromCRM" class="flex-1 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold border border-indigo-200 hover:bg-indigo-100 transition shadow-sm flex items-center justify-center gap-2 active:scale-95" title="從 WordPress 撈取餘額並強制補登"><i class="fas fa-cloud-download-alt"></i>補登舊點數</button>
                             </div>
                         </div>
                         <div class="flex-grow bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[350px]"><div class="p-4 bg-slate-50 border-b border-slate-100 text-[13px] font-bold text-slate-500 flex items-center gap-2"><i class="fas fa-history"></i> 紅包歷史紀錄</div><div class="overflow-y-auto custom-scrollbar flex-grow p-3"><div v-for="log in activeMemberPoints.logs" :key="log.logId" class="p-3 border-b border-slate-100 last:border-0 flex justify-between items-center hover:bg-slate-50 rounded-lg transition"><div><div class="font-bold text-[14px] text-slate-700 mb-0.5">{{ log.reason }}</div><div class="text-[11px] text-slate-400 font-mono">{{ log.createdAt }}</div></div><div class="font-black text-[17px]" :class="(log.type || '').includes('ADD')||(log.type || '').includes('EARN')?'text-[#06C755]':'text-red-500'">{{ (log.type || '').includes('ADD')||(log.type || '').includes('EARN')?'+':'-' }}{{ log.amount }}</div></div><div v-if="!activeMemberPoints.logs || activeMemberPoints.logs.length === 0" class="p-8 text-center text-slate-400 text-[13px] font-bold"><i class="fas fa-folder-open text-3xl text-slate-200 mb-2 block"></i>目前尚無紀錄</div></div></div>
                     </div>
                 </div>
-                <div class="px-8 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl z-10 relative"><button @click="activeMember = null" class="text-[15px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button><button @click="saveMemberDetail" :disabled="isLoading" class="btn-green-main px-10 py-3.5 text-[17px] shadow-lg active:scale-95 flex items-center gap-2"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i>{{ isLoading ? '儲存中...' : '儲存檔案變更' }}</button></div>
+                <div class="px-8 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl z-10 relative"><button @click="activeMember = null" class="text-[15px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button><button @click="saveMemberDetail" :disabled="isLoading" class="btn-green-main px-10 py-3.5 text-[17px] shadow-lg active:scale-95 flex items-center gap-2"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i><i v-else class="fas fa-save"></i>{{ isLoading ? '儲存中...' : '儲存檔案變更' }}</button></div>
             </div>
         </div>
 
@@ -934,6 +933,7 @@
                         try { const res = await callApi('SYSTEM_HEALTH_CHECK', {}); if(res && res.log) alert(res.log.join('\n')); } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
+                    // 🚀 打開 CRM 時，自動觸發一次 GET_USER_POINTS (這會連帶觸發自動遷徙)
                     const openMemberDetail = async (u) => {
                         activeMember.value = JSON.parse(JSON.stringify(u));
                         isLoading.value = true;
@@ -988,10 +988,9 @@
                         } catch(e) { console.error(e); alert('調整失敗：' + e.message); } finally { isLoading.value = false; }
                     };
 
-                    // 🚀 核心升級：一鍵同步舊系統點數
                     const syncWPPointsFromCRM = async () => {
                         if (!activeMember.value || !activeMember.value.userId) return;
-                        if (!confirm(`確定要從 WordPress 舊系統撈取 ${activeMember.value.name} 的餘額並匯入嗎？\n\n(系統會自動防呆，若之前已經補登過，將無法重複匯入)`)) return;
+                        if (!confirm(`確定要強制從 WordPress 舊系統撈取 ${activeMember.value.name} 的餘額並補登嗎？\n\n(系統目前會在學員查閱餘額時「全自動」補登，您不需頻繁手動點擊。)`)) return;
 
                         isLoading.value = true;
                         try {
