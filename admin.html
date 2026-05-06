@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
-    <!-- Version: 2026.05.08.V292_Admin_MemberCard_Template -->
+    <!-- Version: 2026.05.08.V295_Admin_WP_Migration_UI -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -96,7 +96,6 @@
                         <div v-show="groups.groupB" class="animate-fade-in">
                             <a href="./consult_admin.html" class="nav-item text-indigo-600"><i class="fas fa-calendar-check w-6 text-center"></i>預約排班系統</a>
                             <div @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
-                            <!-- 🚀 改名為機器人與專區卡片 -->
                             <div @click="switchView('flex_rules')" class="nav-item" :class="{'nav-active': view === 'flex_rules'}"><i class="fas fa-robot w-6 text-center"></i>機器人與專區卡片</div>
                             <div @click="switchView('settings')" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>系統設定</div>
                         </div>
@@ -258,7 +257,6 @@
                 
                 <div v-if="view === 'richmenu'" class="h-[calc(100vh-73px)]"><iframe src="./menu.html" class="w-full h-full border-0"></iframe></div>
 
-                <!-- 🚀 升級：機器人與會員卡片專區 -->
                 <div v-if="view === 'flex_rules'" class="p-8 animate-fade-in">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-xl font-black text-slate-800">自動回覆與會員專區卡片</h2>
@@ -333,6 +331,24 @@
                             <select v-model="sysSettings.allow_cancel_order" class="input-field !w-32 !py-2 !text-sm font-bold bg-white"><option value="true">🟢 啟用</option><option value="false">🔴 停用</option></select>
                         </div>
 
+                        <!-- 🚀 外部 API 單向備份同步設定 (包含遷徙邏輯說明) -->
+                        <div class="section-title !mb-4 text-emerald-700 border-emerald-500 mt-8">WordPress 點數系統串接 (資料備份與遷徙)</div>
+                        <div class="mb-8 flex items-center justify-between bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                            <div>
+                                <div class="font-bold text-slate-700 text-sm">啟用點數單向同步</div>
+                                <div class="text-[13px] text-slate-500 mt-1 font-bold">
+                                    開啟後系統會執行兩大自動化動作：<br>
+                                    1. <b>自動遷徙偵測</b>：若未註冊學員在舊系統有餘額，註冊時會自動併入 ACTION。<br>
+                                    2. <b>背景備份</b>：所有的加/扣點都會同步記錄至 WordPress。
+                                </div>
+                            </div>
+                            <select v-model="sysSettings.wp_sync_enabled" class="input-field !w-32 !py-2 !text-sm font-bold bg-white"><option value="true">🟢 啟用</option><option value="false">🔴 停用</option></select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-8" v-if="sysSettings.wp_sync_enabled === 'true'">
+                            <div><label class="input-label">WordPress API Key</label><input type="text" v-model="sysSettings.wp_api_key" class="input-field text-sm font-mono text-indigo-600" placeholder="WETW_MASTER_API..."></div>
+                            <div><label class="input-label">WordPress 商店 ID (shop_id)</label><input type="number" v-model="sysSettings.wp_shop_id" class="input-field font-bold text-slate-700" placeholder="例如: 35"></div>
+                        </div>
+
                         <div class="section-title !mb-4 text-blue-800 border-blue-500">藍新金流 API 設定</div>
                         <div class="grid grid-cols-1 gap-4 mb-8">
                             <div><label class="input-label">商店代號 (MerchantID)</label><input type="text" v-model="sysSettings.newebpay_merchant_id" class="input-field font-mono"></div>
@@ -341,7 +357,6 @@
                         <button @click="saveSettings" :disabled="isLoading" class="btn-green-main w-full py-4 text-[16px] mt-4"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i> 確認儲存並同步雲端參數</button>
                     </div>
 
-                    <!-- LINE 圖文選單綁定提示 -->
                     <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100 shadow-sm mt-6">
                         <div class="font-black text-indigo-800 mb-3"><i class="fas fa-link mr-1"></i> LINE 圖文選單/Postback 綁定連結</div>
                         <p class="text-[13px] text-slate-600 font-bold mb-4 leading-relaxed">請將以下連結設定至您的 LINE 官方帳號，即可讓學員點擊後全螢幕開啟單一專屬功能。若學員尚未註冊，系統會自動攔截並引導註冊。</p>
@@ -366,6 +381,10 @@
                                 <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">5. 預約服務</div>
                                 <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-slate-600 truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=booking</code>
                             </div>
+                            <div class="bg-white p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div class="text-[13px] font-bold text-indigo-700 w-32 shrink-0">6. 每日簽到打卡</div>
+                                <code class="text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100 font-mono flex-1 mx-3 text-[#06C755] font-black truncate">https://liff.line.me/{{sysSettings.liff_id}}?view=checkin</code>
+                            </div>
                         </div>
 
                         <div class="mt-4 pt-4 border-t border-indigo-100">
@@ -381,7 +400,6 @@
             </main>
         </div>
 
-        <!-- 🚀 升級：機器人與專區卡片編輯視窗 -->
         <div v-if="editingFlexRule" class="modal-mask" @click.self="editingFlexRule = null" style="z-index: 1000;">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[700px] !rounded-xl bg-white shadow-2xl">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100 shadow-sm z-10 relative">
@@ -390,7 +408,6 @@
                 </div>
                 <div class="p-8 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar space-y-6">
                     
-                    <!-- 🎁 一鍵載入範本按鈕 -->
                     <div v-if="editingFlexRule.replyType === 'FLEX'" class="bg-indigo-50 border border-indigo-100 rounded-xl p-5 mb-2 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                         <div>
                             <div class="font-black text-indigo-700 text-[15px] mb-1"><i class="fas fa-magic mr-1.5"></i> 快速套用範本</div>
@@ -545,7 +562,7 @@
                         <div class="flex-grow bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[350px]"><div class="p-4 bg-slate-50 border-b border-slate-100 text-[13px] font-bold text-slate-500 flex items-center gap-2"><i class="fas fa-history"></i> 紅包歷史紀錄</div><div class="overflow-y-auto custom-scrollbar flex-grow p-3"><div v-for="log in activeMemberPoints.logs" :key="log.logId" class="p-3 border-b border-slate-100 last:border-0 flex justify-between items-center hover:bg-slate-50 rounded-lg transition"><div><div class="font-bold text-[14px] text-slate-700 mb-0.5">{{ log.reason }}</div><div class="text-[11px] text-slate-400 font-mono">{{ log.createdAt }}</div></div><div class="font-black text-[17px]" :class="(log.type || '').includes('ADD')||(log.type || '').includes('EARN')?'text-[#06C755]':'text-red-500'">{{ (log.type || '').includes('ADD')||(log.type || '').includes('EARN')?'+':'-' }}{{ log.amount }}</div></div><div v-if="!activeMemberPoints.logs || activeMemberPoints.logs.length === 0" class="p-8 text-center text-slate-400 text-[13px] font-bold"><i class="fas fa-folder-open text-3xl text-slate-200 mb-2 block"></i>目前尚無紀錄</div></div></div>
                     </div>
                 </div>
-                <div class="px-8 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl z-10 relative"><button @click="activeMember = null" class="text-[15px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button><button @click="saveMemberDetail" :disabled="isLoading" class="btn-green-main px-10 py-3.5 text-[17px] shadow-lg active:scale-95 flex items-center gap-2"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i><i v-else class="fas fa-save"></i>{{ isLoading ? '儲存中...' : '儲存檔案變更' }}</button></div>
+                <div class="px-8 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl z-10 relative"><button @click="activeMember = null" class="text-[15px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button><button @click="saveMemberDetail" :disabled="isLoading" class="btn-green-main px-10 py-3.5 text-[17px] shadow-lg active:scale-95 flex items-center gap-2"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i>{{ isLoading ? '儲存中...' : '儲存檔案變更' }}</button></div>
             </div>
         </div>
 
@@ -594,7 +611,7 @@
                     const slots = ref([]);
                     const occupiedLocations = ref([]);
                     const paymentLogs = ref([]);
-                    const flexRules = ref([]); // 🚀 新增 FlexRules 狀態
+                    const flexRules = ref([]);
                     
                     const memberSearch = ref('');
                     const courseSearchQuery = ref('');
@@ -607,7 +624,7 @@
                     const courseOrders = ref([]);
                     const editingOrder = ref(null);
                     const editingSysConfig = ref(null);
-                    const editingFlexRule = ref(null); // 🚀 新增 FlexRule 編輯狀態
+                    const editingFlexRule = ref(null);
 
                     const showOrdersModal = ref(false);
                     const selectedCourseForOrders = ref(null);
@@ -618,7 +635,7 @@
                     const editingPointAction = ref(null);
                     
                     const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, '')).toLocaleString();
-                    const getCourseName = (id) => { const c = courses.value.find(x => x && (x.id === id || x.name === id)); return c ? c.name : id; };
+                    const getCourseName = (id) => { const c = courses.value.find(x => x && (id === id || x.name === id)); return c ? c.name : id; };
 
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
@@ -662,7 +679,7 @@
                                     slots.value = c.slots || [];
                                     occupiedLocations.value = c.occupiedLocations || [];
                                     paymentLogs.value = c.paymentLogs || [];
-                                    flexRules.value = c.flexRules || []; // 🚀 讀取快取中的 FlexRules
+                                    flexRules.value = c.flexRules || [];
                                 }
                             } catch(e) {}
                         }
@@ -679,7 +696,7 @@
                                 orders.value = data.orders || [];
                                 sysSettings.value = data.settings || {};
                                 paymentLogs.value = data.paymentLogs || [];
-                                flexRules.value = data.flexRules || []; // 🚀 更新 FlexRules
+                                flexRules.value = data.flexRules || [];
                                 
                                 const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
                                 if (slotData) {
@@ -1090,7 +1107,6 @@
                         } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
-                    // 🚀 核心升級：FLEX 規則編輯器 CRUD
                     const openEditFlexRule = (rule) => {
                         if (rule) {
                             editingFlexRule.value = JSON.parse(JSON.stringify(rule));
@@ -1127,7 +1143,6 @@
                         } catch(e) {} finally { isLoading.value = false; }
                     };
 
-                    // 🎁 一鍵載入「會員專區卡片」範本
                     const loadMemberCardTemplate = () => {
                         const liffId = sysSettings.value.liff_id || '';
                         let cleanLiffId = String(liffId).trim();
@@ -1456,7 +1471,6 @@
             }).mount('#app');
         };
 
-        // 確保 Vue 載入後才執行應用
         initVueApp();
     </script>
 </body>
