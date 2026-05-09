@@ -334,10 +334,11 @@ async function resolveAccess(env, claimedUserId, payload, idToken) {
   const userId = verifiedUserId || (adminPasswordOk ? String(claimedUserId || "GUEST") : "GUEST");
   const userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
   const hasVerifiedLineUser = !!verifiedUserId;
-  const isAdminByUser = hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin");
+  const crmLineLoginEnabled = String(settings.crm_line_login_enabled || "false").toLowerCase() === "true";
+  const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin");
   const isAdmin = adminPasswordOk || isAdminByUser;
   const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
-  return { settings, userData, userId, isAdmin, isTeacher, hasVerifiedLineUser, tokenVerificationError };
+  return { settings, userData, userId, isAdmin, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled };
 }
 
 export default {
@@ -454,6 +455,7 @@ export default {
             info: access.userData,
             isAdmin: access.isAdmin,
             isTeacher: access.isTeacher,
+            crmLineLoginEnabled: access.crmLineLoginEnabled,
           };
           break;
           
