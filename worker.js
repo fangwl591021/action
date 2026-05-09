@@ -613,6 +613,44 @@ export default {
           result.data = { success: true };
           break;
 
+        case "ADMIN_SYNC_WP_POINTS":
+          const syncUid = String(payload.targetUid || "").trim();
+          if (!syncUid) throw new Error("缺少會員 UID，無法補登舊點數");
+          const syncMember = await safeGetKV(env, `USER_${syncUid}`, null);
+          if (!syncMember) throw new Error("找不到會員資料，無法補登舊點數");
+          const currentPoints = await safeGetKV(env, `POINTS_${syncUid}`, { balance: 0, logs: [] });
+          const currentBalance = Number(currentPoints.balance) || 0;
+          const wpEnabled = String(access.settings?.wp_sync_enabled || "").toLowerCase() === "true";
+          const wpConfigured = !!(access.settings?.wp_api_key && access.settings?.wp_shop_id);
+          if (currentBalance > 0) {
+              result.data = {
+                success: false,
+                reason: "already_has_points",
+                imported: 0,
+                balance: currentBalance,
+                message: `此會員目前已有 ${currentBalance} 點，不需要補登。`
+              };
+              break;
+          }
+          if (!wpEnabled || !wpConfigured) {
+              result.data = {
+                success: false,
+                reason: "wp_not_configured",
+                imported: 0,
+                balance: currentBalance,
+                message: "舊 WordPress 點數補登尚未完成後端 API 設定，目前沒有可執行的舊系統查詢。"
+              };
+              break;
+          }
+          result.data = {
+            success: false,
+            reason: "wp_api_missing",
+            imported: 0,
+            balance: currentBalance,
+            message: "舊系統補登 API 尚未部署到後端，因此不是會員沒有點數，而是補登功能尚未接上。"
+          };
+          break;
+
         case "UPLOAD_IMAGE":
           if (!env['act-image']) throw new Error("尚未綁定名為 'act-image' 的 R2 Bucket。");
           const base64 = payload.imageBase64;
