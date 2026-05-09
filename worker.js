@@ -165,6 +165,85 @@ function getWpApiUrl(settings) {
   return String(settings?.wp_api_url || settings?.wp_endpoint || settings?.wordpress_api_url || "").trim();
 }
 
+const WETW_INSERT_POINT_URL = "https://aiwe.cc/index.php/wp-json/wetw-point/v1/insert-user-point";
+const WETW_QUERY_POINT_URL = "https://aiwe.cc/index.php/wp-json/wetw-point/v1/query-user-point-list";
+
+function getWetwPointUrl(settings, type) {
+  const explicit = type === "insert"
+    ? settings?.wp_insert_point_url
+    : settings?.wp_query_point_url;
+  return String(explicit || getWpApiUrl(settings) || (type === "insert" ? WETW_INSERT_POINT_URL : WETW_QUERY_POINT_URL)).trim();
+}
+
+function getWetwConfig(settings) {
+  return {
+    enabled: String(settings?.wp_sync_enabled || "").toLowerCase() === "true",
+    apiKey: String(settings?.wp_api_key || "").trim(),
+    shopId: Number(settings?.wp_shop_id || 0),
+    pointType: String(settings?.wp_point_type || "system_point").trim(),
+  };
+}
+
+async function queryWetwPointList(settings, member) {
+  const cfg = getWetwConfig(settings);
+  if (!cfg.enabled) return { ok: false, reason: "wp_disabled", message: "WordPress 點數同步目前未啟用。" };
+  if (!cfg.apiKey || !cfg.shopId) return { ok: false, reason: "missing_credentials", message: "缺少 WordPress API Key 或 shop_id。" };
+
+  const res = await fetch(getWetwPointUrl(settings, "query"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: cfg.apiKey,
+      LINE_user_id: member?.userId,
+      shop_id: cfg.shopId,
+      point_type: cfg.pointType,
+      page: 1,
+      per_page: 100,
+    }),
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) {}
+  if (!res.ok || data?.success === false) {
+    return { ok: false, reason: data?.code || "wp_query_failed", status: res.status, message: data?.message || `WordPress 查詢 API HTTP ${res.status}` };
+  }
+  const list = Array.isArray(data?.data?.list) ? data.data.list : [];
+  const latestWithBalance = list.find(item => item?.point_balance !== undefined && item?.point_balance !== null);
+  const balance = latestWithBalance
+    ? Number(latestWithBalance.point_balance)
+    : list.reduce((sum, item) => sum + (Number(item?.get_point) || 0), 0);
+  return { ok: true, balance: Number.isFinite(balance) ? balance : 0, list, raw: data };
+}
+
+async function insertWetwPoint(settings, uid, amount, reason) {
+  const cfg = getWetwConfig(settings);
+  if (!cfg.enabled || !cfg.apiKey || !cfg.shopId || !uid || !amount) return { ok: false, skipped: true };
+  const res = await fetch(getWetwPointUrl(settings, "insert"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: cfg.apiKey,
+      LINE_user_id: uid,
+      shop_id: cfg.shopId,
+      event_name: amount >= 0 ? "ACTION 贈點" : "ACTION 扣點",
+      event_content: reason || "ACTION 系統點數異動",
+      point_type: cfg.pointType,
+      get_point: amount,
+      shop_user_lineid: "",
+      child_shop_name: "",
+      child_shop_renew: 0,
+      shop_remark: "ACTION Cloudflare Worker",
+    }),
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) {}
+  if (!res.ok || data?.success === false) {
+    return { ok: false, status: res.status, code: data?.code, message: data?.message || text.slice(0, 300) };
+  }
+  return { ok: true, data };
+}
+
 async function fetchWpLegacyPoints(settings, member) {
   const endpoint = getWpApiUrl(settings);
   if (!endpoint) return { ok: false, reason: "missing_endpoint", message: "缺少 WordPress API URL，無法確認外站點數。" };
@@ -655,6 +734,62 @@ export default {
           break;
 
         case "SYSTEM_HEALTH_CHECK":
+          const healthCfg = getWetwConfig(access.settings);
+          const healthLogNew = [
+            "Cloudflare Worker：正常",
+            `KV ACTION_DATA：${env.ACTION_DATA ? "正常" : "未綁定"}`,
+            `WordPress 同步開關：${healthCfg.enabled ? "啟用" : "停用"}`,
+            `WordPress API Key：${healthCfg.apiKey ? "已設定" : "未設定"}`,
+            `WordPress shop_id：${healthCfg.shopId || "未設定"}`,
+            `WordPress point_type：${healthCfg.pointType}`,
+            `WordPress 查詢 API：${getWetwPointUrl(access.settings, "query")}`,
+            `WordPress 新增 API：${getWetwPointUrl(access.settings, "insert")}`,
+          ];
+          if (healthCfg.enabled && healthCfg.apiKey && healthCfg.shopId) {
+            try {
+              const testRes = await fetch(getWetwPointUrl(access.settings, "query"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ api_key: healthCfg.apiKey, shop_id: healthCfg.shopId, page: 1, per_page: 1 }),
+              });
+              const testText = await testRes.text();
+              healthLogNew.push(`WordPress 查詢 API 連線：HTTP ${testRes.status}`);
+              healthLogNew.push(`WordPress 查詢 API 回應：${testText.slice(0, 120)}`);
+            } catch (e) {
+              healthLogNew.push(`WordPress 查詢 API 連線失敗：${e.message}`);
+            }
+          }
+          result.data = { success: true, log: healthLogNew };
+          break;
+
+        case "ADMIN_SYNC_WP_POINTS":
+          const syncUidNew = String(payload.targetUid || "").trim();
+          if (!syncUidNew) throw new Error("缺少會員 UID，無法補登舊點數");
+          const syncMemberNew = await safeGetKV(env, `USER_${syncUidNew}`, null);
+          if (!syncMemberNew) throw new Error("找不到會員資料，無法補登舊點數");
+          const alreadySynced = await safeGetKV(env, `WP_SYNCED_${syncUidNew}`, null);
+          if (alreadySynced?.importedAt) {
+            result.data = { success: false, reason: "already_synced", imported: 0, message: `此會員已於 ${alreadySynced.importedAt} 補登過 ${alreadySynced.imported || 0} 點。` };
+            break;
+          }
+          const currentPointsNew = await safeGetKV(env, `POINTS_${syncUidNew}`, { balance: 0, logs: [] });
+          const currentBalanceNew = Number(currentPointsNew.balance) || 0;
+          const legacyPointsNew = await queryWetwPointList(access.settings, syncMemberNew);
+          if (!legacyPointsNew.ok) {
+            result.data = { success: false, reason: legacyPointsNew.reason, imported: 0, balance: currentBalanceNew, message: legacyPointsNew.message || "外站點數查詢失敗" };
+            break;
+          }
+          if (legacyPointsNew.balance <= 0) {
+            result.data = { success: false, reason: "no_legacy_points", imported: 0, balance: currentBalanceNew, message: "外站查無可補登點數。" };
+            break;
+          }
+          await this.updatePoints(env, ctx, syncUidNew, legacyPointsNew.balance, "舊系統點數補登", { skipWpSync: true });
+          const importedAt = new Date().toISOString();
+          await env.ACTION_DATA.put(`WP_SYNCED_${syncUidNew}`, JSON.stringify({ imported: legacyPointsNew.balance, importedAt, source: "wetw-point/query-user-point-list" }));
+          result.data = { success: true, imported: legacyPointsNew.balance, balance: currentBalanceNew + legacyPointsNew.balance, importedAt };
+          break;
+
+        case "__LEGACY_SYSTEM_HEALTH_CHECK_DISABLED":
           const wpUrl = getWpApiUrl(access.settings);
           const healthLog = [
             "Cloudflare Worker：正常",
@@ -677,7 +812,7 @@ export default {
           result.data = { success: true, log: healthLog };
           break;
 
-        case "ADMIN_SYNC_WP_POINTS":
+        case "__LEGACY_ADMIN_SYNC_WP_POINTS_DISABLED":
           const syncUid = String(payload.targetUid || "").trim();
           if (!syncUid) throw new Error("缺少會員 UID，無法補登舊點數");
           const syncMember = await safeGetKV(env, `USER_${syncUid}`, null);
@@ -831,7 +966,7 @@ export default {
     };
   },
 
-  async updatePoints(env, ctx, uid, amount, reason) {
+  async updatePoints(env, ctx, uid, amount, reason, options = {}) {
     const key = `POINTS_${uid}`;
     let data = await safeGetKV(env, key, { balance: 0, logs: [] });
     data.balance += amount;
@@ -846,6 +981,14 @@ export default {
             body: JSON.stringify({ action: "MANAGE_POINTS", payload: { uid, amount: Math.abs(amount), type: typeStr, reason, operator: "System" } }),
             redirect: "follow"
         }).catch(e => console.error("GAS Points Sync Error", e)));
+    }
+
+    if (!options.skipWpSync && ctx) {
+      ctx.waitUntil((async () => {
+        const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
+        const wpRes = await insertWetwPoint(settings, uid, amount, reason);
+        if (!wpRes.ok && !wpRes.skipped) console.error("WordPress Points Sync Error", wpRes);
+      })());
     }
     
     if (ctx) ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
