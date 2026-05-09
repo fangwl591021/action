@@ -161,6 +161,47 @@ function uniqueUsersById(users) {
   return Array.from(byId.values());
 }
 
+function getWpApiUrl(settings) {
+  return String(settings?.wp_api_url || settings?.wp_endpoint || settings?.wordpress_api_url || "").trim();
+}
+
+async function fetchWpLegacyPoints(settings, member) {
+  const endpoint = getWpApiUrl(settings);
+  if (!endpoint) return { ok: false, reason: "missing_endpoint", message: "缺少 WordPress API URL，無法確認外站點數。" };
+  if (!settings?.wp_api_key || !settings?.wp_shop_id) {
+    return { ok: false, reason: "missing_credentials", message: "缺少 WordPress API Key 或 shop_id。" };
+  }
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: settings.wp_api_key,
+      shop_id: settings.wp_shop_id,
+      userId: member?.userId,
+      uid: member?.userId,
+      phone: member?.phone || "",
+      action: "GET_POINTS",
+    }),
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) {}
+  if (!res.ok) return { ok: false, reason: "http_error", status: res.status, message: `WordPress API HTTP ${res.status}`, raw: text.slice(0, 300) };
+
+  const candidates = [
+    data?.balance,
+    data?.points,
+    data?.point,
+    data?.data?.balance,
+    data?.data?.points,
+    data?.data?.point,
+  ];
+  const balance = Number(candidates.find(v => v !== undefined && v !== null));
+  if (!Number.isFinite(balance)) return { ok: false, reason: "invalid_response", message: "WordPress API 有回應，但找不到點數欄位。", raw: text.slice(0, 300) };
+  return { ok: true, balance, raw: data };
+}
+
 function deriveLineClientId(env, settings) {
   const candidates = [
     env.LINE_LOGIN_CHANNEL_ID,
@@ -613,6 +654,29 @@ export default {
           result.data = { success: true };
           break;
 
+        case "SYSTEM_HEALTH_CHECK":
+          const wpUrl = getWpApiUrl(access.settings);
+          const healthLog = [
+            "Cloudflare Worker：正常",
+            `KV ACTION_DATA：${env.ACTION_DATA ? "正常" : "未綁定"}`,
+            `WordPress 同步開關：${String(access.settings?.wp_sync_enabled || "").toLowerCase() === "true" ? "啟用" : "停用"}`,
+            `WordPress API Key：${access.settings?.wp_api_key ? "已設定" : "未設定"}`,
+            `WordPress shop_id：${access.settings?.wp_shop_id || "未設定"}`,
+            `WordPress API URL：${wpUrl || "未設定"}`,
+          ];
+          if (wpUrl) {
+            try {
+              const healthRes = await fetch(wpUrl, { method: "GET" });
+              healthLog.push(`WordPress API 連線：HTTP ${healthRes.status}`);
+            } catch (e) {
+              healthLog.push(`WordPress API 連線失敗：${e.message}`);
+            }
+          } else {
+            healthLog.push("WordPress API 狀態：缺少 API URL，補登舊點數尚未可用");
+          }
+          result.data = { success: true, log: healthLog };
+          break;
+
         case "ADMIN_SYNC_WP_POINTS":
           const syncUid = String(payload.targetUid || "").trim();
           if (!syncUid) throw new Error("缺少會員 UID，無法補登舊點數");
@@ -621,7 +685,7 @@ export default {
           const currentPoints = await safeGetKV(env, `POINTS_${syncUid}`, { balance: 0, logs: [] });
           const currentBalance = Number(currentPoints.balance) || 0;
           const wpEnabled = String(access.settings?.wp_sync_enabled || "").toLowerCase() === "true";
-          const wpConfigured = !!(access.settings?.wp_api_key && access.settings?.wp_shop_id);
+          const wpConfigured = !!(access.settings?.wp_api_key && access.settings?.wp_shop_id && getWpApiUrl(access.settings));
           if (currentBalance > 0) {
               result.data = {
                 success: false,
