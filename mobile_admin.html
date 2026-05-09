@@ -527,9 +527,8 @@
                         if (liff.isLoggedIn()) {
                             const profile = await liff.getProfile();
                             const currentSettings = await callApi('GET_SETTINGS', {}, true);
-                            const allowedUids = (currentSettings?.admin_uids || '').split(',').map(u => u.trim()).filter(Boolean);
                             const checkRes = await callApi('CHECK_USER', { userId: profile.userId }, true);
-                            const isAuthorized = allowedUids.includes(profile.userId) || (checkRes && checkRes.isAdmin);
+                            const isAuthorized = checkRes && (checkRes.isAdmin || checkRes.canCrmLogin);
 
                             if (isAuthorized) {
                                 isAuthenticated.value = true;

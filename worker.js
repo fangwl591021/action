@@ -62,6 +62,12 @@ const TEACHER_ALLOWED_ACTIONS = new Set([
   "ADMIN_BATCH_TOGGLE_SLOTS",
 ]);
 
+const CRM_LOGIN_ALLOWED_ACTIONS = new Set([
+  "ADMIN_GET_DATA",
+  "ADMIN_GET_SLOTS",
+  "GET_USER_POINTS",
+]);
+
 const VERIFIED_USER_ACTIONS = new Set([
   "CHECK_USER",
   "GET_USER_POINTS",
@@ -330,6 +336,7 @@ async function resolveAccess(env, claimedUserId, payload, idToken) {
   }
   const verifiedUserId = verifiedLineProfile?.sub || "";
   const adminUidSet = new Set([...splitCsv(env.ADMIN_UIDS), ...splitCsv(settings.admin_uids)]);
+  const crmLoginUidSet = new Set([...splitCsv(env.CRM_LOGIN_UIDS), ...splitCsv(settings.crm_login_uids)]);
   const teacherUidSet = new Set(splitCsv(env.TEACHER_UIDS));
   const userId = verifiedUserId || (adminPasswordOk ? String(claimedUserId || "GUEST") : "GUEST");
   const userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
@@ -337,8 +344,9 @@ async function resolveAccess(env, claimedUserId, payload, idToken) {
   const crmLineLoginEnabled = String(settings.crm_line_login_enabled || "false").toLowerCase() === "true";
   const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin");
   const isAdmin = adminPasswordOk || isAdminByUser;
+  const canCrmLogin = isAdmin || (crmLineLoginEnabled && hasVerifiedLineUser && crmLoginUidSet.has(userId));
   const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
-  return { settings, userData, userId, isAdmin, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled };
+  return { settings, userData, userId, isAdmin, canCrmLogin, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled };
 }
 
 export default {
@@ -398,12 +406,12 @@ export default {
       const isTeacherAction = TEACHER_ALLOWED_ACTIONS.has(action);
 
       if (isSensitiveAdminAction && !access.isAdmin) {
-        if (!(access.isTeacher && isTeacherAction)) {
+        if (!(access.isTeacher && isTeacherAction) && !(access.canCrmLogin && CRM_LOGIN_ALLOWED_ACTIONS.has(action))) {
           throw new Error("Admin authorization required");
         }
       }
 
-      if (action === "GET_USER_POINTS" && payload?.targetUid && payload.targetUid !== userId && !access.isAdmin) {
+      if (action === "GET_USER_POINTS" && payload?.targetUid && payload.targetUid !== userId && !access.isAdmin && !access.canCrmLogin) {
         throw new Error("Admin authorization required");
       }
 
@@ -428,6 +436,7 @@ export default {
               }
             }
             delete sanitizedSettings.admin_uids;
+            delete sanitizedSettings.crm_login_uids;
             result.data = sanitizedSettings;
           }
           break;
@@ -454,6 +463,7 @@ export default {
             registered: !!access.userData,
             info: access.userData,
             isAdmin: access.isAdmin,
+            canCrmLogin: access.canCrmLogin,
             isTeacher: access.isTeacher,
             crmLineLoginEnabled: access.crmLineLoginEnabled,
           };

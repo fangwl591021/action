@@ -323,6 +323,11 @@
                                 <option value="true">開啟</option>
                             </select>
                         </div>
+                        <div class="mb-8">
+                            <label class="input-label">CRM LOGIN UID 白名單</label>
+                            <textarea v-model="sysSettings.crm_login_uids" class="input-field h-24 resize-none font-mono text-sm" placeholder="每行或逗號分隔 LINE UID。此名單只能登入/查看 CRM，不等於 ADMIN 權限。"></textarea>
+                            <div class="text-xs text-slate-400 mt-2 font-bold">LOGIN 只代表可進入 CRM；ADMIN 權限仍以 admin_uids、isAdmin 或 role=admin 判定。</div>
+                        </div>
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                             <div><label class="input-label">註冊系統 (點)</label><input type="number" v-model="sysSettings.reward_register" class="input-field font-bold text-[#06C755]"></div>
                             <div><label class="input-label">自己加OA好友 (點)</label><input type="number" v-model="sysSettings.reward_add_friend" class="input-field font-bold text-[#06C755]"></div>
@@ -796,7 +801,7 @@
                                 if (liff.isLoggedIn()) {
                                     liffProfile.value = await liff.getProfile();
                                     const checkRes = await callApi('CHECK_USER', {}, true);
-                                    if (checkRes && checkRes.isAdmin) {
+                                    if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
                                         isAuthenticated.value = true;
                                         localStorage.setItem('act_admin_logged_in', 'true');
                                         fetchData(true);
@@ -833,7 +838,7 @@
                             liffProfile.value = await liff.getProfile();
                             const checkRes = await callApi('CHECK_USER', {}, false);
 
-                            if (checkRes && checkRes.isAdmin) {
+                            if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
                                 isAuthenticated.value = true;
                                 localStorage.setItem('act_admin_logged_in', 'true');
                                 fetchData(false);
