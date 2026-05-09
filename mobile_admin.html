@@ -472,6 +472,13 @@
                         const requestPayload = { ...payload };
                         if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
                         else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
+                        else if (action && (action.startsWith('ADMIN_') || action === 'GET_USER_POINTS')) {
+                            const pwd = window.prompt('請重新輸入管理密碼以儲存 CRM 變更');
+                            if (pwd) {
+                                sessionStorage.setItem('act_admin_pwd', pwd);
+                                requestPayload.adminPwd = pwd;
+                            }
+                        }
                         const res = await fetch(WORKER_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -571,9 +578,10 @@
                     try {
                         const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value });
                         if(res) {
+                            const savedMember = res.memberData || activeMember.value;
                             alert('✅ 學員檔案更新成功！');
-                            const idx = users.value.findIndex(u => u.userId === activeMember.value.userId);
-                            if (idx > -1) users.value[idx] = JSON.parse(JSON.stringify(activeMember.value));
+                            const idx = users.value.findIndex(u => u.userId === savedMember.userId);
+                            if (idx > -1) users.value[idx] = JSON.parse(JSON.stringify(savedMember));
                             activeMember.value = null;
                         }
                     } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }

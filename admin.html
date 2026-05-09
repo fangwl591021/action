@@ -672,13 +672,21 @@
                                 }
                             } catch (err) {}
 
-                            if (loginForm.value.password) pl.adminPwd = loginForm.value.password;
-                            else if (sessionStorage.getItem('act_admin_pwd')) pl.adminPwd = sessionStorage.getItem('act_admin_pwd');
+                            const requestPayload = { ...pl };
+                            if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
+                            else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
+                            else if (act && (act.startsWith('ADMIN_') || act === 'GET_USER_POINTS')) {
+                                const pwd = window.prompt('請重新輸入管理密碼以儲存 CRM 變更');
+                                if (pwd) {
+                                    sessionStorage.setItem('act_admin_pwd', pwd);
+                                    requestPayload.adminPwd = pwd;
+                                }
+                            }
                             
                             const res = await fetch(WORKER_URL, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {}, idToken: token })
+                                body: JSON.stringify({ action: act, payload: requestPayload, userProfile: liffProfile.value || {}, idToken: token })
                             });
                             const text = await res.text();
                             let json;
@@ -969,6 +977,9 @@
                         try {
                             const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value });
                             if(res) {
+                                const savedMember = res.memberData || activeMember.value;
+                                const idx = users.value.findIndex(u => u && u.userId === savedMember.userId);
+                                if (idx > -1) users.value[idx] = JSON.parse(JSON.stringify(savedMember));
                                 alert('✅ 學員檔案更新成功！');
                                 activeMember.value = null;
                                 await fetchData(true); 

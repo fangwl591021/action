@@ -130,7 +130,11 @@ async function listUserRecords(env) {
       const chunkSize = 20;
       for (let i = 0; i < list.keys.length; i += chunkSize) {
         const chunk = list.keys.slice(i, i + chunkSize);
-        const chunkUsers = await Promise.all(chunk.map(async key => safeGetKV(env, key.name, null)));
+        const chunkUsers = await Promise.all(chunk.map(async key => {
+          const user = await safeGetKV(env, key.name, null);
+          if (!user || !user.userId) return null;
+          return key.name === `USER_${user.userId}` ? user : null;
+        }));
         users.push(...chunkUsers.filter(Boolean));
       }
       listComplete = list.list_complete;
@@ -140,6 +144,21 @@ async function listUserRecords(env) {
     console.error("[UserList] Failed to load user records", e);
   }
   return users;
+}
+
+function userScore(user) {
+  return ["name", "phone", "memberTier", "pictureUrl", "updatedAt", "createdAt", "address", "birthday", "adminNote"]
+    .reduce((score, key) => score + (user?.[key] ? 1 : 0), 0);
+}
+
+function uniqueUsersById(users) {
+  const byId = new Map();
+  for (const user of Array.isArray(users) ? users : []) {
+    if (!user || !user.userId || user.userId === "GUEST") continue;
+    const current = byId.get(user.userId);
+    if (!current || userScore(user) >= userScore(current)) byId.set(user.userId, user);
+  }
+  return Array.from(byId.values());
 }
 
 function deriveLineClientId(env, settings) {
@@ -428,7 +447,7 @@ export default {
               }
           } catch(e) { console.error("[KV Sync Error] 使用者讀取異常:", e); }
           
-          localUsers = await listUserRecords(env);
+          localUsers = uniqueUsersById(await listUserRecords(env));
           let adminCourses = await safeGetKV(env, "COURSES", []);
           let adminOrders = await safeGetKV(env, "ORDERS", []);
           let adminSettings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
@@ -456,7 +475,7 @@ export default {
                           ctx.waitUntil(env.ACTION_DATA.put("SYSTEM_SETTINGS", JSON.stringify(adminSettings))); 
                       }
                       if(gasJson.data.users && gasJson.data.users.length > localUsers.length) {
-                          localUsers = gasJson.data.users;
+                          localUsers = uniqueUsersById(gasJson.data.users);
                           // 背景大量寫入 KV
                           ctx.waitUntil((async () => {
                               for(let u of gasJson.data.users) await env.ACTION_DATA.put(`USER_${u.userId}`, JSON.stringify(u));
@@ -518,11 +537,21 @@ export default {
 
         case "ADMIN_UPDATE_MEMBER":
           if (payload.memberData && payload.memberData.userId) {
-              await env.ACTION_DATA.put(`USER_${payload.memberData.userId}`, JSON.stringify(payload.memberData));
+              const memberUid = String(payload.memberData.userId).trim();
+              const currentMember = await safeGetKV(env, `USER_${memberUid}`, {});
+              const savedMember = {
+                ...currentMember,
+                ...payload.memberData,
+                userId: memberUid,
+                updatedAt: new Date().toISOString(),
+              };
+              await env.ACTION_DATA.put(`USER_${memberUid}`, JSON.stringify(savedMember));
+              result.data = { success: true, memberData: savedMember };
+          } else {
+              throw new Error("Missing memberData.userId");
           }
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true };
           break;
 
         case "ADMIN_APPROVE_TEACHER":
