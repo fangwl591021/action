@@ -226,13 +226,19 @@
 
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
+                            let token = null;
+                            try {
+                                if (typeof liff !== 'undefined' && typeof liff.isLoggedIn === 'function') {
+                                    token = liff.isLoggedIn() ? liff.getIDToken() : null;
+                                }
+                            } catch (err) {}
                             const requestPayload = { ...pl };
                             if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
                             else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
                             const res = await fetch(WORKER_URL, { 
                                 method: 'POST', 
                                 headers: { 'Content-Type': 'application/json' }, 
-                                body: JSON.stringify({ action: act, payload: requestPayload, userProfile: liffProfile.value || {} }) 
+                                body: JSON.stringify({ action: act, payload: requestPayload, userProfile: liffProfile.value || {}, idToken: token }) 
                             });
                             if (!res.ok) throw new Error('伺服器無回應或網路異常');
                             const text = await res.text();

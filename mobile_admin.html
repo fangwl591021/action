@@ -466,14 +466,16 @@
                 const callApi = async (action, payload = {}, silent = false) => {
                     if (!silent) isLoading.value = true;
                     try {
-                        const currentUserId = typeof liff !== 'undefined' && liff.isLoggedIn() ? (await liff.getProfile()).userId : '';
+                        const isLineLoggedIn = typeof liff !== 'undefined' && liff.isLoggedIn();
+                        const currentUserId = isLineLoggedIn ? (await liff.getProfile()).userId : '';
+                        const token = isLineLoggedIn ? liff.getIDToken() : null;
                         const requestPayload = { ...payload };
                         if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
                         else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
                         const res = await fetch(WORKER_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action, payload: requestPayload, userProfile: { userId: currentUserId || '' } })
+                            body: JSON.stringify({ action, payload: requestPayload, userProfile: { userId: currentUserId || '' }, idToken: token })
                         });
                         const json = await res.json();
                         if (json.status !== 'success') throw new Error(json.message || '後台執行失敗');

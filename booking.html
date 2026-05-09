@@ -260,10 +260,16 @@
 
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
+                            let token = null;
+                            try {
+                                if (typeof liff !== 'undefined' && typeof liff.isLoggedIn === 'function') {
+                                    token = liff.isLoggedIn() ? liff.getIDToken() : null;
+                                }
+                            } catch (err) {}
                             const res = await fetch(WORKER_URL, { 
                                 method: 'POST', 
                                 headers: { 'Content-Type': 'application/json' }, 
-                                body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {} }) 
+                                body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {}, idToken: token }) 
                             });
                             const data = await res.json();
                             if (data.status !== 'success') throw new Error(data.message || '後端錯誤');

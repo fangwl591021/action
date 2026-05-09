@@ -145,9 +145,15 @@ createApp({
         const callApi = async (act, pl = {}) => {
             isLoading.value = true;
             try {
+                let token = null;
+                try {
+                    if (typeof liff !== 'undefined' && typeof liff.isLoggedIn === 'function') {
+                        token = liff.isLoggedIn() ? liff.getIDToken() : null;
+                    }
+                } catch (err) {}
                 const requestPayload = { ...pl };
                 if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
-                const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: requestPayload }) });
+                const res = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: act, payload: requestPayload, idToken: token }) });
                 const json = await res.json();
                 if (json.status !== 'success') throw new Error(json.message);
                 return json.data;

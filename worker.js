@@ -62,6 +62,21 @@ const TEACHER_ALLOWED_ACTIONS = new Set([
   "ADMIN_BATCH_TOGGLE_SLOTS",
 ]);
 
+const VERIFIED_USER_ACTIONS = new Set([
+  "CHECK_USER",
+  "GET_USER_POINTS",
+  "GET_USER_ORDERS",
+  "REGISTER_USER",
+  "DAILY_CHECKIN",
+  "REGISTER",
+  "UPLOAD_IMAGE",
+  "TEACHER_GET_MY_COURSES",
+  "TEACHER_UPDATE_COURSE",
+  "TEACHER_DELETE_COURSE",
+  "UPDATE_MY_ORDER",
+  "CANCEL_MY_ORDER",
+]);
+
 function splitCsv(value) {
   return String(value || "")
     .split(",")
@@ -127,17 +142,56 @@ async function listUserRecords(env) {
   return users;
 }
 
-async function resolveAccess(env, userId, payload) {
+function deriveLineClientId(env, settings) {
+  const candidates = [
+    env.LINE_LOGIN_CHANNEL_ID,
+    env.LINE_CHANNEL_ID,
+    env.LIFF_CHANNEL_ID,
+    settings?.line_login_channel_id,
+    settings?.line_channel_id,
+    settings?.liff_channel_id,
+  ];
+  const configured = candidates.map(v => String(v || "").trim()).find(Boolean);
+  if (configured) return configured;
+  const liffId = String(settings?.liff_id || "").trim();
+  const match = liffId.match(/^(\d+)-/);
+  return match ? match[1] : "";
+}
+
+async function verifyLineIdToken(env, idToken, settings) {
+  const token = String(idToken || "").trim();
+  if (!token) return null;
+  const clientId = deriveLineClientId(env, settings);
+  if (!clientId) throw new Error("LINE client id is not configured");
+
+  const params = new URLSearchParams();
+  params.set("id_token", token);
+  params.set("client_id", clientId);
+  const res = await fetch("https://api.line.me/oauth2/v2.1/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
+  if (!res.ok) throw new Error("LINE id token verification failed");
+  return await res.json();
+}
+
+async function resolveAccess(env, claimedUserId, payload, idToken) {
   const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
-  const userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
+  const verifiedLineProfile = await verifyLineIdToken(env, idToken, settings);
+  const verifiedUserId = verifiedLineProfile?.sub || "";
   const adminUidSet = new Set([...splitCsv(env.ADMIN_UIDS), ...splitCsv(settings.admin_uids)]);
   const teacherUidSet = new Set(splitCsv(env.TEACHER_UIDS));
   const providedAdminPwd = String(payload?.adminPwd || "");
   const configuredAdminPwd = String(env.ADMIN_PASSWORD || "");
   const adminPasswordOk = !!providedAdminPwd && !!configuredAdminPwd && providedAdminPwd === configuredAdminPwd;
-  const isAdmin = adminPasswordOk || adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin";
-  const isTeacher = teacherUidSet.has(userId) || isTeacherRecord(userData);
-  return { settings, userData, userId, isAdmin, isTeacher };
+  const userId = verifiedUserId || (adminPasswordOk ? String(claimedUserId || "GUEST") : "GUEST");
+  const userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
+  const hasVerifiedLineUser = !!verifiedUserId;
+  const isAdminByUser = hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin");
+  const isAdmin = adminPasswordOk || isAdminByUser;
+  const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
+  return { settings, userData, userId, isAdmin, isTeacher, hasVerifiedLineUser };
 }
 
 export default {
@@ -183,15 +237,16 @@ export default {
   async handleApiActions(request, env, ctx, corsHeaders) {
     try {
       const body = await request.json();
-      const { action, payload, userProfile } = body;
-      const userId = userProfile?.userId || "GUEST";
+      const { action, payload, userProfile, idToken } = body;
+      const claimedUserId = userProfile?.userId || payload?.userId || "GUEST";
       let result = { status: "success", data: null };
 
       if (!env.ACTION_DATA) {
           throw new Error("【Cloudflare 設定遺漏】尚未綁定 KV 空間！");
       }
 
-      const access = await resolveAccess(env, userId, payload);
+      const access = await resolveAccess(env, claimedUserId, payload, idToken);
+      const userId = access.userId;
       const isSensitiveAdminAction = action?.startsWith("ADMIN_") || action === "UPLOAD_IMAGE" || action === "DEPLOY_RICH_MENU";
       const isTeacherAction = TEACHER_ALLOWED_ACTIONS.has(action);
 
@@ -203,6 +258,10 @@ export default {
 
       if (action === "GET_USER_POINTS" && payload?.targetUid && payload.targetUid !== userId && !access.isAdmin) {
         throw new Error("Admin authorization required");
+      }
+
+      if (VERIFIED_USER_ACTIONS.has(action) && !access.hasVerifiedLineUser && !access.isAdmin) {
+        throw new Error("LINE authorization required");
       }
 
       switch (action) {
@@ -217,7 +276,7 @@ export default {
           } else {
             const sanitizedSettings = { ...publicSettings };
             for (const key of Object.keys(sanitizedSettings)) {
-              if (/(token|secret|password|api[_-]?key|hash[_-]?(key|iv))/i.test(key)) {
+              if (/(token|secret|password|pwd|api[_-]?key|hash[_-]?(key|iv))/i.test(key)) {
                 delete sanitizedSettings[key];
               }
             }
