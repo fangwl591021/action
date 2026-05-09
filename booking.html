@@ -54,7 +54,7 @@
                     </div>
                     <!-- 優化：彈性伸縮保持卡片等高 -->
                     <div class="grid grid-cols-2 gap-3">
-                        <div v-for="t in teachers" :key="t.userId" @click="chooseTeacher(t)" class="bg-white rounded-2xl p-4 text-center shadow-sm border border-slate-100 active:scale-95 transition cursor-pointer flex flex-col h-full">
+                        <div v-for="t in teachers" :key="t.userId || t.name" @click="chooseTeacher(t)" class="bg-white rounded-2xl p-4 text-center shadow-sm border border-slate-100 active:scale-95 transition cursor-pointer flex flex-col h-full">
                             <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 mb-3 overflow-hidden border border-slate-100 shrink-0">
                                 <img :src="t.avatar || t.pictureUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover">
                             </div>
@@ -190,7 +190,7 @@
 
     <script>
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/'; 
-        const CACHE_VERSION = 'v256';
+        const CACHE_VERSION = 'v257';
 
         const initVueApp = () => {
             if (typeof Vue === 'undefined') {
@@ -228,6 +228,35 @@
                     });
 
                     const formatPrice = v => Number(v || 0).toLocaleString();
+
+                    const normalizeTeacherName = (value) => String(value || '')
+                        .normalize('NFKC')
+                        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                        .replace(/\s+/g, '');
+
+                    const uniqueTeachers = (list = []) => {
+                        const teachersByName = new Map();
+                        list.forEach(t => {
+                            if (!t) return false;
+                            const name = normalizeTeacherName(t.name);
+                            const key = name || t.userId;
+                            if (!key) return;
+                            const current = teachersByName.get(key);
+                            if (!current) {
+                                teachersByName.set(key, { ...t, teacherUids: t.teacherUids || (t.userId ? [t.userId] : []) });
+                                return;
+                            }
+                            const uids = t.teacherUids || (t.userId ? [t.userId] : []);
+                            uids.forEach(uid => { if (uid && !current.teacherUids.includes(uid)) current.teacherUids.push(uid); });
+                            current.avatar = current.avatar || t.avatar;
+                            current.pictureUrl = current.pictureUrl || t.pictureUrl;
+                            current.intro = current.intro || t.intro;
+                            current.adminNote = current.adminNote || t.adminNote;
+                        });
+                        return Array.from(teachersByName.values());
+                    };
+
+                    const teacherUidSet = (teacher) => new Set((teacher?.teacherUids && teacher.teacherUids.length ? teacher.teacherUids : [teacher?.userId]).filter(Boolean));
 
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
@@ -272,10 +301,10 @@
                         try {
                             const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) allCourses.value = JSON.parse(cCs);
                             
-                            const data = await callApi('ADMIN_GET_DATA', {}, true);
+                            const data = await callApi('GET_BOOKING_DATA', { _t: Date.now() }, true);
                             
                             if (data) {
-                                allTeachers.value = data.users || []; 
+                                allTeachers.value = uniqueTeachers(data.teachers || []); 
                                 allCourses.value = data.courses || [];
                                 
                                 const sysSettings = data.settings || {};
@@ -307,10 +336,9 @@
                                 }
                             }
 
-                            const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
-                            if (slotData) {
-                                slots.value = Array.isArray(slotData) ? slotData : (slotData.slots || []);
-                                occupiedLocations.value = Array.isArray(slotData) ? [] : (slotData.occupiedLocations || []);
+                            if (data && data.slots) {
+                                slots.value = Array.isArray(data.slots) ? data.slots : [];
+                                occupiedLocations.value = [];
                             }
                         } catch (e) {
                             console.error('Init error:', e);
@@ -334,7 +362,8 @@
                         const currentLoc = selectedService.value?.location;
                         
                         // 找出該導師所有 "OPEN" 的排班
-                        const openSlots = slots.value.filter(s => s && s.teacherUid === selectedTeacher.value.userId && s.status === 'OPEN');
+                        const selectedTeacherUids = teacherUidSet(selectedTeacher.value);
+                        const openSlots = slots.value.filter(s => s && selectedTeacherUids.has(s.teacherUid) && s.status === 'OPEN');
                         
                         // 提取出所有有空位的日期字串，並去重、排序
                         const uniqueDateStrs = [...new Set(openSlots.map(s => s.date))].sort();
@@ -397,9 +426,10 @@
                         const currentLoc = selectedService.value?.location;
                         
                         // 只抓取導師在該日期有設定的時段 (無論是 OPEN 還是 BOOKED)
+                        const selectedTeacherUids = teacherUidSet(selectedTeacher.value);
                         const teacherSlots = slots.value.filter(s => 
                             s && 
-                            s.teacherUid === selectedTeacher.value.userId && 
+                            selectedTeacherUids.has(s.teacherUid) && 
                             s.date === selectDate.value
                         );
 
@@ -423,7 +453,7 @@
                         const payload = {
                             customer: { ...form.value },
                             service: { ...selectedService.value },
-                            teacher: { userId: selectedTeacher.value.userId, name: selectedTeacher.value.name },
+                            teacher: { userId: selectedTeacher.value.userId, teacherUids: selectedTeacher.value.teacherUids || [selectedTeacher.value.userId], name: selectedTeacher.value.name },
                             schedule: { ...selectedSlot.value }
                         };
 

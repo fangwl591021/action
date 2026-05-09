@@ -207,7 +207,12 @@
                                         <td class="font-bold text-slate-800 text-[18px]">{{ String(t.name || '') }}</td>
                                         <td><div class="flex items-center gap-3"><span class="bg-indigo-50 text-indigo-700 font-mono text-[15px] px-3 py-1.5 rounded border border-indigo-100">{{ t.config?.rent || 0 }}P / {{ t.config?.comm || 0 }}%</span><button @click="openSysConfigModal(t)" class="text-slate-400 hover:text-indigo-600 transition text-lg"><i class="fas fa-edit"></i></button></div></td>
                                         <td><div class="font-black text-[#06C755] text-[22px]">$ {{ formatPrice(t.config?.price || 0) }}</div><div v-if="t.config?.acceptPoints" class="text-[14px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded inline-block mt-1 border border-red-100">最高可抵 {{ t.config?.maxPoints || 0 }} 點</div><div v-else class="text-[14px] font-bold text-slate-400 mt-1">不接受折抵</div></td>
-                                        <td class="text-right"><a href="./consult_admin.html" class="text-blue-600 font-bold hover:underline bg-blue-50 px-4 py-2 text-[16px] rounded-lg border border-blue-100 shadow-sm inline-block">排班控制</a></td>
+                                        <td class="text-right">
+                                            <div class="flex items-center justify-end gap-2">
+                                                <a href="./consult_admin.html" class="text-blue-600 font-bold hover:underline bg-blue-50 px-4 py-2 text-[16px] rounded-lg border border-blue-100 shadow-sm inline-block">排班控制</a>
+                                                <button @click="removeTeacher(t)" :disabled="isLoading" class="text-red-600 font-bold bg-red-50 hover:bg-red-100 px-4 py-2 text-[16px] rounded-lg border border-red-100 shadow-sm transition">移除</button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1149,6 +1154,27 @@
                         } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
+                    const removeTeacher = async (teacher) => {
+                        if (!teacher?.userId) return;
+                        if (!confirm(`確定要將「${teacher.name || teacher.userId}」移出活躍導師嗎？\n\n此操作會保留學員資料，但移除導師身份與導師收費設定。`)) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_REMOVE_TEACHER', { teacherUid: teacher.userId });
+                            if (res) {
+                                teachers.value = teachers.value.filter(t => t && t.userId !== teacher.userId);
+                                const user = users.value.find(u => u && u.userId === teacher.userId);
+                                if (user) {
+                                    delete user.config;
+                                    user.isTeacher = false;
+                                    if (user.role === 'teacher') user.role = 'member';
+                                    user.memberTier = '一般會員';
+                                }
+                                alert('已移除導師資格');
+                                await fetchData(true);
+                            }
+                        } catch(e) { console.error(e); alert('移除失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
                     const openEditFlexRule = (rule) => {
                         if (rule) {
                             editingFlexRule.value = JSON.parse(JSON.stringify(rule));
@@ -1506,7 +1532,7 @@
                         openNewCourseModal, openEditModal, saveCourse, copyCourse, syncToCalendar,
                         handleBannerUpload, saveSettings, openEnrollments, openCourseOrdersModal,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
-                        openSysConfigModal, saveSysConfig, handleApproveTeacher, getCourseName, formatPrice,
+                        openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
                         downloadSalesReport, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
                     };
                 }

@@ -467,10 +467,13 @@
                     if (!silent) isLoading.value = true;
                     try {
                         const currentUserId = typeof liff !== 'undefined' && liff.isLoggedIn() ? (await liff.getProfile()).userId : '';
+                        const requestPayload = { ...payload };
+                        if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
+                        else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
                         const res = await fetch(WORKER_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action, payload, userProfile: { userId: currentUserId || '' } })
+                            body: JSON.stringify({ action, payload: requestPayload, userProfile: { userId: currentUserId || '' } })
                         });
                         const json = await res.json();
                         if (json.status !== 'success') throw new Error(json.message || '後台執行失敗');
@@ -541,6 +544,7 @@
                     const pwd = String(loginForm.value.password || '').trim();
                     if (acc === 'admin' && pwd === '@1234') {
                         isAuthenticated.value = true;
+                        sessionStorage.setItem('act_admin_pwd', pwd);
                         fetchData();
                     } else {
                         alert("帳號或密碼錯誤");

@@ -56,6 +56,90 @@ async function safeGetKV(env, key, defaultVal) {
   }
 }
 
+const TEACHER_ALLOWED_ACTIONS = new Set([
+  "ADMIN_GET_DATA",
+  "ADMIN_GET_SLOTS",
+  "ADMIN_BATCH_TOGGLE_SLOTS",
+]);
+
+function splitCsv(value) {
+  return String(value || "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function isTeacherRecord(userData) {
+  if (!userData || typeof userData !== "object") return false;
+  if (userData.isTeacher === true || userData.role === "teacher") return true;
+  if (String(userData.memberTier || "").includes("導師")) return true;
+  return !!(userData.config && typeof userData.config === "object");
+}
+
+function normalizeTeacherName(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, "");
+}
+
+function uniqueTeachers(users) {
+  const teachersByName = new Map();
+  for (const user of users.filter(isTeacherRecord)) {
+    const name = normalizeTeacherName(user.name);
+    const key = name || user.userId;
+    if (!key) continue;
+    const current = teachersByName.get(key);
+    if (!current) {
+      teachersByName.set(key, { ...user, teacherUids: user.userId ? [user.userId] : [] });
+      continue;
+    }
+    if (user.userId && !current.teacherUids.includes(user.userId)) current.teacherUids.push(user.userId);
+    current.avatar = current.avatar || user.avatar;
+    current.pictureUrl = current.pictureUrl || user.pictureUrl;
+    current.intro = current.intro || user.intro;
+    current.adminNote = current.adminNote || user.adminNote;
+  }
+  return Array.from(teachersByName.values());
+}
+
+async function listUserRecords(env) {
+  const users = [];
+  try {
+    let listComplete = false;
+    let cursor = null;
+    while (!listComplete) {
+      const options = { prefix: "USER_" };
+      if (cursor) options.cursor = cursor;
+      const list = await env.ACTION_DATA.list(options);
+      const chunkSize = 20;
+      for (let i = 0; i < list.keys.length; i += chunkSize) {
+        const chunk = list.keys.slice(i, i + chunkSize);
+        const chunkUsers = await Promise.all(chunk.map(async key => safeGetKV(env, key.name, null)));
+        users.push(...chunkUsers.filter(Boolean));
+      }
+      listComplete = list.list_complete;
+      cursor = list.cursor;
+    }
+  } catch (e) {
+    console.error("[UserList] Failed to load user records", e);
+  }
+  return users;
+}
+
+async function resolveAccess(env, userId, payload) {
+  const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
+  const userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
+  const adminUidSet = new Set([...splitCsv(env.ADMIN_UIDS), ...splitCsv(settings.admin_uids)]);
+  const teacherUidSet = new Set(splitCsv(env.TEACHER_UIDS));
+  const providedAdminPwd = String(payload?.adminPwd || "");
+  const configuredAdminPwd = String(env.ADMIN_PASSWORD || "");
+  const adminPasswordOk = !!providedAdminPwd && !!configuredAdminPwd && providedAdminPwd === configuredAdminPwd;
+  const isAdmin = adminPasswordOk || adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin";
+  const isTeacher = teacherUidSet.has(userId) || isTeacherRecord(userData);
+  return { settings, userData, userId, isAdmin, isTeacher };
+}
+
 export default {
   async fetch(request, env, ctx) {
     const corsHeaders = {
@@ -107,23 +191,65 @@ export default {
           throw new Error("【Cloudflare 設定遺漏】尚未綁定 KV 空間！");
       }
 
+      const access = await resolveAccess(env, userId, payload);
+      const isSensitiveAdminAction = action?.startsWith("ADMIN_") || action === "UPLOAD_IMAGE" || action === "DEPLOY_RICH_MENU";
+      const isTeacherAction = TEACHER_ALLOWED_ACTIONS.has(action);
+
+      if (isSensitiveAdminAction && !access.isAdmin) {
+        if (!(access.isTeacher && isTeacherAction)) {
+          throw new Error("Admin authorization required");
+        }
+      }
+
+      if (action === "GET_USER_POINTS" && payload?.targetUid && payload.targetUid !== userId && !access.isAdmin) {
+        throw new Error("Admin authorization required");
+      }
+
       switch (action) {
         case "CHECK_UPDATES":
           result.data = { lastUpdate: await env.ACTION_DATA.get("SYS_LAST_UPDATE") || "0" };
           break;
 
         case "GET_SETTINGS":
-          result.data = await safeGetKV(env, "SYSTEM_SETTINGS", {});
+          const publicSettings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
+          if (access.isAdmin) {
+            result.data = publicSettings;
+          } else {
+            const sanitizedSettings = { ...publicSettings };
+            for (const key of Object.keys(sanitizedSettings)) {
+              if (/(token|secret|password|api[_-]?key|hash[_-]?(key|iv))/i.test(key)) {
+                delete sanitizedSettings[key];
+              }
+            }
+            delete sanitizedSettings.admin_uids;
+            result.data = sanitizedSettings;
+          }
           break;
           
         case "GET_COURSES":
           const courses = await safeGetKV(env, "COURSES", []);
           result.data = courses.filter(c => c.isPublished !== false);
           break;
+
+        case "GET_BOOKING_DATA":
+          const bookingUsers = await listUserRecords(env);
+          const bookingCourses = await safeGetKV(env, "COURSES", []);
+          const bookingSlots = await safeGetKV(env, "SLOTS", []);
+          result.data = {
+            settings: { liff_id: access.settings?.liff_id || "" },
+            teachers: uniqueTeachers(bookingUsers),
+            courses: bookingCourses.filter(c => c && c.isPublished !== false),
+            slots: Array.isArray(bookingSlots) ? bookingSlots : [],
+          };
+          break;
           
         case "CHECK_USER":
-          const userData = await safeGetKV(env, `USER_${userId}`, null);
-          result.data = { registered: !!userData, info: userData };
+          result.data = {
+            registered: !!access.userData,
+            info: access.userData,
+            isAdmin: access.isAdmin,
+            isTeacher: access.isTeacher,
+          };
           break;
           
         case "GET_USER_POINTS":
@@ -236,6 +362,7 @@ export default {
               }
           } catch(e) { console.error("[KV Sync Error] 使用者讀取異常:", e); }
           
+          localUsers = await listUserRecords(env);
           let adminCourses = await safeGetKV(env, "COURSES", []);
           let adminOrders = await safeGetKV(env, "ORDERS", []);
           let adminSettings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
@@ -280,6 +407,17 @@ export default {
               teachers: localUsers.filter(u => u.memberTier && ['專業導師', '導師'].some(t => u.memberTier.includes(t))),
               settings: adminSettings
           };
+          result.data.teachers = localUsers.filter(isTeacherRecord);
+          if (!access.isAdmin && access.isTeacher) {
+              const currentTeacher = result.data.teachers.find(u => u.userId === userId) || access.userData;
+              result.data = {
+                  users: [],
+                  courses: [],
+                  orders: [],
+                  teachers: currentTeacher ? [currentTeacher] : [],
+                  settings: {}
+              };
+          }
           break;
 
         case "ADMIN_UPDATE_SETTINGS":
@@ -334,13 +472,34 @@ export default {
           result.data = { success: true };
           break;
 
+        case "ADMIN_REMOVE_TEACHER":
+          const removeUid = payload.teacherUid;
+          let teacherToRemove = await safeGetKV(env, `USER_${removeUid}`, null);
+          if (!teacherToRemove) throw new Error("Teacher not found");
+          delete teacherToRemove.config;
+          teacherToRemove.isTeacher = false;
+          if (teacherToRemove.role === "teacher") teacherToRemove.role = "member";
+          teacherToRemove.memberTier = payload.memberTier || "一般會員";
+          await env.ACTION_DATA.put(`USER_${removeUid}`, JSON.stringify(teacherToRemove));
+          if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ADMIN_UPDATE_MEMBER", payload: { memberData: teacherToRemove } }) }));
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true };
+          break;
+
         case "ADMIN_GET_SLOTS":
-          result.data = await safeGetKV(env, "SLOTS", []);
+          const slotData = await safeGetKV(env, "SLOTS", []);
+          result.data = access.isAdmin ? slotData : slotData.filter(slot => slot && slot.teacherUid === userId);
           break;
 
         case "ADMIN_BATCH_TOGGLE_SLOTS":
           let currentSlots = await safeGetKV(env, "SLOTS", []);
           const { teacherUid: tUid, draftOpen, draftClose } = payload;
+          if (!access.isAdmin) {
+              if (tUid !== userId) throw new Error("Teacher scope mismatch");
+              if ((draftOpen || []).some(slot => slot.uid !== userId) || (draftClose || []).some(slot => slot.uid !== userId)) {
+                  throw new Error("Teacher scope mismatch");
+              }
+          }
           draftClose.forEach(c => {
               currentSlots = currentSlots.filter(s => !(s.teacherUid === c.uid && s.date === c.date && s.time === c.time));
           });

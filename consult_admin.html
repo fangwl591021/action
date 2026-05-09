@@ -226,10 +226,13 @@
 
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
+                            const requestPayload = { ...pl };
+                            if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
+                            else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
                             const res = await fetch(WORKER_URL, { 
                                 method: 'POST', 
                                 headers: { 'Content-Type': 'application/json' }, 
-                                body: JSON.stringify({ action: act, payload: pl, userProfile: liffProfile.value || {} }) 
+                                body: JSON.stringify({ action: act, payload: requestPayload, userProfile: liffProfile.value || {} }) 
                             });
                             if (!res.ok) throw new Error('伺服器無回應或網路異常');
                             const text = await res.text();
@@ -338,6 +341,7 @@
                         if (acc === 'admin' && pwd === '@1234') { 
                             isAuthenticated.value = true; 
                             localStorage.setItem('act_admin_logged_in', 'true');
+                            sessionStorage.setItem('act_admin_pwd', pwd);
                             fetchData(false); 
                         } else { alert('帳號或密碼錯誤'); }
                     };
@@ -346,6 +350,7 @@
                         isAuthenticated.value = false; 
                         localStorage.removeItem('act_admin_logged_in');
                         localStorage.removeItem(CACHE_KEY);
+                        sessionStorage.removeItem('act_admin_pwd');
                         loginForm.value = { account: '', password: '' }; 
                     };
 
