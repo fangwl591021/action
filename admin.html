@@ -1159,7 +1159,12 @@
                         if (!confirm(`確定要將「${teacher.name || teacher.userId}」移出活躍導師嗎？\n\n此操作會保留學員資料，但移除導師身份與導師收費設定。`)) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_REMOVE_TEACHER', { teacherUid: teacher.userId });
+                            const memberData = JSON.parse(JSON.stringify(users.value.find(u => u && u.userId === teacher.userId) || teacher));
+                            delete memberData.config;
+                            memberData.isTeacher = false;
+                            if (memberData.role === 'teacher') memberData.role = 'member';
+                            memberData.memberTier = '一般會員';
+                            const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData });
                             if (res) {
                                 teachers.value = teachers.value.filter(t => t && t.userId !== teacher.userId);
                                 const user = users.value.find(u => u && u.userId === teacher.userId);
