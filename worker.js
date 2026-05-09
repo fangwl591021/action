@@ -178,20 +178,27 @@ async function verifyLineIdToken(env, idToken, settings) {
 
 async function resolveAccess(env, claimedUserId, payload, idToken) {
   const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
-  const verifiedLineProfile = await verifyLineIdToken(env, idToken, settings);
+  const providedAdminPwd = String(payload?.adminPwd || "");
+  const configuredAdminPwd = String(env.ADMIN_PASSWORD || settings.adminPwd || settings.admin_password || "");
+  const adminPasswordOk = !!providedAdminPwd && !!configuredAdminPwd && providedAdminPwd === configuredAdminPwd;
+  let verifiedLineProfile = null;
+  let tokenVerificationError = null;
+  try {
+    verifiedLineProfile = await verifyLineIdToken(env, idToken, settings);
+  } catch (e) {
+    tokenVerificationError = e;
+    if (!adminPasswordOk) verifiedLineProfile = null;
+  }
   const verifiedUserId = verifiedLineProfile?.sub || "";
   const adminUidSet = new Set([...splitCsv(env.ADMIN_UIDS), ...splitCsv(settings.admin_uids)]);
   const teacherUidSet = new Set(splitCsv(env.TEACHER_UIDS));
-  const providedAdminPwd = String(payload?.adminPwd || "");
-  const configuredAdminPwd = String(env.ADMIN_PASSWORD || "");
-  const adminPasswordOk = !!providedAdminPwd && !!configuredAdminPwd && providedAdminPwd === configuredAdminPwd;
   const userId = verifiedUserId || (adminPasswordOk ? String(claimedUserId || "GUEST") : "GUEST");
   const userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
   const hasVerifiedLineUser = !!verifiedUserId;
   const isAdminByUser = hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin");
   const isAdmin = adminPasswordOk || isAdminByUser;
   const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
-  return { settings, userData, userId, isAdmin, isTeacher, hasVerifiedLineUser };
+  return { settings, userData, userId, isAdmin, isTeacher, hasVerifiedLineUser, tokenVerificationError };
 }
 
 export default {
