@@ -342,11 +342,12 @@ async function resolveAccess(env, claimedUserId, payload, idToken) {
   const userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
   const hasVerifiedLineUser = !!verifiedUserId;
   const crmLineLoginEnabled = String(settings.crm_line_login_enabled || "false").toLowerCase() === "true";
-  const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin");
+  const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin" || userData?.crmRole === "admin");
   const isAdmin = adminPasswordOk || isAdminByUser;
-  const canCrmLogin = isAdmin || (crmLineLoginEnabled && hasVerifiedLineUser && crmLoginUidSet.has(userId));
+  const isOperatorByUser = crmLineLoginEnabled && hasVerifiedLineUser && (crmLoginUidSet.has(userId) || userData?.crmOperator === true || userData?.role === "operator" || userData?.crmRole === "operator");
+  const canCrmLogin = isAdmin || isOperatorByUser;
   const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
-  return { settings, userData, userId, isAdmin, canCrmLogin, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled };
+  return { settings, userData, userId, isAdmin, canCrmLogin, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk };
 }
 
 export default {
@@ -635,6 +636,14 @@ export default {
                   settings: {}
               };
           }
+          if (!access.isAdmin && access.canCrmLogin) {
+              result.data.orders = [];
+              result.data.paymentLogs = [];
+              result.data.settings = {
+                crm_line_login_enabled: adminSettings.crm_line_login_enabled || "false",
+                liff_id: adminSettings.liff_id || "",
+              };
+          }
           break;
 
         case "ADMIN_UPDATE_SETTINGS":
@@ -671,12 +680,44 @@ export default {
           if (payload.memberData && payload.memberData.userId) {
               const memberUid = String(payload.memberData.userId).trim();
               const currentMember = await safeGetKV(env, `USER_${memberUid}`, {});
+              const permissionChanged = (
+                Boolean(currentMember.isAdmin) !== Boolean(payload.memberData.isAdmin) ||
+                Boolean(currentMember.crmOperator) !== Boolean(payload.memberData.crmOperator) ||
+                String(currentMember.role || "") !== String(payload.memberData.role || "") ||
+                String(currentMember.crmRole || "") !== String(payload.memberData.crmRole || "")
+              );
+              if (permissionChanged && !access.adminPasswordOk) {
+                throw new Error("任命或變更 CRM 權限時，必須重新輸入管理密碼");
+              }
               const savedMember = {
                 ...currentMember,
                 ...payload.memberData,
                 userId: memberUid,
                 updatedAt: new Date().toISOString(),
               };
+              if (savedMember.isAdmin === true) {
+                savedMember.crmRole = "admin";
+                savedMember.role = "admin";
+                savedMember.crmOperator = false;
+              } else if (savedMember.crmOperator === true) {
+                savedMember.crmRole = "operator";
+                savedMember.role = "operator";
+              } else if (savedMember.role === "admin" || savedMember.crmRole === "admin") {
+                savedMember.isAdmin = true;
+                savedMember.crmRole = "admin";
+                savedMember.role = "admin";
+                savedMember.crmOperator = false;
+              } else if (savedMember.role === "operator" || savedMember.crmRole === "operator") {
+                savedMember.isAdmin = false;
+                savedMember.crmOperator = true;
+                savedMember.crmRole = "operator";
+                savedMember.role = "operator";
+              } else {
+                savedMember.isAdmin = false;
+                savedMember.crmOperator = false;
+                delete savedMember.crmRole;
+                if (savedMember.role === "operator") delete savedMember.role;
+              }
               await env.ACTION_DATA.put(`USER_${memberUid}`, JSON.stringify(savedMember));
               result.data = { success: true, memberData: savedMember };
           } else {

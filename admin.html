@@ -595,6 +595,20 @@
                             <button @click="deleteMember(activeMember)" class="mt-5 w-full py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"><i class="fas fa-trash-alt mr-2"></i>刪除此學員檔案</button>
                         </div>
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-comment-dots text-orange-500"></i> 管理員備註</h4><textarea v-model="activeMember.adminNote" class="input-field h-32 resize-none leading-relaxed text-[15px]" placeholder="紀錄學員個案狀況..."></textarea></div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-user-shield text-emerald-500"></i> CRM 登入權限</h4>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
+                                    <input type="checkbox" v-model="activeMember.isAdmin" @change="toggleMemberAdmin" class="mt-1 w-4 h-4">
+                                    <span><b class="block text-slate-800">Admin</b><small class="text-slate-500 font-bold">所有權限，可任命其他人的權限</small></span>
+                                </label>
+                                <label class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
+                                    <input type="checkbox" v-model="activeMember.crmOperator" @change="toggleMemberOperator" class="mt-1 w-4 h-4">
+                                    <span><b class="block text-slate-800">操作員</b><small class="text-slate-500 font-bold">可登入 CRM，看不到金流，不能任命權限</small></span>
+                                </label>
+                            </div>
+                            <div class="text-xs text-amber-600 font-bold mt-3">變更這兩個權限時，儲存會要求重新輸入管理密碼。</div>
+                        </div>
                     </div>
                     <div class="md:col-span-5 flex flex-col space-y-6">
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center relative overflow-hidden"><i class="fas fa-gift absolute -right-4 -bottom-4 text-red-50 text-8xl"></i><div class="text-[13px] font-bold text-slate-400 mb-1 relative z-10">可用紅包餘額</div>
@@ -677,6 +691,7 @@
                     const selectedCourseOrders = ref([]);
 
                     const activeMember = ref(null);
+                    const activeMemberPermissionSnapshot = ref(null);
                     const activeMemberPoints = ref({ balance: 0, logs: [] });
                     const editingPointAction = ref(null);
                     
@@ -693,7 +708,8 @@
                             } catch (err) {}
 
                             const requestPayload = { ...pl };
-                            if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
+                            if (requestPayload.adminPwd) {}
+                            else if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
                             else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
                             else if (act && (act.startsWith('ADMIN_') || act === 'GET_USER_POINTS')) {
                                 const pwd = window.prompt('請重新輸入管理密碼以儲存 CRM 變更');
@@ -991,6 +1007,14 @@
                     // 🚀 打開 CRM 時，自動觸發一次 GET_USER_POINTS (這會連帶觸發自動遷徙)
                     const openMemberDetail = async (u) => {
                         activeMember.value = JSON.parse(JSON.stringify(u));
+                        activeMember.value.isAdmin = activeMember.value.isAdmin === true || activeMember.value.role === 'admin' || activeMember.value.crmRole === 'admin';
+                        activeMember.value.crmOperator = !activeMember.value.isAdmin && (activeMember.value.crmOperator === true || activeMember.value.role === 'operator' || activeMember.value.crmRole === 'operator');
+                        activeMemberPermissionSnapshot.value = {
+                            isAdmin: !!activeMember.value.isAdmin,
+                            crmOperator: !!activeMember.value.crmOperator,
+                            role: activeMember.value.role || '',
+                            crmRole: activeMember.value.crmRole || ''
+                        };
                         isLoading.value = true;
                         try {
                             const points = await callApi('GET_USER_POINTS', { targetUid: u.userId });
@@ -998,11 +1022,43 @@
                         } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
+                    const toggleMemberAdmin = () => {
+                        if (!activeMember.value) return;
+                        if (activeMember.value.isAdmin) {
+                            activeMember.value.crmOperator = false;
+                            activeMember.value.role = 'admin';
+                            activeMember.value.crmRole = 'admin';
+                        } else if (activeMember.value.role === 'admin' || activeMember.value.crmRole === 'admin') {
+                            activeMember.value.role = '';
+                            activeMember.value.crmRole = '';
+                        }
+                    };
+
+                    const toggleMemberOperator = () => {
+                        if (!activeMember.value) return;
+                        if (activeMember.value.crmOperator) {
+                            activeMember.value.isAdmin = false;
+                            activeMember.value.role = 'operator';
+                            activeMember.value.crmRole = 'operator';
+                        } else if (activeMember.value.role === 'operator' || activeMember.value.crmRole === 'operator') {
+                            activeMember.value.role = '';
+                            activeMember.value.crmRole = '';
+                        }
+                    };
+
                     const saveMemberDetail = async () => {
                         if (!activeMember.value || !activeMember.value.userId) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: activeMember.value });
+                            const snap = activeMemberPermissionSnapshot.value || {};
+                            const permissionChanged = snap.isAdmin !== !!activeMember.value.isAdmin || snap.crmOperator !== !!activeMember.value.crmOperator || snap.role !== (activeMember.value.role || '') || snap.crmRole !== (activeMember.value.crmRole || '');
+                            const payload = { memberData: activeMember.value };
+                            if (permissionChanged) {
+                                const pwd = window.prompt('任命或變更 CRM 權限，請輸入管理密碼');
+                                if (!pwd) throw new Error('已取消權限變更');
+                                payload.adminPwd = pwd;
+                            }
+                            const res = await callApi('ADMIN_UPDATE_MEMBER', payload);
                             if(res) {
                                 const savedMember = res.memberData || activeMember.value;
                                 const idx = users.value.findIndex(u => u && u.userId === savedMember.userId);
@@ -1571,7 +1627,7 @@
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
                         activeMember, activeMemberPoints, editingPointAction,
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, forceSyncFromCloud,
-                        triggerBackup, runHealthCheck, openMemberDetail, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
+                        triggerBackup, runHealthCheck, openMemberDetail, toggleMemberAdmin, toggleMemberOperator, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
                         openNewCourseModal, openEditModal, saveCourse, copyCourse, syncToCalendar,
                         handleBannerUpload, saveSettings, openEnrollments, openCourseOrdersModal,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
