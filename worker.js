@@ -729,12 +729,20 @@ export default {
           break;
 
         case "ADMIN_IMPORT_WP_PRODUCTS":
-          const wpSiteUrl = String(payload.siteUrl || "https://aiwe.cc").trim();
+          let wpSiteUrl = String(payload.siteUrl || "https://aiwe.cc").trim();
           const wpUsername = String(payload.username || "").trim();
           const wpAppPassword = String(payload.appPassword || "").trim();
-          const wpPostIds = Array.isArray(payload.postIds)
+          let wpPostIds = Array.isArray(payload.postIds)
             ? payload.postIds
             : String(payload.postIds || "").split(/[\s,，]+/).filter(Boolean);
+          try {
+            const parsedWpUrl = new URL(wpSiteUrl);
+            const urlPostId = parsedWpUrl.searchParams.get("post");
+            if (urlPostId && !wpPostIds.includes(urlPostId)) wpPostIds = [urlPostId, ...wpPostIds];
+            wpSiteUrl = parsedWpUrl.origin;
+          } catch (_) {
+            // Keep the original value so fetchWpJson can report a useful URL error.
+          }
           if (!wpUsername || !wpAppPassword) throw new Error("請輸入 WordPress 帳號與 Application Password");
           if (!wpPostIds.length) throw new Error("請輸入 WordPress 商品 post ID");
           const wpAuthHeader = `Basic ${btoa(`${wpUsername}:${wpAppPassword}`)}`;
