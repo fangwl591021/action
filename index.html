@@ -143,7 +143,7 @@
                                 <div class="text-[14px] font-black text-slate-900 leading-snug line-clamp-2 min-h-[38px]">{{ p.name }}</div>
                                 <div v-if="p.storeName" class="text-[11px] text-slate-400 font-bold mt-1 line-clamp-1">{{ p.storeName }}</div>
                                 <div class="mt-auto pt-3 flex items-end justify-between gap-2">
-                                    <div class="text-[#06C755] font-black text-[17px] leading-none">{{ formatPrice(p.pointsPrice || p.price || 0) }} 點</div>
+                                    <div class="text-[#06C755] font-black text-[17px] leading-none">{{ (p.pointsPrice || p.price) ? (formatPrice(p.pointsPrice || p.price) + ' 點') : '自填點數' }}</div>
                                     <button @click.stop="buyProduct(p)" :disabled="isLoading" class="shrink-0 w-10 h-10 rounded-full bg-[#06C755] text-white shadow-md active:scale-95 transition"><i class="fas fa-shopping-bag"></i></button>
                                 </div>
                             </div>
@@ -1292,13 +1292,18 @@
 
                     const buyProduct = async (product) => {
                         if (!userStatus.value.registered) { view.value = 'register'; return; }
-                        const cost = Number(product.pointsPrice || product.price || 0);
-                        if (!cost) { alert('此商品尚未設定點數價格'); return; }
+                        let cost = Number(product.pointsPrice || product.price || 0);
+                        if (!cost) {
+                            const input = prompt(`請輸入「${product.name}」要扣除的點數`);
+                            if (input === null) return;
+                            cost = Number(String(input).replace(/[^0-9.]/g, ''));
+                        }
+                        if (!cost || cost <= 0) { alert('請輸入大於 0 的點數'); return; }
                         if (Number(userPoints.value.balance || 0) < cost) { alert('點數不足，無法購買'); return; }
                         if (!confirm(`確認使用 ${formatPrice(cost)} 點購買「${product.name}」？`)) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('BUY_PRODUCT', { productId: product.id }, false);
+                            const res = await callApi('BUY_PRODUCT', { productId: product.id, customPoints: cost }, false);
                             if (res && res.success) {
                                 alert('購買成功，已扣除點數');
                                 const [pData, oData] = await Promise.all([

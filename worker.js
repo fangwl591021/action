@@ -613,8 +613,10 @@ export default {
           const product = productList.find(p => p && (p.id === payload.productId || p.code === payload.productId));
           if (!product || product.isPublished === false) throw new Error("商品不存在或未上架");
           if (product.stock !== null && product.stock !== undefined && Number(product.stock) <= 0) throw new Error("商品已售完");
-          const pointCost = Math.max(0, Number(product.pointsPrice || product.price || 0));
-          if (!pointCost) throw new Error("商品尚未設定點數價格");
+          const fixedPointCost = Math.max(0, Number(product.pointsPrice || product.price || 0));
+          const customPointCost = Math.max(0, Number(payload.customPoints || 0));
+          const pointCost = fixedPointCost || customPointCost;
+          if (!pointCost) throw new Error("請輸入扣點數");
           const buyerPoints = await safeGetKV(env, `POINTS_${userId}`, { balance: 0, logs: [] });
           if ((Number(buyerPoints.balance) || 0) < pointCost) throw new Error("點數不足，無法購買");
           const buyerInfo = await safeGetKV(env, `USER_${userId}`, {});
