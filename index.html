@@ -127,13 +127,40 @@
                     </div>
                 </div>
 
+                <div v-if="view === 'shop'" class="animate-fade-in bg-[#F4F5F7] min-h-screen pb-28">
+                    <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between">
+                        <h2 class="text-[17px] font-black text-[#111111]">商城商品</h2>
+                        <div class="text-[12px] font-bold text-slate-500">可用 {{ formatPrice(userPoints.balance || 0) }} 點</div>
+                    </div>
+                    <div class="p-4 grid grid-cols-2 gap-4">
+                        <div v-for="p in products" :key="p.id" class="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm flex flex-col">
+                            <div class="w-full aspect-square bg-slate-50 relative overflow-hidden">
+                                <img v-if="p.image" :src="p.image" class="absolute inset-0 w-full h-full object-cover">
+                                <div v-else class="absolute inset-0 flex items-center justify-center text-slate-300"><i class="fas fa-box-open text-4xl"></i></div>
+                                <div v-if="p.code" class="absolute top-2 left-2 bg-white/90 text-slate-600 text-[10px] font-black px-2 py-1 rounded-md border border-white">{{ p.code }}</div>
+                            </div>
+                            <div class="p-3 flex flex-col flex-1">
+                                <div class="text-[14px] font-black text-slate-900 leading-snug line-clamp-2 min-h-[38px]">{{ p.name }}</div>
+                                <div v-if="p.storeName" class="text-[11px] text-slate-400 font-bold mt-1 line-clamp-1">{{ p.storeName }}</div>
+                                <div class="mt-auto pt-3 flex items-end justify-between gap-2">
+                                    <div class="text-[#06C755] font-black text-[17px] leading-none">{{ formatPrice(p.pointsPrice || p.price || 0) }} 點</div>
+                                    <button @click.stop="buyProduct(p)" :disabled="isLoading" class="shrink-0 w-10 h-10 rounded-full bg-[#06C755] text-white shadow-md active:scale-95 transition"><i class="fas fa-shopping-bag"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="products.length === 0" class="col-span-2 text-center py-14 text-[#AAAAAA] font-bold bg-white rounded-xl border border-dashed border-[#DDDDDD]">
+                            <i class="fas fa-store text-3xl mb-3 text-[#E0E0E0]"></i><br>目前沒有上架商品
+                        </div>
+                    </div>
+                </div>
+
                 <div v-if="view === 'orders'" class="animate-fade-in">
                     <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-center"><h2 class="text-[17px] font-bold text-[#111111]">歷史報名紀錄</h2></div>
                     <div class="pt-2 pb-20 px-4">
                         <div v-for="o in myOrders" :key="o.orderId" class="native-card relative overflow-hidden shadow-sm border border-slate-100">
                             <div class="flex justify-between items-start mb-3"><div class="text-[12px] font-mono font-bold text-[#AAAAAA]">{{ o.orderId }}</div><div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="o.status==='PAID'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'">{{ o.status==='PAID'?'已付款':(o.status==='CANCELLED'?'已取消':'待付款') }}</div></div>
-                            <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ String(getCourseName(o.courseId) || '').split('\n')[0] }}</div>
-                            <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">$ {{ formatPrice(o.amount) }}</div>
+                            <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ o.type === 'PRODUCT' ? o.productName : String(getCourseName(o.courseId) || '').split('\n')[0] }}</div>
+                            <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">{{ o.type === 'PRODUCT' ? (formatPrice(o.pointsUsed) + ' 點') : ('$ ' + formatPrice(o.amount)) }}</div>
                             <div v-if="o.note" class="text-[13px] text-slate-500 font-bold bg-slate-50 p-3 rounded-lg mb-3 border border-slate-100 leading-relaxed whitespace-pre-wrap"><i class="fas fa-info-circle mr-1.5 text-slate-400"></i>{{ o.note }}</div>
                             
                             <div v-if="o.status === 'PENDING' && !o.remittance" class="flex gap-2 border-t border-slate-100 pt-3 mt-2">
@@ -210,6 +237,7 @@
             <nav class="bottom-nav z-[60]">
                 <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="openBookingFlow" class="nav-item" :class="{'nav-active': view === 'booking'}"><i class="fas fa-calendar-check"></i><span>預約</span></div>
+                <div @click="navigateTo('shop')" class="nav-item" :class="{'nav-active': view === 'shop'}"><i class="fas fa-store"></i><span>商城</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
                 <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile'}"><i class="fas fa-user"></i><span>我的</span></div>
             </nav>
@@ -575,6 +603,7 @@
                     const userPoints = ref({ balance: 0, logs: [] }); 
                     const sysSettings = ref({});
                     const courses = ref([]); 
+                    const products = ref([]);
                     const myOrders = ref([]); 
                     const selectedCourse = ref(null);
                     
@@ -715,6 +744,7 @@
                         try {
                             const cSets = localStorage.getItem(`sets_${CACHE_VERSION}`); if (cSets) sysSettings.value = JSON.parse(cSets);
                             const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) courses.value = JSON.parse(cCs);
+                            const cPs = localStorage.getItem(`products_${CACHE_VERSION}`); if (cPs) products.value = JSON.parse(cPs);
                             if (uid) {
                                 const cU = localStorage.getItem(`u_${uid}_${CACHE_VERSION}`); if (cU) userStatus.value = JSON.parse(cU);
                                 const cP = localStorage.getItem(`p_${uid}_${CACHE_VERSION}`); if (cP) userPoints.value = JSON.parse(cP);
@@ -781,23 +811,26 @@
 
                             syncLocal(uid);
 
-                            const [checkRes, cData, oData, pData] = await Promise.all([
+                            const [checkRes, cData, oData, pData, productData] = await Promise.all([
                                 callApi('CHECK_USER', {}, true), 
                                 callApi('GET_COURSES', {}, true), 
                                 callApi('GET_USER_ORDERS', {}, true), 
-                                callApi('GET_USER_POINTS', {}, true)
+                                callApi('GET_USER_POINTS', {}, true),
+                                callApi('GET_PRODUCTS', {}, true)
                             ]);
 
                             if (checkRes) userStatus.value = checkRes;
                             if (cData) courses.value = cData;
                             if (oData) myOrders.value = oData;
                             if (pData) userPoints.value = pData;
+                            if (productData) products.value = productData;
 
                             if (uid) {
                                 try {
                                     localStorage.setItem(`u_${uid}_${CACHE_VERSION}`, JSON.stringify(checkRes));
                                     localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(pData));
                                     localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
+                                    localStorage.setItem(`products_${CACHE_VERSION}`, JSON.stringify(productData));
                                 } catch(e) { console.warn('LocalStorage limit reached in initApp'); }
                             }
                             
@@ -1257,6 +1290,28 @@
                         } catch (e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
+                    const buyProduct = async (product) => {
+                        if (!userStatus.value.registered) { view.value = 'register'; return; }
+                        const cost = Number(product.pointsPrice || product.price || 0);
+                        if (!cost) { alert('此商品尚未設定點數價格'); return; }
+                        if (Number(userPoints.value.balance || 0) < cost) { alert('點數不足，無法購買'); return; }
+                        if (!confirm(`確認使用 ${formatPrice(cost)} 點購買「${product.name}」？`)) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('BUY_PRODUCT', { productId: product.id }, false);
+                            if (res && res.success) {
+                                alert('購買成功，已扣除點數');
+                                const [pData, oData] = await Promise.all([
+                                    callApi('GET_USER_POINTS', {}, true),
+                                    callApi('GET_USER_ORDERS', {}, true)
+                                ]);
+                                if (pData) userPoints.value = pData;
+                                if (oData) myOrders.value = oData;
+                                view.value = 'orders';
+                            }
+                        } catch (e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
                     const submitRemittance = async () => {
                         const digits = remittanceInput.value.replace(/\D/g, '');
                         if (digits.length !== 5) { alert(`請輸入完整的 5 碼數字\n(您目前輸入了 ${digits.length} 碼)`); return; }
@@ -1271,7 +1326,7 @@
                     onMounted(() => { initApp(); });
 
                     return { 
-                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, myOrders, selectedCourse, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
+                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, products, myOrders, selectedCourse, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
                         isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                         isProfileInfoOpen, isImageUploading, handleAvatarUpload,
                         teacherCourses, editingMyCourse, isCourseImgUploading, openMyCourses, openEditMyCourse, handleCourseImgUpload, saveMyCourse, deleteMyCourse,
@@ -1280,7 +1335,7 @@
                             view.value = 'courseDetail'; window.scrollTo(0,0); 
                         },
                         pointsToUse, finalPrice, checkoutButtonText, executeBooking,
-                        payOrder, cancelOrder,
+                        payOrder, cancelOrder, buyProduct,
                         openRemittanceModal: (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; }, 
                         submitRemittance, navigateTo, dailyCheckin, submitRegistration, 
                         formatPrice, getCourseName,

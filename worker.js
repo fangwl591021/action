@@ -75,6 +75,7 @@ const VERIFIED_USER_ACTIONS = new Set([
   "REGISTER_USER",
   "DAILY_CHECKIN",
   "REGISTER",
+  "BUY_PRODUCT",
   "UPLOAD_IMAGE",
   "TEACHER_GET_MY_COURSES",
   "TEACHER_UPDATE_COURSE",
@@ -122,6 +123,48 @@ function uniqueTeachers(users) {
     current.adminNote = current.adminNote || user.adminNote;
   }
   return Array.from(teachersByName.values());
+}
+
+function normalizeProduct(raw, fallbackIndex = 0) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const code = String(source.code || source.productCode || source.sku || source["商品代碼"] || "").trim();
+  const name = String(source.name || source.title || source.postTitle || source["內容標題"] || "").trim();
+  const status = String(source.status || source.productStatus || source["商品狀態"] || "販賣中").trim();
+  const numericPrice = Number(String(source.pointsPrice ?? source.pointPrice ?? source.price ?? source["點數"] ?? source["價格"] ?? 0).replace(/[^0-9.-]/g, "")) || 0;
+  const idBase = String(source.id || source.postId || code || name || `product-${fallbackIndex + 1}`).trim();
+  return {
+    id: idBase.startsWith("PROD_") ? idBase : `PROD_${idBase.replace(/[^\w-]+/g, "_")}`,
+    name,
+    code,
+    storeName: String(source.storeName || source.vendor || source["店家名稱"] || "").trim(),
+    status,
+    price: Number(source.price ?? numericPrice) || numericPrice,
+    pointsPrice: Number(source.pointsPrice ?? source.pointPrice ?? numericPrice) || 0,
+    image: String(source.image || source.thumbnail || source.featuredImage || "").trim(),
+    description: String(source.description || source.content || source.excerpt || "").trim(),
+    sourceUrl: String(source.sourceUrl || source.editUrl || source.url || "").trim(),
+    stock: source.stock === undefined || source.stock === "" ? null : Number(source.stock),
+    isPublished: source.isPublished === false ? false : true,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function mergeProducts(existing, incoming, mode = "append") {
+  const map = new Map();
+  if (mode !== "replace") {
+    for (const item of Array.isArray(existing) ? existing : []) {
+      const p = normalizeProduct(item);
+      if (p.name) map.set(p.code || p.id || p.name, p);
+    }
+  }
+  for (const item of Array.isArray(incoming) ? incoming : []) {
+    const p = normalizeProduct(item, map.size);
+    if (!p.name) continue;
+    const key = p.code || p.id || p.name;
+    const old = map.get(key) || {};
+    map.set(key, { ...old, ...p, createdAt: old.createdAt || new Date().toISOString() });
+  }
+  return Array.from(map.values());
 }
 
 async function listUserRecords(env) {
@@ -447,6 +490,15 @@ export default {
           result.data = courses.filter(c => c.isPublished !== false);
           break;
 
+        case "GET_PRODUCTS":
+          const products = await safeGetKV(env, "PRODUCTS", []);
+          result.data = products.filter(p => {
+            if (!p || p.isPublished === false) return false;
+            const status = String(p.status || "");
+            return !status || status.includes("販賣") || /sell|active|on/i.test(status);
+          });
+          break;
+
         case "GET_BOOKING_DATA":
           const bookingUsers = await listUserRecords(env);
           const bookingCourses = await safeGetKV(env, "COURSES", []);
@@ -516,6 +568,12 @@ export default {
         case "REGISTER": 
           let currentOrders = await safeGetKV(env, "ORDERS", []);
           let userInfo = await safeGetKV(env, `USER_${userId}`, {});
+          const coursePointsUsed = Math.max(0, Number(payload.pointsUsed || 0));
+          if (coursePointsUsed > 0) {
+            const currentPointData = await safeGetKV(env, `POINTS_${userId}`, { balance: 0, logs: [] });
+            if ((Number(currentPointData.balance) || 0) < coursePointsUsed) throw new Error("點數不足，無法完成折抵");
+            await this.updatePoints(env, ctx, userId, -coursePointsUsed, `課程折抵：${payload.courseId}`);
+          }
           const newOrder = {
               orderId: `ORD${Date.now()}`,
               userId: userId,
@@ -523,7 +581,8 @@ export default {
               phone: userInfo.phone || "未填寫",
               courseId: payload.courseId,
               amount: payload.amount,
-              status: 'PENDING',
+              pointsUsed: coursePointsUsed,
+              status: Number(payload.amount || 0) <= 0 ? 'PAID' : 'PENDING',
               createdAt: new Date().toLocaleString()
           };
           currentOrders.unshift(newOrder); 
@@ -547,6 +606,52 @@ export default {
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString())); 
 
           result.data = { success: true, orderId: newOrder.orderId };
+          break;
+
+        case "BUY_PRODUCT":
+          const productList = await safeGetKV(env, "PRODUCTS", []);
+          const product = productList.find(p => p && (p.id === payload.productId || p.code === payload.productId));
+          if (!product || product.isPublished === false) throw new Error("商品不存在或未上架");
+          if (product.stock !== null && product.stock !== undefined && Number(product.stock) <= 0) throw new Error("商品已售完");
+          const pointCost = Math.max(0, Number(product.pointsPrice || product.price || 0));
+          if (!pointCost) throw new Error("商品尚未設定點數價格");
+          const buyerPoints = await safeGetKV(env, `POINTS_${userId}`, { balance: 0, logs: [] });
+          if ((Number(buyerPoints.balance) || 0) < pointCost) throw new Error("點數不足，無法購買");
+          const buyerInfo = await safeGetKV(env, `USER_${userId}`, {});
+          const shopOrders = await safeGetKV(env, "ORDERS", []);
+          const productOrder = {
+            orderId: `SHOP${Date.now()}`,
+            type: "PRODUCT",
+            userId,
+            name: buyerInfo.name || userProfile?.displayName || "會員",
+            phone: buyerInfo.phone || "",
+            productId: product.id,
+            productName: product.name,
+            productCode: product.code || "",
+            amount: 0,
+            pointsUsed: pointCost,
+            paymentMethod: "POINTS",
+            status: "PAID",
+            createdAt: new Date().toLocaleString()
+          };
+          await this.updatePoints(env, ctx, userId, -pointCost, `商城購買：${product.name}`);
+          if (product.stock !== null && product.stock !== undefined) {
+            product.stock = Math.max(0, Number(product.stock) - 1);
+            await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(productList));
+          }
+          shopOrders.unshift(productOrder);
+          await env.ACTION_DATA.put("ORDERS", JSON.stringify(shopOrders));
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true, orderId: productOrder.orderId, balance: (Number(buyerPoints.balance) || 0) - pointCost };
+          break;
+
+        case "ADMIN_IMPORT_PRODUCTS":
+          if (!Array.isArray(payload.products)) throw new Error("缺少商品資料");
+          const oldProducts = await safeGetKV(env, "PRODUCTS", []);
+          const mergedProducts = mergeProducts(oldProducts, payload.products, payload.mode || "append");
+          await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(mergedProducts));
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true, count: mergedProducts.length };
           break;
 
         // ==============================================
