@@ -86,6 +86,7 @@
                             <div @click="switchView('calendar')" class="nav-item" :class="{'nav-active': view === 'calendar'}"><i class="far fa-calendar-alt w-6 text-center"></i>日曆檢視</div>
                             <div @click="switchView('members')" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-6 text-center"></i>學員 CRM</div>
                             <div @click="switchView('courses')" class="nav-item" :class="{'nav-active': view === 'courses' || view === 'course_edit' || view === 'course_enrollments'}"><i class="fas fa-book w-6 text-center"></i>課程管理</div>
+                            <div @click="switchView('products')" class="nav-item" :class="{'nav-active': view === 'products'}"><i class="fas fa-store w-6 text-center"></i>商城商品</div>
                             <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation' || view === 'sys_config'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約諮詢</div>
                             <div @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders' || view === 'order_edit'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
                             <div @click="switchView('payment_logs')" class="nav-item" :class="{'nav-active': view === 'payment_logs'}"><i class="fas fa-credit-card w-6 text-center"></i>刷卡紀錄</div>
@@ -183,6 +184,28 @@
                                     <td><div class="text-slate-600 font-bold mb-1">{{ c.enrolled || 0 }} / {{ c.capacity || 0 }} 人</div><button @click="openEnrollments(c)" class="btn-outline !py-1 !px-3 text-xs bg-white">報名名單</button><div class="mt-2"><span class="status-badge" :class="c.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'">{{ c.isPublished ? '🟢 已上架' : '🔴 已下架' }}</span></div></td>
                                     <td class="text-right"><div class="flex justify-end items-center gap-4"><i class="fas fa-calendar-plus text-slate-300 hover:text-orange-500 cursor-pointer text-lg transition" title="同步至日曆" @click="syncToCalendar(c)"></i><i class="far fa-copy text-slate-300 hover:text-slate-800 cursor-pointer text-lg transition" title="複製課程" @click="copyCourse(c)"></i><button @click="openEditModal(c)" class="text-[14px] text-blue-600 font-bold hover:underline text-sm ml-2">進階設定</button></div></td>
                                 </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-if="view === 'products'" class="animate-fade-in">
+                    <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
+                        <div class="relative w-72"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="productSearchQuery" placeholder="搜尋商品名稱或代碼" class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
+                        <button @click="openNewProductModal" class="btn-green-main !py-2"><i class="fas fa-plus mr-2"></i>新增商品</button>
+                    </div>
+                    <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
+                        <table class="admin-table">
+                            <thead><tr><th>商品</th><th>代碼</th><th>點數價格</th><th>狀態</th><th class="text-right">操作</th></tr></thead>
+                            <tbody>
+                                <tr v-for="p in filteredProducts" :key="p.id">
+                                    <td><div class="flex items-center gap-3"><div class="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center text-slate-300"><img v-if="p.image" :src="p.image" class="w-full h-full object-cover"><i v-else class="fas fa-box-open text-xl"></i></div><div><div class="font-black text-slate-800">{{ p.name }}</div><div class="text-xs text-slate-400 font-bold">{{ p.storeName || '未設定店家' }}</div></div></div></td>
+                                    <td class="font-mono font-bold text-slate-500">{{ p.code || '-' }}</td>
+                                    <td class="font-black text-[#06C755]">{{ p.pointsPrice || p.price ? formatPrice(p.pointsPrice || p.price) + ' 點' : '未固定' }}</td>
+                                    <td><span class="status-badge" :class="p.isPublished !== false ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'">{{ p.isPublished !== false ? '上架' : '下架' }}</span></td>
+                                    <td class="text-right"><button @click="openEditProductModal(p)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">編輯</button></td>
+                                </tr>
+                                <tr v-if="!filteredProducts.length"><td colspan="5" class="text-center py-20 text-slate-300 font-bold">目前沒有商品</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -536,6 +559,32 @@
             </div>
         </div>
 
+        <div v-if="editingProduct" class="modal-mask" @click.self="editingProduct = null">
+            <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[760px] !rounded-xl bg-white">
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
+                    <h3 class="text-[21px] font-black text-slate-800">{{ editingProduct?.id && String(editingProduct.id).startsWith('PROD_NEW_') ? '新增商城商品' : '編輯商品：' + String(editingProduct?.name || '') }}</h3>
+                    <button @click="editingProduct = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button>
+                </div>
+                <div class="p-6 overflow-y-auto">
+                    <div class="grid grid-cols-2 gap-5">
+                        <div><label class="input-label">商品名稱</label><input type="text" v-model="editingProduct.name" class="input-field font-bold text-slate-800"></div>
+                        <div><label class="input-label">商品代碼</label><input type="text" v-model="editingProduct.code" class="input-field font-mono font-bold"></div>
+                        <div><label class="input-label">店家名稱</label><input type="text" v-model="editingProduct.storeName" class="input-field"></div>
+                        <div><label class="input-label">點數價格（留 0 可由客戶輸入）</label><input type="number" v-model.number="editingProduct.pointsPrice" class="input-field font-black text-[#06C755]"></div>
+                        <div class="col-span-2"><label class="input-label">商品圖片 URL</label><input type="text" v-model="editingProduct.image" class="input-field font-mono text-sm" placeholder="https://..."></div>
+                        <div class="col-span-2" v-if="editingProduct.image"><img :src="editingProduct.image" class="w-full max-h-72 object-cover rounded-xl border border-slate-100 bg-slate-50"></div>
+                        <div class="col-span-2"><label class="input-label">商品描述</label><textarea v-model="editingProduct.description" class="input-field h-32 resize-none leading-relaxed"></textarea></div>
+                        <div><label class="input-label">商品狀態</label><input type="text" v-model="editingProduct.status" class="input-field" placeholder="販賣中"></div>
+                        <div><label class="input-label">前台顯示</label><select v-model="editingProduct.isPublished" class="input-field font-bold"><option :value="true">上架</option><option :value="false">下架</option></select></div>
+                    </div>
+                </div>
+                <div class="px-6 py-5 bg-white flex justify-between items-center gap-4 border-t border-slate-200 rounded-b-xl">
+                    <button v-if="editingProduct?.id && !String(editingProduct.id).startsWith('PROD_NEW_')" @click="deleteProduct" class="px-4 py-3 rounded-lg bg-red-50 text-red-600 font-bold border border-red-100 hover:bg-red-100">刪除商品</button>
+                    <div class="ml-auto flex gap-3"><button @click="editingProduct = null" class="text-[16px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button><button @click="saveProduct" :disabled="isLoading" class="btn-green-main px-8 text-[17px] py-3"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>儲存商品</button></div>
+                </div>
+            </div>
+        </div>
+
         <div v-if="showOrdersModal" class="modal-mask" @click.self="showOrdersModal = false">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[1000px] !rounded-xl bg-white">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
@@ -666,6 +715,7 @@
                     const users = ref([]);
                     const teachers = ref([]);
                     const courses = ref([]);
+                    const products = ref([]);
                     const orders = ref([]);
                     const sysSettings = ref({});
                     const slots = ref([]);
@@ -675,11 +725,13 @@
                     
                     const memberSearch = ref('');
                     const courseSearchQuery = ref('');
+                    const productSearchQuery = ref('');
                     const orderSearch = ref('');
                     const approveForm = ref({ uid: '', rent: 0, comm: 0 });
                     
                     const isImageUploading = ref(false);
                     const editingCourse = ref(null);
+                    const editingProduct = ref(null);
                     const activeEnrollmentCourse = ref(null);
                     const courseOrders = ref([]);
                     const editingOrder = ref(null);
@@ -744,6 +796,7 @@
                                     users.value = c.users || [];
                                     teachers.value = c.teachers || [];
                                     courses.value = c.courses || [];
+                                    products.value = c.products || [];
                                     orders.value = c.orders || [];
                                     sysSettings.value = c.settings || {};
                                     slots.value = c.slots || [];
@@ -763,6 +816,7 @@
                                 users.value = data.users || [];
                                 teachers.value = data.teachers || [];
                                 courses.value = (data.courses || []).filter(c => c !== null);
+                                products.value = (data.products || []).filter(p => p !== null);
                                 orders.value = data.orders || [];
                                 sysSettings.value = data.settings || {};
                                 paymentLogs.value = data.paymentLogs || [];
@@ -775,7 +829,7 @@
                                 }
 
                                 try {
-                                    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value, flexRules: flexRules.value }));
+                                    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, products: products.value, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value, flexRules: flexRules.value }));
                                     localStorage.setItem('act_admin_logged_in', 'true');
                                 } catch(cacheError) {
                                     console.warn('LocalStorage 快取空間已滿，系統將改為即時連線模式');
@@ -893,7 +947,10 @@
                     const switchView = (viewName) => { view.value = viewName; };
 
                     const currentViewName = computed(() => {
-                        const map = { 'dashboard': '營運統計中心', 'calendar': '日曆檢視', 'members': '學員 CRM', 'courses': '課程管理', 'consultation': '預約諮詢排班', 'orders': '訂單維護', 'payment_logs': '刷卡紀錄', 'richmenu': '圖文選單管理', 'settings': '系統參數設定', 'flex_rules': '機器人與專區卡片' };
+                        const map = {
+                            dashboard: '營運統計中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程管理', products: '商城商品',
+                            consultation: '預約諮詢排班', orders: '訂單維護', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片'
+                        };
                         return map[view.value] || '管理站';
                     });
 
@@ -928,6 +985,16 @@
                         if (!courseSearchQuery.value) return courses.value.filter(c => c);
                         const q = courseSearchQuery.value.toLowerCase();
                         return courses.value.filter(c => c && ((c.name && c.name.toLowerCase().includes(q)) || (c.type && c.type.toLowerCase().includes(q)) || (c.id && c.id.toLowerCase().includes(q))));
+                    });
+
+                    const filteredProducts = computed(() => {
+                        if (!productSearchQuery.value) return products.value.filter(p => p);
+                        const q = productSearchQuery.value.toLowerCase();
+                        return products.value.filter(p => p && (
+                            String(p.name || '').toLowerCase().includes(q) ||
+                            String(p.code || '').toLowerCase().includes(q) ||
+                            String(p.storeName || '').toLowerCase().includes(q)
+                        ));
                     });
 
                     const filteredOrders = computed(() => {
@@ -1147,6 +1214,37 @@
                         copy.id = 'NEW_' + Date.now();
                         copy.name = copy.name + ' (複製)';
                         openEditModal(copy);
+                    };
+
+                    const openNewProductModal = () => {
+                        editingProduct.value = { id: 'PROD_NEW_' + Date.now(), name: '', code: '', storeName: '人生進化ACTION', status: '販賣中', price: 0, pointsPrice: 0, image: '', description: '', isPublished: true };
+                    };
+
+                    const openEditProductModal = (p) => { editingProduct.value = JSON.parse(JSON.stringify(p)); };
+
+                    const saveProduct = async () => {
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_UPDATE_PRODUCT', editingProduct.value);
+                            if (res && res.product) {
+                                const idx = products.value.findIndex(p => p && p.id === res.product.id);
+                                if (idx > -1) products.value[idx] = JSON.parse(JSON.stringify(res.product));
+                                else products.value.unshift(JSON.parse(JSON.stringify(res.product)));
+                                editingProduct.value = null;
+                                alert('商品已儲存');
+                            }
+                        } catch(e) { console.error(e); alert('商品儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const deleteProduct = async () => {
+                        if (!editingProduct.value || !confirm('確定刪除此商品？')) return;
+                        isLoading.value = true;
+                        try {
+                            await callApi('ADMIN_DELETE_PRODUCT', { productId: editingProduct.value.id });
+                            products.value = products.value.filter(p => p && p.id !== editingProduct.value.id);
+                            editingProduct.value = null;
+                            alert('商品已刪除');
+                        } catch(e) { console.error(e); alert('商品刪除失敗：' + e.message); } finally { isLoading.value = false; }
                     };
 
                     const syncToCalendar = async (c) => {
@@ -1618,17 +1716,17 @@
 
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers,
-                        users, teachers, courses, orders, sysSettings, paymentLogs, flexRules,
+                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules,
                         currentViewName, totalRevenue, courseStatsFiltered,
-                        memberSearch, filteredMembers, courseSearchQuery, filteredAdminCourses,
+                        memberSearch, filteredMembers, courseSearchQuery, filteredAdminCourses, productSearchQuery, filteredProducts,
                         orderSearch, filteredOrders,
-                        approveForm, isImageUploading, editingCourse,
+                        approveForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
                         activeMember, activeMemberPoints, editingPointAction,
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, forceSyncFromCloud,
                         triggerBackup, runHealthCheck, openMemberDetail, toggleMemberAdmin, toggleMemberOperator, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
-                        openNewCourseModal, openEditModal, saveCourse, copyCourse, syncToCalendar,
+                        openNewCourseModal, openEditModal, saveCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, syncToCalendar,
                         handleBannerUpload, saveSettings, openEnrollments, openCourseOrdersModal,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,

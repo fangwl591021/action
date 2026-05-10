@@ -729,6 +729,7 @@ export default {
               users: localUsers,
               courses: adminCourses,
               orders: adminOrders,
+              products: await safeGetKV(env, "PRODUCTS", []),
               teachers: localUsers.filter(u => u.memberTier && ['專業導師', '導師'].some(t => u.memberTier.includes(t))),
               settings: adminSettings
           };
@@ -767,6 +768,26 @@ export default {
           else cList.unshift(payload);
           await env.ACTION_DATA.put("COURSES", JSON.stringify(cList));
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true };
+          break;
+
+        case "ADMIN_UPDATE_PRODUCT":
+          const productToSave = normalizeProduct(payload);
+          if (!productToSave.name) throw new Error("請輸入商品名稱");
+          const productSaveList = await safeGetKV(env, "PRODUCTS", []);
+          const productSaveIdx = productSaveList.findIndex(p => p && (p.id === productToSave.id || (productToSave.code && p.code === productToSave.code)));
+          if (productSaveIdx > -1) productSaveList[productSaveIdx] = { ...productSaveList[productSaveIdx], ...productToSave };
+          else productSaveList.unshift({ ...productToSave, createdAt: new Date().toISOString() });
+          await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(productSaveList));
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true, product: productToSave };
+          break;
+
+        case "ADMIN_DELETE_PRODUCT":
+          const productDeleteList = await safeGetKV(env, "PRODUCTS", []);
+          const keptProducts = productDeleteList.filter(p => p && p.id !== payload.productId);
+          await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(keptProducts));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
           result.data = { success: true };
           break;
