@@ -239,6 +239,27 @@ async function importWpProduct(siteUrl, postId, authHeader) {
   });
 }
 
+async function importWpProductsFromActionEndpoint(siteUrl, postIds, authHeader) {
+  const ids = postIds.map(id => String(id).trim()).filter(Boolean).join(",");
+  if (!ids) return [];
+  const data = await fetchWpJson(siteUrl, `/wp-json/action-import/v1/linecard-products?ids=${encodeURIComponent(ids)}`, authHeader);
+  const list = Array.isArray(data?.products) ? data.products : (Array.isArray(data) ? data : []);
+  return list.map((item, index) => normalizeProduct({
+    id: item.id || item.postId || `PROD_wp_${item.post_id || index + 1}`,
+    postId: item.postId || item.post_id || item.id,
+    name: item.name || item.title,
+    code: item.code || item.product_code,
+    storeName: item.storeName || item.store_name || "人生進化ACTION",
+    status: item.status || item.product_status || "販賣中",
+    price: item.price || item.pointsPrice || item.points_price || 0,
+    pointsPrice: item.pointsPrice || item.points_price || item.price || 0,
+    image: item.image || item.featured_image || "",
+    description: item.description || item.content || "",
+    sourceUrl: item.sourceUrl || item.edit_url || "",
+    isPublished: item.isPublished !== false,
+  }));
+}
+
 async function listUserRecords(env) {
   const users = [];
   try {
@@ -746,17 +767,24 @@ export default {
           if (!wpUsername || !wpAppPassword) throw new Error("請輸入 WordPress 帳號與 Application Password");
           if (!wpPostIds.length) throw new Error("請輸入 WordPress 商品 post ID");
           const wpAuthHeader = `Basic ${btoa(`${wpUsername}:${wpAppPassword}`)}`;
-          const importedProducts = [];
+          let importedProducts = [];
           const importErrors = [];
-          for (const postId of wpPostIds) {
-            try {
-              importedProducts.push(await importWpProduct(wpSiteUrl, postId, wpAuthHeader));
-            } catch (e) {
-              importErrors.push({ postId, message: e.message });
+          try {
+            importedProducts = await importWpProductsFromActionEndpoint(wpSiteUrl, wpPostIds, wpAuthHeader);
+          } catch (e) {
+            importErrors.push({ postId: "action-import-endpoint", message: e.message });
+          }
+          if (!importedProducts.length) {
+            for (const postId of wpPostIds) {
+              try {
+                importedProducts.push(await importWpProduct(wpSiteUrl, postId, wpAuthHeader));
+              } catch (e) {
+                importErrors.push({ postId, message: e.message });
+              }
             }
           }
           if (!importedProducts.length) {
-            throw new Error(`沒有成功匯入任何商品。${importErrors.map(e => `${e.postId}: ${e.message}`).join(" / ")}`);
+            throw new Error(`沒有成功匯入任何商品。linecard_21 目前沒有開 WordPress REST API；請先安裝 ACTION linecard 匯出外掛，或請網站工程師把 linecard_21 設定 show_in_rest=true。詳細：${importErrors.map(e => `${e.postId}: ${e.message}`).join(" / ")}`);
           }
           const currentWpProducts = await safeGetKV(env, "PRODUCTS", []);
           const nextWpProducts = mergeProducts(currentWpProducts, importedProducts, payload.mode || "append");
