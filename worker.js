@@ -167,6 +167,78 @@ function mergeProducts(existing, incoming, mode = "append") {
   return Array.from(map.values());
 }
 
+function stripHtml(value) {
+  return String(value || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchWpJson(siteUrl, path, authHeader) {
+  const base = String(siteUrl || "").replace(/\/+$/, "");
+  const url = `${base}${path}`;
+  const res = await fetch(url, {
+    headers: authHeader ? { Authorization: authHeader } : {},
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (_) {}
+  if (!res.ok) {
+    const message = data?.message || text.slice(0, 200) || `HTTP ${res.status}`;
+    throw new Error(`${res.status} ${message}`);
+  }
+  return data;
+}
+
+async function importWpProduct(siteUrl, postId, authHeader) {
+  const routes = [
+    `/wp-json/wp/v2/linecard_21/${encodeURIComponent(postId)}?_embed=1&context=edit`,
+    `/wp-json/wp/v2/linecard_21/${encodeURIComponent(postId)}?_embed=1`,
+    `/wp-json/wp/v2/posts/${encodeURIComponent(postId)}?_embed=1&context=edit`,
+  ];
+  const errors = [];
+  let post = null;
+  for (const route of routes) {
+    try {
+      post = await fetchWpJson(siteUrl, route, authHeader);
+      if (post) break;
+    } catch (e) {
+      errors.push(`${route}: ${e.message}`);
+    }
+  }
+  if (!post) throw new Error(errors.join(" | "));
+
+  const meta = post.meta || {};
+  const acf = post.acf || {};
+  const embeddedImage = post._embedded?.["wp:featuredmedia"]?.[0];
+  const image = embeddedImage?.source_url || post.yoast_head_json?.og_image?.[0]?.url || "";
+  const code = meta.product_code || meta.linecard_code || meta.sku || acf.product_code || acf.linecard_code || "";
+  const status = meta.product_status || acf.product_status || "販賣中";
+  const storeName = meta.store_name || meta.shop_name || acf.store_name || acf.shop_name || "人生進化ACTION";
+  const price = Number(meta.points_price || meta.point_price || meta.price || acf.points_price || acf.point_price || acf.price || 0) || 0;
+
+  return normalizeProduct({
+    id: `PROD_wp_${post.id}`,
+    postId: post.id,
+    name: stripHtml(post.title?.rendered || post.title?.raw || post.slug || `WP 商品 ${postId}`),
+    code,
+    storeName,
+    status,
+    price,
+    pointsPrice: price,
+    image,
+    description: stripHtml(post.content?.rendered || post.excerpt?.rendered || post.content?.raw || ""),
+    sourceUrl: `${String(siteUrl).replace(/\/+$/, "")}/wp-admin/post.php?post=${post.id}&action=edit`,
+    isPublished: true,
+  });
+}
+
 async function listUserRecords(env) {
   const users = [];
   try {
@@ -654,6 +726,35 @@ export default {
           await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(mergedProducts));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
           result.data = { success: true, count: mergedProducts.length };
+          break;
+
+        case "ADMIN_IMPORT_WP_PRODUCTS":
+          const wpSiteUrl = String(payload.siteUrl || "https://aiwe.cc").trim();
+          const wpUsername = String(payload.username || "").trim();
+          const wpAppPassword = String(payload.appPassword || "").trim();
+          const wpPostIds = Array.isArray(payload.postIds)
+            ? payload.postIds
+            : String(payload.postIds || "").split(/[\s,，]+/).filter(Boolean);
+          if (!wpUsername || !wpAppPassword) throw new Error("請輸入 WordPress 帳號與 Application Password");
+          if (!wpPostIds.length) throw new Error("請輸入 WordPress 商品 post ID");
+          const wpAuthHeader = `Basic ${btoa(`${wpUsername}:${wpAppPassword}`)}`;
+          const importedProducts = [];
+          const importErrors = [];
+          for (const postId of wpPostIds) {
+            try {
+              importedProducts.push(await importWpProduct(wpSiteUrl, postId, wpAuthHeader));
+            } catch (e) {
+              importErrors.push({ postId, message: e.message });
+            }
+          }
+          if (!importedProducts.length) {
+            throw new Error(`沒有成功匯入任何商品。${importErrors.map(e => `${e.postId}: ${e.message}`).join(" / ")}`);
+          }
+          const currentWpProducts = await safeGetKV(env, "PRODUCTS", []);
+          const nextWpProducts = mergeProducts(currentWpProducts, importedProducts, payload.mode || "append");
+          await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(nextWpProducts));
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true, count: nextWpProducts.length, imported: importedProducts, errors: importErrors };
           break;
 
         // ==============================================

@@ -190,6 +190,23 @@
                 </div>
 
                 <div v-if="view === 'products'" class="animate-fade-in">
+                    <div class="m-6 mb-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <h3 class="font-black text-slate-800 flex items-center gap-2"><i class="fab fa-wordpress text-blue-600"></i>WP 商品匯入</h3>
+                            <span class="text-xs font-bold text-slate-400">使用 WordPress Application Password</span>
+                        </div>
+                        <div class="p-5 grid grid-cols-2 gap-4">
+                            <div><label class="input-label">WordPress 網址</label><input type="text" v-model="wpImportForm.siteUrl" class="input-field font-mono text-sm"></div>
+                            <div><label class="input-label">匯入模式</label><select v-model="wpImportForm.mode" class="input-field font-bold"><option value="append">更新同代碼並保留其他商品</option><option value="replace">覆蓋商城商品</option></select></div>
+                            <div><label class="input-label">WordPress 帳號</label><input type="text" v-model="wpImportForm.username" class="input-field"></div>
+                            <div><label class="input-label">Application Password</label><input type="password" v-model="wpImportForm.appPassword" class="input-field" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></div>
+                            <div class="col-span-2"><label class="input-label">商品 Post ID（可用逗號或換行分隔）</label><textarea v-model="wpImportForm.postIds" class="input-field h-20 font-mono text-sm" placeholder="7546, ..."></textarea></div>
+                            <div class="col-span-2 flex items-center justify-between pt-2 border-t border-slate-100">
+                                <div class="text-xs text-slate-500 font-bold">若 WP post type 沒有開 REST，系統會顯示明確錯誤；不需要開 F12。</div>
+                                <button @click="importWpProducts" :disabled="isLoading" class="btn-green-main !py-3"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-download mr-2"></i>匯入 WP 商品</button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
                         <div class="relative w-72"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="productSearchQuery" placeholder="搜尋商品名稱或代碼" class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
                         <button @click="openNewProductModal" class="btn-green-main !py-2"><i class="fas fa-plus mr-2"></i>新增商品</button>
@@ -741,6 +758,7 @@
                     const productSearchQuery = ref('');
                     const orderSearch = ref('');
                     const approveForm = ref({ uid: '', rent: 0, comm: 0 });
+                    const wpImportForm = ref({ siteUrl: 'https://aiwe.cc', username: '', appPassword: '', postIds: '7546', mode: 'append' });
                     
                     const isImageUploading = ref(false);
                     const editingCourse = ref(null);
@@ -1284,6 +1302,33 @@
                         reader.readAsDataURL(file);
                     };
 
+                    const importWpProducts = async () => {
+                        if (!wpImportForm.value.username || !wpImportForm.value.appPassword || !wpImportForm.value.postIds) {
+                            alert('請填寫 WordPress 帳號、Application Password 與商品 Post ID');
+                            return;
+                        }
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_IMPORT_WP_PRODUCTS', {
+                                siteUrl: wpImportForm.value.siteUrl,
+                                username: wpImportForm.value.username,
+                                appPassword: wpImportForm.value.appPassword,
+                                postIds: wpImportForm.value.postIds,
+                                mode: wpImportForm.value.mode
+                            });
+                            if (res && res.imported) {
+                                products.value = res.count ? (await callApi('ADMIN_GET_DATA', {}, true)).products || products.value : products.value;
+                                const errorText = res.errors && res.errors.length ? `\n\n未匯入：\n${res.errors.map(e => `${e.postId}: ${e.message}`).join('\n')}` : '';
+                                alert(`已匯入 ${res.imported.length} 筆 WP 商品${errorText}`);
+                            }
+                        } catch(e) {
+                            console.error(e);
+                            alert('WP 商品匯入失敗：' + e.message);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
                     const syncToCalendar = async (c) => {
                         isLoading.value = true;
                         try { await callApi('ADMIN_SYNC_CALENDAR', { courseId: c.id }); alert('日曆同步成功'); } catch(e) { console.error(e); } finally { isLoading.value = false; }
@@ -1757,13 +1802,13 @@
                         currentViewName, totalRevenue, courseStatsFiltered,
                         memberSearch, filteredMembers, courseSearchQuery, filteredAdminCourses, productSearchQuery, filteredProducts,
                         orderSearch, filteredOrders,
-                        approveForm, isImageUploading, editingCourse, editingProduct,
+                        approveForm, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
                         activeMember, activeMemberPoints, editingPointAction,
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, forceSyncFromCloud,
                         triggerBackup, runHealthCheck, openMemberDetail, toggleMemberAdmin, toggleMemberOperator, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
-                        openNewCourseModal, openEditModal, saveCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, syncToCalendar,
+                        openNewCourseModal, openEditModal, saveCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
                         handleBannerUpload, handleProductImageUpload, saveSettings, openEnrollments, openCourseOrdersModal,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
