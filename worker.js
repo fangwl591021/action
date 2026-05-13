@@ -706,10 +706,12 @@ export default {
           const product = productList.find(p => p && (p.id === payload.productId || p.code === payload.productId));
           if (!product || product.isPublished === false) throw new Error("商品不存在或未上架");
           if (product.stock !== null && product.stock !== undefined && Number(product.stock) <= 0) throw new Error("商品已售完");
-          const fixedPointCost = Math.max(0, Number(product.pointsPrice || product.price || 0));
-          const customPointCost = Math.max(0, Number(payload.customPoints || 0));
-          const pointCost = fixedPointCost || customPointCost;
-          if (!pointCost) throw new Error("請輸入扣點數");
+          const productPrice = Math.max(0, Number(product.price || 0));
+          const maxPointDeduction = Math.max(0, Number(product.pointsPrice || 0));
+          const pointCost = Math.max(0, Number(payload.pointsUsed ?? payload.customPoints ?? 0));
+          if (pointCost > maxPointDeduction) throw new Error("使用點數超過商品可扣點上限");
+          if (pointCost > productPrice) throw new Error("使用點數不可超過商品售價");
+          const payableAmount = Math.max(0, productPrice - pointCost);
           const buyerPoints = await safeGetKV(env, `POINTS_${userId}`, { balance: 0, logs: [] });
           if ((Number(buyerPoints.balance) || 0) < pointCost) throw new Error("點數不足，無法購買");
           const buyerInfo = await safeGetKV(env, `USER_${userId}`, {});
@@ -723,13 +725,14 @@ export default {
             productId: product.id,
             productName: product.name,
             productCode: product.code || "",
-            amount: 0,
+            originalAmount: productPrice,
+            amount: payableAmount,
             pointsUsed: pointCost,
-            paymentMethod: "POINTS",
-            status: "PAID",
+            paymentMethod: payableAmount > 0 ? (payload.paymentMethod || "NEWEBPAY") : "POINTS",
+            status: payableAmount > 0 ? "PENDING" : "PAID",
             createdAt: new Date().toLocaleString()
           };
-          await this.updatePoints(env, ctx, userId, -pointCost, `商城購買：${product.name}`);
+          if (pointCost > 0) await this.updatePoints(env, ctx, userId, -pointCost, `商城商品折抵：${product.name}`);
           if (product.stock !== null && product.stock !== undefined) {
             product.stock = Math.max(0, Number(product.stock) - 1);
             await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(productList));
@@ -737,7 +740,7 @@ export default {
           shopOrders.unshift(productOrder);
           await env.ACTION_DATA.put("ORDERS", JSON.stringify(shopOrders));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true, orderId: productOrder.orderId, balance: (Number(buyerPoints.balance) || 0) - pointCost };
+          result.data = { success: true, orderId: productOrder.orderId, amount: payableAmount, pointsUsed: pointCost, balance: (Number(buyerPoints.balance) || 0) - pointCost };
           break;
 
         case "ADMIN_IMPORT_PRODUCTS":
