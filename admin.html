@@ -610,8 +610,14 @@
                             </template>
                             <div><label class="input-label">時段說明</label><input type="text" v-model="editingCourse.timeSlotType" class="input-field"></div>
                             <div><label class="input-label">授課導師</label><input type="text" v-model="editingCourse.instructor" class="input-field"></div>
-                            <div v-if="isEditingReservationCourse"><label class="input-label">上課地點</label><input type="text" v-model="editingCourse.location" list="courseLocationOptions" class="input-field" placeholder="可自行輸入或選擇既有地點"><datalist id="courseLocationOptions"><option v-for="loc in courseLocationOptions" :key="loc" :value="loc"></option></datalist></div>
-                            <div v-else><label class="input-label">上課地點</label><input type="text" v-model="editingCourse.location" class="input-field"></div>
+                            <div>
+                                <label class="input-label">上課地點</label>
+                                <div class="flex gap-2">
+                                    <input type="text" v-model="editingCourse.location" list="courseLocationOptions" class="input-field" placeholder="可自行輸入或選擇既有地點">
+                                    <button type="button" @click="addCourseLocation" class="btn-outline bg-white shrink-0 !px-4"><i class="fas fa-plus mr-1"></i>新增</button>
+                                </div>
+                                <datalist id="courseLocationOptions"><option v-for="loc in courseLocationOptions" :key="loc" :value="loc"></option></datalist>
+                            </div>
                         </div>
                     </div>
                     <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -1056,10 +1062,16 @@
 
                     const isReservationCourse = (course) => String(course?.type || '').includes('預約');
 
+                    const normalizeLocationList = (value) => {
+                        if (Array.isArray(value)) return value.map(v => String(v || '').trim()).filter(Boolean);
+                        return String(value || '').split(/\n|,/).map(v => v.trim()).filter(Boolean);
+                    };
+
                     const courseLocationOptions = computed(() => {
                         const defaults = ['宏學教室', '線上', '另行通知'];
+                        const saved = normalizeLocationList(sysSettings.value.course_locations);
                         const used = courses.value.map(c => String(c?.location || '').trim()).filter(Boolean);
-                        return Array.from(new Set([...defaults, ...used]));
+                        return Array.from(new Set([...defaults, ...saved, ...used]));
                     });
 
                     const totalRevenue = computed(() => {
@@ -1482,6 +1494,26 @@
                             const res = await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value);
                             if(res) alert('✅ 設定儲存成功！');
                         } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const addCourseLocation = async () => {
+                        const current = String(editingCourse.value?.location || '').trim();
+                        const input = window.prompt('請輸入要新增的上課地點', current);
+                        const location = String(input || '').trim();
+                        if (!location) return;
+                        const next = Array.from(new Set([...courseLocationOptions.value, location]));
+                        sysSettings.value.course_locations = next;
+                        if (editingCourse.value) editingCourse.value.location = location;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value);
+                            if (res) alert('地點已新增');
+                        } catch(e) {
+                            console.error(e);
+                            alert('新增地點失敗：' + e.message);
+                        } finally {
+                            isLoading.value = false;
+                        }
                     };
 
                     const openEnrollments = (c) => {
@@ -1939,7 +1971,7 @@
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, forceSyncFromCloud,
                         triggerBackup, runHealthCheck, openMemberDetail, toggleMemberAdmin, toggleMemberOperator, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
                         openNewCourseModal, openEditModal, saveCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
-                        handleBannerUpload, handleProductImageUpload, saveSettings, openEnrollments, openCourseOrdersModal,
+                        handleBannerUpload, handleProductImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
                         downloadSalesReport, loadPointsLedger, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
