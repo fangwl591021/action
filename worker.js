@@ -753,6 +753,17 @@ export default {
           let currentOrders = await safeGetKV(env, "ORDERS", []);
           let userInfo = await safeGetKV(env, `USER_${userId}`, {});
           const coursePointsUsed = Math.max(0, Number(payload.pointsUsed || 0));
+          const courseListForOrder = await safeGetKV(env, "COURSES", []);
+          const courseForOrder = courseListForOrder.find(c => c && (c.id === payload.courseId || c.name === payload.courseId)) || {};
+          const coursePrice = Number(courseForOrder.price || 0);
+          const customMaxCoursePoints = Math.max(0, Number(courseForOrder.maxPoints || 0));
+          let maxAllowedCoursePoints = 0;
+          if (customMaxCoursePoints > 0) maxAllowedCoursePoints = Math.min(customMaxCoursePoints, coursePrice);
+          else if (courseForOrder.discountRule === "RULE_A") maxAllowedCoursePoints = Math.floor(coursePrice * 0.2);
+          else if (courseForOrder.discountRule === "RULE_B") maxAllowedCoursePoints = Math.floor(coursePrice * 0.5);
+          else if (courseForOrder.discountRule === "RULE_D") maxAllowedCoursePoints = Math.floor(coursePrice * 0.6);
+          else if (courseForOrder.discountRule === "RULE_C") maxAllowedCoursePoints = coursePrice;
+          if (coursePointsUsed > maxAllowedCoursePoints) throw new Error(`可抵用點數上限為 ${maxAllowedCoursePoints} 點`);
           if (coursePointsUsed > 0) {
             const currentPointData = await safeGetKV(env, `POINTS_${userId}`, { balance: 0, logs: [] });
             if ((Number(currentPointData.balance) || 0) < coursePointsUsed) throw new Error("點數不足，無法完成折抵");
@@ -999,9 +1010,16 @@ export default {
 
         case "ADMIN_UPDATE_COURSE":
           let cList = await safeGetKV(env, "COURSES", []);
-          const idx = cList.findIndex(c => c.id === payload.id);
-          if (idx > -1) cList[idx] = payload;
-          else cList.unshift(payload);
+          const courseToSave = { ...payload, maxPoints: Math.max(0, Number(payload.maxPoints || 0)) };
+          if (String(courseToSave.type || "").includes("預約")) {
+            courseToSave.capacity = 0;
+            courseToSave.startDate = "";
+            courseToSave.endDate = "";
+          }
+          if (courseToSave.maxPoints > 0) courseToSave.discountRule = "CUSTOM";
+          const idx = cList.findIndex(c => c.id === courseToSave.id);
+          if (idx > -1) cList[idx] = courseToSave;
+          else cList.unshift(courseToSave);
           await env.ACTION_DATA.put("COURSES", JSON.stringify(cList));
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));

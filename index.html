@@ -365,7 +365,7 @@
                             <h3 class="text-[17px] font-black text-[#111111] mb-4 flex items-center gap-2"><i class="fas fa-calculator text-[#06C755] text-lg"></i>結帳試算</h3>
                             <div class="bg-[#F8F9FA] rounded-2xl p-5 space-y-3 border border-[#EEEEEE]">
                                 <div class="flex justify-between items-center text-[15px] font-bold text-slate-600"><span>課程定價</span><span>$ {{ formatPrice(selectedCourse.price) }}</span></div>
-                                <div v-if="pointsToUse > 0" class="flex justify-between items-center text-[15px] font-bold text-red-500"><span>紅包點數折抵 <span class="text-xs ml-1">({{ selectedCourse.discountRule === 'RULE_A' ? '上限20%' : (selectedCourse.discountRule === 'RULE_B' ? '上限50%' : (selectedCourse.discountRule === 'RULE_D' ? '上限60%' : '全額')) }})</span></span><span>- {{ formatPrice(pointsToUse) }} 點</span></div>
+                                <div v-if="pointsToUse > 0" class="flex justify-between items-center text-[15px] font-bold text-red-500"><span>紅包點數折抵 <span class="text-xs ml-1">({{ pointDeductionLabel }})</span></span><span>- {{ formatPrice(pointsToUse) }} 點</span></div>
                                 <div class="pt-3 border-t border-[#EEEEEE] flex justify-between items-center text-[18px] font-black text-[#111111] mt-2"><span>實際應付</span><span class="text-[#06C755] text-[19px]">$ {{ formatPrice(finalPrice) }}</span></div>
                             </div>
                         </div>
@@ -441,6 +441,7 @@
                         <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">諮詢項目名稱 <span class="text-red-500">*</span></label><input type="text" v-model="editingMyCourse.name" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="輸入預約項目名稱"></div>
                         <div class="grid grid-cols-2 gap-4"><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">結帳金額 <span class="text-red-500">*</span></label><input type="number" v-model.number="editingMyCourse.price" class="native-input border border-slate-200 bg-white shadow-sm font-black text-[#06C755]" placeholder="0"></div><div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">分類標籤</label><input type="text" v-model="editingMyCourse.type" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：預約類"></div></div>
                         <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">前台顯示金額字串</label><input type="text" v-model="editingMyCourse.priceText" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：$1,500/次"></div>
+                        <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">可抵用點數上限</label><input type="number" min="0" v-model.number="editingMyCourse.maxPoints" class="native-input border border-slate-200 bg-white shadow-sm font-black text-[#06C755]" placeholder="0 代表不可折抵"></div>
                         <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上課/諮詢地點</label><input type="text" v-model="editingMyCourse.location" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：台北市信義區會議室A"></div>
                         <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">時段說明</label><input type="text" v-model="editingMyCourse.timeSlotType" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：60分鐘"></div>
                         <div><label class="text-[13px] font-bold text-slate-400 mb-1.5 block">上架狀態</label><select v-model="editingMyCourse.isPublished" class="native-input border border-slate-200 bg-white shadow-sm font-bold"><option :value="true">🟢 上架中 (公開顯示)</option><option :value="false">🔴 已下架 (隱藏)</option></select></div>
@@ -1147,7 +1148,7 @@
                     
                     const openEditMyCourse = (c) => {
                         if (c) { editingMyCourse.value = JSON.parse(JSON.stringify(c)); } 
-                        else { editingMyCourse.value = { id: 'NEW_' + Date.now(), name: '', priceText: '', type: '預約類', price: 0, capacity: 0, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', publishStartDate: '', publishEndDate: '', instructor: userStatus.value.info?.name || liffProfile.value.displayName, teacherUid: liffProfile.value.userId, location: '', description: '', image: '', isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] }; }
+                        else { editingMyCourse.value = { id: 'NEW_' + Date.now(), name: '', priceText: '', type: '預約類', price: 0, maxPoints: 0, capacity: 0, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', publishStartDate: '', publishEndDate: '', instructor: userStatus.value.info?.name || liffProfile.value.displayName, teacherUid: liffProfile.value.userId, location: '', description: '', image: '', isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] }; }
                     };
                     
                     const handleCourseImgUpload = async (e) => {
@@ -1172,6 +1173,8 @@
                             editingMyCourse.value.instructor = userStatus.value.info?.name || liffProfile.value.displayName;
                             editingMyCourse.value.teacherUid = liffProfile.value.userId;
                             if (!editingMyCourse.value.type) editingMyCourse.value.type = '預約類';
+                            editingMyCourse.value.maxPoints = Math.max(0, Number(editingMyCourse.value.maxPoints || 0));
+                            if (editingMyCourse.value.maxPoints > 0) editingMyCourse.value.discountRule = 'CUSTOM';
                             const res = await callApi('TEACHER_UPDATE_COURSE', editingMyCourse.value, false);
                             if (res) {
                                 alert('✅ 項目儲存成功'); editingMyCourse.value = null;
@@ -1262,11 +1265,22 @@
                         if (!selectedCourse.value || !userPoints.value) return 0;
                         const price = Number(selectedCourse.value.price) || 0; const bal = Number(userPoints.value.balance) || 0;
                         let maxDeduction = 0;
-                        if (selectedCourse.value.discountRule === 'RULE_A') maxDeduction = price * 0.2;
+                        const customMaxPoints = Number(selectedCourse.value.maxPoints || 0);
+                        if (customMaxPoints > 0) maxDeduction = Math.min(customMaxPoints, price);
+                        else if (selectedCourse.value.discountRule === 'RULE_A') maxDeduction = price * 0.2;
                         else if (selectedCourse.value.discountRule === 'RULE_B') maxDeduction = price * 0.5;
                         else if (selectedCourse.value.discountRule === 'RULE_D') maxDeduction = price * 0.6;
                         else if (selectedCourse.value.discountRule === 'RULE_C') maxDeduction = price;
                         return Math.min(bal, Math.floor(maxDeduction));
+                    });
+
+                    const pointDeductionLabel = computed(() => {
+                        const customMaxPoints = Number(selectedCourse.value?.maxPoints || 0);
+                        if (customMaxPoints > 0) return `最多 ${formatPrice(customMaxPoints)} 點`;
+                        if (selectedCourse.value?.discountRule === 'RULE_A') return '上限20%';
+                        if (selectedCourse.value?.discountRule === 'RULE_B') return '上限50%';
+                        if (selectedCourse.value?.discountRule === 'RULE_D') return '上限60%';
+                        return '全額';
                     });
 
                     const finalPrice = computed(() => {
@@ -1385,7 +1399,7 @@
                             selectedCourse.value = c; const pm = c.paymentMethod || 'ALL'; paymentMethod.value = (pm === 'REMITTANCE') ? 'REMITTANCE' : 'NEWEBPAY';
                             view.value = 'courseDetail'; window.scrollTo(0,0); 
                         },
-                        pointsToUse, finalPrice, checkoutButtonText, executeBooking,
+                        pointsToUse, pointDeductionLabel, finalPrice, checkoutButtonText, executeBooking,
                         payOrder, cancelOrder, buyProduct,
                         openProductDetail: (p) => { selectedProduct.value = p; paymentMethod.value = 'NEWEBPAY'; view.value = 'productDetail'; window.scrollTo(0,0); },
                         openRemittanceModal: (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; }, 
