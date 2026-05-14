@@ -303,6 +303,97 @@ function uniqueUsersById(users) {
   return Array.from(byId.values());
 }
 
+function parsePointLogTime(value, fallback = 0) {
+  if (!value) return fallback;
+  const normalized = String(value).replace(/-/g, "/");
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+async function appendPointsLedger(env, entry) {
+  const ledger = await safeGetKV(env, "POINT_LEDGER", []);
+  const list = Array.isArray(ledger) ? ledger : [];
+  const next = [entry, ...list].slice(0, 5000);
+  await env.ACTION_DATA.put("POINT_LEDGER", JSON.stringify(next));
+}
+
+async function buildPointLedgerFromCurrentLogs(env, users = []) {
+  const userMap = new Map((Array.isArray(users) ? users : []).map(user => [user.userId, user]));
+  const entries = [];
+  try {
+    let listComplete = false;
+    let cursor = null;
+    while (!listComplete) {
+      const options = { prefix: "POINTS_" };
+      if (cursor) options.cursor = cursor;
+      const list = await env.ACTION_DATA.list(options);
+      for (const key of list.keys) {
+        const uid = key.name.replace(/^POINTS_/, "");
+        const data = await safeGetKV(env, key.name, { logs: [] });
+        const logs = Array.isArray(data?.logs) ? data.logs : [];
+        logs.forEach((log, index) => {
+          const points = Math.abs(Number(log.amount || 0));
+          const type = log.type || (Number(log.amount || 0) < 0 ? "SPEND" : "EARN");
+          const signedAmount = type === "SPEND" ? -points : points;
+          const createdTs = parsePointLogTime(log.createdAt, Number(log.logId) || 0);
+          entries.push({
+            logId: log.logId || `${uid}_${createdTs}_${index}`,
+            uid,
+            userName: userMap.get(uid)?.name || "",
+            phone: userMap.get(uid)?.phone || "",
+            memberTier: userMap.get(uid)?.memberTier || "",
+            type,
+            amount: signedAmount,
+            points,
+            reason: log.reason || "",
+            balanceAfter: null,
+            createdAt: log.createdAt || "",
+            createdTs,
+            source: "legacy_user_log"
+          });
+        });
+      }
+      listComplete = list.list_complete;
+      cursor = list.cursor;
+    }
+  } catch (e) {
+    console.error("[PointsLedger] Failed to rebuild from user logs", e);
+  }
+  return entries;
+}
+
+async function getPointsLedger(env, limit = 2000) {
+  const users = uniqueUsersById(await listUserRecords(env));
+  const userMap = new Map(users.map(user => [user.userId, user]));
+  const stored = await safeGetKV(env, "POINT_LEDGER", []);
+  const legacy = await buildPointLedgerFromCurrentLogs(env, users);
+  const byKey = new Map();
+
+  for (const entry of [...(Array.isArray(stored) ? stored : []), ...legacy]) {
+    if (!entry || !entry.uid) continue;
+    const amount = Number(entry.amount || 0);
+    const points = Math.abs(amount || Number(entry.points || 0));
+    const user = userMap.get(entry.uid) || {};
+    const createdTs = Number(entry.createdTs || parsePointLogTime(entry.createdAt, Number(entry.logId) || 0));
+    const key = `${entry.uid}_${entry.logId || ""}_${entry.reason || ""}_${amount}_${createdTs}`;
+    if (byKey.has(key)) continue;
+    byKey.set(key, {
+      ...entry,
+      userName: entry.userName || user.name || "",
+      phone: entry.phone || user.phone || "",
+      memberTier: entry.memberTier || user.memberTier || "",
+      amount,
+      points,
+      type: entry.type || (amount < 0 ? "SPEND" : "EARN"),
+      createdTs
+    });
+  }
+
+  return Array.from(byKey.values())
+    .sort((a, b) => (Number(b.createdTs || 0) - Number(a.createdTs || 0)))
+    .slice(0, Math.max(1, Math.min(Number(limit) || 2000, 5000)));
+}
+
 function getWpApiUrl(settings) {
   return String(settings?.wp_api_url || settings?.wp_endpoint || settings?.wordpress_api_url || "").trim();
 }
@@ -894,6 +985,11 @@ export default {
           }
           break;
 
+        case "ADMIN_GET_POINTS_LEDGER":
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          result.data = await getPointsLedger(env, payload.limit || 2000);
+          break;
+
         case "ADMIN_UPDATE_SETTINGS":
           await env.ACTION_DATA.put("SYSTEM_SETTINGS", JSON.stringify(payload));
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
@@ -1290,16 +1386,36 @@ export default {
   async updatePoints(env, ctx, uid, amount, reason, options = {}) {
     const key = `POINTS_${uid}`;
     let data = await safeGetKV(env, key, { balance: 0, logs: [] });
-    data.balance += amount;
-    const typeStr = amount >= 0 ? "EARN" : "SPEND";
-    data.logs.unshift({ logId: Date.now().toString(), amount: Math.abs(amount), reason, createdAt: new Date().toLocaleString(), type: typeStr });
+    const numericAmount = Number(amount || 0);
+    data.balance = Number(data.balance || 0) + numericAmount;
+    const typeStr = numericAmount >= 0 ? "EARN" : "SPEND";
+    const createdTs = Date.now();
+    const createdAt = new Date(createdTs).toLocaleString();
+    const logId = crypto.randomUUID ? crypto.randomUUID() : createdTs.toString();
+    data.logs.unshift({ logId, amount: Math.abs(numericAmount), reason, createdAt, type: typeStr });
     data.logs = data.logs.slice(0, 50);
     await env.ACTION_DATA.put(key, JSON.stringify(data));
+    try {
+      await appendPointsLedger(env, {
+        logId,
+        uid,
+        type: typeStr,
+        amount: numericAmount,
+        points: Math.abs(numericAmount),
+        reason,
+        balanceAfter: data.balance,
+        createdAt,
+        createdTs,
+        source: options.source || "system"
+      });
+    } catch (e) {
+      console.error("[PointsLedger] Failed to append ledger", e);
+    }
 
     if (env.GAS_URL && ctx) {
         ctx.waitUntil(fetch(env.GAS_URL, {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "MANAGE_POINTS", payload: { uid, amount: Math.abs(amount), type: typeStr, reason, operator: "System" } }),
+            body: JSON.stringify({ action: "MANAGE_POINTS", payload: { uid, amount: Math.abs(numericAmount), type: typeStr, reason, operator: "System" } }),
             redirect: "follow"
         }).catch(e => console.error("GAS Points Sync Error", e)));
     }
@@ -1307,7 +1423,7 @@ export default {
     if (!options.skipWpSync && ctx) {
       ctx.waitUntil((async () => {
         const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
-        const wpRes = await insertWetwPoint(settings, uid, amount, reason);
+        const wpRes = await insertWetwPoint(settings, uid, numericAmount, reason);
         if (!wpRes.ok && !wpRes.skipped) console.error("WordPress Points Sync Error", wpRes);
       })());
     }

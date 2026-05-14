@@ -89,6 +89,7 @@
                             <div @click="switchView('products')" class="nav-item" :class="{'nav-active': view === 'products'}"><i class="fas fa-store w-6 text-center"></i>商城商品</div>
                             <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation' || view === 'sys_config'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約諮詢</div>
                             <div @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders' || view === 'order_edit'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
+                            <div @click="switchView('points_ledger')" class="nav-item" :class="{'nav-active': view === 'points_ledger'}"><i class="fas fa-coins w-6 text-center"></i>點數總表</div>
                             <div @click="switchView('payment_logs')" class="nav-item" :class="{'nav-active': view === 'payment_logs'}"><i class="fas fa-credit-card w-6 text-center"></i>刷卡紀錄</div>
                         </div>
                     </div>
@@ -278,6 +279,53 @@
                                     <td class="text-right"><button @click="openOrderEditModal(o)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">維護</button></td>
                                 </tr>
                                 <tr v-if="!filteredOrders.length"><td colspan="6" class="text-center py-20 text-slate-300 font-bold">找不到符合條件的訂單</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-if="view === 'points_ledger'" class="animate-fade-in">
+                    <div class="p-6 bg-white border-b border-slate-100">
+                        <div class="grid grid-cols-4 gap-4 mb-5">
+                            <div class="rounded-xl border border-slate-200 p-4">
+                                <div class="text-xs font-bold text-slate-400 mb-2">總筆數</div>
+                                <div class="text-2xl font-black text-slate-800">{{ pointsLedgerSummary.count }}</div>
+                            </div>
+                            <div class="rounded-xl border border-green-100 bg-green-50/50 p-4">
+                                <div class="text-xs font-bold text-green-700 mb-2">總進點</div>
+                                <div class="text-2xl font-black text-[#06C755]">+{{ formatPrice(pointsLedgerSummary.earn) }}</div>
+                            </div>
+                            <div class="rounded-xl border border-red-100 bg-red-50/50 p-4">
+                                <div class="text-xs font-bold text-red-700 mb-2">總出點</div>
+                                <div class="text-2xl font-black text-red-600">-{{ formatPrice(pointsLedgerSummary.spend) }}</div>
+                            </div>
+                            <div class="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                                <div class="text-xs font-bold text-blue-700 mb-2">淨異動</div>
+                                <div class="text-2xl font-black" :class="pointsLedgerSummary.net >= 0 ? 'text-[#06C755]' : 'text-red-600'">{{ pointsLedgerSummary.net >= 0 ? '+' : '-' }}{{ formatPrice(Math.abs(pointsLedgerSummary.net)) }}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="relative w-full max-w-md">
+                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                <input type="text" v-model="pointsLedgerSearch" placeholder="搜尋會員、UID、原因" class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]">
+                            </div>
+                            <button @click="loadPointsLedger" :disabled="isLoading" class="btn-outline bg-white"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新整理</button>
+                        </div>
+                    </div>
+                    <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
+                        <table class="admin-table">
+                            <thead><tr><th>時間</th><th>會員</th><th>LINE UID</th><th>類型</th><th class="text-right">點數異動</th><th class="text-right">異動後餘額</th><th>原因</th></tr></thead>
+                            <tbody>
+                                <tr v-for="log in filteredPointsLedger" :key="log.uid + '_' + log.logId + '_' + log.createdTs">
+                                    <td><div class="font-mono text-[12px] text-slate-500">{{ log.createdAt || '-' }}</div><div v-if="log.source === 'legacy_user_log'" class="text-[11px] text-slate-400 mt-1">舊紀錄回填</div></td>
+                                    <td><div class="font-bold text-slate-800">{{ log.userName || '未命名會員' }}</div><div class="text-xs text-slate-400">{{ log.phone || log.memberTier || '' }}</div></td>
+                                    <td class="font-mono text-[12px] text-slate-500 max-w-[260px] truncate">{{ log.uid }}</td>
+                                    <td><span class="status-badge" :class="Number(log.amount || 0) >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">{{ Number(log.amount || 0) >= 0 ? '進點' : '出點' }}</span></td>
+                                    <td class="text-right font-black text-lg" :class="Number(log.amount || 0) >= 0 ? 'text-[#06C755]' : 'text-red-600'">{{ Number(log.amount || 0) >= 0 ? '+' : '-' }}{{ formatPrice(Math.abs(Number(log.amount || 0))) }}</td>
+                                    <td class="text-right font-bold text-slate-700">{{ log.balanceAfter === null || log.balanceAfter === undefined ? '-' : formatPrice(log.balanceAfter) }}</td>
+                                    <td class="text-sm font-bold text-slate-600 max-w-[360px]">{{ log.reason || '-' }}</td>
+                                </tr>
+                                <tr v-if="!filteredPointsLedger.length"><td colspan="7" class="text-center py-20 text-slate-300 font-bold">目前沒有點數流水資料</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -754,11 +802,13 @@
                     const occupiedLocations = ref([]);
                     const paymentLogs = ref([]);
                     const flexRules = ref([]);
+                    const pointsLedger = ref([]);
                     
                     const memberSearch = ref('');
                     const courseSearchQuery = ref('');
                     const productSearchQuery = ref('');
                     const orderSearch = ref('');
+                    const pointsLedgerSearch = ref('');
                     const approveForm = ref({ uid: '', rent: 0, comm: 0 });
                     const wpImportForm = ref({ siteUrl: 'https://aiwe.cc', username: '', appPassword: '', postIds: '7546', mode: 'append' });
                     
@@ -977,12 +1027,15 @@
                     };
 
                     const toggleGroup = (groupName) => { groups.value[groupName] = !groups.value[groupName]; };
-                    const switchView = (viewName) => { view.value = viewName; };
+                    const switchView = (viewName) => {
+                        view.value = viewName;
+                        if (viewName === 'points_ledger' && !pointsLedger.value.length) loadPointsLedger();
+                    };
 
                     const currentViewName = computed(() => {
                         const map = {
                             dashboard: '營運統計中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程管理', products: '商城商品',
-                            consultation: '預約諮詢排班', orders: '訂單維護', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片'
+                            consultation: '預約諮詢排班', orders: '訂單維護', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片'
                         };
                         return map[view.value] || '管理站';
                     });
@@ -1052,6 +1105,41 @@
                             });
                         }
                         return result;
+                    });
+
+                    const loadPointsLedger = async () => {
+                        isLoading.value = true;
+                        try {
+                            const data = await callApi('ADMIN_GET_POINTS_LEDGER', { limit: 2000 });
+                            pointsLedger.value = Array.isArray(data) ? data : [];
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const filteredPointsLedger = computed(() => {
+                        let result = pointsLedger.value.filter(log => log);
+                        const q = pointsLedgerSearch.value.trim().toLowerCase();
+                        if (q) {
+                            result = result.filter(log => (
+                                String(log.userName || '').toLowerCase().includes(q) ||
+                                String(log.uid || '').toLowerCase().includes(q) ||
+                                String(log.phone || '').toLowerCase().includes(q) ||
+                                String(log.reason || '').toLowerCase().includes(q)
+                            ));
+                        }
+                        return result;
+                    });
+
+                    const pointsLedgerSummary = computed(() => {
+                        return filteredPointsLedger.value.reduce((summary, log) => {
+                            const amount = Number(log.amount || 0);
+                            summary.count += 1;
+                            if (amount >= 0) summary.earn += amount;
+                            else summary.spend += Math.abs(amount);
+                            summary.net += amount;
+                            return summary;
+                        }, { count: 0, earn: 0, spend: 0, net: 0 });
                     });
 
                     const downloadSalesReport = () => {
@@ -1801,10 +1889,10 @@
 
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers,
-                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules,
+                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger,
                         currentViewName, totalRevenue, courseStatsFiltered,
                         memberSearch, filteredMembers, courseSearchQuery, filteredAdminCourses, productSearchQuery, filteredProducts,
-                        orderSearch, filteredOrders,
+                        orderSearch, filteredOrders, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary,
                         approveForm, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
@@ -1815,7 +1903,7 @@
                         handleBannerUpload, handleProductImageUpload, saveSettings, openEnrollments, openCourseOrdersModal,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadSalesReport, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
+                        downloadSalesReport, loadPointsLedger, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
