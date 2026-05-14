@@ -756,7 +756,8 @@ export default {
           const courseListForOrder = await safeGetKV(env, "COURSES", []);
           const courseForOrder = courseListForOrder.find(c => c && (c.id === payload.courseId || c.name === payload.courseId)) || {};
           const coursePrice = Number(courseForOrder.price || 0);
-          const customMaxCoursePoints = Math.max(0, Number(courseForOrder.maxPoints || 0));
+          const isReservationOrderCourse = String(courseForOrder.type || "").includes("預約");
+          const customMaxCoursePoints = isReservationOrderCourse ? Math.max(0, Number(courseForOrder.maxPoints || 0)) : 0;
           let maxAllowedCoursePoints = 0;
           if (customMaxCoursePoints > 0) maxAllowedCoursePoints = Math.min(customMaxCoursePoints, coursePrice);
           else if (courseForOrder.discountRule === "RULE_A") maxAllowedCoursePoints = Math.floor(coursePrice * 0.2);
@@ -1015,8 +1016,10 @@ export default {
             courseToSave.capacity = 0;
             courseToSave.startDate = "";
             courseToSave.endDate = "";
+            if (courseToSave.maxPoints > 0) courseToSave.discountRule = "CUSTOM";
+          } else {
+            courseToSave.maxPoints = 0;
           }
-          if (courseToSave.maxPoints > 0) courseToSave.discountRule = "CUSTOM";
           const idx = cList.findIndex(c => c.id === courseToSave.id);
           if (idx > -1) cList[idx] = courseToSave;
           else cList.unshift(courseToSave);

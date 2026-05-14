@@ -1265,7 +1265,8 @@
                         if (!selectedCourse.value || !userPoints.value) return 0;
                         const price = Number(selectedCourse.value.price) || 0; const bal = Number(userPoints.value.balance) || 0;
                         let maxDeduction = 0;
-                        const customMaxPoints = Number(selectedCourse.value.maxPoints || 0);
+                        const isReservation = String(selectedCourse.value.type || '').includes('預約');
+                        const customMaxPoints = isReservation ? Number(selectedCourse.value.maxPoints || 0) : 0;
                         if (customMaxPoints > 0) maxDeduction = Math.min(customMaxPoints, price);
                         else if (selectedCourse.value.discountRule === 'RULE_A') maxDeduction = price * 0.2;
                         else if (selectedCourse.value.discountRule === 'RULE_B') maxDeduction = price * 0.5;
@@ -1275,7 +1276,8 @@
                     });
 
                     const pointDeductionLabel = computed(() => {
-                        const customMaxPoints = Number(selectedCourse.value?.maxPoints || 0);
+                        const isReservation = String(selectedCourse.value?.type || '').includes('預約');
+                        const customMaxPoints = isReservation ? Number(selectedCourse.value?.maxPoints || 0) : 0;
                         if (customMaxPoints > 0) return `最多 ${formatPrice(customMaxPoints)} 點`;
                         if (selectedCourse.value?.discountRule === 'RULE_A') return '上限20%';
                         if (selectedCourse.value?.discountRule === 'RULE_B') return '上限50%';
