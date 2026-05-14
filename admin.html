@@ -258,6 +258,7 @@
                                         <td class="text-right">
                                             <div class="flex items-center justify-end gap-2">
                                                 <a href="./consult_admin.html" class="text-blue-600 font-bold hover:underline bg-blue-50 px-4 py-2 text-[16px] rounded-lg border border-blue-100 shadow-sm inline-block">排班控制</a>
+                                                <button @click="openTeacherReservationCourses(t)" class="text-indigo-600 font-bold bg-indigo-50 hover:bg-indigo-100 px-4 py-2 text-[16px] rounded-lg border border-indigo-100 shadow-sm transition">預約項目</button>
                                                 <button @click="removeTeacher(t)" :disabled="isLoading" class="text-red-600 font-bold bg-red-50 hover:bg-red-100 px-4 py-2 text-[16px] rounded-lg border border-red-100 shadow-sm transition">移除</button>
                                             </div>
                                         </td>
@@ -725,6 +726,43 @@
             </div>
         </div>
 
+        <div v-if="showReservationCourseModal" class="modal-mask" @click.self="showReservationCourseModal = false">
+            <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[760px] !rounded-xl bg-white">
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
+                    <div>
+                        <h3 class="text-[21px] font-black text-slate-800">選擇預約項目</h3>
+                        <div class="text-sm font-bold text-slate-400 mt-1">導師：{{ selectedTeacherForReservation?.name || '-' }}</div>
+                    </div>
+                    <button @click="showReservationCourseModal = false" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button>
+                </div>
+                <div class="p-6 overflow-y-auto max-h-[70vh] bg-slate-50 custom-scrollbar">
+                    <div class="space-y-3">
+                        <div v-for="c in teacherReservationCourses" :key="c.id" class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <div class="font-black text-slate-800 text-[17px] truncate">{{ String(c.name || '').split('\n')[0] }}</div>
+                                    <span v-if="isTeacherCourse(c, selectedTeacherForReservation)" class="text-[11px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded">此導師</span>
+                                    <span class="text-[11px] font-black px-2 py-1 rounded" :class="c.isPublished !== false ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">{{ c.isPublished !== false ? '上架' : '下架' }}</span>
+                                </div>
+                                <div class="text-sm font-bold text-slate-500">{{ c.location || '未設定地點' }}<span class="mx-2">|</span>{{ c.timeSlotType || '未設定時段' }}</div>
+                                <div class="text-sm font-black text-[#06C755] mt-1">$ {{ formatPrice(c.price || 0) }}</div>
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <a href="./consult_admin.html" class="px-4 py-2 rounded-lg bg-blue-50 text-blue-600 font-bold border border-blue-100">排班</a>
+                                <button @click="editReservationCourseFromTeacher(c)" class="px-4 py-2 rounded-lg bg-[#06C755] text-white font-bold shadow-sm">編輯</button>
+                            </div>
+                        </div>
+                        <div v-if="!teacherReservationCourses.length" class="text-center py-12 text-slate-400 font-bold bg-white rounded-xl border border-slate-200">
+                            目前沒有預約類項目
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-white flex justify-end items-center border-t border-slate-200 rounded-b-xl">
+                    <button @click="showReservationCourseModal = false" class="btn-green-main px-8 text-[16px] py-2.5">關閉</button>
+                </div>
+            </div>
+        </div>
+
         <div v-if="editingOrder" class="modal-mask" @click.self="editingOrder = null">
             <div class="modal-body p-0 animate-fade-in !max-w-[500px] !rounded-xl bg-white">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100"><h3 class="text-[21px] font-black text-slate-800">訂單狀態維護：{{ editingOrder?.orderId }}</h3><button @click="editingOrder = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button></div>
@@ -857,6 +895,8 @@
                     const showOrdersModal = ref(false);
                     const selectedCourseForOrders = ref(null);
                     const selectedCourseOrders = ref([]);
+                    const showReservationCourseModal = ref(false);
+                    const selectedTeacherForReservation = ref(null);
 
                     const activeMember = ref(null);
                     const activeMemberPermissionSnapshot = ref(null);
@@ -1076,6 +1116,12 @@
                     const isEditingReservationCourse = computed(() => String(editingCourse.value?.type || '').includes('預約'));
 
                     const isReservationCourse = (course) => String(course?.type || '').includes('預約');
+                    const normalizeCourseText = (value) => String(value || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+                    const isTeacherCourse = (course, teacher) => {
+                        if (!course || !teacher) return false;
+                        if (course.teacherUid && teacher.userId && course.teacherUid === teacher.userId) return true;
+                        return normalizeCourseText(course.instructor) === normalizeCourseText(teacher.name);
+                    };
 
                     const normalizeLocationList = (value) => {
                         if (Array.isArray(value)) return value.map(v => String(v || '').trim()).filter(Boolean);
@@ -1119,9 +1165,29 @@
                     const filteredAdminCourses = computed(() => {
                         let result = courses.value.filter(c => c);
                         result = result.filter(c => courseTypeFilter.value === 'reservation' ? isReservationCourse(c) : !isReservationCourse(c));
-                        if (!courseSearchQuery.value) return result;
                         const q = courseSearchQuery.value.toLowerCase();
-                        return result.filter(c => c && ((c.name && c.name.toLowerCase().includes(q)) || (c.type && c.type.toLowerCase().includes(q)) || (c.id && c.id.toLowerCase().includes(q))));
+                        if (q) result = result.filter(c => c && ((c.name && c.name.toLowerCase().includes(q)) || (c.type && c.type.toLowerCase().includes(q)) || (c.id && c.id.toLowerCase().includes(q))));
+                        return result.sort((a, b) => {
+                            const pubA = a.isPublished !== false ? 0 : 1;
+                            const pubB = b.isPublished !== false ? 0 : 1;
+                            if (pubA !== pubB) return pubA - pubB;
+                            return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant');
+                        });
+                    });
+
+                    const teacherReservationCourses = computed(() => {
+                        const teacher = selectedTeacherForReservation.value;
+                        return courses.value
+                            .filter(c => c && isReservationCourse(c))
+                            .sort((a, b) => {
+                                const ownA = isTeacherCourse(a, teacher) ? 0 : 1;
+                                const ownB = isTeacherCourse(b, teacher) ? 0 : 1;
+                                if (ownA !== ownB) return ownA - ownB;
+                                const pubA = a.isPublished !== false ? 0 : 1;
+                                const pubB = b.isPublished !== false ? 0 : 1;
+                                if (pubA !== pubB) return pubA - pubB;
+                                return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant');
+                            });
                     });
 
                     const filteredProducts = computed(() => {
@@ -1570,6 +1636,16 @@
                         showOrdersModal.value = true;
                     };
 
+                    const openTeacherReservationCourses = (teacher) => {
+                        selectedTeacherForReservation.value = teacher;
+                        showReservationCourseModal.value = true;
+                    };
+
+                    const editReservationCourseFromTeacher = (course) => {
+                        showReservationCourseModal.value = false;
+                        openEditModal(course);
+                    };
+
                     const generateCheckinLink = async (c) => {
                         if(!c.checkinPwd) return alert('請先填寫密碼');
                         isLoading.value = true;
@@ -2006,11 +2082,13 @@
                         approveForm, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
+                        showReservationCourseModal, selectedTeacherForReservation, teacherReservationCourses, isTeacherCourse,
                         activeMember, activeMemberPoints, editingPointAction,
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, forceSyncFromCloud,
                         triggerBackup, runHealthCheck, openMemberDetail, toggleMemberAdmin, toggleMemberOperator, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
                         openNewCourseModal, openEditModal, saveCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
                         handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
+                        openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
                         downloadSalesReport, loadPointsLedger, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
