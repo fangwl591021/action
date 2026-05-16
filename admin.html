@@ -111,29 +111,10 @@
                     <h2 class="text-2xl font-bold text-slate-800">{{ currentViewName }}</h2>
                     <div class="flex items-center gap-3">
                         <div class="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded text-green-700 text-xs font-bold mr-2"><div class="w-2 h-2 rounded-full bg-[#06C755] animate-pulse"></div><span>通道正常</span></div>
-                        <div class="relative" v-if="view === 'dashboard' || view === 'courses' || view === 'orders'">
-                            <details class="group">
-                                <summary class="btn-outline bg-white cursor-pointer list-none min-w-[190px] justify-between flex items-center">
-                                    <span><i class="fas fa-filter mr-2 text-slate-400"></i>{{ reportCourseLabel }}</span>
-                                    <i class="fas fa-chevron-down text-xs text-slate-400 ml-2"></i>
-                                </summary>
-                                <div class="absolute right-0 mt-2 w-80 bg-white rounded-xl border border-slate-200 shadow-xl z-[80] p-3">
-                                    <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-100">
-                                        <div class="text-sm font-black text-slate-700">選擇課程/服務</div>
-                                        <button type="button" @click="selectedReportCourseIds = []" class="text-xs font-bold text-blue-600">全部</button>
-                                    </div>
-                                    <div class="max-h-72 overflow-y-auto custom-scrollbar space-y-1">
-                                        <label v-for="c in reportCourseOptions" :key="c.id" class="flex items-start gap-2 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
-                                            <input type="checkbox" :value="c.id" v-model="selectedReportCourseIds" class="mt-1">
-                                            <span class="min-w-0">
-                                                <span class="block text-sm font-bold text-slate-700 truncate">{{ String(c.name || '').split('\n')[0] }}</span>
-                                                <span class="block text-[11px] font-bold text-slate-400">{{ c.type || '課程類' }}</span>
-                                            </span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </details>
-                        </div>
+                        <select v-if="view === 'dashboard' || view === 'courses' || view === 'orders'" v-model="selectedReportCourseId" class="btn-outline bg-white min-w-[220px] font-bold text-slate-700">
+                            <option value="ALL">全部課程/服務</option>
+                            <option v-for="c in reportCourseOptions" :key="c.id" :value="c.id">{{ String(c.name || '').split('\n')[0] }}</option>
+                        </select>
                         <button @click="downloadSalesReport" class="btn-outline text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"><i class="fas fa-file-csv mr-2"></i>業績報表下載</button>
                         <button @click="downloadCourseReport" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i class="fas fa-list-alt mr-2"></i>課程報表下載</button>
                         <button @click="forceSyncFromCloud" class="btn-outline text-red-600 border-red-200 bg-red-50 hover:bg-red-100"><i class="fas fa-download mr-2"></i>強制同步</button>
@@ -901,7 +882,7 @@
                     const memberSearch = ref('');
                     const courseSearchQuery = ref('');
                     const courseTypeFilter = ref('course');
-                    const selectedReportCourseIds = ref([]);
+                    const selectedReportCourseId = ref('ALL');
                     const productSearchQuery = ref('');
                     const orderSearch = ref('');
                     const pointsLedgerSearch = ref('');
@@ -1167,16 +1148,6 @@
                             .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant'));
                     });
 
-                    const reportCourseLabel = computed(() => {
-                        const count = selectedReportCourseIds.value.length;
-                        if (!count) return '全部課程/服務';
-                        if (count === 1) {
-                            const c = reportCourseOptions.value.find(item => item.id === selectedReportCourseIds.value[0]);
-                            return c ? String(c.name || '').split('\n')[0] : '已選 1 項';
-                        }
-                        return `已選 ${count} 項`;
-                    });
-
                     const totalRevenue = computed(() => {
                         return orders.value.filter(o => o && o.status === 'PAID').reduce((sum, o) => {
                             const amt = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
@@ -1305,10 +1276,9 @@
                     const statusText = (status) => ({ PAID: '已付款', PENDING: '待付款', CANCELLED: '已取消' }[status] || status || '');
                     const orderCourseName = (order) => order?.type === 'PRODUCT' ? (order.productName || '商城商品') : getCourseName(order.courseId);
                     const orderMatchesReportCourses = (order) => {
-                        if (!selectedReportCourseIds.value.length) return true;
-                        const selected = new Set(selectedReportCourseIds.value);
+                        if (selectedReportCourseId.value === 'ALL') return true;
                         const course = courses.value.find(c => c && (c.id === order.courseId || c.name === order.courseId));
-                        return selected.has(order.courseId) || (course && selected.has(course.id));
+                        return selectedReportCourseId.value === order.courseId || (course && selectedReportCourseId.value === course.id);
                     };
                     const reportDate = () => new Date().toLocaleString('zh-TW', {timeZone: 'Asia/Taipei', hour12: false}).split(' ')[0].replace(/\//g, '-');
                     const downloadCsv = (filename, rows) => {
@@ -2140,7 +2110,7 @@
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger,
                         currentViewName, totalRevenue, courseStatsFiltered,
                         isEditingReservationCourse, courseLocationOptions,
-                        memberSearch, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseIds, reportCourseOptions, reportCourseLabel, filteredAdminCourses, productSearchQuery, filteredProducts,
+                        memberSearch, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
                         orderSearch, filteredOrders, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary,
                         approveForm, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
