@@ -1194,9 +1194,12 @@ export default {
           if (payload.memberData && payload.memberData.userId) {
               const memberUid = String(payload.memberData.userId).trim();
               const currentMember = await safeGetKV(env, `USER_${memberUid}`, {});
+              const currentIsTeacher = Boolean(currentMember.isTeacher) || currentMember.role === "teacher" || String(currentMember.memberTier || "").includes("導師");
+              const nextIsTeacher = Boolean(payload.memberData.isTeacher) || payload.memberData.role === "teacher" || String(payload.memberData.memberTier || "").includes("導師");
               const permissionChanged = (
                 Boolean(currentMember.isAdmin) !== Boolean(payload.memberData.isAdmin) ||
                 Boolean(currentMember.crmOperator) !== Boolean(payload.memberData.crmOperator) ||
+                currentIsTeacher !== nextIsTeacher ||
                 String(currentMember.role || "") !== String(payload.memberData.role || "") ||
                 String(currentMember.crmRole || "") !== String(payload.memberData.crmRole || "")
               );
@@ -1231,6 +1234,11 @@ export default {
                 savedMember.crmOperator = false;
                 delete savedMember.crmRole;
                 if (savedMember.role === "operator") delete savedMember.role;
+              }
+              if (savedMember.isTeacher === true) {
+                if (!String(savedMember.memberTier || "").includes("導師")) savedMember.memberTier = "專業導師";
+              } else if (String(savedMember.memberTier || "").includes("導師")) {
+                savedMember.memberTier = "一般會員";
               }
               await env.ACTION_DATA.put(`USER_${memberUid}`, JSON.stringify(savedMember));
               result.data = { success: true, memberData: savedMember };
