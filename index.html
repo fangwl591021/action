@@ -223,9 +223,11 @@
                                 </div>
                             </div>
                             
-                            <div v-if="(userStatus.info?.memberTier || '').includes('導師')" class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+                            <div v-if="userStatus.isTeacher || (userStatus.info?.memberTier || '').includes('導師')" class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
                                 <button @click="openMyCourses" class="py-3 bg-[#06C755]/10 text-[#06C755] rounded-xl font-bold border border-[#06C755]/20 flex flex-col items-center justify-center gap-1.5 active:scale-95 transition shadow-sm"><i class="fas fa-book-open text-xl"></i><span class="text-[13px]">預約項目管理</span></button>
                                 <a href="./consult_admin.html" class="py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold border border-indigo-100 flex flex-col items-center justify-center gap-1.5 active:scale-95 transition shadow-sm decoration-transparent"><i class="fas fa-calendar-check text-xl"></i><span class="text-[13px]">導師排班系統</span></a>
+                                <button @click="openTeacherDeduct" class="py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100 flex flex-col items-center justify-center gap-1.5 active:scale-95 transition shadow-sm"><i class="fas fa-minus-circle text-xl"></i><span class="text-[13px]">講師扣點</span></button>
+                                <button @click="openTeacherReport" class="py-3 bg-amber-50 text-amber-700 rounded-xl font-bold border border-amber-100 flex flex-col items-center justify-center gap-1.5 active:scale-95 transition shadow-sm"><i class="fas fa-chart-line text-xl"></i><span class="text-[13px]">我的業績</span></button>
                             </div>
                         </div>
 
@@ -428,6 +430,56 @@
                         <div class="flex-1 flex flex-col justify-between py-0.5 min-w-0"><div><div class="flex justify-between items-start gap-2"><h3 class="font-bold text-slate-800 text-[15px] truncate">{{ String(c?.name || '').split('\n')[0] }}</h3><span class="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded" :class="c.isPublished !== false ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">{{ c.isPublished !== false ? '上架中' : '已下架' }}</span></div><div class="text-[12px] text-slate-500 mt-1">分類: {{ c.type || '預約類' }}</div></div><div class="flex justify-between items-end mt-2"><div class="font-black text-[#06C755] text-[15px]">${{ formatPrice(c.price) }}</div><button @click="openEditMyCourse(c)" class="text-[12px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition">編輯</button></div></div>
                     </div>
                     <div v-if="teacherCourses.length === 0" class="text-center py-12 text-slate-400 font-bold bg-white rounded-2xl border border-dashed border-slate-200"><i class="fas fa-box-open text-3xl mb-3 block text-slate-300"></i>尚無建立任何諮詢項目<br>點擊右上角「新增」開始建立</div>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="slide-up">
+            <div v-if="view === 'teacher_report'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[80] flex flex-col h-full overflow-hidden animate-fade-in">
+                <div class="sticky top-0 bg-white z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h2 class="text-[17px] font-black text-[#111111]">我的業績報表</h2><button @click="downloadTeacherReportCsv" class="text-[#06C755] font-bold text-sm bg-green-50 px-3 py-1.5 rounded-lg border border-green-100"><i class="fas fa-download mr-1"></i>下載</button></div>
+                <div class="grid grid-cols-4 gap-3 p-4 bg-white border-b border-slate-100">
+                    <div class="text-center"><div class="text-[11px] font-bold text-slate-400 mb-1">訂單數</div><div class="text-lg font-black text-slate-800">{{ teacherReport.summary?.orderCount || 0 }}</div></div>
+                    <div class="text-center"><div class="text-[11px] font-bold text-slate-400 mb-1">總金額</div><div class="text-lg font-black text-[#06C755]">$ {{ formatPrice(teacherReport.summary?.grossAmount || 0) }}</div></div>
+                    <div class="text-center"><div class="text-[11px] font-bold text-slate-400 mb-1">已收款</div><div class="text-lg font-black text-blue-600">$ {{ formatPrice(teacherReport.summary?.paidAmount || 0) }}</div></div>
+                    <div class="text-center"><div class="text-[11px] font-bold text-slate-400 mb-1">扣點</div><div class="text-lg font-black text-red-500">{{ formatPrice(teacherReport.summary?.deductedPoints || 0) }}</div></div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4 space-y-3 pb-32">
+                    <div v-for="d in teacherReport.deductions" :key="d.logId || d.createdAt" class="bg-white rounded-2xl p-4 border border-red-100 shadow-sm">
+                        <div class="flex justify-between gap-3 mb-2"><div class="font-black text-slate-800 text-[15px] leading-snug">講師扣點</div><span class="shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg bg-red-100 text-red-600">-{{ formatPrice(d.points || 0) }} 點</span></div>
+                        <div class="grid grid-cols-1 gap-2 text-[12px] text-slate-500 font-bold">
+                            <div>對象：{{ d.targetName || d.uid || '-' }}</div>
+                            <div class="font-mono text-slate-400 break-all">UID：{{ d.uid || '-' }}</div>
+                            <div class="text-slate-600">{{ d.reason || '-' }}</div>
+                            <div class="text-slate-400">{{ d.createdAt || '-' }}</div>
+                        </div>
+                    </div>
+                    <div v-for="o in teacherReport.orders" :key="o.orderId || o.createdAt" class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                        <div class="flex justify-between gap-3 mb-2"><div class="font-black text-slate-800 text-[15px] leading-snug">{{ getCourseName(o.courseId) }}</div><span class="shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg" :class="String(o.status || '').toUpperCase() === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'">{{ o.status || 'PENDING' }}</span></div>
+                        <div class="grid grid-cols-2 gap-2 text-[12px] text-slate-500 font-bold">
+                            <div>學員：{{ o.name || '-' }}</div>
+                            <div>金額：$ {{ formatPrice(o.amount || 0) }}</div>
+                            <div class="col-span-2 font-mono text-slate-400 break-all">UID：{{ o.userId || '-' }}</div>
+                            <div class="col-span-2 text-slate-400">{{ o.createdAt || '-' }}</div>
+                        </div>
+                        <button @click="openTeacherDeduct(o)" class="mt-3 w-full py-2.5 bg-red-50 text-red-600 rounded-xl font-black text-[13px] border border-red-100 active:scale-95 transition"><i class="fas fa-minus-circle mr-1"></i>對此學員扣點</button>
+                    </div>
+                    <div v-if="(!teacherReport.orders || teacherReport.orders.length === 0) && (!teacherReport.deductions || teacherReport.deductions.length === 0)" class="text-center py-12 text-slate-400 font-bold bg-white rounded-2xl border border-dashed border-slate-200"><i class="fas fa-chart-line text-3xl mb-3 block text-slate-300"></i>目前沒有你的業績紀錄</div>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="fade">
+            <div v-if="showTeacherDeductModal" class="fixed inset-0 z-[120] bg-black/50 flex items-end justify-center">
+                <div class="w-full max-w-md bg-white rounded-t-3xl p-5 shadow-2xl animate-fade-in">
+                    <div class="flex items-center justify-between mb-4"><h3 class="text-[18px] font-black text-slate-900"><i class="fas fa-minus-circle text-red-500 mr-2"></i>講師扣點</h3><button @click="showTeacherDeductModal = false" class="text-slate-400 p-2"><i class="fas fa-times text-xl"></i></button></div>
+                    <div class="space-y-4">
+                        <div><label class="text-[13px] font-bold text-slate-500 mb-1.5 block">會員 UID</label><input v-model.trim="teacherDeductForm.targetUid" class="native-input border border-slate-200 bg-white shadow-sm font-mono" placeholder="請輸入或從業績名單帶入 UID"></div>
+                        <div><label class="text-[13px] font-bold text-slate-500 mb-1.5 block">學員姓名</label><input v-model.trim="teacherDeductForm.studentName" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="可留空"></div>
+                        <div><label class="text-[13px] font-bold text-slate-500 mb-1.5 block">扣點點數</label><input type="number" min="1" v-model.number="teacherDeductForm.amount" class="native-input border border-slate-200 bg-white shadow-sm font-black text-red-500" placeholder="0"></div>
+                        <div><label class="text-[13px] font-bold text-slate-500 mb-1.5 block">扣點原因</label><input v-model.trim="teacherDeductForm.reason" class="native-input border border-slate-200 bg-white shadow-sm" placeholder="例如：預約服務核銷"></div>
+                        <div class="text-[12px] text-slate-400 leading-relaxed bg-slate-50 rounded-xl p-3">講師權限只能扣點，不能贈點，也不能看金流管理權限。扣點會寫入點數總表與自己的業績報表。</div>
+                    </div>
+                    <button @click="submitTeacherDeduct" :disabled="isLoading" class="mt-5 w-full bg-red-500 text-white py-4 rounded-2xl font-black text-[16px] shadow-lg shadow-red-100 active:scale-95 transition"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認扣點</button>
                 </div>
             </div>
         </transition>
@@ -655,6 +707,9 @@
                     const teacherCourses = ref([]);
                     const editingMyCourse = ref(null);
                     const isCourseImgUploading = ref(false);
+                    const teacherReport = ref({ courses: [], orders: [], deductions: [], summary: { orderCount: 0, grossAmount: 0, paidAmount: 0, deductCount: 0, deductedPoints: 0 } });
+                    const showTeacherDeductModal = ref(false);
+                    const teacherDeductForm = ref({ targetUid: '', studentName: '', amount: 0, reason: '' });
                     
                     const predefinedCategories = ['會員', '喚醒階段', '蛻變階段', '完整階段', '預約類'];
                     const activeCategory = ref('會員');
@@ -1201,6 +1256,105 @@
                         } catch(e) { alert('刪除失敗：' + e.message); } finally { isLoading.value = false; }
                     };
 
+                    const csvCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+                    const loadTeacherReport = async () => {
+                        const res = await callApi('TEACHER_GET_MY_REPORT', {}, false);
+                        if (res) teacherReport.value = {
+                            courses: res.courses || [],
+                            orders: res.orders || [],
+                            deductions: res.deductions || [],
+                            summary: res.summary || { orderCount: 0, grossAmount: 0, paidAmount: 0, deductCount: 0, deductedPoints: 0 }
+                        };
+                        return teacherReport.value;
+                    };
+
+                    const openTeacherReport = async () => {
+                        isLoading.value = true;
+                        try {
+                            await loadTeacherReport();
+                            view.value = 'teacher_report';
+                            window.scrollTo(0, 0);
+                        } catch (e) {
+                            console.error(e);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const downloadTeacherReportCsv = async () => {
+                        const data = teacherReport.value?.orders?.length ? teacherReport.value : await loadTeacherReport();
+                        const headers = ['訂單編號', '建立時間', '學員姓名', '會員UID', '電話', '課程/預約', '金額', '點數折抵', '狀態'];
+                        const rows = [
+                          ...(data.deductions || []).map(d => [
+                            d.logId || '',
+                            d.createdAt || '',
+                            d.targetName || '',
+                            d.uid || '',
+                            '',
+                            d.reason || '講師扣點',
+                            '',
+                            d.points || Math.abs(Number(d.amount || 0)),
+                            '扣點'
+                          ]),
+                          ...(data.orders || []).map(o => [
+                            o.orderId || '',
+                            o.createdAt || '',
+                            o.name || '',
+                            o.userId || '',
+                            o.phone || '',
+                            getCourseName(o.courseId || ''),
+                            o.amount || 0,
+                            o.pointsUsed || 0,
+                            o.status || ''
+                          ])
+                        ];
+                        const csv = '\uFEFF' + [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\n');
+                        const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `teacher-sales-${new Date().toISOString().slice(0, 10)}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    };
+
+                    const openTeacherDeduct = (order = null) => {
+                        teacherDeductForm.value = {
+                            targetUid: order?.userId || '',
+                            studentName: order?.name || '',
+                            amount: 0,
+                            reason: order?.courseId ? `課程核銷：${getCourseName(order.courseId)}` : '講師服務扣點'
+                        };
+                        showTeacherDeductModal.value = true;
+                    };
+
+                    const submitTeacherDeduct = async () => {
+                        const amount = Math.abs(Number(teacherDeductForm.value.amount || 0));
+                        if (!teacherDeductForm.value.targetUid) return alert('請輸入會員 UID');
+                        if (!amount) return alert('請輸入扣點點數');
+                        if (!confirm(`確認扣除 ${teacherDeductForm.value.studentName || teacherDeductForm.value.targetUid} ${amount} 點？`)) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('TEACHER_DEDUCT_POINTS', {
+                                targetUid: teacherDeductForm.value.targetUid,
+                                amount,
+                                reason: teacherDeductForm.value.reason,
+                                studentName: teacherDeductForm.value.studentName
+                            }, false);
+                            if (res?.success) {
+                                alert(`扣點完成，剩餘 ${formatPrice(res.balance || 0)} 點`);
+                                showTeacherDeductModal.value = false;
+                                if (view.value === 'teacher_report') await loadTeacherReport();
+                            }
+                        } catch (e) {
+                            console.error(e);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
                     const dailyCheckin = async () => {
                         isLoading.value = true;
                         try {
@@ -1397,6 +1551,7 @@
                         isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                         isProfileInfoOpen, isImageUploading, handleAvatarUpload,
                         teacherCourses, editingMyCourse, isCourseImgUploading, openMyCourses, openEditMyCourse, handleCourseImgUpload, saveMyCourse, deleteMyCourse,
+                        teacherReport, showTeacherDeductModal, teacherDeductForm, openTeacherReport, downloadTeacherReportCsv, openTeacherDeduct, submitTeacherDeduct,
                         openCourseDetail: (c) => { 
                             selectedCourse.value = c; const pm = c.paymentMethod || 'ALL'; paymentMethod.value = (pm === 'REMITTANCE') ? 'REMITTANCE' : 'NEWEBPAY';
                             view.value = 'courseDetail'; window.scrollTo(0,0); 

@@ -60,6 +60,8 @@ const TEACHER_ALLOWED_ACTIONS = new Set([
   "ADMIN_GET_DATA",
   "ADMIN_GET_SLOTS",
   "ADMIN_BATCH_TOGGLE_SLOTS",
+  "TEACHER_DEDUCT_POINTS",
+  "TEACHER_GET_MY_REPORT",
 ]);
 
 const CRM_LOGIN_ALLOWED_ACTIONS = new Set([
@@ -80,6 +82,8 @@ const VERIFIED_USER_ACTIONS = new Set([
   "TEACHER_GET_MY_COURSES",
   "TEACHER_UPDATE_COURSE",
   "TEACHER_DELETE_COURSE",
+  "TEACHER_DEDUCT_POINTS",
+  "TEACHER_GET_MY_REPORT",
   "UPDATE_MY_ORDER",
   "CANCEL_MY_ORDER",
 ]);
@@ -103,6 +107,25 @@ function normalizeTeacherName(value) {
     .normalize("NFKC")
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .replace(/\s+/g, "");
+}
+
+function getCourseTitle(course) {
+  return String(course?.name || course?.title || "").split("\n")[0].trim();
+}
+
+function courseBelongsToTeacher(course, teacherData, teacherUid) {
+  if (!course) return false;
+  const courseTeacherUid = String(course.teacherUid || course.teacher_user_id || "").trim();
+  if (teacherUid && courseTeacherUid && courseTeacherUid === teacherUid) return true;
+  const courseTeacherUids = Array.isArray(course.teacherUids) ? course.teacherUids.map(String) : [];
+  if (teacherUid && courseTeacherUids.includes(String(teacherUid))) return true;
+  const teacherName = normalizeTeacherName(teacherData?.name || teacherData?.displayName || "");
+  const courseInstructor = normalizeTeacherName(course.instructor || course.teacher || course.teacherName || "");
+  return !!teacherName && !!courseInstructor && teacherName === courseInstructor;
+}
+
+function getOrderCourseKey(order) {
+  return String(order?.courseId || order?.courseName || order?.name || "").trim();
 }
 
 function uniqueTeachers(users) {
@@ -714,6 +737,112 @@ export default {
           const allOrd = await safeGetKV(env, "ORDERS", []);
           result.data = allOrd.filter(o => o.userId === userId);
           break;
+
+        case "TEACHER_GET_MY_COURSES": {
+          if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
+          const allCoursesForTeacher = await safeGetKV(env, "COURSES", []);
+          result.data = allCoursesForTeacher.filter(course => courseBelongsToTeacher(course, access.userData, userId));
+          break;
+        }
+
+        case "TEACHER_UPDATE_COURSE": {
+          if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
+          const allCoursesForUpdate = await safeGetKV(env, "COURSES", []);
+          const incomingCourse = { ...(payload || {}) };
+          if (!incomingCourse.name) throw new Error("Course name required");
+          const courseId = String(incomingCourse.id || `NEW_${Date.now()}`);
+          const existingIndex = allCoursesForUpdate.findIndex(course => course && String(course.id) === courseId);
+          const existingCourse = existingIndex >= 0 ? allCoursesForUpdate[existingIndex] : null;
+          if (!access.isAdmin && existingCourse && !courseBelongsToTeacher(existingCourse, access.userData, userId)) {
+            throw new Error("Teacher scope mismatch");
+          }
+          incomingCourse.id = courseId;
+          incomingCourse.instructor = access.userData?.name || incomingCourse.instructor || userProfile?.displayName || "";
+          incomingCourse.teacherUid = userId;
+          incomingCourse.updatedAt = new Date().toISOString();
+          if (existingIndex >= 0) allCoursesForUpdate[existingIndex] = { ...existingCourse, ...incomingCourse };
+          else allCoursesForUpdate.unshift({ ...incomingCourse, createdAt: new Date().toISOString() });
+          await env.ACTION_DATA.put("COURSES", JSON.stringify(allCoursesForUpdate));
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true, course: incomingCourse };
+          break;
+        }
+
+        case "TEACHER_DELETE_COURSE": {
+          if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
+          const deleteCourseId = String(payload?.courseId || "").trim();
+          if (!deleteCourseId) throw new Error("Course id required");
+          const allCoursesForDelete = await safeGetKV(env, "COURSES", []);
+          const targetCourse = allCoursesForDelete.find(course => course && String(course.id) === deleteCourseId);
+          if (!targetCourse) throw new Error("Course not found");
+          if (!access.isAdmin && !courseBelongsToTeacher(targetCourse, access.userData, userId)) {
+            throw new Error("Teacher scope mismatch");
+          }
+          const nextCourses = allCoursesForDelete.map(course => {
+            if (!course || String(course.id) !== deleteCourseId) return course;
+            return { ...course, isPublished: false, updatedAt: new Date().toISOString() };
+          });
+          await env.ACTION_DATA.put("COURSES", JSON.stringify(nextCourses));
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true };
+          break;
+        }
+
+        case "TEACHER_GET_MY_REPORT": {
+          if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
+          const reportCourses = await safeGetKV(env, "COURSES", []);
+          const teacherCoursesForReport = reportCourses.filter(course => courseBelongsToTeacher(course, access.userData, userId));
+          const courseKeySet = new Set();
+          for (const course of teacherCoursesForReport) {
+            if (course?.id) courseKeySet.add(String(course.id));
+            const title = getCourseTitle(course);
+            if (title) courseKeySet.add(title);
+            if (course?.name) courseKeySet.add(String(course.name));
+          }
+          const reportOrders = await safeGetKV(env, "ORDERS", []);
+          const teacherOrders = reportOrders.filter(order => {
+            if (!order || order.type === "PRODUCT") return false;
+            const key = getOrderCourseKey(order);
+            return key && courseKeySet.has(key);
+          });
+          const grossAmount = teacherOrders.reduce((sum, order) => sum + (Number(String(order.amount || 0).replace(/[^0-9.-]/g, "")) || 0), 0);
+          const paidAmount = teacherOrders
+            .filter(order => String(order.status || "").toUpperCase() === "PAID")
+            .reduce((sum, order) => sum + (Number(String(order.amount || 0).replace(/[^0-9.-]/g, "")) || 0), 0);
+          const pointLedgerForTeacher = await safeGetKV(env, "POINT_LEDGER", []);
+          const teacherDeductions = (Array.isArray(pointLedgerForTeacher) ? pointLedgerForTeacher : [])
+            .filter(entry => entry && entry.source === "teacher_deduct" && String(entry.operatorUid || "") === String(userId));
+          const deductedPoints = teacherDeductions.reduce((sum, entry) => sum + (Number(entry.points || Math.abs(entry.amount || 0)) || 0), 0);
+          result.data = {
+            courses: teacherCoursesForReport.map(course => ({ id: course.id, name: getCourseTitle(course), type: course.type || "", price: course.price || 0 })),
+            orders: teacherOrders,
+            deductions: teacherDeductions,
+            summary: { orderCount: teacherOrders.length, grossAmount, paidAmount, deductCount: teacherDeductions.length, deductedPoints }
+          };
+          break;
+        }
+
+        case "TEACHER_DEDUCT_POINTS": {
+          if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
+          const targetUid = String(payload?.targetUid || payload?.uid || "").trim();
+          const deductAmount = Math.abs(Number(payload?.amount || 0));
+          const deductReason = String(payload?.reason || "").trim();
+          if (!targetUid) throw new Error("請輸入會員 UID");
+          if (!deductAmount) throw new Error("請輸入扣點點數");
+          const currentPointData = await safeGetKV(env, `POINTS_${targetUid}`, { balance: 0, logs: [] });
+          const currentBalance = Number(currentPointData.balance || 0);
+          if (currentBalance < deductAmount) throw new Error("會員點數不足");
+          const teacherName = access.userData?.name || userProfile?.displayName || userId;
+          const finalReason = `講師扣點：${teacherName}${deductReason ? ` - ${deductReason}` : ""}`;
+          await this.updatePoints(env, ctx, targetUid, -deductAmount, finalReason, {
+            source: "teacher_deduct",
+            operatorUid: userId,
+            operatorName: teacherName,
+            targetName: payload?.studentName || "",
+          });
+          result.data = { success: true, balance: currentBalance - deductAmount };
+          break;
+        }
 
         case "REGISTER_USER":
           payload.createdAt = new Date().toLocaleString(); 
@@ -1427,7 +1556,10 @@ export default {
         balanceAfter: data.balance,
         createdAt,
         createdTs,
-        source: options.source || "system"
+        source: options.source || "system",
+        operatorUid: options.operatorUid || "",
+        operatorName: options.operatorName || "",
+        targetName: options.targetName || "",
       });
     } catch (e) {
       console.error("[PointsLedger] Failed to append ledger", e);
