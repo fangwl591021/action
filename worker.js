@@ -67,7 +67,7 @@ const TEACHER_ALLOWED_ACTIONS = new Set([
 const CRM_LOGIN_ALLOWED_ACTIONS = new Set([
   "ADMIN_GET_DATA",
   "ADMIN_GET_SLOTS",
-  "GET_USER_POINTS",
+  "ADMIN_UPDATE_MEMBER",
 ]);
 
 const VERIFIED_USER_ACTIONS = new Set([
@@ -662,7 +662,7 @@ export default {
         }
       }
 
-      if (action === "GET_USER_POINTS" && payload?.targetUid && payload.targetUid !== userId && !access.isAdmin && !access.canCrmLogin) {
+      if (action === "GET_USER_POINTS" && payload?.targetUid && payload.targetUid !== userId && !access.isAdmin) {
         throw new Error("Admin authorization required");
       }
 
@@ -1206,6 +1206,10 @@ export default {
               if (permissionChanged && !access.adminPasswordOk) {
                 throw new Error("任命或變更 CRM 權限時，必須重新輸入管理密碼");
               }
+              const currentIsPrivileged = currentIsTeacher || Boolean(currentMember.isAdmin) || Boolean(currentMember.crmOperator) || ["admin", "operator", "teacher"].includes(String(currentMember.role || "")) || ["admin", "operator", "teacher"].includes(String(currentMember.crmRole || ""));
+              if (!access.isAdmin && currentIsPrivileged) {
+                throw new Error("操作員不能修改具權限身分的帳號");
+              }
               const savedMember = {
                 ...currentMember,
                 ...payload.memberData,
@@ -1309,6 +1313,7 @@ export default {
           break;
 
         case "SYSTEM_HEALTH_CHECK":
+          if (!access.isAdmin) throw new Error("Admin authorization required");
           const healthCfg = getWetwConfig(access.settings);
           const healthLogNew = [
             "Cloudflare Worker：正常",

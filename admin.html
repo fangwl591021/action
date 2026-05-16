@@ -82,24 +82,24 @@
                     <div class="nav-group mb-2">
                         <div @click="toggleGroup('groupA')" class="nav-group-header"><span>📦 營運中心</span><i class="fas" :class="groups.groupA ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
                         <div v-show="groups.groupA" class="animate-fade-in">
-                            <div @click="switchView('dashboard')" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie w-6 text-center"></i>營運統計</div>
+                            <div v-if="canViewFinance" @click="switchView('dashboard')" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie w-6 text-center"></i>營運統計</div>
                             <div @click="switchView('calendar')" class="nav-item" :class="{'nav-active': view === 'calendar'}"><i class="far fa-calendar-alt w-6 text-center"></i>日曆檢視</div>
                             <div @click="switchView('members')" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-6 text-center"></i>學員 CRM</div>
                             <div @click="switchView('courses')" class="nav-item" :class="{'nav-active': view === 'courses' || view === 'course_edit' || view === 'course_enrollments'}"><i class="fas fa-book w-6 text-center"></i>課程管理</div>
                             <div @click="switchView('products')" class="nav-item" :class="{'nav-active': view === 'products'}"><i class="fas fa-store w-6 text-center"></i>商城商品</div>
                             <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation' || view === 'sys_config'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約諮詢</div>
-                            <div @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders' || view === 'order_edit'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
-                            <div @click="switchView('points_ledger')" class="nav-item" :class="{'nav-active': view === 'points_ledger'}"><i class="fas fa-coins w-6 text-center"></i>點數總表</div>
-                            <div @click="switchView('payment_logs')" class="nav-item" :class="{'nav-active': view === 'payment_logs'}"><i class="fas fa-credit-card w-6 text-center"></i>刷卡紀錄</div>
+                            <div v-if="canViewFinance" @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders' || view === 'order_edit'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
+                            <div v-if="canViewFinance" @click="switchView('points_ledger')" class="nav-item" :class="{'nav-active': view === 'points_ledger'}"><i class="fas fa-coins w-6 text-center"></i>點數總表</div>
+                            <div v-if="canViewFinance" @click="switchView('payment_logs')" class="nav-item" :class="{'nav-active': view === 'payment_logs'}"><i class="fas fa-credit-card w-6 text-center"></i>刷卡紀錄</div>
                         </div>
                     </div>
                     <div class="nav-group mt-2 border-t border-slate-50 pt-2">
                         <div @click="toggleGroup('groupB')" class="nav-group-header"><span>🛠️ 營運工具</span><i class="fas" :class="groups.groupB ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
                         <div v-show="groups.groupB" class="animate-fade-in">
                             <a href="./consult_admin.html" class="nav-item text-indigo-600"><i class="fas fa-calendar-check w-6 text-center"></i>預約排班系統</a>
-                            <div @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
-                            <div @click="switchView('flex_rules')" class="nav-item" :class="{'nav-active': view === 'flex_rules'}"><i class="fas fa-robot w-6 text-center"></i>機器人與專區卡片</div>
-                            <div @click="switchView('settings')" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>系統設定</div>
+                            <div v-if="isAdminRole" @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
+                            <div v-if="isAdminRole" @click="switchView('flex_rules')" class="nav-item" :class="{'nav-active': view === 'flex_rules'}"><i class="fas fa-robot w-6 text-center"></i>機器人與專區卡片</div>
+                            <div v-if="isAdminRole" @click="switchView('settings')" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>系統設定</div>
                         </div>
                     </div>
                 </nav>
@@ -111,20 +111,20 @@
                     <h2 class="text-2xl font-bold text-slate-800">{{ currentViewName }}</h2>
                     <div class="flex items-center gap-3">
                         <div class="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded text-green-700 text-xs font-bold mr-2"><div class="w-2 h-2 rounded-full bg-[#06C755] animate-pulse"></div><span>通道正常</span></div>
-                        <select v-if="view === 'dashboard' || view === 'courses' || view === 'orders'" v-model="selectedReportCourseId" class="btn-outline bg-white min-w-[220px] font-bold text-slate-700">
+                        <select v-if="canViewFinance && (view === 'dashboard' || view === 'courses' || view === 'orders')" v-model="selectedReportCourseId" class="btn-outline bg-white min-w-[220px] font-bold text-slate-700">
                             <option value="ALL">全部課程/服務</option>
                             <option v-for="c in reportCourseOptions" :key="c.id" :value="c.id">{{ String(c.name || '').split('\n')[0] }}</option>
                         </select>
-                        <button @click="downloadSalesReport" class="btn-outline text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"><i class="fas fa-file-csv mr-2"></i>業績報表下載</button>
-                        <button @click="downloadCourseReport" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i class="fas fa-list-alt mr-2"></i>課程報表下載</button>
-                        <button @click="forceSyncFromCloud" class="btn-outline text-red-600 border-red-200 bg-red-50 hover:bg-red-100"><i class="fas fa-download mr-2"></i>強制同步</button>
+                        <button v-if="canViewFinance" @click="downloadSalesReport" class="btn-outline text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"><i class="fas fa-file-csv mr-2"></i>業績報表下載</button>
+                        <button v-if="canViewFinance" @click="downloadCourseReport" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i class="fas fa-list-alt mr-2"></i>課程報表下載</button>
+                        <button v-if="isAdminRole" @click="forceSyncFromCloud" class="btn-outline text-red-600 border-red-200 bg-red-50 hover:bg-red-100"><i class="fas fa-download mr-2"></i>強制同步</button>
                         <button @click="fetchData(false)" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
-                        <button @click="triggerBackup" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-hdd mr-2"></i>資料備份</button>
-                        <button @click="runHealthCheck" class="btn-outline text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100"><i class="fas fa-stethoscope mr-2"></i>系統健檢</button>
+                        <button v-if="isAdminRole" @click="triggerBackup" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-hdd mr-2"></i>資料備份</button>
+                        <button v-if="isAdminRole" @click="runHealthCheck" class="btn-outline text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100"><i class="fas fa-stethoscope mr-2"></i>系統健檢</button>
                     </div>
                 </header>
 
-                <div v-if="view === 'dashboard'" class="p-6 animate-fade-in">
+                <div v-if="canViewFinance && view === 'dashboard'" class="p-6 animate-fade-in">
                     <div class="grid grid-cols-4 gap-4 mb-6">
                         <div v-for="(val, label) in { '實收總額': '$'+totalRevenue, '系統會員': users.length, '上架課程': courses.length, '預約導師': teachers.length }" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                             <div class="text-[12px] font-bold text-slate-400 uppercase mb-1 tracking-widest">{{ label }}</div>
@@ -274,7 +274,7 @@
                     </div>
                 </div>
 
-                <div v-if="view === 'orders'" class="animate-fade-in">
+                <div v-if="canViewFinance && view === 'orders'" class="animate-fade-in">
                     <div class="px-6 py-4 flex gap-3 border-b border-slate-100 bg-white">
                         <div class="relative w-full max-w-sm"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="orderSearch" placeholder="搜尋單號、姓名、電話、課程..." class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
                     </div>
@@ -296,7 +296,7 @@
                     </div>
                 </div>
 
-                <div v-if="view === 'points_ledger'" class="animate-fade-in">
+                <div v-if="canViewFinance && view === 'points_ledger'" class="animate-fade-in">
                     <div class="p-6 bg-white border-b border-slate-100">
                         <div class="grid grid-cols-4 gap-4 mb-5">
                             <div class="rounded-xl border border-slate-200 p-4">
@@ -343,7 +343,7 @@
                     </div>
                 </div>
 
-                <div v-if="view === 'payment_logs'" class="animate-fade-in">
+                <div v-if="canViewFinance && view === 'payment_logs'" class="animate-fade-in">
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
                         <table class="admin-table">
                             <thead><tr><th>接收時間</th><th>商店單號</th><th>刷卡金額</th><th>交易狀態</th><th>系統訊息</th></tr></thead>
@@ -361,9 +361,9 @@
                     </div>
                 </div>
                 
-                <div v-if="view === 'richmenu'" class="h-[calc(100vh-73px)]"><iframe src="./menu.html" class="w-full h-full border-0"></iframe></div>
+                <div v-if="isAdminRole && view === 'richmenu'" class="h-[calc(100vh-73px)]"><iframe src="./menu.html" class="w-full h-full border-0"></iframe></div>
 
-                <div v-if="view === 'flex_rules'" class="p-8 animate-fade-in">
+                <div v-if="isAdminRole && view === 'flex_rules'" class="p-8 animate-fade-in">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-xl font-black text-slate-800">自動回覆與會員專區卡片</h2>
                         <button @click="openEditFlexRule(null)" class="btn-green-main shadow-sm"><i class="fas fa-plus mr-1"></i>新增觸發規則</button>
@@ -397,7 +397,7 @@
                     </div>
                 </div>
                 
-                <div v-if="view === 'settings'" class="p-8 animate-fade-in max-w-4xl mx-auto space-y-8">
+                <div v-if="isAdminRole && view === 'settings'" class="p-8 animate-fade-in max-w-4xl mx-auto space-y-8">
                     <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
                         <div class="section-title !mb-6">首頁頂部橫幅 (Banner) 高效上傳 (Cloudflare R2)</div>
                         <div class="w-full aspect-[21/9] bg-slate-50 rounded-lg overflow-hidden border mb-5 flex items-center justify-center relative">
@@ -563,7 +563,7 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-5">
-                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <div v-if="isAdminRole" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                             <label class="block text-[14px] font-bold text-slate-700 mb-2">回覆類型</label>
                             <select v-model="editingFlexRule.replyType" class="input-field bg-slate-50 font-bold text-indigo-700">
                                 <option value="FLEX">🎴 FLEX 卡片 (JSON)</option>
@@ -796,7 +796,7 @@
                                 <div class="col-span-2"><label class="input-label">聯絡地址</label><input type="text" v-model="activeMember.address" class="input-field"></div>
                                 <div class="col-span-2"><label class="input-label">推薦人 UID (供測試或補登用，若無請留空)</label><input type="text" v-model="activeMember.referrerUid" class="input-field font-mono text-sm text-blue-600" placeholder="請貼上介紹人的 LINE UID"></div>
                             </div>
-                            <button @click="deleteMember(activeMember)" class="mt-5 w-full py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"><i class="fas fa-trash-alt mr-2"></i>刪除此學員檔案</button>
+                            <button v-if="isAdminRole" @click="deleteMember(activeMember)" class="mt-5 w-full py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"><i class="fas fa-trash-alt mr-2"></i>刪除此學員檔案</button>
                         </div>
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-comment-dots text-orange-500"></i> 管理員備註</h4><textarea v-model="activeMember.adminNote" class="input-field h-32 resize-none leading-relaxed text-[15px]" placeholder="紀錄學員個案狀況..."></textarea></div>
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -818,7 +818,7 @@
                             <div class="text-xs text-amber-600 font-bold mt-3">變更這些權限時，儲存會要求重新輸入管理密碼。</div>
                         </div>
                     </div>
-                    <div class="md:col-span-5 flex flex-col space-y-6">
+                    <div v-if="canViewFinance" class="md:col-span-5 flex flex-col space-y-6">
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center relative overflow-hidden"><i class="fas fa-gift absolute -right-4 -bottom-4 text-red-50 text-8xl"></i><div class="text-[13px] font-bold text-slate-400 mb-1 relative z-10">可用紅包餘額</div>
                             <div class="text-[40px] font-black text-red-600 mb-6 relative z-10">{{ (activeMemberPoints.balance || 0).toLocaleString() }} <span class="text-base font-bold text-slate-400">點</span></div>
                             <div class="flex gap-3 relative z-10">
@@ -868,6 +868,7 @@
                     const groups = ref({ groupA: true, groupB: true });
                     const isLoading = ref(false);
                     const liffProfile = ref({});
+                    const currentAccess = ref({ isAdmin: false, canCrmLogin: false, isTeacher: false });
                     
                     const memberTiers = ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師'];
                     
@@ -915,6 +916,11 @@
                     
                     const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, '')).toLocaleString();
                     const getCourseName = (id) => { const c = courses.value.find(x => x && (x.id === id || x.name === id)); return c ? c.name : id; };
+                    const isAdminRole = computed(() => !!currentAccess.value.isAdmin);
+                    const isOperatorRole = computed(() => !isAdminRole.value && !!currentAccess.value.canCrmLogin);
+                    const canViewFinance = computed(() => isAdminRole.value);
+                    const adminOnlyViews = new Set(['dashboard', 'orders', 'points_ledger', 'payment_logs', 'richmenu', 'settings', 'flex_rules']);
+                    const operatorDefaultView = 'members';
 
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
@@ -929,7 +935,7 @@
                             if (requestPayload.adminPwd) {}
                             else if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
                             else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
-                            else if (act && (act.startsWith('ADMIN_') || act === 'GET_USER_POINTS' || act === 'UPLOAD_IMAGE')) {
+                            else if (act && (act.startsWith('ADMIN_') || act === 'GET_USER_POINTS' || act === 'UPLOAD_IMAGE') && !(isOperatorRole.value && ['ADMIN_GET_DATA', 'ADMIN_GET_SLOTS', 'ADMIN_UPDATE_MEMBER'].includes(act))) {
                                 const pwd = window.prompt('請重新輸入管理密碼以儲存 CRM 變更');
                                 if (pwd) {
                                     sessionStorage.setItem('act_admin_pwd', pwd);
@@ -956,6 +962,8 @@
                     const loadCache = () => {
                         if (localStorage.getItem('act_admin_logged_in') === 'true') {
                             isAuthenticated.value = true;
+                            currentAccess.value = JSON.parse(localStorage.getItem('act_admin_access') || '{"isAdmin":true,"canCrmLogin":true,"isTeacher":false}');
+                            if (!isAdminRole.value && view.value === 'dashboard') view.value = operatorDefaultView;
                             try {
                                 const c = JSON.parse(localStorage.getItem(CACHE_KEY));
                                 if (c) {
@@ -993,6 +1001,7 @@
                                     slots.value = Array.isArray(slotData) ? slotData : (slotData.slots || []);
                                     occupiedLocations.value = Array.isArray(slotData) ? [] : (slotData.occupiedLocations || []);
                                 }
+                                if (!isAdminRole.value && adminOnlyViews.has(view.value)) view.value = operatorDefaultView;
 
                                 try {
                                     localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, products: products.value, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value, flexRules: flexRules.value }));
@@ -1038,8 +1047,11 @@
                                     liffProfile.value = await liff.getProfile();
                                     const checkRes = await callApi('CHECK_USER', {}, true);
                                     if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
+                                        currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, isTeacher: !!checkRes.isTeacher };
                                         isAuthenticated.value = true;
                                         localStorage.setItem('act_admin_logged_in', 'true');
+                                        localStorage.setItem('act_admin_access', JSON.stringify(currentAccess.value));
+                                        if (!isAdminRole.value) view.value = operatorDefaultView;
                                         fetchData(true);
                                     }
                                 }
@@ -1075,8 +1087,11 @@
                             const checkRes = await callApi('CHECK_USER', {}, false);
 
                             if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
+                                currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, isTeacher: !!checkRes.isTeacher };
                                 isAuthenticated.value = true;
                                 localStorage.setItem('act_admin_logged_in', 'true');
+                                localStorage.setItem('act_admin_access', JSON.stringify(currentAccess.value));
+                                if (!isAdminRole.value) view.value = operatorDefaultView;
                                 fetchData(false);
                             } else {
                                 alert('⛔ 您的 LINE 帳號沒有管理權限，無法登入。');
@@ -1092,8 +1107,10 @@
                         const acc = String(loginForm.value.account || '').trim().toLowerCase();
                         const pwd = String(loginForm.value.password || '').trim();
                         if (acc === 'admin' && pwd === '@1234') {
+                            currentAccess.value = { isAdmin: true, canCrmLogin: true, isTeacher: false };
                             isAuthenticated.value = true;
                             localStorage.setItem('act_admin_logged_in', 'true');
+                            localStorage.setItem('act_admin_access', JSON.stringify(currentAccess.value));
                             sessionStorage.setItem('act_admin_pwd', pwd);
                             fetchData(false);
                         } else {
@@ -1104,13 +1121,20 @@
                     const logout = () => {
                         isAuthenticated.value = false;
                         localStorage.removeItem('act_admin_logged_in');
+                        localStorage.removeItem('act_admin_access');
                         localStorage.removeItem(CACHE_KEY);
                         sessionStorage.removeItem('act_admin_pwd');
+                        currentAccess.value = { isAdmin: false, canCrmLogin: false, isTeacher: false };
                         loginForm.value = { account: '', password: '' };
                     };
 
                     const toggleGroup = (groupName) => { groups.value[groupName] = !groups.value[groupName]; };
                     const switchView = (viewName) => {
+                        if (!isAdminRole.value && adminOnlyViews.has(viewName)) {
+                            alert('此區域僅限 Admin 使用');
+                            view.value = operatorDefaultView;
+                            return;
+                        }
                         view.value = viewName;
                         if (viewName === 'points_ledger' && !pointsLedger.value.length) loadPointsLedger();
                     };
@@ -1315,6 +1339,7 @@
                     };
 
                     const downloadSalesReport = () => {
+                        if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
                         const validOrders = orders.value.filter(o => o && o.status === 'PAID' && orderMatchesReportCourses(o));
                         if(validOrders.length === 0) {
                             alert("目前沒有符合條件的已付款訂單可以匯出。");
@@ -1326,6 +1351,7 @@
                     };
 
                     const downloadCourseReport = () => {
+                        if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
                         const courseOrders = orders.value.filter(o => o && o.type !== 'PRODUCT' && orderMatchesReportCourses(o));
                         if(courseOrders.length === 0) {
                             alert("目前沒有符合條件的課程訂單可以匯出。");
@@ -1336,12 +1362,14 @@
                     };
 
                     const triggerBackup = async () => {
+                        if (!isAdminRole.value) return alert('資料備份僅限 Admin 使用');
                         if(!confirm('確定要觸發資料庫備份嗎？')) return;
                         isLoading.value = true;
                         try { await callApi('ADMIN_TRIGGER_BACKUP', {}); alert('備份完成'); } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
                     const runHealthCheck = async () => {
+                        if (!isAdminRole.value) return alert('系統健檢僅限 Admin 使用');
                         isLoading.value = true;
                         try { const res = await callApi('SYSTEM_HEALTH_CHECK', {}); if(res && res.log) alert(res.log.join('\n')); } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
@@ -1362,8 +1390,12 @@
                         };
                         isLoading.value = true;
                         try {
-                            const points = await callApi('GET_USER_POINTS', { targetUid: u.userId });
-                            if(points) activeMemberPoints.value = points;
+                            if (canViewFinance.value) {
+                                const points = await callApi('GET_USER_POINTS', { targetUid: u.userId });
+                                if(points) activeMemberPoints.value = points;
+                            } else {
+                                activeMemberPoints.value = { balance: 0, logs: [] };
+                            }
                         } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
@@ -2125,6 +2157,7 @@
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers,
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger,
+                        currentAccess, isAdminRole, isOperatorRole, canViewFinance,
                         currentViewName, totalRevenue, courseStatsFiltered,
                         isEditingReservationCourse, courseLocationOptions,
                         memberSearch, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
