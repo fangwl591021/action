@@ -960,9 +960,13 @@
                     };
 
                     const loadCache = () => {
-                        if (localStorage.getItem('act_admin_logged_in') === 'true') {
+                        if (localStorage.getItem('act_crm_logged_in') === 'true') {
                             isAuthenticated.value = true;
-                            currentAccess.value = JSON.parse(localStorage.getItem('act_admin_access') || '{"isAdmin":true,"canCrmLogin":true,"isTeacher":false}');
+                            currentAccess.value = JSON.parse(localStorage.getItem('act_crm_access') || '{"isAdmin":false,"canCrmLogin":false,"isTeacher":false}');
+                            if (!currentAccess.value.isAdmin && !currentAccess.value.canCrmLogin) {
+                                logout();
+                                return;
+                            }
                             if (!isAdminRole.value && view.value === 'dashboard') view.value = operatorDefaultView;
                             try {
                                 const c = JSON.parse(localStorage.getItem(CACHE_KEY));
@@ -1005,7 +1009,7 @@
 
                                 try {
                                     localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, products: products.value, slots: slots.value, occupiedLocations: occupiedLocations.value, paymentLogs: paymentLogs.value, flexRules: flexRules.value }));
-                                    localStorage.setItem('act_admin_logged_in', 'true');
+                                    localStorage.setItem('act_crm_logged_in', 'true');
                                 } catch(cacheError) {
                                     console.warn('LocalStorage 快取空間已滿，系統將改為即時連線模式');
                                 }
@@ -1049,8 +1053,8 @@
                                     if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
                                         currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, isTeacher: !!checkRes.isTeacher };
                                         isAuthenticated.value = true;
-                                        localStorage.setItem('act_admin_logged_in', 'true');
-                                        localStorage.setItem('act_admin_access', JSON.stringify(currentAccess.value));
+                                        localStorage.setItem('act_crm_logged_in', 'true');
+                                        localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
                                         if (!isAdminRole.value) view.value = operatorDefaultView;
                                         fetchData(true);
                                     }
@@ -1089,8 +1093,8 @@
                             if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
                                 currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, isTeacher: !!checkRes.isTeacher };
                                 isAuthenticated.value = true;
-                                localStorage.setItem('act_admin_logged_in', 'true');
-                                localStorage.setItem('act_admin_access', JSON.stringify(currentAccess.value));
+                                localStorage.setItem('act_crm_logged_in', 'true');
+                                localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
                                 if (!isAdminRole.value) view.value = operatorDefaultView;
                                 fetchData(false);
                             } else {
@@ -1109,8 +1113,8 @@
                         if (acc === 'admin' && pwd === '@1234') {
                             currentAccess.value = { isAdmin: true, canCrmLogin: true, isTeacher: false };
                             isAuthenticated.value = true;
-                            localStorage.setItem('act_admin_logged_in', 'true');
-                            localStorage.setItem('act_admin_access', JSON.stringify(currentAccess.value));
+                            localStorage.setItem('act_crm_logged_in', 'true');
+                            localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
                             sessionStorage.setItem('act_admin_pwd', pwd);
                             fetchData(false);
                         } else {
@@ -1120,6 +1124,8 @@
 
                     const logout = () => {
                         isAuthenticated.value = false;
+                        localStorage.removeItem('act_crm_logged_in');
+                        localStorage.removeItem('act_crm_access');
                         localStorage.removeItem('act_admin_logged_in');
                         localStorage.removeItem('act_admin_access');
                         localStorage.removeItem(CACHE_KEY);
