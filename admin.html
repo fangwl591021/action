@@ -921,6 +921,11 @@
                     const canViewFinance = computed(() => isAdminRole.value);
                     const adminOnlyViews = new Set(['dashboard', 'orders', 'points_ledger', 'payment_logs', 'richmenu', 'settings', 'flex_rules']);
                     const operatorDefaultView = 'members';
+                    const goTeacherScheduling = () => {
+                        localStorage.removeItem('act_crm_logged_in');
+                        localStorage.removeItem('act_crm_access');
+                        window.location.href = './consult_admin.html';
+                    };
 
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
@@ -1057,6 +1062,8 @@
                                         localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
                                         if (!isAdminRole.value) view.value = operatorDefaultView;
                                         fetchData(true);
+                                    } else if (checkRes && checkRes.isTeacher) {
+                                        goTeacherScheduling();
                                     }
                                 }
                             } else if (res && res.message) {
@@ -1097,6 +1104,9 @@
                                 localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
                                 if (!isAdminRole.value) view.value = operatorDefaultView;
                                 fetchData(false);
+                            } else if (checkRes && checkRes.isTeacher) {
+                                alert('專業講師將進入排班後台；CRM 僅限 Admin / 操作員使用。');
+                                goTeacherScheduling();
                             } else {
                                 alert('⛔ 您的 LINE 帳號沒有管理權限，無法登入。');
                             }
