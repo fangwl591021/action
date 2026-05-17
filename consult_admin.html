@@ -252,6 +252,21 @@
                         }
                     };
 
+                    const ensureLineToken = () => {
+                        if (typeof liff === 'undefined' || typeof liff.isLoggedIn !== 'function') return null;
+                        if (!liff.isLoggedIn()) {
+                            liff.login({ redirectUri: window.location.href });
+                            return null;
+                        }
+                        const token = liff.getIDToken();
+                        if (!token) {
+                            if (typeof liff.logout === 'function') liff.logout();
+                            liff.login({ redirectUri: window.location.href });
+                            return null;
+                        }
+                        return token;
+                    };
+
                     const loadCache = () => {
                         if (localStorage.getItem('act_admin_logged_in') === 'true') {
                             isAuthenticated.value = true;
@@ -299,6 +314,7 @@
                             if (finalLiffId) {
                                 await liff.init({ liffId: finalLiffId });
                                 if (liff.isLoggedIn()) {
+                                    if (!ensureLineToken()) return;
                                     liffProfile.value = await liff.getProfile();
                                     const checkRes = await callApi('CHECK_USER', {}, true);
                                     if (checkRes && (checkRes.isAdmin || checkRes.isTeacher || (checkRes.info && checkRes.info.memberTier && checkRes.info.memberTier.includes('導師')))) {
@@ -324,7 +340,7 @@
                             if (!finalLiffId) throw new Error('管理員尚未設定系統主 LIFF ID');
 
                             await liff.init({ liffId: finalLiffId });
-                            if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
+                            if (!ensureLineToken()) return;
 
                             liffProfile.value = await liff.getProfile();
                             const checkRes = await callApi('CHECK_USER', {}, false);

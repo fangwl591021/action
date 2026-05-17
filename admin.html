@@ -926,6 +926,20 @@
                         localStorage.removeItem('act_crm_access');
                         window.location.href = './consult_admin.html';
                     };
+                    const ensureLineToken = () => {
+                        if (typeof liff === 'undefined' || typeof liff.isLoggedIn !== 'function') return null;
+                        if (!liff.isLoggedIn()) {
+                            liff.login({ redirectUri: window.location.href });
+                            return null;
+                        }
+                        const token = liff.getIDToken();
+                        if (!token) {
+                            if (typeof liff.logout === 'function') liff.logout();
+                            liff.login({ redirectUri: window.location.href });
+                            return null;
+                        }
+                        return token;
+                    };
 
                     const callApi = async (act, pl = {}, silent = false) => {
                         try {
@@ -1053,6 +1067,7 @@
                             if (finalLiffId) {
                                 await liff.init({ liffId: finalLiffId });
                                 if (liff.isLoggedIn()) {
+                                    if (!ensureLineToken()) return;
                                     liffProfile.value = await liff.getProfile();
                                     const checkRes = await callApi('CHECK_USER', {}, true);
                                     if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
@@ -1089,10 +1104,7 @@
                             if (!finalLiffId) throw new Error('管理員尚未設定系統主 LIFF ID');
 
                             await liff.init({ liffId: finalLiffId });
-                            if (!liff.isLoggedIn()) {
-                                liff.login({ redirectUri: window.location.href });
-                                return;
-                            }
+                            if (!ensureLineToken()) return;
 
                             liffProfile.value = await liff.getProfile();
                             const checkRes = await callApi('CHECK_USER', {}, false);
