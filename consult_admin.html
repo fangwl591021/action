@@ -150,7 +150,7 @@
                                 <h2 class="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">
                                     <i class="fas fa-user-edit text-[#06C755]"></i> {{ activeTeacher.name }} 的排班表
                                 </h2>
-                                <p class="text-[11px] md:text-xs text-slate-500 font-bold mt-1">點擊下方網格開關時段。綠色為開放，紅色為被預約。</p>
+                                <p class="text-[11px] md:text-xs text-slate-500 font-bold mt-1">先綁定可預約服務，再點擊下方網格開關時段。綠色為開放，紅色為被預約。</p>
                             </div>
                             <div class="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto mt-1 md:mt-0">
                                 <div v-if="hasDrafts" class="text-[11px] md:text-sm font-bold text-orange-600 bg-orange-50 px-2 md:px-3 py-1.5 rounded-lg border border-orange-100 animate-pulse">有未儲存變更</div>
@@ -158,6 +158,43 @@
                                 <button v-if="hasDrafts" @click="submitDrafts" :disabled="isLoading" class="btn-green shadow-lg shadow-green-100 py-2 px-3 md:py-2.5 md:px-4 text-[13px] md:text-sm flex-1 md:flex-none justify-center">
                                     <i v-if="isLoading" class="fas fa-spinner fa-spin"></i><i v-else class="fas fa-save"></i>確認結算 ({{ totalDraftCost }}P)
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- 預約服務綁定 -->
+                        <div class="shrink-0 bg-white border-b border-slate-200 p-3 md:p-5">
+                            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                                <div>
+                                    <div class="text-sm md:text-base font-black text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-link text-indigo-500"></i> 綁定預約服務
+                                    </div>
+                                    <p class="text-[11px] md:text-xs text-slate-500 font-bold mt-1">綁定後，前台才知道此講師可被預約哪一種服務；排班只負責開放時間。</p>
+                                </div>
+                                <button v-if="isAdminUser" @click="saveTeacherCourseBindings" :disabled="isLoading || !activeTeacher" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-black hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                                    <i class="fas fa-save mr-1"></i> 儲存綁定
+                                </button>
+                            </div>
+
+                            <div v-if="isAdminUser" class="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                                <label v-for="course in reservationCourses" :key="courseKey(course)" class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-white cursor-pointer transition">
+                                    <input type="checkbox" class="mt-1 w-4 h-4 accent-[#06C755]" v-model="bindingCourseIds" :value="courseKey(course)">
+                                    <span class="min-w-0">
+                                        <span class="block text-sm font-black text-slate-800 truncate">{{ course.name || course.title || '未命名預約服務' }}</span>
+                                        <span class="block text-xs text-slate-400 font-bold mt-0.5 truncate">{{ course.priceLabel || course.priceText || course.price || 0 }} 元・{{ course.location || '未設定地點' }}</span>
+                                    </span>
+                                </label>
+                                <div v-if="reservationCourses.length === 0" class="text-sm font-bold text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-lg p-4">
+                                    尚未建立預約類課程，請先到課程管理新增「預約類」。
+                                </div>
+                            </div>
+
+                            <div v-else class="mt-3 flex flex-wrap gap-2">
+                                <span v-for="course in selectedTeacherCourses" :key="courseKey(course)" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm font-black">
+                                    <i class="fas fa-calendar-check"></i>{{ course.name || course.title || '未命名預約服務' }}
+                                </span>
+                                <span v-if="selectedTeacherCourses.length === 0" class="text-sm font-bold text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-3 py-2">
+                                    尚未綁定預約服務，請由 Admin 指派。
+                                </span>
                             </div>
                         </div>
                         
@@ -215,10 +252,13 @@
                     const loginForm = ref({ account: '', password: '' });
                     const isLoading = ref(false);
                     const liffProfile = ref({});
+                    const isAdminUser = ref(false);
                     
                     const teachers = ref([]);
+                    const courses = ref([]);
                     const slots = ref([]);
                     const activeTeacher = ref(null);
+                    const bindingCourseIds = ref([]);
                     const draftOpen = ref([]);
                     const draftClose = ref([]);
                     const dates = ref([]);
@@ -272,10 +312,12 @@
                     const loadCache = () => {
                         if (localStorage.getItem('act_admin_logged_in') === 'true') {
                             isAuthenticated.value = true;
+                            if (sessionStorage.getItem('act_admin_pwd')) isAdminUser.value = true;
                             try {
                                 const c = JSON.parse(localStorage.getItem(CACHE_KEY));
                                 if (c) {
                                     teachers.value = c.teachers || [];
+                                    courses.value = c.courses || [];
                                     slots.value = c.slots || [];
                                 }
                             } catch(e) {}
@@ -289,6 +331,7 @@
                             if (data && data.teachers) {
                                 teachers.value = data.teachers.map(t => ({ ...t, config: t.config || { rent: 0, comm: 0, price: 0 } }));
                             }
+                            courses.value = Array.isArray(data?.courses) ? data.courses : [];
                             
                             const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
                             if (slotData) {
@@ -304,6 +347,7 @@
                                 const stillExists = teachers.value.find(t => t.userId === activeTeacher.value.userId);
                                 if (!stillExists) activeTeacher.value = null;
                                 draftOpen.value = []; draftClose.value = [];
+                                syncTeacherBindingIds();
                             }
                         } catch(e) { console.error(e); alert('資料同步失敗：' + e.message); } finally { isLoading.value = false; }
                     };
@@ -320,12 +364,16 @@
                                     liffProfile.value = await liff.getProfile();
                                     const checkRes = await callApi('CHECK_USER', {}, true);
                                     if (checkRes && (checkRes.isAdmin || checkRes.isTeacher || (checkRes.info && checkRes.info.memberTier && checkRes.info.memberTier.includes('導師')))) {
+                                        isAdminUser.value = !!checkRes.isAdmin;
                                         isAuthenticated.value = true;
                                         localStorage.setItem('act_admin_logged_in', 'true');
                                         await fetchData(true);
                                         if (!checkRes.isAdmin) {
                                             teachers.value = teachers.value.filter(t => t.userId === liffProfile.value.userId);
-                                            if (teachers.value.length > 0) activeTeacher.value = teachers.value[0];
+                                            if (teachers.value.length > 0) {
+                                                activeTeacher.value = teachers.value[0];
+                                                syncTeacherBindingIds();
+                                            }
                                         }
                                     }
                                 }
@@ -348,12 +396,16 @@
                             const checkRes = await callApi('CHECK_USER', {}, false);
 
                             if (checkRes && (checkRes.isAdmin || checkRes.isTeacher || (checkRes.info && checkRes.info.memberTier && checkRes.info.memberTier.includes('導師')))) {
+                                isAdminUser.value = !!checkRes.isAdmin;
                                 isAuthenticated.value = true;
                                 localStorage.setItem('act_admin_logged_in', 'true');
                                 await fetchData(false);
                                 if (!checkRes.isAdmin) {
                                     teachers.value = teachers.value.filter(t => t.userId === liffProfile.value.userId);
-                                    if (teachers.value.length > 0) activeTeacher.value = teachers.value[0];
+                                    if (teachers.value.length > 0) {
+                                        activeTeacher.value = teachers.value[0];
+                                        syncTeacherBindingIds();
+                                    }
                                 }
                             } else { alert('⛔ 您沒有管理或導師權限，無法進入排班系統。'); }
                         } catch (e) { alert(`登入失敗: ${e.message}`); } finally { isLoading.value = false; }
@@ -363,6 +415,7 @@
                         const acc = String(loginForm.value.account || '').trim().toLowerCase();
                         const pwd = String(loginForm.value.password || '').trim();
                         if (acc === 'admin' && pwd === '@1234') { 
+                            isAdminUser.value = true;
                             isAuthenticated.value = true; 
                             localStorage.setItem('act_admin_logged_in', 'true');
                             sessionStorage.setItem('act_admin_pwd', pwd);
@@ -375,10 +428,80 @@
                         localStorage.removeItem('act_admin_logged_in');
                         localStorage.removeItem(CACHE_KEY);
                         sessionStorage.removeItem('act_admin_pwd');
+                        isAdminUser.value = false;
                         loginForm.value = { account: '', password: '' }; 
                     };
 
-                    const selectTeacher = (t) => { if (activeTeacher.value?.userId !== t.userId) { draftOpen.value = []; draftClose.value = []; activeTeacher.value = t; } };
+                    const normalizeText = (value) => String(value || '').normalize('NFKC').replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '');
+                    const courseKey = (course) => String(course?.id || course?.courseId || course?.name || course?.title || '');
+                    const isReservationCourse = (course) => String(course?.type || course?.category || '').includes('預約');
+                    const isTeacherCourse = (course, teacher) => {
+                        if (!course || !teacher) return false;
+                        const teacherUid = String(teacher.userId || '').trim();
+                        const courseTeacherUid = String(course.teacherUid || course.teacher_user_id || '').trim();
+                        if (teacherUid && courseTeacherUid && teacherUid === courseTeacherUid) return true;
+                        if (Array.isArray(course.teacherUids) && course.teacherUids.map(String).includes(teacherUid)) return true;
+                        const teacherName = normalizeText(teacher.name || teacher.displayName || '');
+                        const courseTeacherName = normalizeText(course.instructor || course.teacher || course.teacherName || '');
+                        return !!teacherName && !!courseTeacherName && teacherName === courseTeacherName;
+                    };
+                    const reservationCourses = computed(() => courses.value.filter(isReservationCourse));
+                    const selectedTeacherCourses = computed(() => reservationCourses.value.filter(course => isTeacherCourse(course, activeTeacher.value)));
+
+                    const syncTeacherBindingIds = () => {
+                        bindingCourseIds.value = selectedTeacherCourses.value.map(courseKey);
+                    };
+
+                    const selectTeacher = (t) => {
+                        if (activeTeacher.value?.userId !== t.userId) {
+                            draftOpen.value = [];
+                            draftClose.value = [];
+                            activeTeacher.value = t;
+                            syncTeacherBindingIds();
+                        }
+                    };
+
+                    const saveTeacherCourseBindings = async () => {
+                        if (!activeTeacher.value || !isAdminUser.value) return;
+                        const selected = new Set(bindingCourseIds.value.map(String));
+                        const teacherUid = String(activeTeacher.value.userId || '').trim();
+                        const teacherName = activeTeacher.value.name || activeTeacher.value.displayName || '';
+                        const changes = reservationCourses.value
+                            .map(course => {
+                                const key = courseKey(course);
+                                const currentlyBound = isTeacherCourse(course, activeTeacher.value);
+                                const shouldBind = selected.has(key);
+                                if (currentlyBound === shouldBind) return null;
+                                if (shouldBind) {
+                                    return { ...course, teacherUid, instructor: teacherName };
+                                }
+                                const next = { ...course };
+                                if (String(next.teacherUid || '') === teacherUid) next.teacherUid = '';
+                                if (normalizeText(next.instructor || '') === normalizeText(teacherName)) next.instructor = '';
+                                if (Array.isArray(next.teacherUids)) next.teacherUids = next.teacherUids.map(String).filter(uid => uid !== teacherUid);
+                                return next;
+                            })
+                            .filter(Boolean);
+
+                        if (!changes.length) {
+                            alert('目前綁定沒有變更。');
+                            return;
+                        }
+                        if (!confirm(`確定更新 ${activeTeacher.value.name} 的預約服務綁定？\n異動項目：${changes.length} 筆`)) return;
+                        isLoading.value = true;
+                        try {
+                            for (const course of changes) {
+                                await callApi('ADMIN_UPDATE_COURSE', course, true);
+                            }
+                            await fetchData(true);
+                            syncTeacherBindingIds();
+                            alert('✅ 預約服務綁定已更新');
+                        } catch (e) {
+                            alert(`預約服務綁定失敗：${e.message}`);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
 
                     const getStatus = (date, time) => {
                         if (!activeTeacher.value) return 'CLOSED';
@@ -444,9 +567,10 @@
                     });
 
                     return {
-                        isAuthenticated, loginForm, isLoading, liffProfile,
-                        teachers, slots, activeTeacher, draftOpen, draftClose, dates, timeSlots,
+                        isAuthenticated, loginForm, isLoading, liffProfile, isAdminUser,
+                        teachers, courses, slots, activeTeacher, bindingCourseIds, reservationCourses, selectedTeacherCourses, draftOpen, draftClose, dates, timeSlots,
                         lineLogin, handleLogin, logout, fetchData, selectTeacher,
+                        courseKey, saveTeacherCourseBindings,
                         getSlotStatus: getStatus, isDraftOpen, isDraftClose, getSlotStyle, handleToggleSlot,
                         hasDrafts: computed(() => draftOpen.value.length > 0 || draftClose.value.length > 0),
                         totalDraftCost: computed(() => draftOpen.value.length * (activeTeacher.value?.config?.rent || 0)),

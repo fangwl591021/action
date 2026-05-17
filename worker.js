@@ -1131,9 +1131,10 @@ export default {
           result.data.teachers = localUsers.filter(isTeacherRecord);
           if (!access.isAdmin && access.isTeacher) {
               const currentTeacher = result.data.teachers.find(u => u.userId === userId) || access.userData;
+              const teacherCourses = adminCourses.filter(course => courseBelongsToTeacher(course, currentTeacher, userId));
               result.data = {
                   users: [],
-                  courses: [],
+                  courses: teacherCourses,
                   orders: [],
                   teachers: currentTeacher ? [currentTeacher] : [],
                   settings: {}
