@@ -571,7 +571,23 @@ async function verifyLineIdToken(env, idToken, settings) {
   return await res.json();
 }
 
-async function resolveAccess(env, claimedUserId, payload, idToken) {
+async function verifyLineAccessToken(accessToken) {
+  const token = String(accessToken || "").trim();
+  if (!token) return null;
+  const res = await fetch("https://api.line.me/v2/profile", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("LINE access token verification failed");
+  const profile = await res.json();
+  if (!profile?.userId) throw new Error("LINE profile missing userId");
+  return {
+    sub: profile.userId,
+    name: profile.displayName || "",
+    picture: profile.pictureUrl || "",
+  };
+}
+
+async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) {
   const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
   const providedAdminPwd = String(payload?.adminPwd || "");
   const configuredAdminPwd = String(env.ADMIN_PASSWORD || settings.adminPwd || settings.admin_password || "");
@@ -582,7 +598,14 @@ async function resolveAccess(env, claimedUserId, payload, idToken) {
     verifiedLineProfile = await verifyLineIdToken(env, idToken, settings);
   } catch (e) {
     tokenVerificationError = e;
-    if (!adminPasswordOk) verifiedLineProfile = null;
+  }
+  if (!verifiedLineProfile) {
+    try {
+      verifiedLineProfile = await verifyLineAccessToken(accessToken);
+    } catch (e) {
+      tokenVerificationError = e;
+      if (!adminPasswordOk) verifiedLineProfile = null;
+    }
   }
   const verifiedUserId = verifiedLineProfile?.sub || "";
   const adminUidSet = new Set([...splitCsv(env.ADMIN_UIDS), ...splitCsv(settings.admin_uids)]);
@@ -643,7 +666,7 @@ export default {
   async handleApiActions(request, env, ctx, corsHeaders) {
     try {
       const body = await request.json();
-      const { action, payload, userProfile, idToken } = body;
+      const { action, payload, userProfile, idToken, accessToken } = body;
       const claimedUserId = userProfile?.userId || payload?.userId || "GUEST";
       let result = { status: "success", data: null };
 
@@ -651,7 +674,7 @@ export default {
           throw new Error("【Cloudflare 設定遺漏】尚未綁定 KV 空間！");
       }
 
-      const access = await resolveAccess(env, claimedUserId, payload, idToken);
+      const access = await resolveAccess(env, claimedUserId, payload, idToken, accessToken);
       const userId = access.userId;
       const isSensitiveAdminAction = action?.startsWith("ADMIN_") || action === "UPLOAD_IMAGE" || action === "DEPLOY_RICH_MENU";
       const isTeacherAction = TEACHER_ALLOWED_ACTIONS.has(action);
