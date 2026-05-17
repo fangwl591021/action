@@ -85,9 +85,9 @@
                             <div v-if="canViewFinance" @click="switchView('dashboard')" class="nav-item" :class="{'nav-active': view === 'dashboard'}"><i class="fas fa-chart-pie w-6 text-center"></i>營運統計</div>
                             <div @click="switchView('calendar')" class="nav-item" :class="{'nav-active': view === 'calendar'}"><i class="far fa-calendar-alt w-6 text-center"></i>日曆檢視</div>
                             <div @click="switchView('members')" class="nav-item" :class="{'nav-active': view === 'members' || view === 'member_detail'}"><i class="fas fa-users w-6 text-center"></i>學員 CRM</div>
-                            <div @click="switchView('courses')" class="nav-item" :class="{'nav-active': view === 'courses' || view === 'course_edit' || view === 'course_enrollments'}"><i class="fas fa-book w-6 text-center"></i>課程管理</div>
+                            <div @click="switchView('courses')" class="nav-item" :class="{'nav-active': view === 'courses' || view === 'course_edit' || view === 'course_enrollments'}"><i class="fas fa-book w-6 text-center"></i>課程 / 預約服務</div>
                             <div @click="switchView('products')" class="nav-item" :class="{'nav-active': view === 'products'}"><i class="fas fa-store w-6 text-center"></i>商城商品</div>
-                            <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation' || view === 'sys_config'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約諮詢</div>
+                            <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation' || view === 'sys_config'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約設定</div>
                             <div v-if="canViewFinance" @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders' || view === 'order_edit'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
                             <div v-if="canViewFinance" @click="switchView('points_ledger')" class="nav-item" :class="{'nav-active': view === 'points_ledger'}"><i class="fas fa-coins w-6 text-center"></i>點數總表</div>
                             <div v-if="canViewFinance" @click="switchView('payment_logs')" class="nav-item" :class="{'nav-active': view === 'payment_logs'}"><i class="fas fa-credit-card w-6 text-center"></i>刷卡紀錄</div>
@@ -96,7 +96,7 @@
                     <div class="nav-group mt-2 border-t border-slate-50 pt-2">
                         <div @click="toggleGroup('groupB')" class="nav-group-header"><span>🛠️ 營運工具</span><i class="fas" :class="groups.groupB ? 'fa-chevron-down' : 'fa-chevron-right'"></i></div>
                         <div v-show="groups.groupB" class="animate-fade-in">
-                            <a href="./consult_admin.html" class="nav-item text-indigo-600"><i class="fas fa-calendar-check w-6 text-center"></i>預約排班系統</a>
+                            <a href="./consult_admin.html" class="nav-item text-indigo-600"><i class="fas fa-calendar-check w-6 text-center"></i>講師排班</a>
                             <div v-if="isAdminRole" @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
                             <div v-if="isAdminRole" @click="switchView('flex_rules')" class="nav-item" :class="{'nav-active': view === 'flex_rules'}"><i class="fas fa-robot w-6 text-center"></i>機器人與專區卡片</div>
                             <div v-if="isAdminRole" @click="switchView('settings')" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>系統設定</div>
@@ -176,7 +176,8 @@
 
                 <div v-if="view === 'courses'" class="animate-fade-in">
                     <div class="px-6 py-4 flex justify-between items-center bg-white border-b border-slate-100">
-                        <div class="flex gap-3">
+                        <div class="flex gap-3 items-center">
+                            <div class="text-sm font-bold text-slate-500 bg-slate-50 border border-slate-100 px-3 py-2 rounded">管理「賣什麼」：課程與預約服務內容</div>
                             <select v-model="courseTypeFilter" class="border border-slate-200 rounded px-4 py-2 text-sm font-black outline-none focus:border-[#06C755] bg-white">
                                 <option value="course">課程類</option>
                                 <option value="reservation">預約類</option>
@@ -242,6 +243,13 @@
                 </div>
 
                 <div v-if="view === 'consultation'" class="p-6 animate-fade-in space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-black text-slate-800 mb-1">預約設定</h3>
+                            <p class="text-sm font-bold text-slate-500">這裡是預約功能的總覽與入口；服務內容請到「課程 / 預約服務」管理，時段請到「講師排班」管理。</p>
+                        </div>
+                        <a href="./consult_admin.html" class="btn-green-main whitespace-nowrap"><i class="fas fa-calendar-check mr-2"></i>前往講師排班</a>
+                    </div>
                     <div class="flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div class="w-1/3 p-6 border-r border-slate-100 bg-slate-50/20">
                             <h3 class="section-title">核准師資入駐</h3>
@@ -1171,8 +1179,8 @@
 
                     const currentViewName = computed(() => {
                         const map = {
-                            dashboard: '營運統計中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程管理', products: '商城商品',
-                            consultation: '預約諮詢排班', orders: '訂單維護', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片'
+                            dashboard: '營運統計中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程 / 預約服務', products: '商城商品',
+                            consultation: '預約設定', orders: '訂單維護', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片'
                         };
                         return map[view.value] || '管理站';
                     });
