@@ -62,6 +62,7 @@ const TEACHER_ALLOWED_ACTIONS = new Set([
   "ADMIN_BATCH_TOGGLE_SLOTS",
   "TEACHER_DEDUCT_POINTS",
   "TEACHER_GET_MY_REPORT",
+  "TEACHER_COMPLETE_BOOKING",
 ]);
 
 const CRM_LOGIN_ALLOWED_ACTIONS = new Set([
@@ -85,6 +86,7 @@ const VERIFIED_USER_ACTIONS = new Set([
   "TEACHER_DELETE_COURSE",
   "TEACHER_DEDUCT_POINTS",
   "TEACHER_GET_MY_REPORT",
+  "TEACHER_COMPLETE_BOOKING",
   "UPDATE_MY_ORDER",
   "CANCEL_MY_ORDER",
 ]);
@@ -127,6 +129,30 @@ function courseBelongsToTeacher(course, teacherData, teacherUid) {
 
 function getOrderCourseKey(order) {
   return String(order?.courseId || order?.courseName || order?.name || "").trim();
+}
+
+async function deductTeacherCommissionForOrder(env, ctx, order, operatorUid, operatorName = "", updatePointsFn) {
+  if (!order || order.teacherCommissionDeductedAt) return order;
+  const teacherUidForCommission = String(order.teacher?.userId || order.teacherUid || "").trim();
+  if (!teacherUidForCommission) return order;
+  const teacherForCommission = await safeGetKV(env, `USER_${teacherUidForCommission}`, null);
+  const commissionRate = Math.max(0, Number(teacherForCommission?.config?.comm || 0));
+  const baseAmount = Number(order.originalAmount || order.service?.price || order.teacherCollectAmount || order.amount || 0) || 0;
+  const commissionPoints = Math.floor(baseAmount * commissionRate / 100);
+  if (commissionPoints <= 0) return order;
+  if (typeof updatePointsFn !== "function") return order;
+  await updatePointsFn(env, ctx, teacherUidForCommission, -commissionPoints, `諮詢完成抽成：${order.courseName || order.service?.name || order.courseId || order.orderId}`, {
+    source: "teacher_commission",
+    operatorUid,
+    operatorName,
+    targetName: teacherForCommission?.name || order.teacher?.name || "",
+  });
+  return {
+    ...order,
+    teacherCommissionDeductedAt: new Date().toISOString(),
+    teacherCommissionPoints: commissionPoints,
+    teacherCommissionRate: commissionRate,
+  };
 }
 
 function uniqueTeachers(users) {
@@ -836,16 +862,23 @@ export default {
           const reportOrders = await safeGetKV(env, "ORDERS", []);
           const teacherOrders = reportOrders.filter(order => {
             if (!order || order.type === "PRODUCT") return false;
+            if (String(order.teacher?.userId || order.teacherUid || "") === String(userId)) return true;
+            if (Array.isArray(order.teacher?.teacherUids) && order.teacher.teacherUids.map(String).includes(String(userId))) return true;
             const key = getOrderCourseKey(order);
             return key && courseKeySet.has(key);
           });
-          const grossAmount = teacherOrders.reduce((sum, order) => sum + (Number(String(order.amount || 0).replace(/[^0-9.-]/g, "")) || 0), 0);
+          const grossAmount = teacherOrders.reduce((sum, order) => sum + (Number(String(order.originalAmount || order.service?.price || order.teacherCollectAmount || order.amount || 0).replace(/[^0-9.-]/g, "")) || 0), 0);
           const paidAmount = teacherOrders
-            .filter(order => String(order.status || "").toUpperCase() === "PAID")
-            .reduce((sum, order) => sum + (Number(String(order.amount || 0).replace(/[^0-9.-]/g, "")) || 0), 0);
+            .filter(order => String(order.status || "").toUpperCase() === "PAID" || String(order.attendance || "").toUpperCase() === "ATTENDED")
+            .reduce((sum, order) => sum + (Number(String(order.teacherCollectAmount || order.amount || 0).replace(/[^0-9.-]/g, "")) || 0), 0);
           const pointLedgerForTeacher = await safeGetKV(env, "POINT_LEDGER", []);
           const teacherDeductions = (Array.isArray(pointLedgerForTeacher) ? pointLedgerForTeacher : [])
-            .filter(entry => entry && entry.source === "teacher_deduct" && String(entry.operatorUid || "") === String(userId));
+            .filter(entry => {
+              if (!entry) return false;
+              const source = String(entry.source || "");
+              if (["slot_open", "teacher_commission"].includes(source) && String(entry.uid || "") === String(userId)) return true;
+              return source === "teacher_deduct" && String(entry.operatorUid || "") === String(userId);
+            });
           const deductedPoints = teacherDeductions.reduce((sum, entry) => sum + (Number(entry.points || Math.abs(entry.amount || 0)) || 0), 0);
           result.data = {
             courses: teacherCoursesForReport.map(course => ({ id: course.id, name: getCourseTitle(course), type: course.type || "", price: course.price || 0 })),
@@ -853,6 +886,34 @@ export default {
             deductions: teacherDeductions,
             summary: { orderCount: teacherOrders.length, grossAmount, paidAmount, deductCount: teacherDeductions.length, deductedPoints }
           };
+          break;
+        }
+
+        case "TEACHER_COMPLETE_BOOKING": {
+          if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
+          const orderId = String(payload?.orderId || "").trim();
+          if (!orderId) throw new Error("缺少預約單號");
+          const bookingOrdersForComplete = await safeGetKV(env, "ORDERS", []);
+          const completeIdx = bookingOrdersForComplete.findIndex(order => order && String(order.orderId) === orderId);
+          if (completeIdx < 0) throw new Error("找不到預約資料");
+          const targetBooking = bookingOrdersForComplete[completeIdx];
+          const teacherUid = String(targetBooking.teacher?.userId || targetBooking.teacherUid || "").trim();
+          const teacherUids = Array.isArray(targetBooking.teacher?.teacherUids) ? targetBooking.teacher.teacherUids.map(String) : [];
+          if (!access.isAdmin && teacherUid !== String(userId) && !teacherUids.includes(String(userId))) {
+            throw new Error("只能核銷自己的預約");
+          }
+          if (String(targetBooking.status || "") === "CANCELLED") throw new Error("已取消的預約不能核銷");
+          let completedBooking = {
+            ...targetBooking,
+            attendance: "ATTENDED",
+            status: "COMPLETED",
+            completedAt: targetBooking.completedAt || new Date().toISOString(),
+          };
+          completedBooking = await deductTeacherCommissionForOrder(env, ctx, completedBooking, userId, access.userData?.name || userProfile?.displayName || "Teacher", this.updatePoints.bind(this));
+          bookingOrdersForComplete[completeIdx] = completedBooking;
+          await env.ACTION_DATA.put("ORDERS", JSON.stringify(bookingOrdersForComplete));
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true, order: completedBooking };
           break;
         }
 
@@ -1332,24 +1393,7 @@ export default {
               const nextOrder = { ...beforeOrder, ...payload };
               const attendanceChangedToAttended = String(beforeOrder.attendance || "") !== "ATTENDED" && String(nextOrder.attendance || "") === "ATTENDED";
               if (attendanceChangedToAttended && !nextOrder.teacherCommissionDeductedAt) {
-                const teacherUidForCommission = String(nextOrder.teacher?.userId || nextOrder.teacherUid || "").trim();
-                if (teacherUidForCommission) {
-                  const teacherForCommission = await safeGetKV(env, `USER_${teacherUidForCommission}`, null);
-                  const commissionRate = Math.max(0, Number(teacherForCommission?.config?.comm || 0));
-                  const baseAmount = Number(nextOrder.originalAmount || nextOrder.service?.price || nextOrder.amount || 0) || 0;
-                  const commissionPoints = Math.floor(baseAmount * commissionRate / 100);
-                  if (commissionPoints > 0) {
-                    await this.updatePoints(env, ctx, teacherUidForCommission, -commissionPoints, `諮詢完成抽成：${nextOrder.courseName || nextOrder.service?.name || nextOrder.courseId || nextOrder.orderId}`, {
-                      source: "teacher_commission",
-                      operatorUid: userId,
-                      operatorName: access.userData?.name || userProfile?.displayName || "Admin",
-                      targetName: teacherForCommission?.name || nextOrder.teacher?.name || "",
-                    });
-                    nextOrder.teacherCommissionDeductedAt = new Date().toISOString();
-                    nextOrder.teacherCommissionPoints = commissionPoints;
-                    nextOrder.teacherCommissionRate = commissionRate;
-                  }
-                }
+                Object.assign(nextOrder, await deductTeacherCommissionForOrder(env, ctx, nextOrder, userId, access.userData?.name || userProfile?.displayName || "Admin", this.updatePoints.bind(this)));
               }
               editOrders[oIdx] = nextOrder;
               await env.ACTION_DATA.put("ORDERS", JSON.stringify(editOrders));
