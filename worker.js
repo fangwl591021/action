@@ -74,6 +74,7 @@ const VERIFIED_USER_ACTIONS = new Set([
   "CHECK_USER",
   "GET_USER_POINTS",
   "GET_USER_ORDERS",
+  "CREATE_BOOKING",
   "REGISTER_USER",
   "DAILY_CHECKIN",
   "REGISTER",
@@ -733,11 +734,21 @@ export default {
           const bookingUsers = await listUserRecords(env);
           const bookingCourses = await safeGetKV(env, "COURSES", []);
           const bookingSlots = await safeGetKV(env, "SLOTS", []);
+          const bookingOrders = await safeGetKV(env, "ORDERS", []);
+          const occupiedBookingLocations = (Array.isArray(bookingOrders) ? bookingOrders : [])
+            .filter(order => order && order.type === "BOOKING" && !["CANCELLED", "REFUNDED"].includes(String(order.status || "").toUpperCase()))
+            .map(order => ({
+              date: order.schedule?.date || order.bookingDate || "",
+              time: order.schedule?.time || order.bookingTime || "",
+              location: order.location || order.service?.location || "",
+            }))
+            .filter(item => item.date && item.time && item.location);
           result.data = {
             settings: { liff_id: access.settings?.liff_id || "" },
             teachers: uniqueTeachers(bookingUsers),
             courses: bookingCourses.filter(c => c && c.isPublished !== false),
             slots: Array.isArray(bookingSlots) ? bookingSlots : [],
+            occupiedLocations: occupiedBookingLocations,
           };
           break;
           
@@ -900,6 +911,108 @@ export default {
           await this.updatePoints(env, ctx, userId, pts, "每日登入紅包");
           result.data = { earned: pts };
           break;
+
+        case "CREATE_BOOKING": {
+          const service = payload?.service || {};
+          const teacher = payload?.teacher || {};
+          const schedule = payload?.schedule || {};
+          const customer = payload?.customer || {};
+          const serviceId = String(service.id || service.courseId || "").trim();
+          const teacherUidsForBooking = Array.isArray(teacher.teacherUids) && teacher.teacherUids.length
+            ? teacher.teacherUids.map(String)
+            : [String(teacher.userId || "").trim()].filter(Boolean);
+          const bookingDate = String(schedule.date || "").trim();
+          const bookingTime = String(schedule.time || "").trim();
+          if (!serviceId) throw new Error("缺少預約項目");
+          if (!teacherUidsForBooking.length) throw new Error("缺少導師資料");
+          if (!bookingDate || !bookingTime) throw new Error("缺少預約時段");
+
+          let bookingSlotList = await safeGetKV(env, "SLOTS", []);
+          const slotIndex = bookingSlotList.findIndex(slot =>
+            slot &&
+            teacherUidsForBooking.includes(String(slot.teacherUid || "")) &&
+            slot.date === bookingDate &&
+            slot.time === bookingTime &&
+            slot.status === "OPEN"
+          );
+          if (slotIndex < 0) throw new Error("此時段已不可預約，請重新選擇");
+
+          let bookingOrderList = await safeGetKV(env, "ORDERS", []);
+          const location = String(service.location || "").trim();
+          if (location) {
+            const locationBooked = bookingOrderList.some(order =>
+              order &&
+              order.type === "BOOKING" &&
+              !["CANCELLED", "REFUNDED"].includes(String(order.status || "").toUpperCase()) &&
+              (order.schedule?.date || order.bookingDate) === bookingDate &&
+              (order.schedule?.time || order.bookingTime) === bookingTime &&
+              String(order.location || order.service?.location || "").trim() === location
+            );
+            if (locationBooked) throw new Error("此場地同時段已被預約，請選擇其他時段");
+          }
+
+          const bookingCourseList = await safeGetKV(env, "COURSES", []);
+          const fullService = bookingCourseList.find(course => course && (String(course.id) === serviceId || String(course.name) === serviceId)) || service;
+          const servicePrice = Number(String(fullService.price || service.price || 0).replace(/[^0-9.-]/g, "")) || 0;
+          const maxBookingPoints = Math.min(servicePrice, Math.max(0, Number(fullService.maxPoints || service.maxPoints || 0)));
+          const requestedBookingPoints = Math.max(0, Number(payload.pointsUsed || 0));
+          if (requestedBookingPoints > maxBookingPoints) throw new Error(`此預約最多可折抵 ${maxBookingPoints} 點`);
+          if (requestedBookingPoints > 0) {
+            const bookingPointData = await safeGetKV(env, `POINTS_${userId}`, { balance: 0, logs: [] });
+            if ((Number(bookingPointData.balance) || 0) < requestedBookingPoints) throw new Error("點數不足，無法完成折抵");
+            await this.updatePoints(env, ctx, userId, -requestedBookingPoints, `預約服務折抵：${getCourseTitle(fullService) || serviceId}`);
+          }
+
+          const payableAmount = Math.max(0, servicePrice - requestedBookingPoints);
+          const orderId = `BOOK${Date.now()}`;
+          const bookingUser = await safeGetKV(env, `USER_${userId}`, {});
+          const bookingOrder = {
+            orderId,
+            type: "BOOKING",
+            userId,
+            name: customer.name || bookingUser.name || userProfile?.displayName || "未填寫",
+            phone: customer.phone || bookingUser.phone || "",
+            courseId: serviceId,
+            courseName: getCourseTitle(fullService) || service.name || serviceId,
+            service: {
+              id: serviceId,
+              name: getCourseTitle(fullService) || service.name || serviceId,
+              location,
+              price: servicePrice,
+            },
+            teacher: {
+              userId: teacher.userId || teacherUidsForBooking[0],
+              teacherUids: teacherUidsForBooking,
+              name: teacher.name || fullService.instructor || "",
+            },
+            schedule: { date: bookingDate, time: bookingTime },
+            bookingDate,
+            bookingTime,
+            location,
+            amount: payableAmount,
+            originalAmount: servicePrice,
+            pointsUsed: requestedBookingPoints,
+            note: customer.note || "",
+            status: payableAmount <= 0 ? "PAID" : "PENDING",
+            createdAt: new Date().toLocaleString(),
+          };
+
+          bookingOrderList.unshift(bookingOrder);
+          bookingSlotList[slotIndex] = { ...bookingSlotList[slotIndex], status: "BOOKED", orderId, userId };
+          await env.ACTION_DATA.put("ORDERS", JSON.stringify(bookingOrderList));
+          await env.ACTION_DATA.put("SLOTS", JSON.stringify(bookingSlotList));
+          if (env.GAS_URL) {
+            ctx.waitUntil(fetch(env.GAS_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "SYNC_ORDER", payload: bookingOrder }),
+              redirect: "follow",
+            }).catch(e => console.error("GAS Sync Error", e)));
+          }
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true, orderId, amount: payableAmount, pointsUsed: requestedBookingPoints };
+          break;
+        }
 
         case "REGISTER": 
           let currentOrders = await safeGetKV(env, "ORDERS", []);

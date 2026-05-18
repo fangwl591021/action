@@ -601,6 +601,9 @@
                                     <div class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">專屬導師</span><span class="font-bold text-slate-800 text-right">{{ selectedTeacher?.name }}</span></div>
                                     <div class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">預約時間</span><span class="font-bold text-[#06C755] text-right bg-green-50 px-2 py-0.5 rounded">{{ selectedSlot?.date }} {{ selectedSlot?.time }}</span></div>
                                     <div v-if="selectedService?.location" class="flex justify-between items-start border-t border-slate-50 pt-2"><span class="text-slate-400 font-bold shrink-0">場地安排</span><span class="font-bold text-slate-600 text-right">{{ selectedService.location }}</span></div>
+                                    <div class="flex justify-between items-start border-t border-slate-50 pt-3"><span class="text-slate-400 font-bold shrink-0">服務費</span><span class="font-black text-slate-800">$ {{ formatPrice(bookingServicePrice) }}</span></div>
+                                    <div v-if="bookingPointsToUse > 0" class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">點數折抵</span><span class="font-black text-red-500">- {{ formatPrice(bookingPointsToUse) }} 點</span></div>
+                                    <div class="flex justify-between items-start border-t border-slate-100 pt-3"><span class="text-slate-800 font-black shrink-0">實際應付</span><span class="font-black text-[#06C755] text-lg">$ {{ formatPrice(bookingPayableAmount) }}</span></div>
                                 </div>
                             </div>
                             <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
@@ -625,7 +628,7 @@
 
                 <!-- 底部結帳/導航列 (僅在 Step 4 顯示) -->
                 <div v-if="bookingStep === 4 && !bookingSuccess" class="sticky-footer flex items-center justify-between z-[60]">
-                    <div class="flex flex-col"><span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">諮詢費用</span><span class="text-[20px] font-black text-[#111]">${{ formatPrice(bookingTotalPrice) }}</span></div>
+                    <div class="flex flex-col"><span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">諮詢費用</span><span class="text-[20px] font-black text-[#111]">${{ formatPrice(bookingPayableAmount) }}</span><span v-if="bookingPointsToUse > 0" class="text-[11px] font-bold text-red-500">已折抵 {{ formatPrice(bookingPointsToUse) }} 點</span></div>
                     <button @click="submitConsultBooking" :disabled="!isBookingFormValid || isLoading" class="bg-[#06C755] text-white px-8 py-3.5 rounded-xl font-black text-[16px] disabled:opacity-50 disabled:bg-slate-300 transition shadow-lg shadow-green-100 w-[180px] flex justify-center items-center active:scale-95"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ isLoading ? '處理中' : '確認預約' }}</button>
                 </div>
 
@@ -777,6 +780,17 @@
                         return Array.from(teachersByName.values());
                     };
                     const teacherUidSet = (teacher) => new Set((teacher?.teacherUids && teacher.teacherUids.length ? teacher.teacherUids : [teacher?.userId]).filter(Boolean));
+                    const courseKey = (course) => String(course?.id || course?.courseId || course?.name || course?.title || '');
+                    const courseBelongsToTeacher = (course, teacher) => {
+                        if (!course || !teacher) return false;
+                        const selectedTeacherUids = teacherUidSet(teacher);
+                        const courseTeacherUid = String(course.teacherUid || course.teacher_user_id || '').trim();
+                        if (courseTeacherUid && selectedTeacherUids.has(courseTeacherUid)) return true;
+                        if (Array.isArray(course.teacherUids) && course.teacherUids.map(String).some(uid => selectedTeacherUids.has(uid))) return true;
+                        const teacherName = normalizeTeacherName(teacher.name || teacher.displayName || '');
+                        const courseTeacherName = normalizeTeacherName(course.instructor || course.teacher || course.teacherName || '');
+                        return !!teacherName && !!courseTeacherName && teacherName === courseTeacherName;
+                    };
                     const getCourseName = (id) => { 
                         const c = courses.value.find(x => x && (x.id === id || x.name === id)); 
                         return c ? c.name : id; 
@@ -1029,9 +1043,8 @@
                             if (c.publishStartDate && nowTs < new Date(String(c.publishStartDate).replace(/-/g, '/')).getTime()) return false;
                             if (c.publishEndDate && nowTs > new Date(String(c.publishEndDate).replace(/-/g, '/')).getTime()) return false;
 
-                            const matchInstructor = c.instructor === selectedTeacher.value.name;
                             const isConsultType = (c.type || '').includes('預約') || (c.type || '').includes('諮詢') || (c.name || '').includes('諮詢') || (c.name || '').includes('預約');
-                            return matchInstructor || (isConsultType && !c.instructor);
+                            return isConsultType && courseBelongsToTeacher(c, selectedTeacher.value);
                         });
                     });
 
@@ -1103,10 +1116,19 @@
                         }).sort((a, b) => a.time.localeCompare(b.time));
                     });
 
-                    const bookingTotalPrice = computed(() => selectedService.value ? selectedService.value.price : 0);
+                    const bookingServicePrice = computed(() => selectedService.value ? (Number(selectedService.value.price) || 0) : 0);
+                    const bookingPointsToUse = computed(() => {
+                        if (!selectedService.value || !userPoints.value) return 0;
+                        const price = bookingServicePrice.value;
+                        const bal = Number(userPoints.value.balance) || 0;
+                        const maxPoints = Math.min(price, Math.max(0, Number(selectedService.value.maxPoints || 0)));
+                        return Math.min(bal, Math.floor(maxPoints));
+                    });
+                    const bookingPayableAmount = computed(() => Math.max(0, bookingServicePrice.value - bookingPointsToUse.value));
+                    const bookingTotalPrice = bookingServicePrice;
                     const isBookingFormValid = computed(() => bookingForm.value.name.trim() !== '' && bookingForm.value.phone.trim() !== '' && selectedSlot.value !== null);
 
-                    const chooseTeacher = (t) => { selectedTeacher.value = t; bookingStep.value = 2; selectedService.value = null; window.scrollTo(0,0); };
+                    const chooseTeacher = (t) => { selectedTeacher.value = t; bookingStep.value = 2; selectedService.value = null; selectDate.value = ''; tempSlot.value = null; selectedSlot.value = null; window.scrollTo(0,0); };
                     const chooseService = (svc) => { selectedService.value = svc; bookingStep.value = 3; tempSlot.value = null; selectedSlot.value = null; window.scrollTo(0,0); };
                     const chooseSlot = (slot) => {
                         if (slot.status !== 'OPEN') return;
@@ -1124,7 +1146,7 @@
                             service: { ...selectedService.value },
                             teacher: { userId: selectedTeacher.value.userId, teacherUids: selectedTeacher.value.teacherUids || [selectedTeacher.value.userId], name: selectedTeacher.value.name },
                             schedule: { ...selectedSlot.value },
-                            pointsUsed: pointsToUse.value
+                            pointsUsed: bookingPointsToUse.value
                         };
 
                         try {
@@ -1134,6 +1156,8 @@
                                 window.scrollTo(0,0); 
                                 const oData = await callApi('GET_USER_ORDERS', {}, true);
                                 if (oData) myOrders.value = oData;
+                                const pData = await callApi('GET_USER_POINTS', {}, true);
+                                if (pData) userPoints.value = pData;
                             } 
                             else { throw new Error('預約處理失敗'); }
                         } catch (e) {
@@ -1582,7 +1606,7 @@
                             });
                         }),
                         shareUrl, shareToFriend, copyShareUrl,
-                        bookingStep, isLoadingBooking, bookingSuccess, bookingTeachers, teacherServices, availableDates, selectDate, selectedTeacher, selectedService, tempSlot, selectedSlot, bookingForm, availableSlotsForDate, bookingTotalPrice, isBookingFormValid, bookingStepTitle,
+                            bookingStep, isLoadingBooking, bookingSuccess, bookingTeachers, teacherServices, availableDates, selectDate, selectedTeacher, selectedService, tempSlot, selectedSlot, bookingForm, availableSlotsForDate, bookingTotalPrice, bookingServicePrice, bookingPointsToUse, bookingPayableAmount, isBookingFormValid, bookingStepTitle,
                         openBookingFlow, chooseTeacher, chooseService, chooseSlot, submitConsultBooking, goBookingBack,
                         goToBooking: openBookingFlow
                     };
