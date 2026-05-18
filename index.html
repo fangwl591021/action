@@ -781,6 +781,12 @@
                     };
                     const teacherUidSet = (teacher) => new Set((teacher?.teacherUids && teacher.teacherUids.length ? teacher.teacherUids : [teacher?.userId]).filter(Boolean));
                     const courseKey = (course) => String(course?.id || course?.courseId || course?.name || course?.title || '');
+                    const slotMatchesService = (slot, service) => {
+                        if (!slot || !service) return true;
+                        const slotCourseId = String(slot.courseId || '').trim();
+                        if (!slotCourseId) return true;
+                        return slotCourseId === courseKey(service) || slotCourseId === String(service.name || service.title || '').trim();
+                    };
                     const courseBelongsToTeacher = (course, teacher) => {
                         if (!course || !teacher) return false;
                         const selectedTeacherUids = teacherUidSet(teacher);
@@ -1052,7 +1058,7 @@
                         if (!selectedTeacher.value) return [];
                         const currentLoc = selectedService.value?.location;
                         const selectedTeacherUids = teacherUidSet(selectedTeacher.value);
-                        const openSlots = slots.value.filter(s => s && selectedTeacherUids.has(s.teacherUid) && s.status === 'OPEN');
+                        const openSlots = slots.value.filter(s => s && selectedTeacherUids.has(s.teacherUid) && s.status === 'OPEN' && slotMatchesService(s, selectedService.value));
                         const uniqueDateStrs = [...new Set(openSlots.map(s => s.date))].sort();
                         
                         const today = new Date();
@@ -1104,7 +1110,7 @@
                         if (!selectedTeacher.value || !selectDate.value) return [];
                         const currentLoc = selectedService.value?.location;
                         const selectedTeacherUids = teacherUidSet(selectedTeacher.value);
-                        const teacherSlots = slots.value.filter(s => s && selectedTeacherUids.has(s.teacherUid) && s.date === selectDate.value);
+                        const teacherSlots = slots.value.filter(s => s && selectedTeacherUids.has(s.teacherUid) && s.date === selectDate.value && slotMatchesService(s, selectedService.value));
 
                         return teacherSlots.map(s => {
                             let status = s.status;

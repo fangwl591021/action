@@ -936,6 +936,11 @@ export default {
             slot.status === "OPEN"
           );
           if (slotIndex < 0) throw new Error("此時段已不可預約，請重新選擇");
+          const selectedBookingSlot = bookingSlotList[slotIndex];
+          const slotCourseId = String(selectedBookingSlot.courseId || "").trim();
+          if (slotCourseId && slotCourseId !== serviceId && slotCourseId !== String(service.name || "").trim()) {
+            throw new Error("此時段不屬於所選預約服務，請重新選擇");
+          }
 
           let bookingOrderList = await safeGetKV(env, "ORDERS", []);
           const location = String(service.location || "").trim();
@@ -1319,7 +1324,30 @@ export default {
           let editOrders = await safeGetKV(env, "ORDERS", []);
           const oIdx = editOrders.findIndex(o => o.orderId === payload.orderId);
           if (oIdx > -1) {
-              editOrders[oIdx] = { ...editOrders[oIdx], ...payload };
+              const beforeOrder = editOrders[oIdx];
+              const nextOrder = { ...beforeOrder, ...payload };
+              const attendanceChangedToAttended = String(beforeOrder.attendance || "") !== "ATTENDED" && String(nextOrder.attendance || "") === "ATTENDED";
+              if (attendanceChangedToAttended && !nextOrder.teacherCommissionDeductedAt) {
+                const teacherUidForCommission = String(nextOrder.teacher?.userId || nextOrder.teacherUid || "").trim();
+                if (teacherUidForCommission) {
+                  const teacherForCommission = await safeGetKV(env, `USER_${teacherUidForCommission}`, null);
+                  const commissionRate = Math.max(0, Number(teacherForCommission?.config?.comm || 0));
+                  const baseAmount = Number(nextOrder.originalAmount || nextOrder.service?.price || nextOrder.amount || 0) || 0;
+                  const commissionPoints = Math.floor(baseAmount * commissionRate / 100);
+                  if (commissionPoints > 0) {
+                    await this.updatePoints(env, ctx, teacherUidForCommission, -commissionPoints, `諮詢完成抽成：${nextOrder.courseName || nextOrder.service?.name || nextOrder.courseId || nextOrder.orderId}`, {
+                      source: "teacher_commission",
+                      operatorUid: userId,
+                      operatorName: access.userData?.name || userProfile?.displayName || "Admin",
+                      targetName: teacherForCommission?.name || nextOrder.teacher?.name || "",
+                    });
+                    nextOrder.teacherCommissionDeductedAt = new Date().toISOString();
+                    nextOrder.teacherCommissionPoints = commissionPoints;
+                    nextOrder.teacherCommissionRate = commissionRate;
+                  }
+                }
+              }
+              editOrders[oIdx] = nextOrder;
               await env.ACTION_DATA.put("ORDERS", JSON.stringify(editOrders));
           }
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
@@ -1431,11 +1459,37 @@ export default {
                   throw new Error("Teacher scope mismatch");
               }
           }
-          draftClose.forEach(c => {
+          const openSlotsToCreate = Array.isArray(draftOpen) ? draftOpen : [];
+          const closeSlotsToRemove = Array.isArray(draftClose) ? draftClose : [];
+          const teacherForSlotCost = await safeGetKV(env, `USER_${tUid}`, null);
+          const slotRent = Math.max(0, Number(teacherForSlotCost?.config?.rent || 0));
+          const slotOpenCost = openSlotsToCreate.length * slotRent;
+          if (slotOpenCost > 0) {
+            const teacherPointData = await safeGetKV(env, `POINTS_${tUid}`, { balance: 0, logs: [] });
+            if ((Number(teacherPointData.balance) || 0) < slotOpenCost) throw new Error(`講師點數不足，開通 ${openSlotsToCreate.length} 個時段需要 ${slotOpenCost} 點`);
+            await this.updatePoints(env, ctx, tUid, -slotOpenCost, `開通預約時段：${payload.courseName || payload.courseId || "預約服務"} x ${openSlotsToCreate.length}`, {
+              source: "slot_open",
+              operatorUid: userId,
+              operatorName: access.userData?.name || userProfile?.displayName || "",
+              targetName: teacherForSlotCost?.name || "",
+            });
+          }
+          closeSlotsToRemove.forEach(c => {
               currentSlots = currentSlots.filter(s => !(s.teacherUid === c.uid && s.date === c.date && s.time === c.time));
           });
-          draftOpen.forEach(o => {
-              currentSlots.push({ teacherUid: o.uid, date: o.date, time: o.time, status: 'OPEN' });
+          openSlotsToCreate.forEach(o => {
+              currentSlots = currentSlots.filter(s => !(s.teacherUid === o.uid && s.date === o.date && s.time === o.time));
+              currentSlots.push({
+                teacherUid: o.uid,
+                date: o.date,
+                time: o.time,
+                status: 'OPEN',
+                courseId: o.courseId || payload.courseId || "",
+                courseName: o.courseName || payload.courseName || "",
+                coursePrice: Number(o.coursePrice || payload.coursePrice || 0),
+                openCost: slotRent,
+                openedAt: new Date().toISOString(),
+              });
           });
           await env.ACTION_DATA.put("SLOTS", JSON.stringify(currentSlots));
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));

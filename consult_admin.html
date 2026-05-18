@@ -196,6 +196,23 @@
                                     尚未綁定預約服務，請由 Admin 指派。
                                 </span>
                             </div>
+
+                            <div class="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
+                                <div>
+                                    <label class="text-[12px] font-black text-slate-500 mb-1.5 block">本次開通時段對應服務</label>
+                                    <select v-model="selectedScheduleCourseId" class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-black text-slate-700 bg-white outline-none focus:border-[#06C755]">
+                                        <option value="">-- 請先選擇要開通的預約服務 --</option>
+                                        <option v-for="course in selectedTeacherCourses" :key="courseKey(course)" :value="courseKey(course)">
+                                            {{ course.name || course.title || '未命名預約服務' }} / ${{ course.price || 0 }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="bg-slate-50 border border-slate-100 rounded-lg px-4 py-2 text-xs font-bold text-slate-500">
+                                    開通扣點：{{ activeTeacher.config?.rent || 0 }}P / 格
+                                    <span class="mx-1 text-slate-300">|</span>
+                                    完成抽成：{{ activeTeacher.config?.comm || 0 }}%
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- 排班網格區塊 (獨立提供 2D 滑動) -->
@@ -259,6 +276,7 @@
                     const slots = ref([]);
                     const activeTeacher = ref(null);
                     const bindingCourseIds = ref([]);
+                    const selectedScheduleCourseId = ref('');
                     const draftOpen = ref([]);
                     const draftClose = ref([]);
                     const dates = ref([]);
@@ -447,9 +465,13 @@
                     };
                     const reservationCourses = computed(() => courses.value.filter(isReservationCourse));
                     const selectedTeacherCourses = computed(() => reservationCourses.value.filter(course => isTeacherCourse(course, activeTeacher.value)));
+                    const selectedScheduleCourse = computed(() => selectedTeacherCourses.value.find(course => courseKey(course) === selectedScheduleCourseId.value) || null);
 
                     const syncTeacherBindingIds = () => {
                         bindingCourseIds.value = selectedTeacherCourses.value.map(courseKey);
+                        if (!selectedTeacherCourses.value.some(course => courseKey(course) === selectedScheduleCourseId.value)) {
+                            selectedScheduleCourseId.value = selectedTeacherCourses.value[0] ? courseKey(selectedTeacherCourses.value[0]) : '';
+                        }
                     };
 
                     const selectTeacher = (t) => {
@@ -526,11 +548,26 @@
                         const uid = activeTeacher.value.userId;
                         const status = getStatus(date, time);
                         if (status === 'BOOKED') { alert('此時段已被預約，無法更改！'); return; }
+                        if (status !== 'OPEN' && !selectedScheduleCourse.value) {
+                            alert('請先選擇本次要開通的預約服務。');
+                            return;
+                        }
                         const oIdx = draftOpen.value.findIndex(s => s.date === date && s.time === time);
                         const cIdx = draftClose.value.findIndex(s => s.date === date && s.time === time);
                         if (oIdx > -1) { draftOpen.value.splice(oIdx, 1); return; }
                         if (cIdx > -1) { draftClose.value.splice(cIdx, 1); return; }
-                        if (status === 'OPEN') draftClose.value.push({ uid, date, time }); else draftOpen.value.push({ uid, date, time });
+                        if (status === 'OPEN') {
+                            draftClose.value.push({ uid, date, time });
+                        } else {
+                            draftOpen.value.push({
+                                uid,
+                                date,
+                                time,
+                                courseId: courseKey(selectedScheduleCourse.value),
+                                courseName: selectedScheduleCourse.value.name || selectedScheduleCourse.value.title || '',
+                                coursePrice: Number(selectedScheduleCourse.value.price || 0)
+                            });
+                        }
                     };
 
                     const submitDrafts = async () => {
@@ -539,7 +576,7 @@
                         if (!confirm(`確定送出排班異動？\n新增開放：${draftOpen.value.length} 個時段\n關閉時段：${draftClose.value.length} 個時段\n將從紅包扣除：${cost} 點租金`)) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_BATCH_TOGGLE_SLOTS', { teacherUid: activeTeacher.value.userId, draftOpen: draftOpen.value, draftClose: draftClose.value });
+                            const res = await callApi('ADMIN_BATCH_TOGGLE_SLOTS', { teacherUid: activeTeacher.value.userId, courseId: courseKey(selectedScheduleCourse.value), courseName: selectedScheduleCourse.value?.name || selectedScheduleCourse.value?.title || '', coursePrice: Number(selectedScheduleCourse.value?.price || 0), draftOpen: draftOpen.value, draftClose: draftClose.value });
                             if (res) { alert('✅ 排班結算完成！'); draftOpen.value = []; draftClose.value = []; await fetchData(true); }
                         } catch (e) { console.error(e); } finally { isLoading.value = false; }
                     };
@@ -568,7 +605,7 @@
 
                     return {
                         isAuthenticated, loginForm, isLoading, liffProfile, isAdminUser,
-                        teachers, courses, slots, activeTeacher, bindingCourseIds, reservationCourses, selectedTeacherCourses, draftOpen, draftClose, dates, timeSlots,
+                        teachers, courses, slots, activeTeacher, bindingCourseIds, selectedScheduleCourseId, selectedScheduleCourse, reservationCourses, selectedTeacherCourses, draftOpen, draftClose, dates, timeSlots,
                         lineLogin, handleLogin, logout, fetchData, selectTeacher,
                         courseKey, saveTeacherCourseBindings,
                         getSlotStatus: getStatus, isDraftOpen, isDraftClose, getSlotStyle, handleToggleSlot,
