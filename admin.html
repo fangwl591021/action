@@ -89,6 +89,7 @@
                             <div @click="switchView('products')" class="nav-item" :class="{'nav-active': view === 'products'}"><i class="fas fa-store w-6 text-center"></i>商城商品</div>
                             <div @click="switchView('consultation')" class="nav-item" :class="{'nav-active': view === 'consultation' || view === 'sys_config'}"><i class="fas fa-calendar-check w-6 text-center"></i>預約設定</div>
                             <div v-if="canViewFinance" @click="switchView('orders')" class="nav-item" :class="{'nav-active': view === 'orders' || view === 'order_edit'}"><i class="fas fa-receipt w-6 text-center"></i>訂單維護</div>
+                            <div v-if="canViewFinance" @click="switchView('booking_report')" class="nav-item" :class="{'nav-active': view === 'booking_report'}"><i class="fas fa-clipboard-list w-6 text-center"></i>預約報表</div>
                             <div v-if="canViewFinance" @click="switchView('points_ledger')" class="nav-item" :class="{'nav-active': view === 'points_ledger'}"><i class="fas fa-coins w-6 text-center"></i>點數總表</div>
                             <div v-if="canViewFinance" @click="switchView('payment_logs')" class="nav-item" :class="{'nav-active': view === 'payment_logs'}"><i class="fas fa-credit-card w-6 text-center"></i>刷卡紀錄</div>
                         </div>
@@ -117,6 +118,7 @@
                         </select>
                         <button v-if="canViewFinance" @click="downloadSalesReport" class="btn-outline text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"><i class="fas fa-file-csv mr-2"></i>業績報表下載</button>
                         <button v-if="canViewFinance" @click="downloadCourseReport" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i class="fas fa-list-alt mr-2"></i>課程報表下載</button>
+                        <button v-if="canViewFinance && view === 'booking_report'" @click="downloadBookingReport" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-calendar-check mr-2"></i>預約報表下載</button>
                         <button v-if="isAdminRole" @click="forceSyncFromCloud" class="btn-outline text-red-600 border-red-200 bg-red-50 hover:bg-red-100"><i class="fas fa-download mr-2"></i>強制同步</button>
                         <button @click="fetchData(false)" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
                         <button v-if="isAdminRole" @click="triggerBackup" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-hdd mr-2"></i>資料備份</button>
@@ -299,6 +301,53 @@
                                     <td class="text-right"><button @click="openOrderEditModal(o)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">維護</button></td>
                                 </tr>
                                 <tr v-if="!filteredOrders.length"><td colspan="6" class="text-center py-20 text-slate-300 font-bold">找不到符合條件的訂單</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-if="canViewFinance && view === 'booking_report'" class="animate-fade-in">
+                    <div class="p-6 bg-white border-b border-slate-100">
+                        <div class="grid grid-cols-5 gap-4 mb-5">
+                            <div class="rounded-xl border border-slate-200 p-4"><div class="text-xs font-bold text-slate-400 mb-2">預約筆數</div><div class="text-2xl font-black text-slate-800">{{ bookingReportSummary.count }}</div></div>
+                            <div class="rounded-xl border border-green-100 bg-green-50/50 p-4"><div class="text-xs font-bold text-green-700 mb-2">講師應收</div><div class="text-2xl font-black text-[#06C755]">$ {{ formatPrice(bookingReportSummary.teacherCollect) }}</div></div>
+                            <div class="rounded-xl border border-blue-100 bg-blue-50/50 p-4"><div class="text-xs font-bold text-blue-700 mb-2">系統代收</div><div class="text-2xl font-black text-blue-600">$ {{ formatPrice(bookingReportSummary.platformCollect) }}</div></div>
+                            <div class="rounded-xl border border-red-100 bg-red-50/50 p-4"><div class="text-xs font-bold text-red-700 mb-2">點數折抵</div><div class="text-2xl font-black text-red-600">{{ formatPrice(bookingReportSummary.pointsUsed) }}P</div></div>
+                            <div class="rounded-xl border border-amber-100 bg-amber-50/50 p-4"><div class="text-xs font-bold text-amber-700 mb-2">講師扣點</div><div class="text-2xl font-black text-amber-700">{{ formatPrice(bookingReportSummary.teacherCharges) }}P</div></div>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex gap-3 flex-1">
+                                <div class="relative w-full max-w-md">
+                                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                    <input type="text" v-model="bookingReportSearch" placeholder="搜尋單號、講師、學員、服務..." class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]">
+                                </div>
+                                <select v-model="bookingReportStatus" class="border border-slate-200 rounded px-4 py-2 text-sm font-black outline-none focus:border-[#06C755] bg-white">
+                                    <option value="ALL">全部狀態</option>
+                                    <option value="BOOKED">已預約</option>
+                                    <option value="COMPLETED">已完成</option>
+                                    <option value="CANCELLED">已取消</option>
+                                </select>
+                            </div>
+                            <button @click="downloadBookingReport" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-file-csv mr-2"></i>匯出 CSV</button>
+                        </div>
+                    </div>
+                    <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
+                        <table class="admin-table">
+                            <thead><tr><th>預約單號 / 建立時間</th><th>預約時間</th><th>講師 / 學員</th><th>服務</th><th class="text-right">標價</th><th class="text-right">折抵</th><th class="text-right">講師應收</th><th class="text-right">開通扣點</th><th class="text-right">完成抽成</th><th>狀態</th></tr></thead>
+                            <tbody>
+                                <tr v-for="row in filteredBookingReportRows" :key="row.orderId">
+                                    <td><div class="font-mono font-bold text-[13px] text-slate-500">{{ row.orderId }}</div><div class="text-[11px] text-slate-400 mt-0.5">{{ row.createdAt || '-' }}</div></td>
+                                    <td><div class="font-bold text-slate-800">{{ row.bookingDate || '-' }}</div><div class="text-xs text-slate-400 font-mono">{{ row.bookingTime || '-' }}</div></td>
+                                    <td><div class="font-bold text-slate-800">{{ row.teacherName || '-' }}</div><div class="text-xs text-slate-500 mt-1">{{ row.studentName || '-' }} / {{ row.phone || '-' }}</div></td>
+                                    <td class="font-bold text-slate-700 max-w-[260px]">{{ row.serviceName || '-' }}</td>
+                                    <td class="text-right font-black text-slate-700">$ {{ formatPrice(row.servicePrice) }}</td>
+                                    <td class="text-right font-black text-red-600">{{ formatPrice(row.pointsUsed) }}P</td>
+                                    <td class="text-right font-black text-[#06C755]">$ {{ formatPrice(row.teacherCollectAmount) }}</td>
+                                    <td class="text-right font-black text-amber-700">{{ formatPrice(row.openCost) }}P</td>
+                                    <td class="text-right font-black text-red-600">{{ formatPrice(row.commissionPoints) }}P</td>
+                                    <td><span :class="adminOrderStatusClass(row.raw)" class="status-badge">{{ adminOrderStatusText(row.raw) }}</span></td>
+                                </tr>
+                                <tr v-if="!filteredBookingReportRows.length"><td colspan="10" class="text-center py-20 text-slate-300 font-bold">目前沒有符合條件的預約資料</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -899,6 +948,8 @@
                     const productSearchQuery = ref('');
                     const orderSearch = ref('');
                     const pointsLedgerSearch = ref('');
+                    const bookingReportSearch = ref('');
+                    const bookingReportStatus = ref('ALL');
                     const approveForm = ref({ uid: '', rent: 0, comm: 0 });
                     const wpImportForm = ref({ siteUrl: 'https://aiwe.cc', username: '', appPassword: '', postIds: '7546', mode: 'append' });
                     
@@ -927,7 +978,7 @@
                     const isAdminRole = computed(() => !!currentAccess.value.isAdmin);
                     const isOperatorRole = computed(() => !isAdminRole.value && !!currentAccess.value.canCrmLogin);
                     const canViewFinance = computed(() => isAdminRole.value);
-                    const adminOnlyViews = new Set(['dashboard', 'orders', 'points_ledger', 'payment_logs', 'richmenu', 'settings', 'flex_rules']);
+                    const adminOnlyViews = new Set(['dashboard', 'orders', 'booking_report', 'points_ledger', 'payment_logs', 'richmenu', 'settings', 'flex_rules']);
                     const operatorDefaultView = 'members';
                     const goTeacherScheduling = () => {
                         localStorage.removeItem('act_crm_logged_in');
@@ -1180,7 +1231,7 @@
                     const currentViewName = computed(() => {
                         const map = {
                             dashboard: '營運統計中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程 / 預約服務', products: '商城商品',
-                            consultation: '預約設定', orders: '訂單維護', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片'
+                            consultation: '預約設定', orders: '訂單維護', booking_report: '預約報表', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片'
                         };
                         return map[view.value] || '管理站';
                     });
@@ -1303,6 +1354,80 @@
                         return result;
                     });
 
+                    const findBookingSlot = (order) => {
+                        if (!order) return null;
+                        const orderId = String(order.orderId || '');
+                        const teacherUid = String(order.teacher?.userId || order.teacherUid || '');
+                        const date = String(order.schedule?.date || order.bookingDate || '');
+                        const time = String(order.schedule?.time || order.bookingTime || '');
+                        return slots.value.find(slot => slot && (
+                            (orderId && String(slot.orderId || '') === orderId) ||
+                            (teacherUid && String(slot.teacherUid || '') === teacherUid && slot.date === date && slot.time === time)
+                        )) || null;
+                    };
+
+                    const bookingReportRows = computed(() => orders.value
+                        .filter(order => order && order.type === 'BOOKING')
+                        .map(order => {
+                            const slot = findBookingSlot(order);
+                            const serviceName = order.courseName || order.service?.name || getCourseName(order.courseId);
+                            return {
+                                raw: order,
+                                orderId: order.orderId || '',
+                                createdAt: order.createdAt || '',
+                                bookingDate: order.schedule?.date || order.bookingDate || '',
+                                bookingTime: order.schedule?.time || order.bookingTime || '',
+                                teacherName: order.teacher?.name || '',
+                                teacherUid: order.teacher?.userId || order.teacherUid || '',
+                                studentName: order.name || '',
+                                userId: order.userId || '',
+                                phone: order.phone || '',
+                                serviceName,
+                                servicePrice: Number(order.originalAmount || order.service?.price || order.teacherCollectAmount || 0) || 0,
+                                pointsUsed: Number(order.pointsUsed || 0) || 0,
+                                teacherCollectAmount: Number(order.teacherCollectAmount || 0) || 0,
+                                platformCollectedAmount: Number(order.platformCollectedAmount || order.amount || 0) || 0,
+                                openCost: Number(slot?.openCost || order.openCost || 0) || 0,
+                                commissionPoints: Number(order.teacherCommissionPoints || 0) || 0,
+                                status: order.status || '',
+                                note: order.note || '',
+                            };
+                        })
+                        .sort((a, b) => {
+                            const dateCompare = String(b.bookingDate || '').localeCompare(String(a.bookingDate || ''));
+                            if (dateCompare) return dateCompare;
+                            return String(b.bookingTime || '').localeCompare(String(a.bookingTime || ''));
+                        }));
+
+                    const filteredBookingReportRows = computed(() => {
+                        let result = bookingReportRows.value;
+                        if (bookingReportStatus.value !== 'ALL') {
+                            result = result.filter(row => {
+                                if (bookingReportStatus.value === 'COMPLETED') return row.raw.attendance === 'ATTENDED' || row.raw.status === 'COMPLETED';
+                                if (bookingReportStatus.value === 'BOOKED') return row.raw.status !== 'CANCELLED' && row.raw.attendance !== 'ATTENDED' && row.raw.status !== 'COMPLETED';
+                                return row.raw.status === bookingReportStatus.value;
+                            });
+                        }
+                        const q = bookingReportSearch.value.trim().toLowerCase();
+                        if (q) {
+                            result = result.filter(row => [
+                                row.orderId, row.teacherName, row.teacherUid, row.studentName, row.userId, row.phone, row.serviceName, row.status
+                            ].some(value => String(value || '').toLowerCase().includes(q)));
+                        }
+                        return result;
+                    });
+
+                    const bookingReportSummary = computed(() => filteredBookingReportRows.value.reduce((summary, row) => {
+                        summary.count += 1;
+                        summary.teacherCollect += row.teacherCollectAmount;
+                        summary.platformCollect += row.platformCollectedAmount;
+                        summary.pointsUsed += row.pointsUsed;
+                        summary.openCost += row.openCost;
+                        summary.commissionPoints += row.commissionPoints;
+                        summary.teacherCharges += row.openCost + row.commissionPoints;
+                        return summary;
+                    }, { count: 0, teacherCollect: 0, platformCollect: 0, pointsUsed: 0, openCost: 0, commissionPoints: 0, teacherCharges: 0 }));
+
                     const loadPointsLedger = async () => {
                         isLoading.value = true;
                         try {
@@ -1401,6 +1526,33 @@
                         return rows;
                     };
 
+                    const buildBookingReportRows = (rowsSource) => {
+                        const rows = ["預約單號,建立時間,預約日期,預約時段,講師,講師UID,學員,學員UID,電話,服務,服務標價,點數折抵,講師應收,系統代收,開通扣點,完成抽成,狀態,備註"];
+                        rowsSource.forEach(row => {
+                            rows.push([
+                                csvCell(row.orderId),
+                                csvCell(row.createdAt),
+                                csvCell(row.bookingDate),
+                                csvCell(row.bookingTime),
+                                csvCell(row.teacherName),
+                                csvCell(row.teacherUid),
+                                csvCell(row.studentName),
+                                csvCell(row.userId),
+                                csvCell(row.phone),
+                                csvCell(row.serviceName),
+                                row.servicePrice,
+                                row.pointsUsed,
+                                row.teacherCollectAmount,
+                                row.platformCollectedAmount,
+                                row.openCost,
+                                row.commissionPoints,
+                                csvCell(adminOrderStatusText(row.raw)),
+                                csvCell(row.note)
+                            ].join(','));
+                        });
+                        return rows;
+                    };
+
                     const downloadSalesReport = () => {
                         if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
                         const validOrders = orders.value.filter(o => o && ((o.type === 'BOOKING' && o.status !== 'CANCELLED') || o.status === 'PAID') && orderMatchesReportCourses(o));
@@ -1422,6 +1574,17 @@
                         }
                         downloadCsv(`宏學_課程報表_${reportDate()}.csv`, buildOrderReportRows(courseOrders));
                         alert(`課程報表下載成功。\n共匯出 ${courseOrders.length} 筆課程訂單。`);
+                    };
+
+                    const downloadBookingReport = () => {
+                        if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
+                        const rows = filteredBookingReportRows.value;
+                        if (!rows.length) {
+                            alert('目前沒有符合條件的預約資料可以匯出。');
+                            return;
+                        }
+                        downloadCsv(`宏學_預約報表_${reportDate()}.csv`, buildBookingReportRows(rows));
+                        alert(`預約報表下載成功。\n共匯出 ${rows.length} 筆預約資料。`);
                     };
 
                     const triggerBackup = async () => {
@@ -2225,7 +2388,7 @@
                         currentViewName, totalRevenue, courseStatsFiltered,
                         isEditingReservationCourse, courseLocationOptions,
                         memberSearch, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
-                        orderSearch, filteredOrders, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary,
+                        orderSearch, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary,
                         approveForm, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
@@ -2238,7 +2401,7 @@
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadSalesReport, downloadCourseReport, loadPointsLedger, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
+                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
