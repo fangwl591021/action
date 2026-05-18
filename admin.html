@@ -829,9 +829,21 @@
             <div class="modal-body p-0 animate-fade-in !max-w-[500px] !rounded-xl bg-white">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100"><h3 class="text-[21px] font-black text-slate-800">訂單狀態維護：{{ editingOrder?.orderId }}</h3><button @click="editingOrder = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button></div>
                 <div class="p-8 bg-slate-50 space-y-5 custom-scrollbar max-h-[70vh] overflow-y-auto">
-                    <div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field font-bold"><option value="PENDING">⏳ 待付款</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option></select></div>
+                    <div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field font-bold"><option value="PENDING">⏳ 待付款</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option><option value="TRANSFERRED" disabled>↪ 已轉課</option></select></div>
                     <div><label class="input-label">實付金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field font-black text-[#06C755]"></div>
                     <div><label class="input-label">訂單備註</label><textarea v-model="editingOrder.note" class="input-field h-24 resize-none leading-relaxed text-[15px]"></textarea></div>
+                    <div v-if="canTransferEditingOrder" class="border-t border-slate-200 pt-5">
+                        <div class="text-[15px] font-black text-slate-800 mb-3 flex items-center gap-2"><i class="fas fa-random text-indigo-500"></i>轉課處理</div>
+                        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-4 text-[13px] font-bold text-indigo-700 leading-relaxed">轉課會保留原訂單並標記為「已轉課」，同時建立一筆新訂單到目標課程；付款狀態、實付金額與點數折抵會沿用原訂單，不自動處理差額。</div>
+                        <div class="space-y-4">
+                            <div><label class="input-label">目前課程</label><div class="input-field bg-slate-100 text-slate-500 font-bold flex items-center">{{ getCourseName(editingOrder.courseId) }}</div></div>
+                            <div><label class="input-label">轉移到課程</label><select v-model="transferTargetCourseId" class="input-field font-bold"><option value="">-- 請選擇目標課程 --</option><option v-for="c in transferableCourses" :key="c.id" :value="c.id">{{ String(c.name || '').split('\n')[0] }}</option></select></div>
+                            <div><label class="input-label">轉課原因</label><textarea v-model="transferReason" class="input-field h-20 resize-none leading-relaxed text-[15px]" placeholder="例如：學員臨時改期，轉至下一梯次"></textarea></div>
+                            <label class="flex items-start gap-3 text-[13px] font-bold text-slate-600 bg-white border border-slate-100 rounded-xl p-3"><input type="checkbox" v-model="transferConfirmed" class="mt-1 w-4 h-4 accent-indigo-600"><span>我確認此操作會建立新訂單，原訂單會改為已轉課。</span></label>
+                            <button @click="transferOrderCourse" :disabled="isLoading || !transferTargetCourseId || !transferReason || !transferConfirmed" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-random mr-2"></i>執行轉課</button>
+                        </div>
+                    </div>
+                    <div v-else-if="editingOrder.status === 'TRANSFERRED'" class="border-t border-slate-200 pt-5 text-[13px] font-bold text-indigo-700 bg-indigo-50 rounded-xl p-4">此訂單已轉課至：{{ editingOrder.transferredToOrderId || '-' }}</div>
                 </div>
                 <div class="px-6 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl"><button @click="editingOrder = null" class="text-[16px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button><button @click="saveOrderUpdate" :disabled="isLoading" class="btn-green-main px-8 text-[17px] py-3"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>儲存變更</button></div>
             </div>
@@ -959,6 +971,9 @@
                     const activeEnrollmentCourse = ref(null);
                     const courseOrders = ref([]);
                     const editingOrder = ref(null);
+                    const transferTargetCourseId = ref('');
+                    const transferReason = ref('');
+                    const transferConfirmed = ref(false);
                     const editingSysConfig = ref(null);
                     const editingFlexRule = ref(null);
 
@@ -1265,6 +1280,24 @@
                             .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant'));
                     });
 
+                    const transferableCourses = computed(() => {
+                        if (!editingOrder.value) return [];
+                        const currentCourseId = String(editingOrder.value.courseId || '');
+                        return courses.value
+                            .filter(c => c && c.id)
+                            .filter(c => !isReservationCourse(c))
+                            .filter(c => String(c.id) !== currentCourseId && String(c.name || '') !== currentCourseId)
+                            .slice()
+                            .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant'));
+                    });
+
+                    const canTransferEditingOrder = computed(() => {
+                        if (!editingOrder.value || !isAdminRole.value) return false;
+                        if (editingOrder.value.type === 'PRODUCT' || editingOrder.value.type === 'BOOKING') return false;
+                        if (['CANCELLED', 'TRANSFERRED'].includes(String(editingOrder.value.status || ''))) return false;
+                        return true;
+                    });
+
                     const totalRevenue = computed(() => {
                         return orders.value.filter(o => o && o.status === 'PAID').reduce((sum, o) => {
                             const amt = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
@@ -1274,7 +1307,7 @@
 
                     const courseStatsFiltered = computed(() => {
                         return courses.value.filter(c => c).map(c => {
-                            const courseOrders = orders.value.filter(o => o && (o.courseId === c.id || o.courseId === c.name) && o.status !== 'CANCELLED');
+                            const courseOrders = orders.value.filter(o => o && (o.courseId === c.id || o.courseId === c.name) && !['CANCELLED', 'TRANSFERRED'].includes(String(o.status || '')));
                             const totalOrders = courseOrders.length;
                             let paidAmount = 0, pendingAmount = 0;
                             courseOrders.forEach(o => {
@@ -1470,6 +1503,7 @@
                             if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return '已完成';
                             return '已預約';
                         }
+                        if (order?.status === 'TRANSFERRED') return '已轉課';
                         return order?.status === 'PAID' ? '已完款' : (order?.status === 'CANCELLED' ? '已取消' : '待付');
                     };
                     const adminOrderStatusClass = (order) => {
@@ -1478,6 +1512,7 @@
                             if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return 'status-pill-paid';
                             return 'bg-indigo-100 text-indigo-700';
                         }
+                        if (order?.status === 'TRANSFERRED') return 'bg-indigo-100 text-indigo-700';
                         return order?.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting';
                     };
                     const adminOrderAmountText = (order) => {
@@ -1486,7 +1521,7 @@
                         }
                         return `$${formatPrice(order?.amount || 0)}`;
                     };
-                    const statusText = (status, order = null) => order ? adminOrderStatusText(order) : ({ PAID: '已付款', PENDING: '待付款', BOOKED: '已預約', COMPLETED: '已完成', CANCELLED: '已取消' }[status] || status || '');
+                    const statusText = (status, order = null) => order ? adminOrderStatusText(order) : ({ PAID: '已付款', PENDING: '待付款', BOOKED: '已預約', COMPLETED: '已完成', CANCELLED: '已取消', TRANSFERRED: '已轉課' }[status] || status || '');
                     const orderCourseName = (order) => order?.type === 'PRODUCT' ? (order.productName || '商城商品') : getCourseName(order.courseId);
                     const orderMatchesReportCourses = (order) => {
                         if (selectedReportCourseId.value === 'ALL') return true;
@@ -1931,12 +1966,12 @@
 
                     const openEnrollments = (c) => {
                         activeEnrollmentCourse.value = JSON.parse(JSON.stringify(c));
-                        courseOrders.value = orders.value.filter(o => o && (o.courseId === c.id || o.courseId === c.name) && o.status !== 'CANCELLED');
+                        courseOrders.value = orders.value.filter(o => o && (o.courseId === c.id || o.courseId === c.name) && !['CANCELLED', 'TRANSFERRED'].includes(String(o.status || '')));
                     };
                     
                     const openCourseOrdersModal = (course) => {
                         selectedCourseForOrders.value = course;
-                        selectedCourseOrders.value = orders.value.filter(o => o && (o.courseId === course.id || o.courseId === course.name) && o.status !== 'CANCELLED').sort((a, b) => {
+                        selectedCourseOrders.value = orders.value.filter(o => o && (o.courseId === course.id || o.courseId === course.name) && !['CANCELLED', 'TRANSFERRED'].includes(String(o.status || ''))).sort((a, b) => {
                             const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
                             const tB = new Date(String(b.createdAt).replace(/-/g, '/')).getTime() || 0;
                             return tB - tA;
@@ -1965,7 +2000,12 @@
                         try { await callApi('ADMIN_UPDATE_ORDER', { orderId: o.orderId, attendance: o.attendance }); } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
-                    const openOrderEditModal = (o) => { editingOrder.value = JSON.parse(JSON.stringify(o)); };
+                    const openOrderEditModal = (o) => {
+                        editingOrder.value = JSON.parse(JSON.stringify(o));
+                        transferTargetCourseId.value = '';
+                        transferReason.value = '';
+                        transferConfirmed.value = false;
+                    };
 
                     const saveOrderUpdate = async () => {
                         isLoading.value = true;
@@ -1982,6 +2022,37 @@
                                 editingOrder.value = null;
                             }
                         } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const transferOrderCourse = async () => {
+                        if (!canTransferEditingOrder.value) return alert('只有 Admin 可以執行轉課');
+                        if (!transferTargetCourseId.value) return alert('請選擇要轉入的課程');
+                        if (!transferReason.value.trim()) return alert('請填寫轉課原因');
+                        if (!transferConfirmed.value) return alert('請先勾選確認轉課影響');
+                        const target = courses.value.find(c => c && c.id === transferTargetCourseId.value);
+                        const targetName = target ? String(target.name || '').split('\n')[0] : transferTargetCourseId.value;
+                        if (!confirm(`確認將訂單 ${editingOrder.value.orderId} 轉到「${targetName}」？\n\n原訂單會標記為已轉課，系統會建立一筆新訂單承接付款與點數紀錄。`)) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_TRANSFER_ORDER_COURSE', {
+                                orderId: editingOrder.value.orderId,
+                                targetCourseId: transferTargetCourseId.value,
+                                reason: transferReason.value.trim()
+                            });
+                            if (res?.orders) orders.value = res.orders;
+                            else await fetchData(true);
+                            if (res?.courses) courses.value = res.courses;
+                            alert('✅ 轉課完成，已建立新訂單並保留原訂單紀錄');
+                            editingOrder.value = null;
+                            transferTargetCourseId.value = '';
+                            transferReason.value = '';
+                            transferConfirmed.value = false;
+                        } catch(e) {
+                            console.error(e);
+                            alert('轉課失敗：' + e.message);
+                        } finally {
+                            isLoading.value = false;
+                        }
                     };
 
                     const openSysConfigModal = (t) => {
@@ -2387,6 +2458,7 @@
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText,
                         currentViewName, totalRevenue, courseStatsFiltered,
                         isEditingReservationCourse, courseLocationOptions,
+                        transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
                         memberSearch, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
                         orderSearch, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary,
                         approveForm, wpImportForm, isImageUploading, editingCourse, editingProduct,
@@ -2399,7 +2471,7 @@
                         openNewCourseModal, openEditModal, saveCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
                         handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
-                        generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate,
+                        generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
                         downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
                     };

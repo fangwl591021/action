@@ -1403,6 +1403,93 @@ export default {
           result.data = { success: true };
           break;
 
+        case "ADMIN_TRANSFER_ORDER_COURSE": {
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          const sourceOrderId = String(payload?.orderId || "").trim();
+          const targetCourseId = String(payload?.targetCourseId || "").trim();
+          const transferReason = String(payload?.reason || "").trim();
+          if (!sourceOrderId) throw new Error("缺少原訂單編號");
+          if (!targetCourseId) throw new Error("請選擇要轉入的課程");
+          if (!transferReason) throw new Error("請填寫轉課原因");
+
+          let transferOrders = await safeGetKV(env, "ORDERS", []);
+          let transferCourses = await safeGetKV(env, "COURSES", []);
+          const sourceIdx = transferOrders.findIndex(order => order && String(order.orderId) === sourceOrderId);
+          if (sourceIdx < 0) throw new Error("找不到原訂單");
+          const sourceOrder = transferOrders[sourceIdx];
+          if (sourceOrder.type === "PRODUCT") throw new Error("商城商品訂單不能轉課");
+          if (sourceOrder.type === "BOOKING") throw new Error("預約諮詢訂單不能用課程轉課流程");
+          if (sourceOrder.status === "TRANSFERRED") throw new Error("此訂單已轉課，不能重複轉移");
+          if (sourceOrder.status === "CANCELLED") throw new Error("已取消訂單不能轉課");
+          if (String(sourceOrder.attendance || "") === "ATTENDED") throw new Error("已出席訂單不可轉課，請另行人工調整");
+
+          const targetCourse = transferCourses.find(course => course && (String(course.id) === targetCourseId || String(course.name) === targetCourseId));
+          if (!targetCourse) throw new Error("找不到目標課程");
+          if (String(targetCourse.type || "").includes("預約")) throw new Error("預約類服務請使用預約流程，不能從課程訂單轉入");
+          if (
+            String(sourceOrder.courseId || "") === String(targetCourse.id || "") ||
+            String(sourceOrder.courseId || "") === String(targetCourse.name || "")
+          ) {
+            throw new Error("目標課程不可與原課程相同");
+          }
+
+          const transferAt = new Date().toISOString();
+          const newOrderId = `TRF${Date.now()}`;
+          const transferBy = access.userData?.name || userProfile?.displayName || userId || "Admin";
+          const newOrder = {
+            ...sourceOrder,
+            orderId: newOrderId,
+            courseId: targetCourse.id || targetCourse.name,
+            courseName: getCourseTitle(targetCourse),
+            status: sourceOrder.status,
+            createdAt: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
+            transferredFromOrderId: sourceOrder.orderId,
+            transferredToOrderId: undefined,
+            transferReason,
+            transferAt,
+            transferBy,
+            originalCourseId: sourceOrder.courseId || "",
+            note: [sourceOrder.note, `轉課來源：${sourceOrder.orderId}；原因：${transferReason}`].filter(Boolean).join("\n")
+          };
+
+          transferOrders[sourceIdx] = {
+            ...sourceOrder,
+            status: "TRANSFERRED",
+            transferredToOrderId: newOrderId,
+            transferReason,
+            transferAt,
+            transferBy,
+            originalCourseId: sourceOrder.courseId || "",
+          };
+          transferOrders.unshift(newOrder);
+
+          const originalCourseKey = String(sourceOrder.courseId || "");
+          transferCourses = transferCourses.map(course => {
+            if (!course) return course;
+            if (originalCourseKey && (String(course.id) === originalCourseKey || String(course.name) === originalCourseKey)) {
+              return { ...course, enrolled: Math.max(0, Number(course.enrolled || 0) - 1) };
+            }
+            if (String(course.id) === String(targetCourse.id) || String(course.name) === String(targetCourse.name)) {
+              return { ...course, enrolled: Number(course.enrolled || 0) + 1 };
+            }
+            return course;
+          });
+
+          await env.ACTION_DATA.put("ORDERS", JSON.stringify(transferOrders));
+          await env.ACTION_DATA.put("COURSES", JSON.stringify(transferCourses));
+          if (env.GAS_URL) {
+            ctx.waitUntil(fetch(env.GAS_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "ADMIN_TRANSFER_ORDER_COURSE", payload: { sourceOrder: transferOrders[sourceIdx], newOrder } }),
+              redirect: "follow"
+            }).catch(e => console.error("GAS Transfer Sync Error", e)));
+          }
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          result.data = { success: true, sourceOrder: transferOrders[sourceIdx], newOrder, orders: transferOrders, courses: transferCourses };
+          break;
+        }
+
         case "ADMIN_UPDATE_MEMBER":
           if (payload.memberData && payload.memberData.userId) {
               const memberUid = String(payload.memberData.userId).trim();
