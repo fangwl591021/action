@@ -969,6 +969,7 @@ export default {
           }
 
           const payableAmount = Math.max(0, servicePrice - requestedBookingPoints);
+          const teacherCollectAmount = payableAmount;
           const orderId = `BOOK${Date.now()}`;
           const bookingUser = await safeGetKV(env, `USER_${userId}`, {});
           const bookingOrder = {
@@ -994,11 +995,14 @@ export default {
             bookingDate,
             bookingTime,
             location,
-            amount: payableAmount,
+            amount: 0,
             originalAmount: servicePrice,
             pointsUsed: requestedBookingPoints,
+            platformCollectedAmount: 0,
+            teacherCollectAmount,
+            paymentMethod: "TEACHER_DIRECT",
             note: customer.note || "",
-            status: payableAmount <= 0 ? "PAID" : "PENDING",
+            status: "BOOKED",
             createdAt: new Date().toLocaleString(),
           };
 
@@ -1015,7 +1019,7 @@ export default {
             }).catch(e => console.error("GAS Sync Error", e)));
           }
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true, orderId, amount: payableAmount, pointsUsed: requestedBookingPoints };
+          result.data = { success: true, orderId, amount: 0, teacherCollectAmount, pointsUsed: requestedBookingPoints };
           break;
         }
 

@@ -158,21 +158,24 @@
                     <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-center"><h2 class="text-[17px] font-bold text-[#111111]">歷史報名紀錄</h2></div>
                     <div class="pt-2 pb-20 px-4">
                         <div v-for="o in myOrders" :key="o.orderId" class="native-card relative overflow-hidden shadow-sm border border-slate-100">
-                            <div class="flex justify-between items-start mb-3"><div class="text-[12px] font-mono font-bold text-[#AAAAAA]">{{ o.orderId }}</div><div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="o.status==='PAID'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'">{{ o.status==='PAID'?'已付款':(o.status==='CANCELLED'?'已取消':'待付款') }}</div></div>
+                            <div class="flex justify-between items-start mb-3"><div class="text-[12px] font-mono font-bold text-[#AAAAAA]">{{ o.orderId }}</div><div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="orderStatusClass(o)">{{ orderStatusText(o) }}</div></div>
                             <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ o.type === 'PRODUCT' ? o.productName : String(getCourseName(o.courseId) || '').split('\n')[0] }}</div>
-                            <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">{{ o.type === 'PRODUCT' ? ('$ ' + formatPrice(o.amount || 0) + (o.pointsUsed ? ' / 折抵 ' + formatPrice(o.pointsUsed) + ' 點' : '')) : ('$ ' + formatPrice(o.amount)) }}</div>
+                            <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">{{ orderAmountText(o) }}</div>
+                            <div v-if="o.type === 'BOOKING'" class="text-[12px] text-slate-500 font-bold bg-indigo-50 p-3 rounded-lg mb-3 border border-indigo-100 leading-relaxed">
+                                <i class="fas fa-user-tie mr-1.5 text-indigo-500"></i>此預約由講師現場或私下收費，系統不代收款項。
+                            </div>
                             <div v-if="o.note" class="text-[13px] text-slate-500 font-bold bg-slate-50 p-3 rounded-lg mb-3 border border-slate-100 leading-relaxed whitespace-pre-wrap"><i class="fas fa-info-circle mr-1.5 text-slate-400"></i>{{ o.note }}</div>
                             
-                            <div v-if="o.status === 'PENDING' && !o.remittance" class="flex gap-2 border-t border-slate-100 pt-3 mt-2">
+                            <div v-if="o.type !== 'BOOKING' && o.status === 'PENDING' && !o.remittance" class="flex gap-2 border-t border-slate-100 pt-3 mt-2">
                                 <button @click="payOrder(o)" :disabled="isLoading" class="flex-1 py-3 rounded-xl bg-[#06C755] text-white text-[13px] font-bold active:scale-95 transition flex justify-center items-center shadow-sm"><i class="fas fa-credit-card mr-1.5"></i>線上刷卡</button>
                                 <button @click="openRemittanceModal(o)" class="flex-1 py-3 rounded-xl bg-[#111111] text-white text-[13px] font-bold active:scale-95 transition shadow-sm"><i class="fas fa-university mr-1.5"></i>轉帳回報</button>
                             </div>
                             
-                            <div v-if="o.status === 'PENDING' && o.remittance" class="mt-2 text-center bg-orange-50 border border-orange-100 text-orange-600 py-2.5 rounded-xl text-[13px] font-bold shadow-sm">
+                            <div v-if="o.type !== 'BOOKING' && o.status === 'PENDING' && o.remittance" class="mt-2 text-center bg-orange-50 border border-orange-100 text-orange-600 py-2.5 rounded-xl text-[13px] font-bold shadow-sm">
                                 <i class="fas fa-search-dollar mr-1"></i> 已回報末五碼 ({{ o.remittance }}) - 財務對帳中
                             </div>
                             
-                            <div v-if="o.status === 'PENDING' && sysSettings.allow_cancel_order === 'true' && !o.remittance" class="mt-3 text-center"><button @click="cancelOrder(o)" :disabled="isLoading" class="text-xs font-bold text-slate-400 underline py-1 hover:text-slate-600 transition">取消報名這堂課</button></div>
+                            <div v-if="o.type !== 'BOOKING' && o.status === 'PENDING' && sysSettings.allow_cancel_order === 'true' && !o.remittance" class="mt-3 text-center"><button @click="cancelOrder(o)" :disabled="isLoading" class="text-xs font-bold text-slate-400 underline py-1 hover:text-slate-600 transition">取消報名這堂課</button></div>
                         </div>
                         <div v-if="myOrders.length === 0" class="text-center py-12 text-[#AAAAAA] font-bold">目前還沒有報名任何課程</div>
                     </div>
@@ -603,7 +606,8 @@
                                     <div v-if="selectedService?.location" class="flex justify-between items-start border-t border-slate-50 pt-2"><span class="text-slate-400 font-bold shrink-0">場地安排</span><span class="font-bold text-slate-600 text-right">{{ selectedService.location }}</span></div>
                                     <div class="flex justify-between items-start border-t border-slate-50 pt-3"><span class="text-slate-400 font-bold shrink-0">服務費</span><span class="font-black text-slate-800">$ {{ formatPrice(bookingServicePrice) }}</span></div>
                                     <div v-if="bookingPointsToUse > 0" class="flex justify-between items-start"><span class="text-slate-400 font-bold shrink-0">點數折抵</span><span class="font-black text-red-500">- {{ formatPrice(bookingPointsToUse) }} 點</span></div>
-                                    <div class="flex justify-between items-start border-t border-slate-100 pt-3"><span class="text-slate-800 font-black shrink-0">實際應付</span><span class="font-black text-[#06C755] text-lg">$ {{ formatPrice(bookingPayableAmount) }}</span></div>
+                                    <div class="flex justify-between items-start border-t border-slate-100 pt-3"><span class="text-slate-800 font-black shrink-0">付給講師</span><span class="font-black text-[#06C755] text-lg">$ {{ formatPrice(bookingPayableAmount) }}</span></div>
+                                    <div class="text-[12px] text-indigo-600 font-bold bg-indigo-50 border border-indigo-100 rounded-lg p-3 leading-relaxed">此預約不走系統金流，剩餘金額由學員與講師自行收付。</div>
                                 </div>
                             </div>
                             <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
@@ -622,13 +626,13 @@
                 <div v-if="bookingSuccess" class="absolute inset-0 bg-white z-[60] flex flex-col items-center justify-center p-6 text-center animate-fade-in">
                     <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6 shadow-inner border border-green-100"><i class="fas fa-check text-4xl text-[#06C755]"></i></div>
                     <h2 class="text-2xl font-black text-slate-800 mb-2">預約成功！</h2>
-                    <p class="text-[14px] text-slate-500 font-bold mb-8 leading-relaxed">您的專屬時段已保留。<br>詳細訂單與付款資訊已同步至您的紀錄中。</p>
+                    <p class="text-[14px] text-slate-500 font-bold mb-8 leading-relaxed">您的專屬時段已保留。<br>系統只扣除可折抵點數，剩餘費用請與講師收付。</p>
                     <button @click="navigateTo('orders')" class="w-full bg-[#06C755] text-white py-4 rounded-xl font-black text-[16px] shadow-lg shadow-green-100 active:scale-95 transition">前往查看報名紀錄</button>
                 </div>
 
                 <!-- 底部結帳/導航列 (僅在 Step 4 顯示) -->
                 <div v-if="bookingStep === 4 && !bookingSuccess" class="sticky-footer flex items-center justify-between z-[60]">
-                    <div class="flex flex-col"><span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">諮詢費用</span><span class="text-[20px] font-black text-[#111]">${{ formatPrice(bookingPayableAmount) }}</span><span v-if="bookingPointsToUse > 0" class="text-[11px] font-bold text-red-500">已折抵 {{ formatPrice(bookingPointsToUse) }} 點</span></div>
+                    <div class="flex flex-col"><span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">付給講師</span><span class="text-[20px] font-black text-[#111]">${{ formatPrice(bookingPayableAmount) }}</span><span v-if="bookingPointsToUse > 0" class="text-[11px] font-bold text-red-500">已折抵 {{ formatPrice(bookingPointsToUse) }} 點</span></div>
                     <button @click="submitConsultBooking" :disabled="!isBookingFormValid || isLoading" class="bg-[#06C755] text-white px-8 py-3.5 rounded-xl font-black text-[16px] disabled:opacity-50 disabled:bg-slate-300 transition shadow-lg shadow-green-100 w-[180px] flex justify-center items-center active:scale-95"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ isLoading ? '處理中' : '確認預約' }}</button>
                 </div>
 
@@ -800,6 +804,31 @@
                     const getCourseName = (id) => { 
                         const c = courses.value.find(x => x && (x.id === id || x.name === id)); 
                         return c ? c.name : id; 
+                    };
+                    const orderStatusText = (order) => {
+                        if (order?.type === 'BOOKING') {
+                            if (order.status === 'CANCELLED') return '已取消';
+                            if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return '已完成';
+                            return '已預約';
+                        }
+                        return order?.status === 'PAID' ? '已付款' : (order?.status === 'CANCELLED' ? '已取消' : '待付款');
+                    };
+                    const orderStatusClass = (order) => {
+                        if (order?.type === 'BOOKING') {
+                            if (order.status === 'CANCELLED') return 'bg-slate-100 text-slate-500';
+                            if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return 'bg-green-100 text-green-700';
+                            return 'bg-indigo-100 text-indigo-700';
+                        }
+                        return order?.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700';
+                    };
+                    const orderAmountText = (order) => {
+                        if (order?.type === 'BOOKING') {
+                            const teacherAmount = Number(order.teacherCollectAmount || 0);
+                            const points = Number(order.pointsUsed || 0);
+                            return `$ ${formatPrice(teacherAmount)} 付給講師${points ? ` / 折抵 ${formatPrice(points)} 點` : ''}`;
+                        }
+                        if (order?.type === 'PRODUCT') return `$ ${formatPrice(order.amount || 0)}${order.pointsUsed ? ` / 折抵 ${formatPrice(order.pointsUsed)} 點` : ''}`;
+                        return `$ ${formatPrice(order?.amount || 0)}`;
                     };
 
                     const bookingStep = ref(1);
@@ -1580,6 +1609,7 @@
 
                     return { 
                         isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, products, myOrders, selectedCourse, selectedProduct, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
+                        orderStatusText, orderStatusClass, orderAmountText,
                         isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                         isProfileInfoOpen, isImageUploading, handleAvatarUpload,
                         teacherCourses, editingMyCourse, isCourseImgUploading, openMyCourses, openEditMyCourse, handleCourseImgUpload, saveMyCourse, deleteMyCourse,

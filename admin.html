@@ -294,8 +294,8 @@
                                     <td><div class="font-mono font-bold text-[13px] text-slate-500">{{o.orderId}}</div><div class="text-[11px] text-slate-400 mt-0.5">{{o.createdAt}}</div></td>
                                     <td class="font-bold text-slate-700">{{ String(getCourseName(o.courseId) || '').split('\n')[0] }}</td>
                                     <td class="font-bold">{{o.name}}</td>
-                                    <td class="font-bold text-[#06C755] text-lg">${{formatPrice(o.amount)}}</td>
-                                    <td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{o.status==='PAID'?'已完款':'待付'}}</span></td>
+                                    <td class="font-bold text-[#06C755] text-lg">{{ adminOrderAmountText(o) }}</td>
+                                    <td><span :class="adminOrderStatusClass(o)" class="status-badge">{{ adminOrderStatusText(o) }}</span></td>
                                     <td class="text-right"><button @click="openOrderEditModal(o)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">維護</button></td>
                                 </tr>
                                 <tr v-if="!filteredOrders.length"><td colspan="6" class="text-center py-20 text-slate-300 font-bold">找不到符合條件的訂單</td></tr>
@@ -720,14 +720,14 @@
                 <div class="p-6 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar">
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <table class="admin-table !min-w-0 w-full">
-                            <thead class="bg-slate-50"><tr><th class="py-3 px-4">單號 / 建立時間</th><th class="py-3 px-4">學員姓名</th><th class="py-3 px-4">聯絡電話</th><th class="py-3 px-4">實付金額</th><th class="py-3 px-4">付款狀態</th><th class="py-3 px-4">學員備註</th></tr></thead>
+                            <thead class="bg-slate-50"><tr><th class="py-3 px-4">單號 / 建立時間</th><th class="py-3 px-4">學員姓名</th><th class="py-3 px-4">聯絡電話</th><th class="py-3 px-4">金額</th><th class="py-3 px-4">狀態</th><th class="py-3 px-4">學員備註</th></tr></thead>
                             <tbody>
                                 <tr v-for="o in currentCourseOrders" :key="o.orderId" class="border-b border-slate-50 hover:bg-slate-50">
                                     <td class="py-4 px-4"><div class="font-mono font-bold text-[14px] text-slate-500">{{ String(o.orderId || '') }}</div><div class="text-[12px] text-slate-400 mt-1">{{ String(o.createdAt || '') }}</div></td>
                                     <td class="py-4 px-4 font-bold text-[16px] text-slate-800">{{ String(o.name || '') }}</td>
                                     <td class="py-4 px-4 font-mono text-[15px] text-slate-600">{{ String(o.phone || '未填寫') }}</td>
-                                    <td class="py-4 px-4 font-black text-[#06C755] text-[16px]">$ {{ formatPrice(o.amount) }}</td>
-                                    <td class="py-4 px-4"><span :class="o.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting'" class="status-badge px-3 py-1">{{ o.status === 'PAID' ? '✅ 已完款' : '⏳ 待付' }}</span></td>
+                                    <td class="py-4 px-4 font-black text-[#06C755] text-[16px]">{{ adminOrderAmountText(o) }}</td>
+                                    <td class="py-4 px-4"><span :class="adminOrderStatusClass(o)" class="status-badge px-3 py-1">{{ adminOrderStatusText(o) }}</span></td>
                                     <td class="py-4 px-4 text-[13px] text-slate-500 whitespace-pre-wrap max-w-[250px] leading-relaxed">{{ String(o.note || '-') }}</td>
                                 </tr>
                                 <tr v-if="!currentCourseOrders.length"><td colspan="6" class="text-center py-12 text-slate-400 font-bold text-[15px]">目前尚無報名紀錄</td></tr>
@@ -1339,7 +1339,29 @@
                     });
 
                     const csvCell = (value) => `"${String(value ?? '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
-                    const statusText = (status) => ({ PAID: '已付款', PENDING: '待付款', CANCELLED: '已取消' }[status] || status || '');
+                    const adminOrderStatusText = (order) => {
+                        if (order?.type === 'BOOKING') {
+                            if (order.status === 'CANCELLED') return '已取消';
+                            if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return '已完成';
+                            return '已預約';
+                        }
+                        return order?.status === 'PAID' ? '已完款' : (order?.status === 'CANCELLED' ? '已取消' : '待付');
+                    };
+                    const adminOrderStatusClass = (order) => {
+                        if (order?.type === 'BOOKING') {
+                            if (order.status === 'CANCELLED') return 'bg-slate-100 text-slate-600';
+                            if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return 'status-pill-paid';
+                            return 'bg-indigo-100 text-indigo-700';
+                        }
+                        return order?.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting';
+                    };
+                    const adminOrderAmountText = (order) => {
+                        if (order?.type === 'BOOKING') {
+                            return `$ ${formatPrice(order.teacherCollectAmount || 0)} 給講師${order.pointsUsed ? ` / 折 ${formatPrice(order.pointsUsed)}P` : ''}`;
+                        }
+                        return `$${formatPrice(order?.amount || 0)}`;
+                    };
+                    const statusText = (status, order = null) => order ? adminOrderStatusText(order) : ({ PAID: '已付款', PENDING: '待付款', BOOKED: '已預約', COMPLETED: '已完成', CANCELLED: '已取消' }[status] || status || '');
                     const orderCourseName = (order) => order?.type === 'PRODUCT' ? (order.productName || '商城商品') : getCourseName(order.courseId);
                     const orderMatchesReportCourses = (order) => {
                         if (selectedReportCourseId.value === 'ALL') return true;
@@ -1359,9 +1381,10 @@
                         URL.revokeObjectURL(url);
                     };
                     const buildOrderReportRows = (sourceOrders) => {
-                        const rows = ["訂單編號,建立時間,學員姓名,聯絡電話,課程與服務名稱,實付金額,付款狀態,學員備註"];
+                        const rows = ["訂單編號,建立時間,學員姓名,聯絡電話,課程與服務名稱,系統代收,講師應收,點數折抵,狀態,學員備註"];
                         sourceOrders.forEach(o => {
                             const amount = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
+                            const teacherAmount = o.type === 'BOOKING' ? Number(o.teacherCollectAmount || 0) : 0;
                             rows.push([
                                 csvCell(o.orderId),
                                 csvCell(o.createdAt),
@@ -1369,7 +1392,9 @@
                                 csvCell(o.phone),
                                 csvCell(orderCourseName(o)),
                                 amount,
-                                csvCell(statusText(o.status)),
+                                teacherAmount,
+                                Number(o.pointsUsed || 0),
+                                csvCell(statusText(o.status, o)),
                                 csvCell(o.note)
                             ].join(','));
                         });
@@ -1378,14 +1403,14 @@
 
                     const downloadSalesReport = () => {
                         if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
-                        const validOrders = orders.value.filter(o => o && o.status === 'PAID' && orderMatchesReportCourses(o));
+                        const validOrders = orders.value.filter(o => o && ((o.type === 'BOOKING' && o.status !== 'CANCELLED') || o.status === 'PAID') && orderMatchesReportCourses(o));
                         if(validOrders.length === 0) {
-                            alert("目前沒有符合條件的已付款訂單可以匯出。");
+                            alert("目前沒有符合條件的業績資料可以匯出。");
                             return;
                         }
                         const totalRev = validOrders.reduce((sum, o) => sum + (Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0), 0);
                         downloadCsv(`宏學_業績報表_${reportDate()}.csv`, buildOrderReportRows(validOrders));
-                        alert(`業績報表下載成功。\n共匯出 ${validOrders.length} 筆已付款訂單，總營收 $${totalRev.toLocaleString()}。`);
+                        alert(`業績報表下載成功。\n共匯出 ${validOrders.length} 筆資料，系統代收總額 $${totalRev.toLocaleString()}。`);
                     };
 
                     const downloadCourseReport = () => {
@@ -2196,6 +2221,7 @@
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers,
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger,
                         currentAccess, isAdminRole, isOperatorRole, canViewFinance,
+                        adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText,
                         currentViewName, totalRevenue, courseStatsFiltered,
                         isEditingReservationCourse, courseLocationOptions,
                         memberSearch, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
