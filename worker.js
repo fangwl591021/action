@@ -1796,24 +1796,38 @@ export default {
 
         case "DEPLOY_RICH_MENU":
           if (!env.LINE_CHANNEL_ACCESS_TOKEN) throw new Error("Cloudflare 尚未綁定 LINE_CHANNEL_ACCESS_TOKEN 金鑰！");
+          const richMenuConfig = payload.richMenuConfig || payload.menuObject || {
+            size: payload.size,
+            selected: true,
+            name: payload.name,
+            chatBarText: payload.chatBarText,
+            areas: payload.areas,
+          };
+          if (!richMenuConfig?.size || !Array.isArray(richMenuConfig?.areas)) {
+            throw new Error("圖文選單 JSON 格式有誤：缺少 size 或 areas。");
+          }
           
           const createRes = await fetch("https://api.line.me/v2/bot/richmenu", {
               method: "POST",
               headers: { "Authorization": `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`, "Content-Type": "application/json" },
-              body: JSON.stringify(payload.menuObject)
+              body: JSON.stringify(richMenuConfig)
           });
           if (!createRes.ok) throw new Error("建立 LINE 選單失敗: " + await createRes.text());
           const richMenuId = (await createRes.json()).richMenuId;
 
-          if (payload.image) {
-              const base64DataImg = payload.image.split(",")[1];
+          const richMenuImage = payload.imageBase64 || payload.image;
+          if (richMenuImage) {
+              const imageMatch = String(richMenuImage).match(/^data:(image\/(?:jpeg|jpg|png));base64,(.+)$/i);
+              if (!imageMatch) throw new Error("圖文選單圖片格式有誤：請使用 JPG 或 PNG 圖片。");
+              const lineImageContentType = imageMatch[1].toLowerCase() === "image/jpg" ? "image/jpeg" : imageMatch[1].toLowerCase();
+              const base64DataImg = imageMatch[2];
               const binaryStr = atob(base64DataImg);
               const bytesImg = new Uint8Array(binaryStr.length);
               for (let i = 0; i < binaryStr.length; i++) bytesImg[i] = binaryStr.charCodeAt(i);
               
               const imgRes = await fetch(`https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`, {
                   method: "POST",
-                  headers: { "Authorization": `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`, "Content-Type": "image/jpeg" },
+                  headers: { "Authorization": `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`, "Content-Type": lineImageContentType },
                   body: bytesImg
               });
               if (!imgRes.ok) throw new Error("上傳圖片至 LINE 失敗: " + await imgRes.text());
