@@ -94,10 +94,33 @@
         const ApiHelper = { 
             call: async (act, pl = {}) => { 
                 const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; 
+                const payload = { ...pl };
+                if (act === 'DEPLOY_RICH_MENU' || act === 'UPLOAD_IMAGE') {
+                    const savedPwd = sessionStorage.getItem('act_admin_pwd') || (window.parent?.sessionStorage?.getItem('act_admin_pwd'));
+                    if (savedPwd) {
+                        payload.adminPwd = savedPwd;
+                    } else {
+                        const pwd = window.prompt('請輸入管理密碼以授權此操作');
+                        if (!pwd) throw new Error('Admin authorization required');
+                        sessionStorage.setItem('act_admin_pwd', pwd);
+                        payload.adminPwd = pwd;
+                    }
+                }
+
+                let idToken = null;
+                let accessToken = null;
+                try {
+                    const parentLiff = window.parent?.liff;
+                    if (parentLiff && typeof parentLiff.isLoggedIn === 'function' && parentLiff.isLoggedIn()) {
+                        idToken = typeof parentLiff.getIDToken === 'function' ? parentLiff.getIDToken() : null;
+                        accessToken = typeof parentLiff.getAccessToken === 'function' ? parentLiff.getAccessToken() : null;
+                    }
+                } catch(e) {}
+
                 const res = await fetch(url, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ action: act, payload: pl }) 
+                    body: JSON.stringify({ action: act, payload, idToken, accessToken })
                 }); 
                 
                 const text = await res.text();
