@@ -71,6 +71,19 @@ const CRM_LOGIN_ALLOWED_ACTIONS = new Set([
   "ADMIN_UPDATE_MEMBER",
 ]);
 
+const DEFAULT_VIDEOS = [
+  { id: "VOD_YOUCI_06", title: "有慈老師-6", teacher: "有慈老師", episode: 6, driveFileId: "1Bqdq32X0w6LUoND1KSQfQmSNvwEdjvth", isPublished: true, createdAt: "2026-05-16" },
+  { id: "VOD_YIJIE_04", title: "依潔老師-4", teacher: "依潔老師", episode: 4, driveFileId: "17ZxOAH2IJ7MFg3w2bWnFs-foLUWzPsWB", isPublished: true, createdAt: "2026-05-10" },
+  { id: "VOD_YOUCI_05", title: "有慈老師-5", teacher: "有慈老師", episode: 5, driveFileId: "1-LUKzr5vLqwb6dWLUV6k7ELYhq414Z3S", isPublished: true, createdAt: "2026-05-03" },
+  { id: "VOD_YIJIE_03", title: "依潔老師-3", teacher: "依潔老師", episode: 3, driveFileId: "1TQiu6wYc7JB0X9zNmvprivXYNmKvYvbf", isPublished: true, createdAt: "2026-04-22" },
+  { id: "VOD_YIJIE_02", title: "依潔老師-2", teacher: "依潔老師", episode: 2, driveFileId: "1XK-2VB61Xjnuw1meauPTOEsXKS_Az3gw", isPublished: true, createdAt: "2026-04-19" },
+  { id: "VOD_YIJIE_01", title: "依潔老師-1", teacher: "依潔老師", episode: 1, driveFileId: "1qzg5xocWj-Jt1O3f8405uo9EYN9UwhEX", isPublished: true, createdAt: "2026-04-15" },
+  { id: "VOD_YOUCI_04", title: "有慈老師-4", teacher: "有慈老師", episode: 4, driveFileId: "1EaP8DUf8E1zPtSg4bYs1RuXYJIe3MtD5", isPublished: true, createdAt: "2026-04-12" },
+  { id: "VOD_YOUCI_03", title: "有慈老師-3", teacher: "有慈老師", episode: 3, driveFileId: "14O-77yVDj1kTfLUlruvAVKc-TW2UxEjK", isPublished: true, createdAt: "2026-04-12" },
+  { id: "VOD_YOUCI_02", title: "有慈老師-2", teacher: "有慈老師", episode: 2, driveFileId: "1Dn8b3m-mRD313YKpcGWLC-9JxgVnCYD0", isPublished: true, createdAt: "2026-04-06" },
+  { id: "VOD_YOUCI_01", title: "有慈老師-1", teacher: "有慈老師", episode: 1, driveFileId: "1YMkaXTwP40oNe1D5bYL8TORmum5jdlTt", isPublished: true, createdAt: "2026-04-05" },
+];
+
 const VERIFIED_USER_ACTIONS = new Set([
   "CHECK_USER",
   "GET_USER_POINTS",
@@ -755,6 +768,18 @@ export default {
             return !status || status.includes("販賣") || /sell|active|on/i.test(status);
           });
           break;
+
+        case "GET_VIDEOS": {
+          const videos = await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS);
+          result.data = (Array.isArray(videos) ? videos : DEFAULT_VIDEOS)
+            .filter(v => v && v.isPublished !== false && v.driveFileId)
+            .map(v => ({
+              ...v,
+              previewUrl: `https://drive.google.com/file/d/${v.driveFileId}/preview`,
+              viewUrl: `https://drive.google.com/file/d/${v.driveFileId}/view`,
+            }));
+          break;
+        }
 
         case "GET_BOOKING_DATA":
           const bookingUsers = await listUserRecords(env);

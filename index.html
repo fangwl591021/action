@@ -154,6 +154,42 @@
                     </div>
                 </div>
 
+                <div v-if="view === 'videos'" class="animate-fade-in bg-[#F4F5F7] min-h-screen pb-28">
+                    <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-[17px] font-black text-[#111111]">宏學影音館</h2>
+                            <div class="text-[12px] font-bold text-slate-500">{{ filteredVideos.length }} 支影片</div>
+                        </div>
+                        <div class="flex overflow-x-auto hide-scrollbar gap-2">
+                            <button v-for="teacher in videoTeachers" :key="teacher" @click="activeVideoTeacher = teacher" class="shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all" :class="activeVideoTeacher === teacher ? 'bg-[#06C755] text-white shadow-md' : 'bg-[#F4F5F7] text-[#666666]'">{{ teacher }}</button>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div v-if="selectedVideo" class="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
+                            <div class="w-full aspect-video bg-black">
+                                <iframe :src="selectedVideo.previewUrl" class="w-full h-full border-0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                            </div>
+                            <div class="p-4">
+                                <div class="text-[12px] font-black text-[#06C755] mb-1">{{ selectedVideo.teacher }} ・ 第 {{ selectedVideo.episode }} 集</div>
+                                <div class="text-[17px] font-black text-slate-900 leading-snug">{{ selectedVideo.title }}</div>
+                            </div>
+                        </div>
+                        <div v-for="v in filteredVideos" :key="v.id" @click="openVideo(v)" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex gap-4 active:scale-[0.98] transition cursor-pointer" :class="selectedVideo?.id === v.id ? 'ring-2 ring-[#06C755]' : ''">
+                            <div class="w-24 aspect-video rounded-xl bg-slate-100 flex items-center justify-center text-[#06C755] shrink-0">
+                                <i class="fas fa-play-circle text-3xl"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-[13px] font-black text-slate-400 mb-1">{{ v.teacher }} ・ 第 {{ v.episode }} 集</div>
+                                <div class="text-[15px] font-black text-slate-900 leading-snug line-clamp-2">{{ v.title }}</div>
+                                <div class="text-[11px] text-slate-400 font-bold mt-2">{{ v.createdAt || '' }}</div>
+                            </div>
+                        </div>
+                        <div v-if="videos.length === 0" class="text-center py-14 text-[#AAAAAA] font-bold bg-white rounded-xl border border-dashed border-[#DDDDDD]">
+                            <i class="fas fa-video text-3xl mb-3 text-[#E0E0E0]"></i><br>目前沒有上架影片
+                        </div>
+                    </div>
+                </div>
+
                 <div v-if="view === 'orders'" class="animate-fade-in">
                     <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-center"><h2 class="text-[17px] font-bold text-[#111111]">歷史報名紀錄</h2></div>
                     <div class="pt-2 pb-20 px-4">
@@ -244,6 +280,7 @@
                 <div @click="navigateTo('home')" class="nav-item" :class="{'nav-active': view === 'home'}"><i class="fas fa-compass"></i><span>探索</span></div>
                 <div @click="openBookingFlow" class="nav-item" :class="{'nav-active': view === 'booking'}"><i class="fas fa-calendar-check"></i><span>預約</span></div>
                 <div @click="navigateTo('shop')" class="nav-item" :class="{'nav-active': view === 'shop'}"><i class="fas fa-store"></i><span>商城</span></div>
+                <div @click="navigateTo('videos')" class="nav-item" :class="{'nav-active': view === 'videos'}"><i class="fas fa-play-circle"></i><span>影音</span></div>
                 <div @click="navigateTo('orders')" class="nav-item" :class="{'nav-active': view === 'orders'}"><i class="fas fa-receipt"></i><span>紀錄</span></div>
                 <div @click="navigateTo('profile')" class="nav-item" :class="{'nav-active': view === 'profile'}"><i class="fas fa-user"></i><span>我的</span></div>
             </nav>
@@ -726,6 +763,9 @@
                     const sysSettings = ref({});
                     const courses = ref([]); 
                     const products = ref([]);
+                    const videos = ref([]);
+                    const selectedVideo = ref(null);
+                    const activeVideoTeacher = ref('全部');
                     const myOrders = ref([]); 
                     const selectedCourse = ref(null);
                     const selectedProduct = ref(null);
@@ -919,6 +959,7 @@
                             const cSets = localStorage.getItem(`sets_${CACHE_VERSION}`); if (cSets) sysSettings.value = JSON.parse(cSets);
                             const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) courses.value = JSON.parse(cCs);
                             const cPs = localStorage.getItem(`products_${CACHE_VERSION}`); if (cPs) products.value = JSON.parse(cPs);
+                            const cVs = localStorage.getItem(`videos_${CACHE_VERSION}`); if (cVs) { videos.value = JSON.parse(cVs); if (!selectedVideo.value && videos.value.length) selectedVideo.value = videos.value[0]; }
                             if (uid) {
                                 const cU = localStorage.getItem(`u_${uid}_${CACHE_VERSION}`); if (cU) userStatus.value = JSON.parse(cU);
                                 const cP = localStorage.getItem(`p_${uid}_${CACHE_VERSION}`); if (cP) userPoints.value = JSON.parse(cP);
@@ -985,12 +1026,13 @@
 
                             syncLocal(uid);
 
-                            const [checkRes, cData, oData, pData, productData] = await Promise.all([
+                            const [checkRes, cData, oData, pData, productData, videoData] = await Promise.all([
                                 callApi('CHECK_USER', {}, true), 
                                 callApi('GET_COURSES', {}, true), 
                                 callApi('GET_USER_ORDERS', {}, true), 
                                 callApi('GET_USER_POINTS', {}, true),
-                                callApi('GET_PRODUCTS', {}, true)
+                                callApi('GET_PRODUCTS', {}, true),
+                                callApi('GET_VIDEOS', {}, true)
                             ]);
 
                             if (checkRes) userStatus.value = checkRes;
@@ -998,6 +1040,10 @@
                             if (oData) myOrders.value = oData;
                             if (pData) userPoints.value = pData;
                             if (productData) products.value = productData;
+                            if (videoData) {
+                                videos.value = videoData;
+                                if (!selectedVideo.value && videos.value.length) selectedVideo.value = videos.value[0];
+                            }
 
                             if (uid) {
                                 try {
@@ -1005,6 +1051,7 @@
                                     localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(pData));
                                     localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
                                     localStorage.setItem(`products_${CACHE_VERSION}`, JSON.stringify(productData));
+                                    localStorage.setItem(`videos_${CACHE_VERSION}`, JSON.stringify(videoData));
                                 } catch(e) { console.warn('LocalStorage limit reached in initApp'); }
                             }
                             
@@ -1070,7 +1117,28 @@
                         }
 
                         if (t === 'booking') { openBookingFlow(); return; }
+                        if (t === 'videos' && !selectedVideo.value && videos.value.length) selectedVideo.value = videos.value[0];
                         view.value = t; window.scrollTo(0, 0);
+                    };
+
+                    const videoTeachers = computed(() => {
+                        return ['全部', ...Array.from(new Set(videos.value.map(v => v.teacher).filter(Boolean)))];
+                    });
+
+                    const filteredVideos = computed(() => {
+                        const list = activeVideoTeacher.value === '全部'
+                            ? videos.value
+                            : videos.value.filter(v => v.teacher === activeVideoTeacher.value);
+                        return list.slice().sort((a, b) => {
+                            const teacherCompare = String(a.teacher || '').localeCompare(String(b.teacher || ''), 'zh-Hant');
+                            if (activeVideoTeacher.value === '全部' && teacherCompare !== 0) return teacherCompare;
+                            return Number(a.episode || 0) - Number(b.episode || 0);
+                        });
+                    });
+
+                    const openVideo = (video) => {
+                        selectedVideo.value = video;
+                        window.scrollTo(0, 0);
                     };
 
                     const openBookingFlow = async () => {
@@ -1684,7 +1752,7 @@
                     onMounted(() => { initApp(); });
 
                     return { 
-                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, products, myOrders, selectedCourse, selectedProduct, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
+                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, products, videos, selectedVideo, activeVideoTeacher, videoTeachers, filteredVideos, openVideo, myOrders, selectedCourse, selectedProduct, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
                         orderStatusText, orderStatusClass, orderAmountText,
                         isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                         isProfileInfoOpen, isImageUploading, handleAvatarUpload,
