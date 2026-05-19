@@ -166,8 +166,12 @@
                     </div>
                     <div class="p-4 space-y-4">
                         <div v-if="selectedVideo" class="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
-                            <div class="w-full aspect-video bg-black">
-                                <iframe v-if="videoPlayerReady" :key="videoPlayerKey" :src="selectedVideo.previewUrl" class="w-full h-full border-0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                            <div class="w-full aspect-video bg-slate-900 flex items-center justify-center text-white">
+                                <div class="text-center">
+                                    <i class="fas fa-play-circle text-5xl text-[#06C755] mb-3"></i>
+                                    <div class="text-[14px] font-black">使用 Google Drive 官方播放器觀看</div>
+                                    <div class="text-[11px] font-bold text-slate-400 mt-1">避免頁內播放黑畫面</div>
+                                </div>
                             </div>
                             <div class="p-4">
                                 <div class="text-[12px] font-black text-[#06C755] mb-1">{{ selectedVideo.teacher }} ・ 第 {{ selectedVideo.episode }} 集</div>
@@ -749,7 +753,7 @@
                 return;
             }
 
-            const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+            const { createApp, ref, computed, onMounted, watch } = Vue;
 
             createApp({
                 setup() {
@@ -767,9 +771,6 @@
                     const videos = ref([]);
                     const selectedVideo = ref(null);
                     const activeVideoTeacher = ref('全部');
-                    const videoPlayerReady = ref(false);
-                    const videoPlayerNonce = ref(0);
-                    const videoPlayerKey = computed(() => selectedVideo.value ? `${selectedVideo.value.id}-${videoPlayerNonce.value}` : `empty-${videoPlayerNonce.value}`);
                     const myOrders = ref([]); 
                     const selectedCourse = ref(null);
                     const selectedProduct = ref(null);
@@ -963,7 +964,7 @@
                             const cSets = localStorage.getItem(`sets_${CACHE_VERSION}`); if (cSets) sysSettings.value = JSON.parse(cSets);
                             const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) courses.value = JSON.parse(cCs);
                             const cPs = localStorage.getItem(`products_${CACHE_VERSION}`); if (cPs) products.value = JSON.parse(cPs);
-                            const cVs = localStorage.getItem(`videos_${CACHE_VERSION}`); if (cVs) { videos.value = JSON.parse(cVs); if (!selectedVideo.value && videos.value.length) setVideoPlayer(videos.value[0]); }
+                            const cVs = localStorage.getItem(`videos_${CACHE_VERSION}`); if (cVs) { videos.value = JSON.parse(cVs); if (!selectedVideo.value && videos.value.length) selectedVideo.value = videos.value[0]; }
                             if (uid) {
                                 const cU = localStorage.getItem(`u_${uid}_${CACHE_VERSION}`); if (cU) userStatus.value = JSON.parse(cU);
                                 const cP = localStorage.getItem(`p_${uid}_${CACHE_VERSION}`); if (cP) userPoints.value = JSON.parse(cP);
@@ -1046,7 +1047,7 @@
                             if (productData) products.value = productData;
                             if (videoData) {
                                 videos.value = videoData;
-                                if (!selectedVideo.value && videos.value.length) await setVideoPlayer(videos.value[0]);
+                                if (!selectedVideo.value && videos.value.length) selectedVideo.value = videos.value[0];
                             }
 
                             if (uid) {
@@ -1121,7 +1122,7 @@
                         }
 
                         if (t === 'booking') { openBookingFlow(); return; }
-                        if (t === 'videos' && !selectedVideo.value && videos.value.length) setVideoPlayer(videos.value[0]);
+                        if (t === 'videos' && !selectedVideo.value && videos.value.length) selectedVideo.value = videos.value[0];
                         view.value = t; window.scrollTo(0, 0);
                     };
 
@@ -1140,24 +1141,16 @@
                         });
                     });
 
-                    const setVideoPlayer = async (video) => {
-                        videoPlayerReady.value = false;
-                        await nextTick();
+                    const openVideo = (video) => {
                         selectedVideo.value = video;
-                        videoPlayerNonce.value += 1;
-                        await nextTick();
-                        videoPlayerReady.value = !!video;
-                    };
-
-                    const openVideo = async (video) => {
-                        await setVideoPlayer(video);
+                        if (video?.viewUrl) window.open(video.viewUrl, '_blank', 'noopener');
                         window.scrollTo(0, 0);
                     };
 
-                    const setActiveVideoTeacher = async (teacher) => {
+                    const setActiveVideoTeacher = (teacher) => {
                         activeVideoTeacher.value = teacher;
                         const list = teacher === '全部' ? videos.value : videos.value.filter(v => v.teacher === teacher);
-                        await setVideoPlayer(list.slice().sort((a, b) => Number(a.episode || 0) - Number(b.episode || 0))[0] || null);
+                        selectedVideo.value = list.slice().sort((a, b) => Number(a.episode || 0) - Number(b.episode || 0))[0] || null;
                         window.scrollTo(0, 0);
                     };
 
@@ -1772,7 +1765,7 @@
                     onMounted(() => { initApp(); });
 
                     return { 
-                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, products, videos, selectedVideo, activeVideoTeacher, videoPlayerReady, videoPlayerKey, videoTeachers, filteredVideos, openVideo, setActiveVideoTeacher, myOrders, selectedCourse, selectedProduct, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
+                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, products, videos, selectedVideo, activeVideoTeacher, videoTeachers, filteredVideos, openVideo, setActiveVideoTeacher, myOrders, selectedCourse, selectedProduct, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
                         orderStatusText, orderStatusClass, orderAmountText,
                         isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                         isProfileInfoOpen, isImageUploading, handleAvatarUpload,
