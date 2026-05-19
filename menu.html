@@ -94,18 +94,33 @@
         const ApiHelper = { 
             call: async (act, pl = {}) => { 
                 const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; 
-                const payload = { ...pl };
-                if (act === 'DEPLOY_RICH_MENU' || act === 'UPLOAD_IMAGE') {
-                    const savedPwd = sessionStorage.getItem('act_admin_pwd') || (window.parent?.sessionStorage?.getItem('act_admin_pwd'));
+                const needsAdmin = act === 'DEPLOY_RICH_MENU' || act === 'UPLOAD_IMAGE';
+                const getParentSessionPwd = () => {
+                    try { return window.parent?.sessionStorage?.getItem('act_admin_pwd') || ''; } catch(e) { return ''; }
+                };
+                const setSessionPwd = (pwd) => {
+                    sessionStorage.setItem('act_admin_pwd', pwd);
+                    try { window.parent?.sessionStorage?.setItem('act_admin_pwd', pwd); } catch(e) {}
+                };
+                const clearSessionPwd = () => {
+                    sessionStorage.removeItem('act_admin_pwd');
+                    try { window.parent?.sessionStorage?.removeItem('act_admin_pwd'); } catch(e) {}
+                };
+                const buildPayload = (forcePrompt = false) => {
+                    const payload = { ...pl };
+                    if (!needsAdmin) return payload;
+                    if (forcePrompt) clearSessionPwd();
+                    const savedPwd = sessionStorage.getItem('act_admin_pwd') || getParentSessionPwd();
                     if (savedPwd) {
                         payload.adminPwd = savedPwd;
                     } else {
                         const pwd = window.prompt('請輸入管理密碼以授權此操作');
                         if (!pwd) throw new Error('Admin authorization required');
-                        sessionStorage.setItem('act_admin_pwd', pwd);
+                        setSessionPwd(pwd);
                         payload.adminPwd = pwd;
                     }
-                }
+                    return payload;
+                };
 
                 let idToken = null;
                 let accessToken = null;
@@ -117,20 +132,25 @@
                     }
                 } catch(e) {}
 
-                const res = await fetch(url, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ action: act, payload, idToken, accessToken })
-                }); 
-                
-                const text = await res.text();
-                let json;
-                try {
-                    json = JSON.parse(text);
-                } catch(e) {
-                    throw new Error(`伺服器回傳了無效格式！\n\n[原始回應]\n${text.substring(0, 150)}...`);
-                }
+                const send = async (payload) => {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: act, payload, idToken, accessToken })
+                    });
 
+                    const text = await res.text();
+                    try {
+                        return JSON.parse(text);
+                    } catch(e) {
+                        throw new Error(`伺服器回傳了無效格式！\n\n[原始回應]\n${text.substring(0, 150)}...`);
+                    }
+                };
+
+                let json = await send(buildPayload(false));
+                if (json.status !== 'success' && needsAdmin && /Admin authorization required/i.test(json.message || '')) {
+                    json = await send(buildPayload(true));
+                }
                 if (json.status !== 'success') {
                     throw new Error(json.message || '後端執行失敗，但沒有提供具體錯誤訊息。');
                 }
