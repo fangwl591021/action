@@ -48,7 +48,7 @@
             <template v-else>
                 <section v-if="selectedVideo" class="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm mb-5">
                     <div class="w-full aspect-video bg-black">
-                        <iframe :key="selectedVideo.id" :src="selectedVideo.previewUrl" class="w-full h-full border-0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                        <iframe v-if="playerReady" :key="playerKey" :src="selectedVideo.previewUrl" class="w-full h-full border-0" allow="autoplay; fullscreen" allowfullscreen></iframe>
                     </div>
                     <div class="p-5">
                         <div class="text-[13px] font-black text-[#06C755] mb-1">{{ selectedVideo.teacher }} ・ 第 {{ selectedVideo.episode }} 集</div>
@@ -57,14 +57,14 @@
                     </div>
                 </section>
 
-                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <section class="grid grid-cols-2 gap-3 sm:gap-4">
                     <button v-for="video in filteredVideos" :key="video.id" @click="openVideo(video)" class="video-card text-left bg-white rounded-2xl border shadow-sm overflow-hidden" :class="selectedVideo?.id === video.id ? 'border-[#06C755] ring-2 ring-[#06C755]/20' : 'border-slate-100'">
                         <div class="aspect-video bg-slate-100 flex items-center justify-center text-[#06C755]">
                             <i class="fas fa-play-circle text-5xl"></i>
                         </div>
                         <div class="p-4">
-                            <div class="text-[12px] font-black text-slate-400 mb-1">{{ video.teacher }} ・ 第 {{ video.episode }} 集</div>
-                            <div class="text-[16px] font-black text-slate-950 leading-snug">{{ video.title }}</div>
+                            <div class="text-[11px] font-black text-slate-400 mb-1">{{ video.teacher }} ・ 第 {{ video.episode }} 集</div>
+                            <div class="text-[14px] sm:text-[16px] font-black text-slate-950 leading-snug">{{ video.title }}</div>
                         </div>
                     </button>
                 </section>
@@ -78,7 +78,7 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted, nextTick } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
 
         createApp({
@@ -88,6 +88,9 @@
                 const activeTeacher = ref('全部');
                 const isLoading = ref(true);
                 const errorMessage = ref('');
+                const playerReady = ref(false);
+                const playerNonce = ref(0);
+                const playerKey = computed(() => selectedVideo.value ? `${selectedVideo.value.id}-${playerNonce.value}` : `empty-${playerNonce.value}`);
 
                 const callApi = async (action, payload = {}) => {
                     const res = await fetch(WORKER_URL, {
@@ -112,17 +115,26 @@
                     });
                 });
 
-                const openVideo = (video) => {
+                const setPlayerVideo = async (video) => {
+                    playerReady.value = false;
+                    await nextTick();
                     selectedVideo.value = video;
+                    playerNonce.value += 1;
+                    await nextTick();
+                    playerReady.value = !!video;
+                };
+
+                const openVideo = async (video) => {
+                    await setPlayerVideo(video);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 };
 
-                const setActiveTeacher = (teacher) => {
+                const setActiveTeacher = async (teacher) => {
                     activeTeacher.value = teacher;
                     const first = (teacher === '全部' ? videos.value : videos.value.filter(v => v.teacher === teacher))
                         .slice()
                         .sort((a, b) => Number(a.episode || 0) - Number(b.episode || 0))[0];
-                    selectedVideo.value = first || null;
+                    await setPlayerVideo(first || null);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 };
 
@@ -132,7 +144,7 @@
                     try {
                         const data = await callApi('GET_VIDEOS');
                         videos.value = Array.isArray(data) ? data : [];
-                        selectedVideo.value = videos.value[0] || null;
+                        await setPlayerVideo(videos.value[0] || null);
                     } catch (e) {
                         errorMessage.value = e.message || '影片載入失敗';
                     } finally {
@@ -142,7 +154,7 @@
 
                 onMounted(loadVideos);
 
-                return { videos, selectedVideo, activeTeacher, isLoading, errorMessage, videoTeachers, filteredVideos, openVideo, setActiveTeacher };
+                return { videos, selectedVideo, activeTeacher, isLoading, errorMessage, playerReady, playerKey, videoTeachers, filteredVideos, openVideo, setActiveTeacher };
             }
         }).mount('#app');
     </script>
