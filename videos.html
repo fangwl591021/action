@@ -30,7 +30,7 @@
                     </div>
                 </div>
                 <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-                    <button v-for="teacher in videoTeachers" :key="teacher" @click="activeTeacher = teacher" class="shrink-0 px-4 py-2 rounded-full text-[13px] font-black border transition" :class="activeTeacher === teacher ? 'bg-[#06C755] text-white border-[#06C755] shadow-sm' : 'bg-white text-slate-600 border-slate-200'">{{ teacher }}</button>
+                    <button v-for="teacher in videoTeachers" :key="teacher" @click="setActiveTeacher(teacher)" class="shrink-0 px-4 py-2 rounded-full text-[13px] font-black border transition" :class="activeTeacher === teacher ? 'bg-[#06C755] text-white border-[#06C755] shadow-sm' : 'bg-white text-slate-600 border-slate-200'">{{ teacher }}</button>
                 </div>
             </div>
         </header>
@@ -48,7 +48,7 @@
             <template v-else>
                 <section v-if="selectedVideo" class="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm mb-5">
                     <div class="w-full aspect-video bg-black">
-                        <iframe :src="selectedVideo.previewUrl" class="w-full h-full border-0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                        <iframe :key="selectedVideo.id" :src="selectedVideo.previewUrl" class="w-full h-full border-0" allow="autoplay; fullscreen" allowfullscreen></iframe>
                     </div>
                     <div class="p-5">
                         <div class="text-[13px] font-black text-[#06C755] mb-1">{{ selectedVideo.teacher }} ・ 第 {{ selectedVideo.episode }} 集</div>
@@ -117,6 +117,15 @@
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 };
 
+                const setActiveTeacher = (teacher) => {
+                    activeTeacher.value = teacher;
+                    const first = (teacher === '全部' ? videos.value : videos.value.filter(v => v.teacher === teacher))
+                        .slice()
+                        .sort((a, b) => Number(a.episode || 0) - Number(b.episode || 0))[0];
+                    selectedVideo.value = first || null;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+
                 const loadVideos = async () => {
                     isLoading.value = true;
                     errorMessage.value = '';
@@ -133,7 +142,7 @@
 
                 onMounted(loadVideos);
 
-                return { videos, selectedVideo, activeTeacher, isLoading, errorMessage, videoTeachers, filteredVideos, openVideo };
+                return { videos, selectedVideo, activeTeacher, isLoading, errorMessage, videoTeachers, filteredVideos, openVideo, setActiveTeacher };
             }
         }).mount('#app');
     </script>
