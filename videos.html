@@ -48,12 +48,17 @@
             <template v-else>
                 <section v-if="selectedVideo" class="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm mb-5">
                     <div class="w-full aspect-video bg-black">
-                        <iframe v-if="playerReady" :key="playerKey" :src="selectedVideo.previewUrl" class="w-full h-full border-0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                        <video v-if="playerReady" :key="playerKey" class="w-full h-full bg-black" controls playsinline preload="metadata" :poster="selectedVideo.poster || ''">
+                            <source :src="selectedVideoDirectUrl" type="video/mp4">
+                        </video>
                     </div>
                     <div class="p-5">
                         <div class="text-[13px] font-black text-[#06C755] mb-1">{{ selectedVideo.teacher }} ・ 第 {{ selectedVideo.episode }} 集</div>
                         <h2 class="text-[20px] font-black text-slate-950 leading-snug">{{ selectedVideo.title }}</h2>
-                        <div class="text-[12px] text-slate-400 font-bold mt-2">{{ selectedVideo.createdAt || '' }}</div>
+                        <div class="flex items-center justify-between gap-3 mt-2">
+                            <div class="text-[12px] text-slate-400 font-bold">{{ selectedVideo.createdAt || '' }}</div>
+                            <a :href="selectedVideo.viewUrl" target="_blank" rel="noopener" class="text-[12px] font-black text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">Drive 開啟</a>
+                        </div>
                     </div>
                 </section>
 
@@ -91,6 +96,7 @@
                 const playerReady = ref(false);
                 const playerNonce = ref(0);
                 const playerKey = computed(() => selectedVideo.value ? `${selectedVideo.value.id}-${playerNonce.value}` : `empty-${playerNonce.value}`);
+                const selectedVideoDirectUrl = computed(() => selectedVideo.value?.driveFileId ? `https://drive.google.com/uc?export=download&id=${selectedVideo.value.driveFileId}` : '');
 
                 const callApi = async (action, payload = {}) => {
                     const res = await fetch(WORKER_URL, {
@@ -154,7 +160,7 @@
 
                 onMounted(loadVideos);
 
-                return { videos, selectedVideo, activeTeacher, isLoading, errorMessage, playerReady, playerKey, videoTeachers, filteredVideos, openVideo, setActiveTeacher };
+                return { videos, selectedVideo, activeTeacher, isLoading, errorMessage, playerReady, playerKey, selectedVideoDirectUrl, videoTeachers, filteredVideos, openVideo, setActiveTeacher };
             }
         }).mount('#app');
     </script>
