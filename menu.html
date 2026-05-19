@@ -155,14 +155,16 @@
                                 try {
                                     const res = await ApiHelper.call('UPLOAD_IMAGE', { imageBase64: b64 });
                                     if (res && res.url) {
-                                        // 上傳成功，將 R2 URL 載入畫布
-                                        MenuModule.load(file.name, "{}", res.url); 
+                                        // 只替換底圖，保留目前選單名稱、熱區與 action 參數。
+                                        const currentConfig = document.getElementById('json-output').value || "{}";
+                                        MenuModule.load(file.name, encodeURIComponent(currentConfig), res.url);
                                     } else {
                                         throw new Error('R2 URL 回傳失敗');
                                     }
                                 } catch (err) {
-                                    // 若失敗則退回使用純 Base64
-                                    MenuModule.load(file.name, "{}", b64);
+                                    // 若失敗則退回使用純 Base64，但仍保留原本熱區設定。
+                                    const currentConfig = document.getElementById('json-output').value || "{}";
+                                    MenuModule.load(file.name, encodeURIComponent(currentConfig), b64);
                                 } finally {
                                     btn.innerHTML = origHtml; btn.disabled = false;
                                 }
