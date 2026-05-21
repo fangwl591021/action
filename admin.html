@@ -691,6 +691,16 @@
                                 <option value="true">啟用</option>
                             </select>
                         </div>
+                        <div class="mb-8 flex items-center justify-between bg-rose-50 p-4 rounded-xl border border-rose-100">
+                            <div>
+                                <div class="font-bold text-slate-700 text-sm">高風險資料優先讀 Wasabi</div>
+                                <div class="text-xs text-slate-500 mt-1">影響會員、會員點數、點數進出總表、訂單。只在每日總檢查通過後再開啟；讀取失敗會回退 R2 live / KV。</div>
+                            </div>
+                            <select v-model="sysSettings.high_risk_wasabi_read_enabled" class="input-field !w-32 !py-2 !text-sm font-bold bg-white">
+                                <option value="false">停用</option>
+                                <option value="true">啟用</option>
+                            </select>
+                        </div>
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                             <div><label class="input-label">註冊系統 (點)</label><input type="number" v-model="sysSettings.reward_register" class="input-field font-bold text-[#06C755]"></div>
                             <div><label class="input-label">自己加OA好友 (點)</label><input type="number" v-model="sysSettings.reward_add_friend" class="input-field font-bold text-[#06C755]"></div>
@@ -1166,7 +1176,8 @@
                     const wasabiDailyCheckResult = ref(null);
                     const normalizeSystemSettings = (settings = {}) => ({
                         ...settings,
-                        low_risk_wasabi_read_enabled: String(settings.low_risk_wasabi_read_enabled || 'false')
+                        low_risk_wasabi_read_enabled: String(settings.low_risk_wasabi_read_enabled || 'false'),
+                        high_risk_wasabi_read_enabled: String(settings.high_risk_wasabi_read_enabled || 'false')
                     });
                     
                     const memberSearch = ref('');

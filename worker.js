@@ -67,8 +67,40 @@ async function safeGetR2Json(env, objectKey, defaultVal) {
   }
 }
 
-async function safeGetKV(env, key, defaultVal) {
+async function shouldReadHighRiskFromWasabi(env) {
+  if (String(env.WASABI_READ_HIGH_RISK || "").toLowerCase() === "true") return true;
+  const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
+  return String(settings.high_risk_wasabi_read_enabled || "false").toLowerCase() === "true";
+}
+
+async function safeGetHighRiskWasabiValue(env, key, defaultVal) {
+  if (!getWasabiConfig(env).configured) return defaultVal;
+  const rawKey = String(key || "");
+  try {
+    if (rawKey === "ORDERS") return await safeGetWasabiJson(env, "high-risk/orders.json", defaultVal);
+    if (rawKey === "POINT_LEDGER") return await safeGetWasabiJson(env, "high-risk/point-ledger.json", defaultVal);
+    if (rawKey.startsWith("USER_")) {
+      const rows = await safeGetWasabiJson(env, "high-risk/users.json", []);
+      const found = (Array.isArray(rows) ? rows : []).find(row => row && row.key === rawKey);
+      return found ? found.data : defaultVal;
+    }
+    if (rawKey.startsWith("POINTS_")) {
+      const rows = await safeGetWasabiJson(env, "high-risk/points.json", []);
+      const found = (Array.isArray(rows) ? rows : []).find(row => row && row.key === rawKey);
+      return found ? found.data : defaultVal;
+    }
+  } catch (e) {
+    console.error(`[Wasabi:HighRiskReadFallback] ${rawKey} read failed`, e);
+  }
+  return defaultVal;
+}
+
+async function safeGetKV(env, key, defaultVal, options = {}) {
   const liveKey = getHighRiskLiveKey(key);
+  if (liveKey && options.preferWasabi !== false && await shouldReadHighRiskFromWasabi(env)) {
+    const wasabiValue = await safeGetHighRiskWasabiValue(env, key, undefined);
+    if (wasabiValue !== undefined) return wasabiValue;
+  }
   if (liveKey) {
     const r2Value = await safeGetR2Json(env, liveKey, undefined);
     if (r2Value !== undefined) return r2Value;
@@ -489,7 +521,7 @@ async function listKVRecords(env, prefix) {
       const chunk = list.keys.slice(i, i + chunkSize);
       const values = await Promise.all(chunk.map(async key => ({
         key: key.name,
-        data: await safeGetKV(env, key.name, null),
+        data: await safeGetKV(env, key.name, null, { preferWasabi: false }),
       })));
       values.forEach(item => byKey.set(item.key, item));
     }
@@ -524,8 +556,8 @@ async function buildHighRiskWasabiDatasets(env) {
   return [
     { id: "users", label: "會員資料 USER_*", key: "high-risk/users.json", data: await listKVRecords(env, "USER_") },
     { id: "points", label: "會員點數 POINTS_*", key: "high-risk/points.json", data: await listKVRecords(env, "POINTS_") },
-    { id: "point-ledger", label: "點數進出總表", key: "high-risk/point-ledger.json", data: await safeGetKV(env, "POINT_LEDGER", []) },
-    { id: "orders", label: "訂單資料", key: "high-risk/orders.json", data: await safeGetKV(env, "ORDERS", []) },
+    { id: "point-ledger", label: "點數進出總表", key: "high-risk/point-ledger.json", data: await safeGetKV(env, "POINT_LEDGER", [], { preferWasabi: false }) },
+    { id: "orders", label: "訂單資料", key: "high-risk/orders.json", data: await safeGetKV(env, "ORDERS", [], { preferWasabi: false }) },
   ];
 }
 
@@ -631,7 +663,7 @@ async function runWasabiDailyAcceptanceCheck(env) {
     highRisk,
     sourcePolicy: {
       lowRisk: (await shouldReadLowRiskFromWasabi(env)) ? "Wasabi 優先 / R2-KV fallback" : "原來源優先 / Wasabi 雙寫快照",
-      highRisk: "R2 live 優先 / KV fallback；Wasabi 快照與雙寫觀察",
+      highRisk: (await shouldReadHighRiskFromWasabi(env)) ? "Wasabi 優先 / R2 live / KV fallback" : "R2 live 優先 / KV fallback；Wasabi 快照與雙寫觀察",
     },
   };
 }
@@ -640,8 +672,8 @@ function highRiskDatasetMeta(id) {
   return {
     users: { id: "users", label: "會員資料 USER_*", key: "high-risk/users.json", load: env => listKVRecords(env, "USER_") },
     points: { id: "points", label: "會員點數 POINTS_*", key: "high-risk/points.json", load: env => listKVRecords(env, "POINTS_") },
-    "point-ledger": { id: "point-ledger", label: "點數進出總表", key: "high-risk/point-ledger.json", load: env => safeGetKV(env, "POINT_LEDGER", []) },
-    orders: { id: "orders", label: "訂單資料", key: "high-risk/orders.json", load: env => safeGetKV(env, "ORDERS", []) },
+    "point-ledger": { id: "point-ledger", label: "點數進出總表", key: "high-risk/point-ledger.json", load: env => safeGetKV(env, "POINT_LEDGER", [], { preferWasabi: false }) },
+    orders: { id: "orders", label: "訂單資料", key: "high-risk/orders.json", load: env => safeGetKV(env, "ORDERS", [], { preferWasabi: false }) },
   }[id];
 }
 
@@ -730,9 +762,10 @@ async function buildWasabiMigrationCheck(env) {
   const cfg = getWasabiConfig(env);
   const syncStatus = await getWasabiSyncStatus(env);
   const readEnabled = await shouldReadLowRiskFromWasabi(env);
+  const highRiskReadEnabled = await shouldReadHighRiskFromWasabi(env);
   const highRiskLiveSources = {
-    mode: "R2 live 優先 / KV fallback",
-    wasabiMode: "Wasabi 快照與雙寫觀察，尚未作為主讀取來源",
+    mode: highRiskReadEnabled ? "Wasabi 優先 / R2 live / KV fallback" : "R2 live 優先 / KV fallback",
+    wasabiMode: highRiskReadEnabled ? "Wasabi 已作為高風險主讀取來源，仍保留 R2 live 與 KV fallback" : "Wasabi 快照與雙寫觀察，尚未作為主讀取來源",
     datasets: [
       { id: "users", label: "會員資料 USER_*", source: "R2 live / KV fallback" },
       { id: "points", label: "會員點數 POINTS_*", source: "R2 live / KV fallback" },
@@ -744,10 +777,10 @@ async function buildWasabiMigrationCheck(env) {
     { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", count: (await safeGetCourses(env, { preferWasabi: false })).length, risk: "中" },
     { id: "products", label: "商城商品", key: "data/products.json", count: (await safeGetProducts(env, { preferWasabi: false })).length, risk: "低" },
     { id: "videos", label: "影音資料", key: "data/videos.json", count: (await safeGetVideos(env, { preferWasabi: false })).length, risk: "低" },
-    { id: "orders", label: "訂單資料", key: "data/orders.json", count: (await safeGetKV(env, "ORDERS", [])).length, risk: "高" },
+    { id: "orders", label: "訂單資料", key: "data/orders.json", count: (await safeGetKV(env, "ORDERS", [], { preferWasabi: false })).length, risk: "高" },
     { id: "slots", label: "預約時段", key: "data/slots.json", count: (await safeGetKV(env, "SLOTS", [])).length, risk: "中" },
     { id: "settings", label: "系統設定", key: "data/system-settings.json", count: Object.keys(await safeGetKV(env, "SYSTEM_SETTINGS", {})).length, risk: "高" },
-    { id: "point-ledger", label: "點數進出總表", key: "data/point-ledger.json", count: (await safeGetKV(env, "POINT_LEDGER", [])).length, risk: "最高" },
+    { id: "point-ledger", label: "點數進出總表", key: "data/point-ledger.json", count: (await safeGetKV(env, "POINT_LEDGER", [], { preferWasabi: false })).length, risk: "最高" },
   ];
   const userList = await env.ACTION_DATA.list({ prefix: "USER_" });
   const pointList = await env.ACTION_DATA.list({ prefix: "POINTS_" });
@@ -755,7 +788,7 @@ async function buildWasabiMigrationCheck(env) {
   datasets.push({ id: "points", label: "會員點數 POINTS_*", key: "points/", count: pointList.keys.length, risk: "最高" });
   for (const item of datasets) {
     item.currentSource = ["users", "points", "orders", "point-ledger"].includes(item.id)
-      ? "R2 live / KV fallback"
+      ? (highRiskReadEnabled ? "Wasabi / R2 live / KV fallback" : "R2 live / KV fallback")
       : ["courses", "products"].includes(item.id)
         ? (readEnabled ? "Wasabi 優先 / R2-KV fallback" : "R2/KV fallback")
         : "KV";
@@ -780,6 +813,7 @@ async function buildWasabiMigrationCheck(env) {
       accessKeyPresent: !!cfg.accessKeyId,
       secretKeyPresent: !!cfg.secretAccessKey,
       lowRiskReadEnabled: readEnabled,
+      highRiskReadEnabled,
     },
     health: cfg.configured ? await wasabiHealthCheck(env) : { ok: false, steps: [{ step: "Config", ok: false, message: "缺少 Wasabi 環境變數" }] },
     datasets,
