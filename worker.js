@@ -605,6 +605,37 @@ async function verifyHighRiskWasabiSnapshot(env) {
   return { success: results.every(item => item.ok), verifiedAt: new Date().toISOString(), datasets: results };
 }
 
+async function runWasabiDailyAcceptanceCheck(env) {
+  const checkedAt = new Date().toISOString();
+  const cfg = getWasabiConfig(env);
+  const health = cfg.configured
+    ? await wasabiHealthCheck(env)
+    : { ok: false, steps: [{ step: "Config", ok: false, message: "缺少 Wasabi 環境變數" }] };
+  const lowRisk = cfg.configured
+    ? await verifyLowRiskWasabiSnapshot(env)
+    : { success: false, verifiedAt: checkedAt, datasets: [] };
+  const highRisk = cfg.configured
+    ? await verifyHighRiskWasabiSnapshot(env)
+    : { success: false, verifiedAt: checkedAt, datasets: [] };
+  const success = Boolean(cfg.configured && health.ok && lowRisk.success && highRisk.success);
+  return {
+    success,
+    checkedAt,
+    summary: {
+      health: health.ok,
+      lowRisk: lowRisk.success,
+      highRisk: highRisk.success,
+    },
+    health,
+    lowRisk,
+    highRisk,
+    sourcePolicy: {
+      lowRisk: (await shouldReadLowRiskFromWasabi(env)) ? "Wasabi 優先 / R2-KV fallback" : "原來源優先 / Wasabi 雙寫快照",
+      highRisk: "R2 live 優先 / KV fallback；Wasabi 快照與雙寫觀察",
+    },
+  };
+}
+
 function highRiskDatasetMeta(id) {
   return {
     users: { id: "users", label: "會員資料 USER_*", key: "high-risk/users.json", load: env => listKVRecords(env, "USER_") },
@@ -1471,6 +1502,10 @@ export default {
 
         case "ADMIN_WASABI_VERIFY_HIGH_RISK":
           result.data = await verifyHighRiskWasabiSnapshot(env);
+          break;
+
+        case "ADMIN_WASABI_DAILY_CHECK":
+          result.data = await runWasabiDailyAcceptanceCheck(env);
           break;
 
         case "GET_SETTINGS":

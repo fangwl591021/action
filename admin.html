@@ -467,6 +467,7 @@
                             <button @click="verifyLowRiskWasabiSnapshot" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-check-double mr-2"></i>驗證快照一致</button>
                             <button @click="exportHighRiskWasabiSnapshot" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-white text-rose-600 border-rose-200 hover:bg-rose-50 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-shield-alt mr-2"></i>匯出高風險快照</button>
                             <button @click="verifyHighRiskWasabiSnapshot" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-white text-orange-600 border-orange-200 hover:bg-orange-50 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-balance-scale mr-2"></i>驗證高風險一致</button>
+                            <button @click="runWasabiDailyCheck" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-slate-900 text-white border-slate-900 hover:bg-slate-700 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-clipboard-check mr-2"></i>每日總檢查</button>
                         </div>
                     </div>
 
@@ -530,6 +531,34 @@
 
                         <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm font-bold text-amber-800 leading-relaxed">
                             下一步順序：先雙寫低風險資料，再做 hash/筆數比對；會員、點數與訂單最後才切主庫，並保留 KV 回滾。
+                        </div>
+
+                        <div v-if="wasabiDailyCheckResult" class="bg-white rounded-xl border shadow-sm p-5" :class="wasabiDailyCheckResult.success ? 'border-green-200' : 'border-red-200'">
+                            <div class="flex items-center justify-between gap-3 mb-4">
+                                <h4 class="font-black" :class="wasabiDailyCheckResult.success ? 'text-green-700' : 'text-red-700'"><i class="fas mr-2" :class="wasabiDailyCheckResult.success ? 'fa-clipboard-check' : 'fa-exclamation-triangle'"></i>每日驗收總檢查</h4>
+                                <span class="text-xs font-mono text-slate-500">{{ wasabiDailyCheckResult.checkedAt }}</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="rounded-lg border p-4" :class="wasabiDailyCheckResult.summary?.health ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'">
+                                    <div class="font-black text-slate-800">Wasabi 連線健康</div>
+                                    <div class="text-sm font-black mt-1" :class="wasabiDailyCheckResult.summary?.health ? 'text-green-700' : 'text-red-700'">{{ wasabiDailyCheckResult.summary?.health ? '通過' : '失敗' }}</div>
+                                    <div class="text-[11px] text-slate-500 mt-2">{{ (wasabiDailyCheckResult.health?.steps || []).filter(s => s.ok).length }} / {{ (wasabiDailyCheckResult.health?.steps || []).length }} 項通過</div>
+                                </div>
+                                <div class="rounded-lg border p-4" :class="wasabiDailyCheckResult.summary?.lowRisk ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'">
+                                    <div class="font-black text-slate-800">低風險一致性</div>
+                                    <div class="text-sm font-black mt-1" :class="wasabiDailyCheckResult.summary?.lowRisk ? 'text-green-700' : 'text-red-700'">{{ wasabiDailyCheckResult.summary?.lowRisk ? '通過' : '失敗' }}</div>
+                                    <div class="text-[11px] text-slate-500 mt-2">{{ (wasabiDailyCheckResult.lowRisk?.datasets || []).filter(d => d.ok).length }} / {{ (wasabiDailyCheckResult.lowRisk?.datasets || []).length }} 組一致</div>
+                                </div>
+                                <div class="rounded-lg border p-4" :class="wasabiDailyCheckResult.summary?.highRisk ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'">
+                                    <div class="font-black text-slate-800">高風險一致性</div>
+                                    <div class="text-sm font-black mt-1" :class="wasabiDailyCheckResult.summary?.highRisk ? 'text-green-700' : 'text-red-700'">{{ wasabiDailyCheckResult.summary?.highRisk ? '通過' : '失敗' }}</div>
+                                    <div class="text-[11px] text-slate-500 mt-2">{{ (wasabiDailyCheckResult.highRisk?.datasets || []).filter(d => d.ok).length }} / {{ (wasabiDailyCheckResult.highRisk?.datasets || []).length }} 組一致</div>
+                                </div>
+                            </div>
+                            <div class="mt-4 text-xs text-slate-500 font-bold leading-relaxed">
+                                低風險：{{ wasabiDailyCheckResult.sourcePolicy?.lowRisk }}<br>
+                                高風險：{{ wasabiDailyCheckResult.sourcePolicy?.highRisk }}
+                            </div>
                         </div>
 
                         <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -1134,6 +1163,7 @@
                     const wasabiVerifyResult = ref(null);
                     const wasabiHighRiskExportResult = ref(null);
                     const wasabiHighRiskVerifyResult = ref(null);
+                    const wasabiDailyCheckResult = ref(null);
                     const normalizeSystemSettings = (settings = {}) => ({
                         ...settings,
                         low_risk_wasabi_read_enabled: String(settings.low_risk_wasabi_read_enabled || 'false')
@@ -1714,6 +1744,20 @@
                             wasabiHighRiskVerifyResult.value = await callApi('ADMIN_WASABI_VERIFY_HIGH_RISK', {});
                             const ok = wasabiHighRiskVerifyResult.value?.success;
                             alert(ok ? '高風險快照驗證通過：Wasabi 與目前 KV 資料一致。' : '高風險快照驗證未通過，請查看頁面中的不一致項目。');
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const runWasabiDailyCheck = async () => {
+                        if (!isAdminRole.value) return alert('每日總檢查僅限 Admin 使用');
+                        isLoading.value = true;
+                        try {
+                            wasabiDailyCheckResult.value = await callApi('ADMIN_WASABI_DAILY_CHECK', {});
+                            wasabiVerifyResult.value = wasabiDailyCheckResult.value.lowRisk;
+                            wasabiHighRiskVerifyResult.value = wasabiDailyCheckResult.value.highRisk;
+                            wasabiCheck.value = await callApi('ADMIN_WASABI_CHECK', {});
+                            alert(wasabiDailyCheckResult.value.success ? '每日驗收總檢查通過。' : '每日驗收總檢查未通過，請查看頁面中的紅色項目。');
                         } finally {
                             isLoading.value = false;
                         }
@@ -2702,7 +2746,7 @@
 
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, productStatusOptions,
-                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult,
+                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
                         currentAccess, isAdminRole, isOperatorRole, canViewFinance,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText,
                         currentViewName, totalRevenue, courseStatsFiltered,
@@ -2722,7 +2766,7 @@
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
+                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
