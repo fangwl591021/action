@@ -275,6 +275,55 @@ async function exportLowRiskWasabiSnapshot(env) {
   return { success: true, exportedAt, datasets: results, manifest: manifestWrite };
 }
 
+async function getWasabiJson(env, key) {
+  const result = await wasabiRequest(env, "GET", key);
+  const text = await result.res.text();
+  return { key: result.key, text, data: JSON.parse(text), bytes: new TextEncoder().encode(text).length, sha256: await sha256HexBody(text) };
+}
+
+async function verifyLowRiskWasabiSnapshot(env) {
+  if (!getWasabiConfig(env).configured) throw new Error("Wasabi 尚未設定完整環境變數");
+  const datasets = [
+    { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", data: await safeGetCourses(env) },
+    { id: "products", label: "商城商品", key: "data/products.json", data: await safeGetProducts(env) },
+    { id: "videos", label: "影音資料", key: "data/videos.json", data: await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS) },
+  ];
+  const results = [];
+  for (const item of datasets) {
+    const localData = Array.isArray(item.data) ? item.data : [];
+    const localText = JSON.stringify(localData);
+    const localHash = await sha256HexBody(localText);
+    try {
+      const remote = await getWasabiJson(env, item.key);
+      const remoteData = Array.isArray(remote.data) ? remote.data : [];
+      results.push({
+        id: item.id,
+        label: item.label,
+        key: remote.key,
+        ok: localHash === remote.sha256 && localData.length === remoteData.length,
+        localCount: localData.length,
+        remoteCount: remoteData.length,
+        localSha256: localHash,
+        remoteSha256: remote.sha256,
+        remoteBytes: remote.bytes,
+      });
+    } catch (e) {
+      results.push({
+        id: item.id,
+        label: item.label,
+        key: wasabiObjectKey(env, item.key),
+        ok: false,
+        localCount: localData.length,
+        remoteCount: null,
+        localSha256: localHash,
+        remoteSha256: "",
+        message: e.message,
+      });
+    }
+  }
+  return { success: results.every(item => item.ok), verifiedAt: new Date().toISOString(), datasets: results };
+}
+
 async function wasabiHeadObject(env, key) {
   const { res, key: objectKey } = await wasabiRequest(env, "HEAD", key);
   return {
@@ -1045,6 +1094,10 @@ export default {
 
         case "ADMIN_WASABI_EXPORT_LOW_RISK":
           result.data = await exportLowRiskWasabiSnapshot(env);
+          break;
+
+        case "ADMIN_WASABI_VERIFY_LOW_RISK":
+          result.data = await verifyLowRiskWasabiSnapshot(env);
           break;
 
         case "GET_SETTINGS":

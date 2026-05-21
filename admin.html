@@ -464,6 +464,7 @@
                         <div class="flex flex-col sm:flex-row gap-3">
                             <button @click="runWasabiCheck" :disabled="isLoading" class="btn-green-main !py-3 px-6"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-plug mr-2"></i>執行檢查</button>
                             <button @click="exportLowRiskWasabiSnapshot" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-cloud-upload-alt mr-2"></i>匯出低風險快照</button>
+                            <button @click="verifyLowRiskWasabiSnapshot" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-check-double mr-2"></i>驗證快照一致</button>
                         </div>
                     </div>
 
@@ -521,6 +522,19 @@
                                     <div class="font-black text-slate-800">{{ item.label }}</div>
                                     <div class="text-sm text-green-700 font-black mt-1">{{ item.count }} 筆 / {{ item.bytes }} bytes</div>
                                     <div class="text-[11px] font-mono text-slate-500 break-all mt-2">{{ item.key }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="wasabiVerifyResult" class="bg-white rounded-xl border shadow-sm p-5" :class="wasabiVerifyResult.success ? 'border-green-200' : 'border-red-200'">
+                            <h4 class="font-black mb-3" :class="wasabiVerifyResult.success ? 'text-green-700' : 'text-red-700'"><i class="fas mr-2" :class="wasabiVerifyResult.success ? 'fa-check-double' : 'fa-exclamation-triangle'"></i>低風險快照一致性驗證</h4>
+                            <div class="text-xs font-mono text-slate-500 mb-3">{{ wasabiVerifyResult.verifiedAt }}</div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div v-for="item in wasabiVerifyResult.datasets" :key="item.id" class="rounded-lg border p-4" :class="item.ok ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'">
+                                    <div class="font-black text-slate-800">{{ item.label }}</div>
+                                    <div class="text-sm font-black mt-1" :class="item.ok ? 'text-green-700' : 'text-red-700'">{{ item.ok ? '一致' : '不一致' }}</div>
+                                    <div class="text-[11px] text-slate-500 mt-2">本機 {{ item.localCount }} 筆 / Wasabi {{ item.remoteCount ?? '讀取失敗' }} 筆</div>
+                                    <div class="text-[11px] font-mono text-slate-500 break-all mt-2">{{ item.message || item.key }}</div>
                                 </div>
                             </div>
                         </div>
@@ -1028,6 +1042,7 @@
                     const pointsLedger = ref([]);
                     const wasabiCheck = ref(null);
                     const wasabiExportResult = ref(null);
+                    const wasabiVerifyResult = ref(null);
                     
                     const memberSearch = ref('');
                     const courseSearchQuery = ref('');
@@ -1566,6 +1581,18 @@
                             wasabiCheck.value = await callApi('ADMIN_WASABI_CHECK', {});
                             const countText = (wasabiExportResult.value.datasets || []).map(item => `${item.label} ${item.count} 筆`).join('、');
                             alert(`低風險快照匯出完成：${countText}`);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const verifyLowRiskWasabiSnapshot = async () => {
+                        if (!isAdminRole.value) return alert('低風險快照驗證僅限 Admin 使用');
+                        isLoading.value = true;
+                        try {
+                            wasabiVerifyResult.value = await callApi('ADMIN_WASABI_VERIFY_LOW_RISK', {});
+                            const ok = wasabiVerifyResult.value?.success;
+                            alert(ok ? '低風險快照驗證通過：Wasabi 與目前系統資料一致。' : '低風險快照驗證未通過，請查看頁面中的不一致項目。');
                         } finally {
                             isLoading.value = false;
                         }
@@ -2553,7 +2580,7 @@
 
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, productStatusOptions,
-                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, wasabiCheck, wasabiExportResult,
+                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, wasabiCheck, wasabiExportResult, wasabiVerifyResult,
                         currentAccess, isAdminRole, isOperatorRole, canViewFinance,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText,
                         currentViewName, totalRevenue, courseStatsFiltered,
@@ -2573,7 +2600,7 @@
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, runWasabiCheck, exportLowRiskWasabiSnapshot, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
+                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
