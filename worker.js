@@ -230,15 +230,49 @@ async function safePutWasabiJson(env, key, data) {
   if (!getWasabiConfig(env).configured) return { enabled: false, ok: false };
   try {
     const body = JSON.stringify(data);
+    const hash = await sha256HexBody(body);
     const result = await wasabiRequest(env, "PUT", key, {
       body,
       contentType: "application/json; charset=utf-8",
     });
-    return { enabled: true, ok: true, key: result.key, bytes: new TextEncoder().encode(body).length };
+    return { enabled: true, ok: true, key: result.key, bytes: new TextEncoder().encode(body).length, sha256: hash };
   } catch (e) {
     console.error(`[Wasabi:DualWrite] ${key} 寫入失敗`, e);
     return { enabled: true, ok: false, key, message: e.message };
   }
+}
+
+async function exportLowRiskWasabiSnapshot(env) {
+  if (!getWasabiConfig(env).configured) throw new Error("Wasabi 尚未設定完整環境變數");
+  const datasets = [
+    { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", data: await safeGetCourses(env) },
+    { id: "products", label: "商城商品", key: "data/products.json", data: await safeGetProducts(env) },
+    { id: "videos", label: "影音資料", key: "data/videos.json", data: await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS) },
+  ];
+  const exportedAt = new Date().toISOString();
+  const results = [];
+  for (const item of datasets) {
+    const data = Array.isArray(item.data) ? item.data : [];
+    const write = await safePutWasabiJson(env, item.key, data);
+    if (!write.ok) throw new Error(`${item.label} 匯出失敗：${write.message || item.key}`);
+    results.push({
+      id: item.id,
+      label: item.label,
+      key: write.key,
+      count: data.length,
+      bytes: write.bytes,
+      sha256: write.sha256,
+    });
+  }
+  const manifest = {
+    type: "low-risk-snapshot",
+    exportedAt,
+    source: "action-worker",
+    datasets: results,
+  };
+  const manifestWrite = await safePutWasabiJson(env, "data/low-risk-snapshot-manifest.json", manifest);
+  if (!manifestWrite.ok) throw new Error(`快照索引寫入失敗：${manifestWrite.message || manifestWrite.key}`);
+  return { success: true, exportedAt, datasets: results, manifest: manifestWrite };
 }
 
 async function wasabiHeadObject(env, key) {
@@ -1007,6 +1041,10 @@ export default {
 
         case "ADMIN_WASABI_CHECK":
           result.data = await buildWasabiMigrationCheck(env);
+          break;
+
+        case "ADMIN_WASABI_EXPORT_LOW_RISK":
+          result.data = await exportLowRiskWasabiSnapshot(env);
           break;
 
         case "GET_SETTINGS":
