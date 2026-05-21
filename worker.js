@@ -650,7 +650,7 @@ async function runWasabiDailyAcceptanceCheck(env) {
     ? await verifyHighRiskWasabiSnapshot(env)
     : { success: false, verifiedAt: checkedAt, datasets: [] };
   const success = Boolean(cfg.configured && health.ok && lowRisk.success && highRisk.success);
-  return {
+  const report = {
     success,
     checkedAt,
     summary: {
@@ -666,6 +666,16 @@ async function runWasabiDailyAcceptanceCheck(env) {
       highRisk: (await shouldReadHighRiskFromWasabi(env)) ? "Wasabi 優先 / R2 live / KV fallback" : "R2 live 優先 / KV fallback；Wasabi 快照與雙寫觀察",
     },
   };
+  const status = await getWasabiSyncStatus(env);
+  status.updatedAt = checkedAt;
+  status.dailyAcceptance = {
+    checkedAt,
+    success,
+    summary: report.summary,
+    sourcePolicy: report.sourcePolicy,
+  };
+  await putWasabiSyncStatus(env, status);
+  return report;
 }
 
 function highRiskDatasetMeta(id) {
@@ -824,6 +834,13 @@ async function buildWasabiMigrationCheck(env) {
         readEnabled,
       },
       highRisk: highRiskLiveSources,
+      observation: {
+        phase: (readEnabled || highRiskReadEnabled) ? "Wasabi 主讀取測試期" : "雙寫觀察期",
+        dailyAcceptance: syncStatus.dailyAcceptance || null,
+        recommendation: (syncStatus.dailyAcceptance?.success && readEnabled && highRiskReadEnabled)
+          ? "目前可維持主讀取測試；建議連續多次每日總檢查通過後，再討論降低 KV 依賴。"
+          : "尚未達到收尾條件；請先維持 R2/KV fallback 與每日總檢查。",
+      },
     },
     nextSteps: [
       "先啟用雙寫，不切讀取來源",
