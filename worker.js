@@ -86,6 +86,13 @@ async function safePutProducts(env, products) {
     await env.ACTION_DATA.put("PRODUCTS", text);
   }
   const wasabi = await safePutWasabiJson(env, "data/products.json", normalized);
+  await recordWasabiDualWrite(env, {
+    id: "products",
+    label: "商城商品",
+    key: "data/products.json",
+    count: normalized.length,
+    result: wasabi,
+  });
   return { storage, wasabi };
 }
 
@@ -116,6 +123,13 @@ async function safePutCourses(env, courses) {
     await env.ACTION_DATA.put("COURSES", text);
   }
   const wasabi = await safePutWasabiJson(env, "data/courses.json", normalized);
+  await recordWasabiDualWrite(env, {
+    id: "courses",
+    label: "課程 / 預約服務",
+    key: "data/courses.json",
+    count: normalized.length,
+    result: wasabi,
+  });
   return { storage, wasabi };
 }
 
@@ -242,6 +256,57 @@ async function safePutWasabiJson(env, key, data) {
   }
 }
 
+async function getWasabiSyncStatus(env) {
+  const fallback = { updatedAt: "", datasets: {} };
+  const bucket = getDataBucket(env);
+  if (bucket) {
+    try {
+      const obj = await bucket.get("data/WASABI_SYNC_STATUS.json");
+      if (obj) {
+        const parsed = JSON.parse(await obj.text());
+        return parsed && typeof parsed === "object" ? { ...fallback, ...parsed, datasets: parsed.datasets || {} } : fallback;
+      }
+    } catch (e) {
+      console.error("[Wasabi:SyncStatus] read failed", e);
+    }
+  }
+  return fallback;
+}
+
+async function putWasabiSyncStatus(env, status) {
+  const bucket = getDataBucket(env);
+  if (!bucket) return false;
+  await bucket.put("data/WASABI_SYNC_STATUS.json", JSON.stringify(status), {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+  });
+  return true;
+}
+
+async function recordWasabiDualWrite(env, { id, label, key, count, result }) {
+  try {
+    const status = await getWasabiSyncStatus(env);
+    const updatedAt = new Date().toISOString();
+    status.updatedAt = updatedAt;
+    status.datasets = status.datasets || {};
+    status.datasets[id] = {
+      id,
+      label,
+      key: result?.key || wasabiObjectKey(env, key),
+      sourceKey: key,
+      updatedAt,
+      enabled: !!result?.enabled,
+      ok: !!result?.ok,
+      count: Number(count || 0),
+      bytes: Number(result?.bytes || 0),
+      sha256: result?.sha256 || "",
+      message: result?.message || "",
+    };
+    await putWasabiSyncStatus(env, status);
+  } catch (e) {
+    console.error(`[Wasabi:SyncStatus] ${id} update failed`, e);
+  }
+}
+
 async function exportLowRiskWasabiSnapshot(env) {
   if (!getWasabiConfig(env).configured) throw new Error("Wasabi 尚未設定完整環境變數");
   const datasets = [
@@ -254,6 +319,13 @@ async function exportLowRiskWasabiSnapshot(env) {
   for (const item of datasets) {
     const data = Array.isArray(item.data) ? item.data : [];
     const write = await safePutWasabiJson(env, item.key, data);
+    await recordWasabiDualWrite(env, {
+      id: item.id,
+      label: item.label,
+      key: item.key,
+      count: data.length,
+      result: write,
+    });
     if (!write.ok) throw new Error(`${item.label} 匯出失敗：${write.message || item.key}`);
     results.push({
       id: item.id,
@@ -357,6 +429,7 @@ async function wasabiHealthCheck(env) {
 
 async function buildWasabiMigrationCheck(env) {
   const cfg = getWasabiConfig(env);
+  const syncStatus = await getWasabiSyncStatus(env);
   const datasets = [
     { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", count: (await safeGetCourses(env)).length, risk: "中" },
     { id: "products", label: "商城商品", key: "data/products.json", count: (await safeGetProducts(env)).length, risk: "低" },
@@ -395,6 +468,7 @@ async function buildWasabiMigrationCheck(env) {
     },
     health: cfg.configured ? await wasabiHealthCheck(env) : { ok: false, steps: [{ step: "Config", ok: false, message: "缺少 Wasabi 環境變數" }] },
     datasets,
+    syncStatus,
     nextSteps: [
       "先啟用雙寫，不切讀取來源",
       "低風險資料 courses/products/videos 先做匯出與 hash 比對",
