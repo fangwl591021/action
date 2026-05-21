@@ -59,7 +59,28 @@ function getDataBucket(env) {
   return env.PRODUCT_DATA || env["act-image"] || env.act_image || null;
 }
 
-async function safeGetProducts(env) {
+async function shouldReadLowRiskFromWasabi(env) {
+  if (String(env.WASABI_READ_LOW_RISK || "").toLowerCase() === "true") return true;
+  const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
+  return String(settings.low_risk_wasabi_read_enabled || "false").toLowerCase() === "true";
+}
+
+async function safeGetWasabiJson(env, key, defaultVal) {
+  if (!getWasabiConfig(env).configured) return defaultVal;
+  try {
+    const remote = await getWasabiJson(env, key);
+    return remote.data;
+  } catch (e) {
+    console.error(`[Wasabi:ReadFallback] ${key} read failed`, e);
+    return defaultVal;
+  }
+}
+
+async function safeGetProducts(env, options = {}) {
+  if (options.preferWasabi !== false && await shouldReadLowRiskFromWasabi(env)) {
+    const remote = await safeGetWasabiJson(env, "data/products.json", null);
+    if (Array.isArray(remote)) return remote;
+  }
   const bucket = getDataBucket(env);
   if (bucket) {
     try {
@@ -96,7 +117,11 @@ async function safePutProducts(env, products) {
   return { storage, wasabi };
 }
 
-async function safeGetCourses(env) {
+async function safeGetCourses(env, options = {}) {
+  if (options.preferWasabi !== false && await shouldReadLowRiskFromWasabi(env)) {
+    const remote = await safeGetWasabiJson(env, "data/courses.json", null);
+    if (Array.isArray(remote)) return remote;
+  }
   const bucket = getDataBucket(env);
   if (bucket) {
     try {
@@ -107,6 +132,15 @@ async function safeGetCourses(env) {
     }
   }
   return safeGetKV(env, "COURSES", []);
+}
+
+async function safeGetVideos(env, options = {}) {
+  if (options.preferWasabi !== false && await shouldReadLowRiskFromWasabi(env)) {
+    const remote = await safeGetWasabiJson(env, "data/videos.json", null);
+    if (Array.isArray(remote)) return remote;
+  }
+  const videos = await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS);
+  return Array.isArray(videos) ? videos : DEFAULT_VIDEOS;
 }
 
 async function safePutCourses(env, courses) {
@@ -310,9 +344,9 @@ async function recordWasabiDualWrite(env, { id, label, key, count, result }) {
 async function exportLowRiskWasabiSnapshot(env) {
   if (!getWasabiConfig(env).configured) throw new Error("Wasabi 尚未設定完整環境變數");
   const datasets = [
-    { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", data: await safeGetCourses(env) },
-    { id: "products", label: "商城商品", key: "data/products.json", data: await safeGetProducts(env) },
-    { id: "videos", label: "影音資料", key: "data/videos.json", data: await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS) },
+    { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", data: await safeGetCourses(env, { preferWasabi: false }) },
+    { id: "products", label: "商城商品", key: "data/products.json", data: await safeGetProducts(env, { preferWasabi: false }) },
+    { id: "videos", label: "影音資料", key: "data/videos.json", data: await safeGetVideos(env, { preferWasabi: false }) },
   ];
   const exportedAt = new Date().toISOString();
   const results = [];
@@ -356,9 +390,9 @@ async function getWasabiJson(env, key) {
 async function verifyLowRiskWasabiSnapshot(env) {
   if (!getWasabiConfig(env).configured) throw new Error("Wasabi 尚未設定完整環境變數");
   const datasets = [
-    { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", data: await safeGetCourses(env) },
-    { id: "products", label: "商城商品", key: "data/products.json", data: await safeGetProducts(env) },
-    { id: "videos", label: "影音資料", key: "data/videos.json", data: await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS) },
+    { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", data: await safeGetCourses(env, { preferWasabi: false }) },
+    { id: "products", label: "商城商品", key: "data/products.json", data: await safeGetProducts(env, { preferWasabi: false }) },
+    { id: "videos", label: "影音資料", key: "data/videos.json", data: await safeGetVideos(env, { preferWasabi: false }) },
   ];
   const results = [];
   for (const item of datasets) {
@@ -430,10 +464,11 @@ async function wasabiHealthCheck(env) {
 async function buildWasabiMigrationCheck(env) {
   const cfg = getWasabiConfig(env);
   const syncStatus = await getWasabiSyncStatus(env);
+  const readEnabled = await shouldReadLowRiskFromWasabi(env);
   const datasets = [
-    { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", count: (await safeGetCourses(env)).length, risk: "中" },
-    { id: "products", label: "商城商品", key: "data/products.json", count: (await safeGetProducts(env)).length, risk: "低" },
-    { id: "videos", label: "影音資料", key: "data/videos.json", count: (await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS)).length, risk: "低" },
+    { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", count: (await safeGetCourses(env, { preferWasabi: false })).length, risk: "中" },
+    { id: "products", label: "商城商品", key: "data/products.json", count: (await safeGetProducts(env, { preferWasabi: false })).length, risk: "低" },
+    { id: "videos", label: "影音資料", key: "data/videos.json", count: (await safeGetVideos(env, { preferWasabi: false })).length, risk: "低" },
     { id: "orders", label: "訂單資料", key: "data/orders.json", count: (await safeGetKV(env, "ORDERS", [])).length, risk: "高" },
     { id: "slots", label: "預約時段", key: "data/slots.json", count: (await safeGetKV(env, "SLOTS", [])).length, risk: "中" },
     { id: "settings", label: "系統設定", key: "data/system-settings.json", count: Object.keys(await safeGetKV(env, "SYSTEM_SETTINGS", {})).length, risk: "高" },
@@ -465,6 +500,7 @@ async function buildWasabiMigrationCheck(env) {
       basePrefix: cfg.basePrefix || "(空)",
       accessKeyPresent: !!cfg.accessKeyId,
       secretKeyPresent: !!cfg.secretAccessKey,
+      lowRiskReadEnabled: readEnabled,
     },
     health: cfg.configured ? await wasabiHealthCheck(env) : { ok: false, steps: [{ step: "Config", ok: false, message: "缺少 Wasabi 環境變數" }] },
     datasets,
@@ -1206,8 +1242,8 @@ export default {
           break;
 
         case "GET_VIDEOS": {
-          const videos = await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS);
-          result.data = (Array.isArray(videos) ? videos : DEFAULT_VIDEOS)
+          const videos = await safeGetVideos(env);
+          result.data = videos
             .filter(v => v && v.isPublished !== false && v.driveFileId)
             .map(v => ({
               ...v,
