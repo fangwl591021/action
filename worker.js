@@ -699,6 +699,16 @@ async function buildWasabiMigrationCheck(env) {
   const cfg = getWasabiConfig(env);
   const syncStatus = await getWasabiSyncStatus(env);
   const readEnabled = await shouldReadLowRiskFromWasabi(env);
+  const highRiskLiveSources = {
+    mode: "R2 live 優先 / KV fallback",
+    wasabiMode: "Wasabi 快照與雙寫觀察，尚未作為主讀取來源",
+    datasets: [
+      { id: "users", label: "會員資料 USER_*", source: "R2 live / KV fallback" },
+      { id: "points", label: "會員點數 POINTS_*", source: "R2 live / KV fallback" },
+      { id: "point-ledger", label: "點數進出總表", source: "R2 live / KV fallback" },
+      { id: "orders", label: "訂單資料", source: "R2 live / KV fallback" },
+    ],
+  };
   const datasets = [
     { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", count: (await safeGetCourses(env, { preferWasabi: false })).length, risk: "中" },
     { id: "products", label: "商城商品", key: "data/products.json", count: (await safeGetProducts(env, { preferWasabi: false })).length, risk: "低" },
@@ -713,7 +723,11 @@ async function buildWasabiMigrationCheck(env) {
   datasets.push({ id: "users", label: "會員資料 USER_*", key: "users/", count: userList.keys.length, risk: "最高" });
   datasets.push({ id: "points", label: "會員點數 POINTS_*", key: "points/", count: pointList.keys.length, risk: "最高" });
   for (const item of datasets) {
-    item.currentSource = ["courses", "products"].includes(item.id) ? "R2/KV fallback" : "KV";
+    item.currentSource = ["users", "points", "orders", "point-ledger"].includes(item.id)
+      ? "R2 live / KV fallback"
+      : ["courses", "products"].includes(item.id)
+        ? (readEnabled ? "Wasabi 優先 / R2-KV fallback" : "R2/KV fallback")
+        : "KV";
     item.targetKey = `${cfg.basePrefix}${item.key}`;
     if (cfg.configured && !item.key.endsWith("/")) {
       try {
@@ -739,6 +753,13 @@ async function buildWasabiMigrationCheck(env) {
     health: cfg.configured ? await wasabiHealthCheck(env) : { ok: false, steps: [{ step: "Config", ok: false, message: "缺少 Wasabi 環境變數" }] },
     datasets,
     syncStatus,
+    sourceStatus: {
+      lowRisk: {
+        mode: readEnabled ? "Wasabi 優先 / R2-KV fallback" : "原來源優先 / Wasabi 只做雙寫快照",
+        readEnabled,
+      },
+      highRisk: highRiskLiveSources,
+    },
     nextSteps: [
       "先啟用雙寫，不切讀取來源",
       "低風險資料 courses/products/videos 先做匯出與 hash 比對",
