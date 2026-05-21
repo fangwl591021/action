@@ -76,14 +76,17 @@ async function safePutProducts(env, products) {
   const normalized = Array.isArray(products) ? products : [];
   const text = JSON.stringify(normalized);
   const bucket = getDataBucket(env);
+  let storage = "KV";
   if (bucket) {
     await bucket.put("data/PRODUCTS.json", text, {
       httpMetadata: { contentType: "application/json; charset=utf-8" },
     });
-    return { storage: "R2" };
+    storage = "R2";
+  } else {
+    await env.ACTION_DATA.put("PRODUCTS", text);
   }
-  await env.ACTION_DATA.put("PRODUCTS", text);
-  return { storage: "KV" };
+  const wasabi = await safePutWasabiJson(env, "data/products.json", normalized);
+  return { storage, wasabi };
 }
 
 async function safeGetCourses(env) {
@@ -103,14 +106,17 @@ async function safePutCourses(env, courses) {
   const normalized = Array.isArray(courses) ? courses : [];
   const text = JSON.stringify(normalized);
   const bucket = getDataBucket(env);
+  let storage = "KV";
   if (bucket) {
     await bucket.put("data/COURSES.json", text, {
       httpMetadata: { contentType: "application/json; charset=utf-8" },
     });
-    return { storage: "R2" };
+    storage = "R2";
+  } else {
+    await env.ACTION_DATA.put("COURSES", text);
   }
-  await env.ACTION_DATA.put("COURSES", text);
-  return { storage: "KV" };
+  const wasabi = await safePutWasabiJson(env, "data/courses.json", normalized);
+  return { storage, wasabi };
 }
 
 function touchLastUpdate(env, ctx, scope = "Data") {
@@ -218,6 +224,21 @@ async function wasabiRequest(env, method, key, options = {}) {
     throw new Error(`Wasabi ${method} ${objectKey} failed: ${res.status} ${message.slice(0, 240)}`);
   }
   return { res, key: objectKey, url };
+}
+
+async function safePutWasabiJson(env, key, data) {
+  if (!getWasabiConfig(env).configured) return { enabled: false, ok: false };
+  try {
+    const body = JSON.stringify(data);
+    const result = await wasabiRequest(env, "PUT", key, {
+      body,
+      contentType: "application/json; charset=utf-8",
+    });
+    return { enabled: true, ok: true, key: result.key, bytes: new TextEncoder().encode(body).length };
+  } catch (e) {
+    console.error(`[Wasabi:DualWrite] ${key} 寫入失敗`, e);
+    return { enabled: true, ok: false, key, message: e.message };
+  }
 }
 
 async function wasabiHeadObject(env, key) {
