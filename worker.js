@@ -470,6 +470,13 @@ async function exportHighRiskWasabiSnapshot(env) {
   for (const item of datasets) {
     const data = Array.isArray(item.data) ? item.data : [];
     const write = await safePutWasabiJson(env, item.key, data);
+    await recordWasabiDualWrite(env, {
+      id: item.id,
+      label: item.label,
+      key: item.key,
+      count: data.length,
+      result: write,
+    });
     if (!write.ok) throw new Error(`${item.label} 匯出失敗：${write.message || item.key}`);
     results.push({
       id: item.id,
@@ -529,6 +536,65 @@ async function verifyHighRiskWasabiSnapshot(env) {
     }
   }
   return { success: results.every(item => item.ok), verifiedAt: new Date().toISOString(), datasets: results };
+}
+
+function highRiskDatasetMeta(id) {
+  return {
+    users: { id: "users", label: "會員資料 USER_*", key: "high-risk/users.json", load: env => listKVRecords(env, "USER_") },
+    points: { id: "points", label: "會員點數 POINTS_*", key: "high-risk/points.json", load: env => listKVRecords(env, "POINTS_") },
+    "point-ledger": { id: "point-ledger", label: "點數進出總表", key: "high-risk/point-ledger.json", load: env => safeGetKV(env, "POINT_LEDGER", []) },
+    orders: { id: "orders", label: "訂單資料", key: "high-risk/orders.json", load: env => safeGetKV(env, "ORDERS", []) },
+  }[id];
+}
+
+async function syncWasabiHighRiskDataset(env, id) {
+  const meta = highRiskDatasetMeta(id);
+  if (!meta) return { enabled: false, ok: false, message: `Unknown dataset: ${id}` };
+  const data = await meta.load(env);
+  const list = Array.isArray(data) ? data : [];
+  const write = await safePutWasabiJson(env, meta.key, list);
+  await recordWasabiDualWrite(env, {
+    id: meta.id,
+    label: meta.label,
+    key: meta.key,
+    count: list.length,
+    result: write,
+  });
+  return write;
+}
+
+function observeHighRiskDualWrite(env, ctx, ids) {
+  const uniqueIds = [...new Set((Array.isArray(ids) ? ids : [ids]).filter(Boolean))];
+  const task = (async () => {
+    const results = [];
+    for (const id of uniqueIds) {
+      try {
+        results.push(await syncWasabiHighRiskDataset(env, id));
+      } catch (e) {
+        console.error(`[Wasabi:HighRiskDualWrite] ${id} failed`, e);
+        results.push(null);
+      }
+    }
+    return results;
+  })();
+  if (ctx) ctx.waitUntil(task);
+  return task;
+}
+
+async function putOrdersKV(env, ctx, orders) {
+  await env.ACTION_DATA.put("ORDERS", JSON.stringify(Array.isArray(orders) ? orders : []));
+  if (ctx) observeHighRiskDualWrite(env, ctx, "orders");
+  else await observeHighRiskDualWrite(env, null, "orders");
+}
+
+async function putUserKV(env, ctx, uid, user) {
+  await env.ACTION_DATA.put(`USER_${uid}`, JSON.stringify(user || {}));
+  if (ctx) observeHighRiskDualWrite(env, ctx, "users");
+  else await observeHighRiskDualWrite(env, null, "users");
+}
+
+async function putPointKV(env, ctx, uid, pointData) {
+  await env.ACTION_DATA.put(`POINTS_${uid}`, JSON.stringify(pointData || { balance: 0, logs: [] }));
 }
 
 async function wasabiHeadObject(env, key) {
@@ -1517,7 +1583,7 @@ export default {
           };
           completedBooking = await deductTeacherCommissionForOrder(env, ctx, completedBooking, userId, access.userData?.name || userProfile?.displayName || "Teacher", this.updatePoints.bind(this));
           bookingOrdersForComplete[completeIdx] = completedBooking;
-          await env.ACTION_DATA.put("ORDERS", JSON.stringify(bookingOrdersForComplete));
+          await putOrdersKV(env, ctx, bookingOrdersForComplete);
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
           result.data = { success: true, order: completedBooking };
           break;
@@ -1548,7 +1614,7 @@ export default {
         case "REGISTER_USER":
           payload.createdAt = new Date().toLocaleString(); 
           payload.memberTier = payload.memberTier || "一般會員"; 
-          await env.ACTION_DATA.put(`USER_${userId}`, JSON.stringify(payload));
+          await putUserKV(env, ctx, userId, payload);
           
           const setsReg = await safeGetKV(env, "SYSTEM_SETTINGS", {});
           await this.updatePoints(env, ctx, userId, setsReg.reward_register || 100, "註冊獎勵");
@@ -1675,7 +1741,7 @@ export default {
 
           bookingOrderList.unshift(bookingOrder);
           bookingSlotList[slotIndex] = { ...bookingSlotList[slotIndex], status: "BOOKED", orderId, userId };
-          await env.ACTION_DATA.put("ORDERS", JSON.stringify(bookingOrderList));
+          await putOrdersKV(env, ctx, bookingOrderList);
           await env.ACTION_DATA.put("SLOTS", JSON.stringify(bookingSlotList));
           if (env.GAS_URL) {
             ctx.waitUntil(fetch(env.GAS_URL, {
@@ -1723,7 +1789,7 @@ export default {
               createdAt: new Date().toLocaleString()
           };
           currentOrders.unshift(newOrder); 
-          await env.ACTION_DATA.put("ORDERS", JSON.stringify(currentOrders));
+          await putOrdersKV(env, ctx, currentOrders);
           
           if (env.GAS_URL) {
               ctx.waitUntil(fetch(env.GAS_URL, {
@@ -1782,7 +1848,7 @@ export default {
             await safePutProducts(env, productList);
           }
           shopOrders.unshift(productOrder);
-          await env.ACTION_DATA.put("ORDERS", JSON.stringify(shopOrders));
+          await putOrdersKV(env, ctx, shopOrders);
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
           result.data = { success: true, orderId: productOrder.orderId, amount: payableAmount, pointsUsed: pointCost, balance: (Number(buyerPoints.balance) || 0) - pointCost };
           break;
@@ -1892,7 +1958,7 @@ export default {
                       }
                       if(gasJson.data.orders && gasJson.data.orders.length > 0) { 
                           adminOrders = gasJson.data.orders; 
-                          ctx.waitUntil(env.ACTION_DATA.put("ORDERS", JSON.stringify(adminOrders))); 
+                          ctx.waitUntil(putOrdersKV(env, ctx, adminOrders)); 
                       }
                       if(gasJson.data.settings && Object.keys(gasJson.data.settings).length > 0) { 
                           adminSettings = gasJson.data.settings; 
@@ -1903,6 +1969,7 @@ export default {
                           // 背景大量寫入 KV
                           ctx.waitUntil((async () => {
                               for(let u of gasJson.data.users) await env.ACTION_DATA.put(`USER_${u.userId}`, JSON.stringify(u));
+                              await observeHighRiskDualWrite(env, null, "users");
                           })());
                       }
                   }
@@ -2002,7 +2069,7 @@ export default {
                 Object.assign(nextOrder, await deductTeacherCommissionForOrder(env, ctx, nextOrder, userId, access.userData?.name || userProfile?.displayName || "Admin", this.updatePoints.bind(this)));
               }
               editOrders[oIdx] = nextOrder;
-              await env.ACTION_DATA.put("ORDERS", JSON.stringify(editOrders));
+              await putOrdersKV(env, ctx, editOrders);
           }
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
@@ -2081,7 +2148,7 @@ export default {
             return course;
           });
 
-          await env.ACTION_DATA.put("ORDERS", JSON.stringify(transferOrders));
+          await putOrdersKV(env, ctx, transferOrders);
           await safePutCourses(env, transferCourses);
           if (env.GAS_URL) {
             ctx.waitUntil(fetch(env.GAS_URL, {
@@ -2150,7 +2217,7 @@ export default {
               } else if (String(savedMember.memberTier || "").includes("導師")) {
                 savedMember.memberTier = "一般會員";
               }
-              await env.ACTION_DATA.put(`USER_${memberUid}`, JSON.stringify(savedMember));
+              await putUserKV(env, ctx, memberUid, savedMember);
               result.data = { success: true, memberData: savedMember };
           } else {
               throw new Error("Missing memberData.userId");
@@ -2165,7 +2232,7 @@ export default {
           if (targetUser) {
               targetUser.memberTier = '專業導師';
               targetUser.config = { rent: rentPrice, comm: commissionRate };
-              await env.ACTION_DATA.put(`USER_${teacherUid}`, JSON.stringify(targetUser));
+              await putUserKV(env, ctx, teacherUid, targetUser);
           }
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
@@ -2180,7 +2247,7 @@ export default {
           teacherToRemove.isTeacher = false;
           if (teacherToRemove.role === "teacher") teacherToRemove.role = "member";
           teacherToRemove.memberTier = payload.memberTier || "一般會員";
-          await env.ACTION_DATA.put(`USER_${removeUid}`, JSON.stringify(teacherToRemove));
+          await putUserKV(env, ctx, removeUid, teacherToRemove);
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ADMIN_UPDATE_MEMBER", payload: { memberData: teacherToRemove } }) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
           result.data = { success: true };
@@ -2503,7 +2570,7 @@ export default {
     const logId = crypto.randomUUID ? crypto.randomUUID() : createdTs.toString();
     data.logs.unshift({ logId, amount: Math.abs(numericAmount), reason, createdAt, type: typeStr });
     data.logs = data.logs.slice(0, 50);
-    await env.ACTION_DATA.put(key, JSON.stringify(data));
+    await putPointKV(env, ctx, uid, data);
     try {
       await appendPointsLedger(env, {
         logId,
@@ -2523,6 +2590,8 @@ export default {
     } catch (e) {
       console.error("[PointsLedger] Failed to append ledger", e);
     }
+    if (ctx) observeHighRiskDualWrite(env, ctx, ["points", "point-ledger"]);
+    else await observeHighRiskDualWrite(env, null, ["points", "point-ledger"]);
 
     if (env.GAS_URL && ctx) {
         ctx.waitUntil(fetch(env.GAS_URL, {
