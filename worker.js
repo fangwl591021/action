@@ -430,6 +430,107 @@ async function verifyLowRiskWasabiSnapshot(env) {
   return { success: results.every(item => item.ok), verifiedAt: new Date().toISOString(), datasets: results };
 }
 
+async function listKVRecords(env, prefix) {
+  const records = [];
+  let listComplete = false;
+  let cursor = null;
+  while (!listComplete) {
+    const options = { prefix };
+    if (cursor) options.cursor = cursor;
+    const list = await env.ACTION_DATA.list(options);
+    const chunkSize = 20;
+    for (let i = 0; i < list.keys.length; i += chunkSize) {
+      const chunk = list.keys.slice(i, i + chunkSize);
+      const values = await Promise.all(chunk.map(async key => ({
+        key: key.name,
+        data: await safeGetKV(env, key.name, null),
+      })));
+      records.push(...values);
+    }
+    listComplete = list.list_complete;
+    cursor = list.cursor;
+  }
+  return records;
+}
+
+async function buildHighRiskWasabiDatasets(env) {
+  return [
+    { id: "users", label: "會員資料 USER_*", key: "high-risk/users.json", data: await listKVRecords(env, "USER_") },
+    { id: "points", label: "會員點數 POINTS_*", key: "high-risk/points.json", data: await listKVRecords(env, "POINTS_") },
+    { id: "point-ledger", label: "點數進出總表", key: "high-risk/point-ledger.json", data: await safeGetKV(env, "POINT_LEDGER", []) },
+    { id: "orders", label: "訂單資料", key: "high-risk/orders.json", data: await safeGetKV(env, "ORDERS", []) },
+  ];
+}
+
+async function exportHighRiskWasabiSnapshot(env) {
+  if (!getWasabiConfig(env).configured) throw new Error("Wasabi 尚未設定完整環境變數");
+  const datasets = await buildHighRiskWasabiDatasets(env);
+  const exportedAt = new Date().toISOString();
+  const results = [];
+  for (const item of datasets) {
+    const data = Array.isArray(item.data) ? item.data : [];
+    const write = await safePutWasabiJson(env, item.key, data);
+    if (!write.ok) throw new Error(`${item.label} 匯出失敗：${write.message || item.key}`);
+    results.push({
+      id: item.id,
+      label: item.label,
+      key: write.key,
+      count: data.length,
+      bytes: write.bytes,
+      sha256: write.sha256,
+    });
+  }
+  const manifest = {
+    type: "high-risk-snapshot",
+    exportedAt,
+    source: "action-worker",
+    datasets: results,
+    note: "只讀快照，不切換會員、點數、訂單讀寫來源。",
+  };
+  const manifestWrite = await safePutWasabiJson(env, "high-risk/high-risk-snapshot-manifest.json", manifest);
+  if (!manifestWrite.ok) throw new Error(`高風險快照清單寫入失敗：${manifestWrite.message || manifestWrite.key}`);
+  return { success: true, exportedAt, datasets: results, manifest: manifestWrite };
+}
+
+async function verifyHighRiskWasabiSnapshot(env) {
+  if (!getWasabiConfig(env).configured) throw new Error("Wasabi 尚未設定完整環境變數");
+  const datasets = await buildHighRiskWasabiDatasets(env);
+  const results = [];
+  for (const item of datasets) {
+    const localData = Array.isArray(item.data) ? item.data : [];
+    const localText = JSON.stringify(localData);
+    const localHash = await sha256HexBody(localText);
+    try {
+      const remote = await getWasabiJson(env, item.key);
+      const remoteData = Array.isArray(remote.data) ? remote.data : [];
+      results.push({
+        id: item.id,
+        label: item.label,
+        key: remote.key,
+        ok: localHash === remote.sha256 && localData.length === remoteData.length,
+        localCount: localData.length,
+        remoteCount: remoteData.length,
+        localSha256: localHash,
+        remoteSha256: remote.sha256,
+        remoteBytes: remote.bytes,
+      });
+    } catch (e) {
+      results.push({
+        id: item.id,
+        label: item.label,
+        key: wasabiObjectKey(env, item.key),
+        ok: false,
+        localCount: localData.length,
+        remoteCount: null,
+        localSha256: localHash,
+        remoteSha256: "",
+        message: e.message,
+      });
+    }
+  }
+  return { success: results.every(item => item.ok), verifiedAt: new Date().toISOString(), datasets: results };
+}
+
 async function wasabiHeadObject(env, key) {
   const { res, key: objectKey } = await wasabiRequest(env, "HEAD", key);
   return {
@@ -1208,6 +1309,14 @@ export default {
 
         case "ADMIN_WASABI_VERIFY_LOW_RISK":
           result.data = await verifyLowRiskWasabiSnapshot(env);
+          break;
+
+        case "ADMIN_WASABI_EXPORT_HIGH_RISK":
+          result.data = await exportHighRiskWasabiSnapshot(env);
+          break;
+
+        case "ADMIN_WASABI_VERIFY_HIGH_RISK":
+          result.data = await verifyHighRiskWasabiSnapshot(env);
           break;
 
         case "GET_SETTINGS":
