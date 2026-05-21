@@ -56,6 +56,37 @@ async function safeGetKV(env, key, defaultVal) {
   }
 }
 
+function getDataBucket(env) {
+  return env.PRODUCT_DATA || env["act-image"] || env.act_image || null;
+}
+
+async function safeGetProducts(env) {
+  const bucket = getDataBucket(env);
+  if (bucket) {
+    try {
+      const obj = await bucket.get("data/PRODUCTS.json");
+      if (obj) return JSON.parse(await obj.text());
+    } catch (e) {
+      console.error("[Products:R2] 讀取失敗，改讀 KV", e);
+    }
+  }
+  return safeGetKV(env, "PRODUCTS", []);
+}
+
+async function safePutProducts(env, products) {
+  const normalized = Array.isArray(products) ? products : [];
+  const text = JSON.stringify(normalized);
+  const bucket = getDataBucket(env);
+  if (bucket) {
+    await bucket.put("data/PRODUCTS.json", text, {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+    return { storage: "R2" };
+  }
+  await env.ACTION_DATA.put("PRODUCTS", text);
+  return { storage: "KV" };
+}
+
 const TEACHER_ALLOWED_ACTIONS = new Set([
   "ADMIN_GET_DATA",
   "ADMIN_GET_SLOTS",
@@ -764,7 +795,7 @@ export default {
           break;
 
         case "GET_PRODUCTS":
-          const products = await safeGetKV(env, "PRODUCTS", []);
+          const products = await safeGetProducts(env);
           result.data = products.filter(p => {
             if (!p || p.isPublished === false) return false;
             const status = String(p.status || "");
@@ -1168,7 +1199,7 @@ export default {
           break;
 
         case "BUY_PRODUCT":
-          const productList = await safeGetKV(env, "PRODUCTS", []);
+          const productList = await safeGetProducts(env);
           const product = productList.find(p => p && (p.id === payload.productId || p.code === payload.productId));
           if (!product || product.isPublished === false) throw new Error("商品不存在或未上架");
           if (product.stock !== null && product.stock !== undefined && Number(product.stock) <= 0) throw new Error("商品已售完");
@@ -1201,7 +1232,7 @@ export default {
           if (pointCost > 0) await this.updatePoints(env, ctx, userId, -pointCost, `商城商品折抵：${product.name}`);
           if (product.stock !== null && product.stock !== undefined) {
             product.stock = Math.max(0, Number(product.stock) - 1);
-            await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(productList));
+            await safePutProducts(env, productList);
           }
           shopOrders.unshift(productOrder);
           await env.ACTION_DATA.put("ORDERS", JSON.stringify(shopOrders));
@@ -1211,10 +1242,10 @@ export default {
 
         case "ADMIN_IMPORT_PRODUCTS":
           if (!Array.isArray(payload.products)) throw new Error("缺少商品資料");
-          const oldProducts = await safeGetKV(env, "PRODUCTS", []);
+          const oldProducts = await safeGetProducts(env);
           const mergedProducts = mergeProducts(oldProducts, payload.products, payload.mode || "append");
-          await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(mergedProducts));
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          await safePutProducts(env, mergedProducts);
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()).catch(e => console.error("[Products] SYS_LAST_UPDATE 寫入失敗", e)));
           result.data = { success: true, count: mergedProducts.length };
           break;
 
@@ -1255,10 +1286,10 @@ export default {
           if (!importedProducts.length) {
             throw new Error(`沒有成功匯入任何商品。linecard_21 目前沒有開 WordPress REST API；請先安裝 ACTION linecard 匯出外掛，或請網站工程師把 linecard_21 設定 show_in_rest=true。詳細：${importErrors.map(e => `${e.postId}: ${e.message}`).join(" / ")}`);
           }
-          const currentWpProducts = await safeGetKV(env, "PRODUCTS", []);
+          const currentWpProducts = await safeGetProducts(env);
           const nextWpProducts = mergeProducts(currentWpProducts, importedProducts, payload.mode || "append");
-          await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(nextWpProducts));
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          await safePutProducts(env, nextWpProducts);
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()).catch(e => console.error("[Products] SYS_LAST_UPDATE 寫入失敗", e)));
           result.data = { success: true, count: nextWpProducts.length, imported: importedProducts, errors: importErrors };
           break;
 
@@ -1335,7 +1366,7 @@ export default {
               users: localUsers,
               courses: adminCourses,
               orders: adminOrders,
-              products: await safeGetKV(env, "PRODUCTS", []),
+              products: await safeGetProducts(env),
               teachers: localUsers.filter(u => u.memberTier && ['專業導師', '導師'].some(t => u.memberTier.includes(t))),
               settings: adminSettings
           };
@@ -1396,20 +1427,20 @@ export default {
         case "ADMIN_UPDATE_PRODUCT":
           const productToSave = normalizeProduct(payload);
           if (!productToSave.name) throw new Error("請輸入商品名稱");
-          const productSaveList = await safeGetKV(env, "PRODUCTS", []);
+          const productSaveList = await safeGetProducts(env);
           const productSaveIdx = productSaveList.findIndex(p => p && (p.id === productToSave.id || (productToSave.code && p.code === productToSave.code)));
           if (productSaveIdx > -1) productSaveList[productSaveIdx] = { ...productSaveList[productSaveIdx], ...productToSave };
           else productSaveList.unshift({ ...productToSave, createdAt: new Date().toISOString() });
-          await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(productSaveList));
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true, product: productToSave };
+          const productSaveStorage = await safePutProducts(env, productSaveList);
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()).catch(e => console.error("[Products] SYS_LAST_UPDATE 寫入失敗", e)));
+          result.data = { success: true, product: productToSave, storage: productSaveStorage.storage };
           break;
 
         case "ADMIN_DELETE_PRODUCT":
-          const productDeleteList = await safeGetKV(env, "PRODUCTS", []);
+          const productDeleteList = await safeGetProducts(env);
           const keptProducts = productDeleteList.filter(p => p && p.id !== payload.productId);
-          await env.ACTION_DATA.put("PRODUCTS", JSON.stringify(keptProducts));
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          await safePutProducts(env, keptProducts);
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()).catch(e => console.error("[Products] SYS_LAST_UPDATE 寫入失敗", e)));
           result.data = { success: true };
           break;
           
