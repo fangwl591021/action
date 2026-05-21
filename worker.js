@@ -27,7 +27,6 @@ const utils = {
     return res;
   }
 };
-
 async function aesEncrypt(text, key, iv) {
   const cryptoKey = await crypto.subtle.importKey('raw', utils.prepareKey(key, 32), { name: 'AES-CBC' }, false, ['encrypt']);
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-CBC', iv: utils.prepareIV(iv) }, cryptoKey, utils.stringToBytes(text));
@@ -85,6 +84,42 @@ async function safePutProducts(env, products) {
   }
   await env.ACTION_DATA.put("PRODUCTS", text);
   return { storage: "KV" };
+}
+
+async function safeGetCourses(env) {
+  const bucket = getDataBucket(env);
+  if (bucket) {
+    try {
+      const obj = await bucket.get("data/COURSES.json");
+      if (obj) return JSON.parse(await obj.text());
+    } catch (e) {
+      console.error("[Courses:R2] 讀取失敗，改讀 KV", e);
+    }
+  }
+  return safeGetKV(env, "COURSES", []);
+}
+
+async function safePutCourses(env, courses) {
+  const normalized = Array.isArray(courses) ? courses : [];
+  const text = JSON.stringify(normalized);
+  const bucket = getDataBucket(env);
+  if (bucket) {
+    await bucket.put("data/COURSES.json", text, {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+    return { storage: "R2" };
+  }
+  await env.ACTION_DATA.put("COURSES", text);
+  return { storage: "KV" };
+}
+
+function touchLastUpdate(env, ctx, scope = "Data") {
+  if (!ctx) return;
+  ctx.waitUntil(
+    env.ACTION_DATA
+      .put("SYS_LAST_UPDATE", Date.now().toString())
+      .catch(e => console.error(`[${scope}] SYS_LAST_UPDATE 寫入失敗`, e))
+  );
 }
 
 const TEACHER_ALLOWED_ACTIONS = new Set([
@@ -790,7 +825,7 @@ export default {
           break;
           
         case "GET_COURSES":
-          const courses = await safeGetKV(env, "COURSES", []);
+          const courses = await safeGetCourses(env);
           result.data = courses.filter(c => c.isPublished !== false);
           break;
 
@@ -817,7 +852,7 @@ export default {
 
         case "GET_BOOKING_DATA":
           const bookingUsers = await listUserRecords(env);
-          const bookingCourses = await safeGetKV(env, "COURSES", []);
+          const bookingCourses = await safeGetCourses(env);
           const bookingSlots = await safeGetKV(env, "SLOTS", []);
           const bookingOrders = await safeGetKV(env, "ORDERS", []);
           const occupiedBookingLocations = (Array.isArray(bookingOrders) ? bookingOrders : [])
@@ -859,14 +894,14 @@ export default {
 
         case "TEACHER_GET_MY_COURSES": {
           if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
-          const allCoursesForTeacher = await safeGetKV(env, "COURSES", []);
+          const allCoursesForTeacher = await safeGetCourses(env);
           result.data = allCoursesForTeacher.filter(course => courseBelongsToTeacher(course, access.userData, userId));
           break;
         }
 
         case "TEACHER_UPDATE_COURSE": {
           if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
-          const allCoursesForUpdate = await safeGetKV(env, "COURSES", []);
+          const allCoursesForUpdate = await safeGetCourses(env);
           const incomingCourse = { ...(payload || {}) };
           if (!incomingCourse.name) throw new Error("Course name required");
           const courseId = String(incomingCourse.id || `NEW_${Date.now()}`);
@@ -881,9 +916,9 @@ export default {
           incomingCourse.updatedAt = new Date().toISOString();
           if (existingIndex >= 0) allCoursesForUpdate[existingIndex] = { ...existingCourse, ...incomingCourse };
           else allCoursesForUpdate.unshift({ ...incomingCourse, createdAt: new Date().toISOString() });
-          await env.ACTION_DATA.put("COURSES", JSON.stringify(allCoursesForUpdate));
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true, course: incomingCourse };
+          const teacherCourseStorage = await safePutCourses(env, allCoursesForUpdate);
+          touchLastUpdate(env, ctx, "Courses");
+          result.data = { success: true, course: incomingCourse, storage: teacherCourseStorage.storage };
           break;
         }
 
@@ -891,7 +926,7 @@ export default {
           if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
           const deleteCourseId = String(payload?.courseId || "").trim();
           if (!deleteCourseId) throw new Error("Course id required");
-          const allCoursesForDelete = await safeGetKV(env, "COURSES", []);
+          const allCoursesForDelete = await safeGetCourses(env);
           const targetCourse = allCoursesForDelete.find(course => course && String(course.id) === deleteCourseId);
           if (!targetCourse) throw new Error("Course not found");
           if (!access.isAdmin && !courseBelongsToTeacher(targetCourse, access.userData, userId)) {
@@ -901,15 +936,15 @@ export default {
             if (!course || String(course.id) !== deleteCourseId) return course;
             return { ...course, isPublished: false, updatedAt: new Date().toISOString() };
           });
-          await env.ACTION_DATA.put("COURSES", JSON.stringify(nextCourses));
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          await safePutCourses(env, nextCourses);
+          touchLastUpdate(env, ctx, "Courses");
           result.data = { success: true };
           break;
         }
 
         case "TEACHER_GET_MY_REPORT": {
           if (!access.isTeacher && !access.isAdmin) throw new Error("Teacher authorization required");
-          const reportCourses = await safeGetKV(env, "COURSES", []);
+          const reportCourses = await safeGetCourses(env);
           const teacherCoursesForReport = reportCourses.filter(course => courseBelongsToTeacher(course, access.userData, userId));
           const courseKeySet = new Set();
           for (const course of teacherCoursesForReport) {
@@ -1076,7 +1111,7 @@ export default {
             if (locationBooked) throw new Error("此場地同時段已被預約，請選擇其他時段");
           }
 
-          const bookingCourseList = await safeGetKV(env, "COURSES", []);
+          const bookingCourseList = await safeGetCourses(env);
           const fullService = bookingCourseList.find(course => course && (String(course.id) === serviceId || String(course.name) === serviceId)) || service;
           const servicePrice = Number(String(fullService.price || service.price || 0).replace(/[^0-9.-]/g, "")) || 0;
           const maxBookingPoints = Math.min(servicePrice, Math.max(0, Number(fullService.maxPoints || service.maxPoints || 0)));
@@ -1147,7 +1182,7 @@ export default {
           let currentOrders = await safeGetKV(env, "ORDERS", []);
           let userInfo = await safeGetKV(env, `USER_${userId}`, {});
           const coursePointsUsed = Math.max(0, Number(payload.pointsUsed || 0));
-          const courseListForOrder = await safeGetKV(env, "COURSES", []);
+          const courseListForOrder = await safeGetCourses(env);
           const courseForOrder = courseListForOrder.find(c => c && (c.id === payload.courseId || c.name === payload.courseId)) || {};
           const coursePrice = Number(courseForOrder.price || 0);
           const isReservationOrderCourse = String(courseForOrder.type || "").includes("預約");
@@ -1187,7 +1222,7 @@ export default {
           }
 
           ctx.waitUntil((async () => {
-             let cList = await safeGetKV(env, "COURSES", []);
+             let cList = await safeGetCourses(env);
              let targetCourse = cList.find(c => c.id === payload.courseId);
              let courseName = targetCourse ? targetCourse.name.split('\n')[0] : payload.courseId;
              await this.sendTgMessage(env, `💰 <b>新課程報名單</b>\n學員：${newOrder.name}\n電話：${newOrder.phone}\n課程：${courseName}\n金額：$${payload.amount}\n狀態：待付款`);
@@ -1325,7 +1360,7 @@ export default {
           } catch(e) { console.error("[KV Sync Error] 使用者讀取異常:", e); }
           
           localUsers = uniqueUsersById(await listUserRecords(env));
-          let adminCourses = await safeGetKV(env, "COURSES", []);
+          let adminCourses = await safeGetCourses(env);
           let adminOrders = await safeGetKV(env, "ORDERS", []);
           let adminSettings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
 
@@ -1341,7 +1376,7 @@ export default {
                   if (gasJson.status === 'success' && gasJson.data) {
                       if(gasJson.data.courses && gasJson.data.courses.length > 0) { 
                           adminCourses = gasJson.data.courses; 
-                          ctx.waitUntil(env.ACTION_DATA.put("COURSES", JSON.stringify(adminCourses))); 
+                          ctx.waitUntil(safePutCourses(env, adminCourses)); 
                       }
                       if(gasJson.data.orders && gasJson.data.orders.length > 0) { 
                           adminOrders = gasJson.data.orders; 
@@ -1405,7 +1440,7 @@ export default {
           break;
 
         case "ADMIN_UPDATE_COURSE":
-          let cList = await safeGetKV(env, "COURSES", []);
+          let cList = await safeGetCourses(env);
           const courseToSave = { ...payload, maxPoints: Math.max(0, Number(payload.maxPoints || 0)) };
           if (String(courseToSave.type || "").includes("預約")) {
             courseToSave.capacity = 0;
@@ -1418,10 +1453,10 @@ export default {
           const idx = cList.findIndex(c => c.id === courseToSave.id);
           if (idx > -1) cList[idx] = courseToSave;
           else cList.unshift(courseToSave);
-          await env.ACTION_DATA.put("COURSES", JSON.stringify(cList));
+          const courseSaveStorage = await safePutCourses(env, cList);
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true };
+          touchLastUpdate(env, ctx, "Courses");
+          result.data = { success: true, storage: courseSaveStorage.storage };
           break;
 
         case "ADMIN_UPDATE_PRODUCT":
@@ -1472,7 +1507,7 @@ export default {
           if (!transferReason) throw new Error("請填寫轉課原因");
 
           let transferOrders = await safeGetKV(env, "ORDERS", []);
-          let transferCourses = await safeGetKV(env, "COURSES", []);
+          let transferCourses = await safeGetCourses(env);
           const sourceIdx = transferOrders.findIndex(order => order && String(order.orderId) === sourceOrderId);
           if (sourceIdx < 0) throw new Error("找不到原訂單");
           const sourceOrder = transferOrders[sourceIdx];
@@ -1535,7 +1570,7 @@ export default {
           });
 
           await env.ACTION_DATA.put("ORDERS", JSON.stringify(transferOrders));
-          await env.ACTION_DATA.put("COURSES", JSON.stringify(transferCourses));
+          await safePutCourses(env, transferCourses);
           if (env.GAS_URL) {
             ctx.waitUntil(fetch(env.GAS_URL, {
               method: "POST",
@@ -1544,7 +1579,7 @@ export default {
               redirect: "follow"
             }).catch(e => console.error("GAS Transfer Sync Error", e)));
           }
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          touchLastUpdate(env, ctx, "Courses");
           result.data = { success: true, sourceOrder: transferOrders[sourceIdx], newOrder, orders: transferOrders, courses: transferCourses };
           break;
         }
@@ -2071,3 +2106,4 @@ export default {
     return new Response("OK", { status: 200 });
   }
 };
+
