@@ -122,6 +122,183 @@ function touchLastUpdate(env, ctx, scope = "Data") {
   );
 }
 
+function getWasabiConfig(env) {
+  const bucket = String(env.WASABI_BUCKET || "").trim();
+  const region = String(env.WASABI_REGION || "us-west-1").trim();
+  const endpoint = String(env.WASABI_ENDPOINT || (region ? `https://s3.${region}.wasabisys.com` : "")).replace(/\/+$/, "");
+  const accessKeyId = String(env.WASABI_ACCESS_KEY_ID || env.WASABI_ACCESS_KEY || "").trim();
+  const secretAccessKey = String(env.WASABI_SECRET_ACCESS_KEY || env.WASABI_SECRET_KEY || "").trim();
+  const rawPrefix = String(env.WASABI_BASE_PREFIX || "shops/action/").trim();
+  const basePrefix = rawPrefix ? `${rawPrefix.replace(/^\/+|\/+$/g, "")}/` : "";
+  return {
+    provider: "wasabi",
+    bucket,
+    region,
+    endpoint,
+    basePrefix,
+    accessKeyId,
+    secretAccessKey,
+    configured: !!(bucket && region && endpoint && accessKeyId && secretAccessKey),
+  };
+}
+
+function awsUriEncode(value) {
+  return encodeURIComponent(String(value)).replace(/[!'()*]/g, ch => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+function wasabiObjectKey(env, key) {
+  const cfg = getWasabiConfig(env);
+  const cleanKey = String(key || "").replace(/^\/+/, "");
+  return `${cfg.basePrefix}${cleanKey}`;
+}
+
+async function sha256HexBody(body) {
+  const bytes = body instanceof Uint8Array
+    ? body
+    : typeof body === "string"
+      ? new TextEncoder().encode(body)
+      : new Uint8Array();
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function hmacSha256(key, data) {
+  const cryptoKey = await crypto.subtle.importKey("raw", key instanceof ArrayBuffer ? key : new TextEncoder().encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(data));
+}
+
+async function wasabiSigningKey(secret, dateStamp, region) {
+  const kDate = await hmacSha256(`AWS4${secret}`, dateStamp);
+  const kRegion = await hmacSha256(kDate, region);
+  const kService = await hmacSha256(kRegion, "s3");
+  return hmacSha256(kService, "aws4_request");
+}
+
+async function wasabiRequest(env, method, key, options = {}) {
+  const cfg = getWasabiConfig(env);
+  if (!cfg.configured) throw new Error("Wasabi 尚未設定完整環境變數");
+  const objectKey = wasabiObjectKey(env, key);
+  const encodedKey = objectKey.split("/").map(awsUriEncode).join("/");
+  const url = `${cfg.endpoint}/${awsUriEncode(cfg.bucket)}/${encodedKey}`;
+  const host = new URL(cfg.endpoint).host;
+  const body = options.body || "";
+  const payloadHash = await sha256HexBody(body);
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const canonicalUri = `/${awsUriEncode(cfg.bucket)}/${encodedKey}`;
+  const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+  const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+  const canonicalRequest = [
+    method,
+    canonicalUri,
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+  const credentialScope = `${dateStamp}/${cfg.region}/s3/aws4_request`;
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    await sha256HexBody(canonicalRequest),
+  ].join("\n");
+  const signingKey = await wasabiSigningKey(cfg.secretAccessKey, dateStamp, cfg.region);
+  const signature = Array.from(new Uint8Array(await hmacSha256(signingKey, stringToSign))).map(b => b.toString(16).padStart(2, "0")).join("");
+  const headers = {
+    "Authorization": `AWS4-HMAC-SHA256 Credential=${cfg.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    "x-amz-content-sha256": payloadHash,
+    "x-amz-date": amzDate,
+    ...(options.contentType ? { "Content-Type": options.contentType } : {}),
+  };
+  const res = await fetch(url, { method, headers, body: ["GET", "HEAD", "DELETE"].includes(method) ? undefined : body });
+  if (!res.ok) {
+    const message = method === "HEAD" ? res.statusText : await res.text().catch(() => res.statusText);
+    throw new Error(`Wasabi ${method} ${objectKey} failed: ${res.status} ${message.slice(0, 240)}`);
+  }
+  return { res, key: objectKey, url };
+}
+
+async function wasabiHeadObject(env, key) {
+  const { res, key: objectKey } = await wasabiRequest(env, "HEAD", key);
+  return {
+    exists: true,
+    key: objectKey,
+    size: Number(res.headers.get("content-length") || 0),
+    contentType: res.headers.get("content-type") || "",
+    lastModified: res.headers.get("last-modified") || "",
+  };
+}
+
+async function wasabiHealthCheck(env) {
+  const testKey = `temp/health-${Date.now()}.txt`;
+  const body = `wasabi-health ${new Date().toISOString()}`;
+  const steps = [];
+  try {
+    const put = await wasabiRequest(env, "PUT", testKey, { body, contentType: "text/plain; charset=utf-8" });
+    steps.push({ step: "PutObject", ok: true, key: put.key });
+    const head = await wasabiHeadObject(env, testKey);
+    steps.push({ step: "HeadObject", ok: true, size: head.size });
+    const get = await wasabiRequest(env, "GET", testKey);
+    steps.push({ step: "GetObject", ok: (await get.res.text()) === body });
+    await wasabiRequest(env, "DELETE", testKey);
+    steps.push({ step: "DeleteObject", ok: true });
+    return { ok: true, steps };
+  } catch (e) {
+    steps.push({ step: "Error", ok: false, message: e.message });
+    return { ok: false, steps };
+  }
+}
+
+async function buildWasabiMigrationCheck(env) {
+  const cfg = getWasabiConfig(env);
+  const datasets = [
+    { id: "courses", label: "課程 / 預約服務", key: "data/courses.json", count: (await safeGetCourses(env)).length, risk: "中" },
+    { id: "products", label: "商城商品", key: "data/products.json", count: (await safeGetProducts(env)).length, risk: "低" },
+    { id: "videos", label: "影音資料", key: "data/videos.json", count: (await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS)).length, risk: "低" },
+    { id: "orders", label: "訂單資料", key: "data/orders.json", count: (await safeGetKV(env, "ORDERS", [])).length, risk: "高" },
+    { id: "slots", label: "預約時段", key: "data/slots.json", count: (await safeGetKV(env, "SLOTS", [])).length, risk: "中" },
+    { id: "settings", label: "系統設定", key: "data/system-settings.json", count: Object.keys(await safeGetKV(env, "SYSTEM_SETTINGS", {})).length, risk: "高" },
+    { id: "point-ledger", label: "點數進出總表", key: "data/point-ledger.json", count: (await safeGetKV(env, "POINT_LEDGER", [])).length, risk: "最高" },
+  ];
+  const userList = await env.ACTION_DATA.list({ prefix: "USER_" });
+  const pointList = await env.ACTION_DATA.list({ prefix: "POINTS_" });
+  datasets.push({ id: "users", label: "會員資料 USER_*", key: "users/", count: userList.keys.length, risk: "最高" });
+  datasets.push({ id: "points", label: "會員點數 POINTS_*", key: "points/", count: pointList.keys.length, risk: "最高" });
+  for (const item of datasets) {
+    item.currentSource = ["courses", "products"].includes(item.id) ? "R2/KV fallback" : "KV";
+    item.targetKey = `${cfg.basePrefix}${item.key}`;
+    if (cfg.configured && !item.key.endsWith("/")) {
+      try {
+        item.wasabi = await wasabiHeadObject(env, item.key);
+      } catch {
+        item.wasabi = { exists: false };
+      }
+    } else {
+      item.wasabi = { exists: false };
+    }
+  }
+  return {
+    config: {
+      configured: cfg.configured,
+      bucket: cfg.bucket || "(未設定)",
+      region: cfg.region || "(未設定)",
+      endpoint: cfg.endpoint || "(未設定)",
+      basePrefix: cfg.basePrefix || "(空)",
+      accessKeyPresent: !!cfg.accessKeyId,
+      secretKeyPresent: !!cfg.secretAccessKey,
+    },
+    health: cfg.configured ? await wasabiHealthCheck(env) : { ok: false, steps: [{ step: "Config", ok: false, message: "缺少 Wasabi 環境變數" }] },
+    datasets,
+    nextSteps: [
+      "先啟用雙寫，不切讀取來源",
+      "低風險資料 courses/products/videos 先做匯出與 hash 比對",
+      "orders/points/users 最後處理，且需保留 KV 回滾",
+    ],
+  };
+}
+
 const TEACHER_ALLOWED_ACTIONS = new Set([
   "ADMIN_GET_DATA",
   "ADMIN_GET_SLOTS",
@@ -805,6 +982,10 @@ export default {
       switch (action) {
         case "CHECK_UPDATES":
           result.data = { lastUpdate: await env.ACTION_DATA.get("SYS_LAST_UPDATE") || "0" };
+          break;
+
+        case "ADMIN_WASABI_CHECK":
+          result.data = await buildWasabiMigrationCheck(env);
           break;
 
         case "GET_SETTINGS":

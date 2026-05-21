@@ -100,6 +100,7 @@
                             <a href="./consult_admin.html" class="nav-item text-indigo-600"><i class="fas fa-calendar-check w-6 text-center"></i>講師排班</a>
                             <div v-if="isAdminRole" @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
                             <div v-if="isAdminRole" @click="switchView('flex_rules')" class="nav-item" :class="{'nav-active': view === 'flex_rules'}"><i class="fas fa-robot w-6 text-center"></i>機器人與專區卡片</div>
+                            <div v-if="isAdminRole" @click="switchView('wasabi_migration')" class="nav-item" :class="{'nav-active': view === 'wasabi_migration'}"><i class="fas fa-database w-6 text-center"></i>Wasabi 遷移檢查</div>
                             <div v-if="isAdminRole" @click="switchView('settings')" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>系統設定</div>
                         </div>
                     </div>
@@ -452,6 +453,63 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+                
+                <div v-if="isAdminRole && view === 'wasabi_migration'" class="p-8 animate-fade-in space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <div>
+                            <h3 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fas fa-database text-[#06C755]"></i> Wasabi 遷移檢查</h3>
+                            <p class="text-sm font-bold text-slate-500 mt-1">只做連線與資料盤點，不會搬移或覆蓋任何正式資料。</p>
+                        </div>
+                        <button @click="runWasabiCheck" :disabled="isLoading" class="btn-green-main !py-3 px-6"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-plug mr-2"></i>執行檢查</button>
+                    </div>
+
+                    <div v-if="!wasabiCheck" class="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-400 font-bold">
+                        尚未執行檢查。請先確認 Worker Secrets 已設定，再按「執行檢查」。
+                    </div>
+
+                    <template v-else>
+                        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm"><div class="text-xs font-black text-slate-400 mb-2">Bucket</div><div class="font-mono font-black text-slate-800 break-all">{{ wasabiCheck.config.bucket }}</div></div>
+                            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm"><div class="text-xs font-black text-slate-400 mb-2">Region</div><div class="font-mono font-black text-slate-800">{{ wasabiCheck.config.region }}</div></div>
+                            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm"><div class="text-xs font-black text-slate-400 mb-2">Base Prefix</div><div class="font-mono font-black text-slate-800 break-all">{{ wasabiCheck.config.basePrefix }}</div></div>
+                            <div class="rounded-xl border p-5 shadow-sm" :class="wasabiCheck.config.configured ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'"><div class="text-xs font-black mb-2" :class="wasabiCheck.config.configured ? 'text-green-700' : 'text-red-700'">設定狀態</div><div class="font-black" :class="wasabiCheck.config.configured ? 'text-green-700' : 'text-red-700'">{{ wasabiCheck.config.configured ? '已設定' : '缺少設定' }}</div></div>
+                        </div>
+
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                            <h4 class="font-black text-slate-800 mb-4">連線健康檢查</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div v-for="step in wasabiCheck.health.steps" :key="step.step" class="rounded-lg border p-4" :class="step.ok ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'">
+                                    <div class="font-black" :class="step.ok ? 'text-green-700' : 'text-red-700'"><i class="fas mr-2" :class="step.ok ? 'fa-check-circle' : 'fa-times-circle'"></i>{{ step.step }}</div>
+                                    <div class="text-xs text-slate-500 mt-2 break-all">{{ step.message || step.key || (step.size !== undefined ? ('size: ' + step.size) : 'OK') }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                                <h4 class="font-black text-slate-800">資料集遷移盤點</h4>
+                                <span class="text-xs font-bold text-slate-400">目前只檢查，不搬資料</span>
+                            </div>
+                            <table class="admin-table !min-w-0 w-full">
+                                <thead><tr><th>資料集</th><th>目前來源</th><th>筆數</th><th>風險</th><th>Wasabi 目標 Key</th><th>Wasabi 狀態</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="item in wasabiCheck.datasets" :key="item.id">
+                                        <td class="font-black text-slate-800">{{ item.label }}</td>
+                                        <td class="font-mono text-xs text-slate-500">{{ item.currentSource }}</td>
+                                        <td class="font-black text-slate-800">{{ item.count }}</td>
+                                        <td><span class="status-badge" :class="item.risk === '最高' ? 'bg-red-100 text-red-700' : item.risk === '高' ? 'bg-orange-100 text-orange-700' : item.risk === '中' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'">{{ item.risk }}</span></td>
+                                        <td class="font-mono text-xs text-slate-500 break-all">{{ item.targetKey }}</td>
+                                        <td><span class="status-badge" :class="item.wasabi?.exists ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">{{ item.wasabi?.exists ? ('已存在 / ' + item.wasabi.size + ' bytes') : '尚未建立' }}</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm font-bold text-amber-800 leading-relaxed">
+                            下一步順序：先雙寫低風險資料，再做 hash/筆數比對；會員、點數與訂單最後才切主庫，並保留 KV 回滾。
+                        </div>
+                    </template>
                 </div>
                 
                 <div v-if="isAdminRole && view === 'settings'" class="p-8 animate-fade-in max-w-4xl mx-auto space-y-8">
@@ -953,6 +1011,7 @@
                     const paymentLogs = ref([]);
                     const flexRules = ref([]);
                     const pointsLedger = ref([]);
+                    const wasabiCheck = ref(null);
                     
                     const memberSearch = ref('');
                     const courseSearchQuery = ref('');
@@ -1247,7 +1306,7 @@
                     const currentViewName = computed(() => {
                         const map = {
                             dashboard: '營運統計中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程 / 預約服務', products: '商城商品',
-                            consultation: '預約設定', orders: '訂單維護', booking_report: '預約報表', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片'
+                            consultation: '預約設定', orders: '訂單維護', booking_report: '預約報表', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片', wasabi_migration: 'Wasabi 遷移檢查'
                         };
                         return map[view.value] || '管理站';
                     });
@@ -1467,6 +1526,16 @@
                         try {
                             const data = await callApi('ADMIN_GET_POINTS_LEDGER', { limit: 2000 });
                             pointsLedger.value = Array.isArray(data) ? data : [];
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const runWasabiCheck = async () => {
+                        if (!isAdminRole.value) return alert('Wasabi 遷移檢查僅限 Admin 使用');
+                        isLoading.value = true;
+                        try {
+                            wasabiCheck.value = await callApi('ADMIN_WASABI_CHECK', {});
                         } finally {
                             isLoading.value = false;
                         }
@@ -2454,7 +2523,7 @@
 
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, productStatusOptions,
-                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger,
+                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, wasabiCheck,
                         currentAccess, isAdminRole, isOperatorRole, canViewFinance,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText,
                         currentViewName, totalRevenue, courseStatsFiltered,
@@ -2474,7 +2543,7 @@
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
+                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, runWasabiCheck, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
