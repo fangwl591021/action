@@ -45,7 +45,34 @@ async function sha256(text) {
 }
 
 // 🛡️ 核心升級：無敵防彈讀取器，就算資料損毀也絕對不會造成系統當機
+function getHighRiskLiveKey(key) {
+  const rawKey = String(key || "");
+  if (rawKey === "ORDERS") return "live/high-risk/orders.json";
+  if (rawKey === "POINT_LEDGER") return "live/high-risk/point-ledger.json";
+  if (rawKey.startsWith("USER_")) return `live/high-risk/users/${encodeURIComponent(rawKey.slice(5))}.json`;
+  if (rawKey.startsWith("POINTS_")) return `live/high-risk/points/${encodeURIComponent(rawKey.slice(7))}.json`;
+  return "";
+}
+
+async function safeGetR2Json(env, objectKey, defaultVal) {
+  const bucket = getDataBucket(env);
+  if (!bucket || !objectKey) return defaultVal;
+  try {
+    const obj = await bucket.get(objectKey);
+    if (!obj) return defaultVal;
+    return JSON.parse(await obj.text());
+  } catch (e) {
+    console.error(`[SafeGetR2] read failed: ${objectKey}`, e);
+    return defaultVal;
+  }
+}
+
 async function safeGetKV(env, key, defaultVal) {
+  const liveKey = getHighRiskLiveKey(key);
+  if (liveKey) {
+    const r2Value = await safeGetR2Json(env, liveKey, undefined);
+    if (r2Value !== undefined) return r2Value;
+  }
   try {
       const val = await env.ACTION_DATA.get(key);
       return val ? JSON.parse(val) : defaultVal;
@@ -57,6 +84,25 @@ async function safeGetKV(env, key, defaultVal) {
 
 function getDataBucket(env) {
   return env.PRODUCT_DATA || env["act-image"] || env.act_image || null;
+}
+
+async function safePutKV(env, key, value, options) {
+  const liveKey = getHighRiskLiveKey(key);
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  const bucket = getDataBucket(env);
+  if (liveKey && bucket) {
+    await bucket.put(liveKey, text, {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+    try {
+      await env.ACTION_DATA.put(key, text, options);
+    } catch (e) {
+      console.error(`[SafePutKV] KV write failed, kept R2 live copy: ${key}`, e);
+    }
+    return { storage: "R2", kvAttempted: true };
+  }
+  await env.ACTION_DATA.put(key, text, options);
+  return { storage: "KV", kvAttempted: true };
 }
 
 async function shouldReadLowRiskFromWasabi(env) {
@@ -431,7 +477,7 @@ async function verifyLowRiskWasabiSnapshot(env) {
 }
 
 async function listKVRecords(env, prefix) {
-  const records = [];
+  const byKey = new Map();
   let listComplete = false;
   let cursor = null;
   while (!listComplete) {
@@ -445,12 +491,33 @@ async function listKVRecords(env, prefix) {
         key: key.name,
         data: await safeGetKV(env, key.name, null),
       })));
-      records.push(...values);
+      values.forEach(item => byKey.set(item.key, item));
     }
     listComplete = list.list_complete;
     cursor = list.cursor;
   }
-  return records;
+  const bucket = getDataBucket(env);
+  const r2Prefix = prefix === "USER_" ? "live/high-risk/users/" : prefix === "POINTS_" ? "live/high-risk/points/" : "";
+  if (bucket && r2Prefix) {
+    try {
+      let r2Cursor;
+      let complete = false;
+      while (!complete) {
+        const listed = await bucket.list({ prefix: r2Prefix, cursor: r2Cursor });
+        for (const obj of listed.objects || []) {
+          const uid = decodeURIComponent(obj.key.slice(r2Prefix.length).replace(/\.json$/, ""));
+          const key = `${prefix}${uid}`;
+          const data = await safeGetR2Json(env, obj.key, null);
+          byKey.set(key, { key, data });
+        }
+        complete = listed.truncated !== true;
+        r2Cursor = listed.cursor;
+      }
+    } catch (e) {
+      console.error(`[ListR2Live] ${prefix} list failed`, e);
+    }
+  }
+  return Array.from(byKey.values());
 }
 
 async function buildHighRiskWasabiDatasets(env) {
@@ -582,19 +649,19 @@ function observeHighRiskDualWrite(env, ctx, ids) {
 }
 
 async function putOrdersKV(env, ctx, orders) {
-  await env.ACTION_DATA.put("ORDERS", JSON.stringify(Array.isArray(orders) ? orders : []));
+  await safePutKV(env, "ORDERS", Array.isArray(orders) ? orders : []);
   if (ctx) observeHighRiskDualWrite(env, ctx, "orders");
   else await observeHighRiskDualWrite(env, null, "orders");
 }
 
 async function putUserKV(env, ctx, uid, user) {
-  await env.ACTION_DATA.put(`USER_${uid}`, JSON.stringify(user || {}));
+  await safePutKV(env, `USER_${uid}`, user || {});
   if (ctx) observeHighRiskDualWrite(env, ctx, "users");
   else await observeHighRiskDualWrite(env, null, "users");
 }
 
 async function putPointKV(env, ctx, uid, pointData) {
-  await env.ACTION_DATA.put(`POINTS_${uid}`, JSON.stringify(pointData || { balance: 0, logs: [] }));
+  await safePutKV(env, `POINTS_${uid}`, pointData || { balance: 0, logs: [] });
 }
 
 async function wasabiHeadObject(env, key) {
@@ -1001,7 +1068,7 @@ async function appendPointsLedger(env, entry) {
   const ledger = await safeGetKV(env, "POINT_LEDGER", []);
   const list = Array.isArray(ledger) ? ledger : [];
   const next = [entry, ...list].slice(0, 5000);
-  await env.ACTION_DATA.put("POINT_LEDGER", JSON.stringify(next));
+  await safePutKV(env, "POINT_LEDGER", next);
 }
 
 async function buildPointLedgerFromCurrentLogs(env, users = []) {
@@ -1968,7 +2035,7 @@ export default {
                           localUsers = uniqueUsersById(gasJson.data.users);
                           // 背景大量寫入 KV
                           ctx.waitUntil((async () => {
-                              for(let u of gasJson.data.users) await env.ACTION_DATA.put(`USER_${u.userId}`, JSON.stringify(u));
+                              for(let u of gasJson.data.users) await safePutKV(env, `USER_${u.userId}`, u);
                               await observeHighRiskDualWrite(env, null, "users");
                           })());
                       }
