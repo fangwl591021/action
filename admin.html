@@ -2054,7 +2054,7 @@
 
                     const deleteMember = async (m) => {
                         if (!m || !m.userId) return;
-                        if (!requireDeleteConfirmation(`學員 ${m.name || m.userId}`, m.userId)) return;
+                        if (!requireDeleteConfirmation(`學員 ${m.name || m.userId}`)) return;
                         isLoading.value = true;
                         try {
                             const res = await callApi('ADMIN_DELETE_MEMBER', { targetUid: m.userId, reason: 'CRM 名義刪除' });
@@ -2105,13 +2105,11 @@
                         }
                     };
 
-                    const requireDeleteConfirmation = (label, expectedValue) => {
-                        const expected = String(expectedValue || '').trim();
-                        if (!expected) return false;
-                        const input = prompt(`⚠️ 即將刪除「${label}」。\n系統會從一般畫面隱藏，但保留後台資料紀錄。\n\n請完整輸入以下文字確認：\n${expected}`);
+                    const requireDeleteConfirmation = (label) => {
+                        const input = prompt(`⚠️ 即將刪除「${label}」。\n系統會從一般畫面隱藏，但保留後台資料紀錄。\n\n請輸入「刪除」兩字確認：`);
                         if (input === null) return false;
-                        if (String(input).trim() !== expected) {
-                            alert('確認文字不一致，已取消刪除。');
+                        if (String(input).trim() !== '刪除') {
+                            alert('未輸入正確確認文字，已取消刪除。');
                             return false;
                         }
                         return true;
@@ -2156,7 +2154,7 @@
                     const deleteCourse = async () => {
                         if (!editingCourse.value || !editingCourse.value.id) return;
                         const courseName = String(editingCourse.value.name || '').split('\n')[0].trim() || editingCourse.value.id;
-                        if (!requireDeleteConfirmation(`課程 ${courseName}`, courseName)) return;
+                        if (!requireDeleteConfirmation(`課程 ${courseName}`)) return;
                         isLoading.value = true;
                         try {
                             const res = await callApi('ADMIN_DELETE_COURSE', { courseId: editingCourse.value.id, reason: '課程名義刪除' });
@@ -2198,7 +2196,7 @@
                     const deleteProduct = async () => {
                         if (!editingProduct.value) return;
                         const productName = String(editingProduct.value.name || '').trim() || editingProduct.value.id;
-                        if (!requireDeleteConfirmation(`商品 ${productName}`, productName)) return;
+                        if (!requireDeleteConfirmation(`商品 ${productName}`)) return;
                         isLoading.value = true;
                         try {
                             await callApi('ADMIN_DELETE_PRODUCT', { productId: editingProduct.value.id, reason: '商品名義刪除' });
