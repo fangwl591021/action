@@ -1184,7 +1184,7 @@ function shouldAuditAction(action, access) {
   if (action.startsWith("TEACHER_")) return true;
   if (action === "UPLOAD_IMAGE" || action === "DEPLOY_RICH_MENU") return true;
   if (!action.startsWith("ADMIN_")) return false;
-  return /_(UPDATE|DELETE|MANAGE|IMPORT|SYNC|BATCH|APPROVE|REMOVE|TRANSFER|WASABI|DAILY|GET_POINTS_LEDGER)/.test(action);
+  return /_(UPDATE|DELETE|MANAGE|IMPORT|SYNC|BATCH|APPROVE|REMOVE|TRANSFER|WASABI|DAILY|SEND|TAG|GET_POINTS_LEDGER)/.test(action);
 }
 
 function summarizeAuditPayload(action, payload = {}) {
@@ -1199,6 +1199,8 @@ function summarizeAuditPayload(action, payload = {}) {
   if (action === "ADMIN_DELETE_PRODUCT") return `隱藏商品 ${p.productId || ""}`.trim();
   if (action === "ADMIN_UPDATE_ORDER") return `更新訂單 ${p.orderId || ""}`.trim();
   if (action === "ADMIN_MANAGE_POINTS") return `調整點數 ${p.uid || ""} ${p.type || ""} ${p.amount || ""}`.trim();
+  if (action === "ADMIN_TAG_MEMBER") return `會員標籤 ${p.tagName || ""} ${p.userId || ""}`.trim();
+  if (action === "ADMIN_SEND_PAID_BROADCAST") return `付費推播 ${p.title || ""}`.trim();
   if (action === "TEACHER_DEDUCT_POINTS") return `講師扣點 ${p.targetUid || p.studentName || ""} ${p.amount || ""}`.trim();
   return action.replace(/_/g, " ");
 }
@@ -1229,6 +1231,72 @@ async function appendAuditLog(env, access, action, payload = {}, request = null)
   } catch (e) {
     console.error("[AuditLog] append failed", e);
   }
+}
+
+function normalizeAudienceTags(tags) {
+  return (Array.isArray(tags) ? tags : []).map(tag => {
+    if (typeof tag === "string") return { id: tag, name: tag, color: "#06C755", createdAt: "" };
+    const name = String(tag?.name || tag?.id || "").trim();
+    if (!name) return null;
+    return {
+      id: String(tag?.id || name).trim(),
+      name,
+      color: String(tag?.color || "#06C755").trim(),
+      description: String(tag?.description || "").trim(),
+      createdAt: tag?.createdAt || "",
+    };
+  }).filter(Boolean);
+}
+
+function getUserBroadcastTags(user) {
+  const raw = user?.broadcastTags || user?.tags || user?.audienceTags || [];
+  if (Array.isArray(raw)) return raw.map(v => String(v || "").trim()).filter(Boolean);
+  return String(raw || "").split(/[\n,，、]/).map(v => v.trim()).filter(Boolean);
+}
+
+function audienceMatchesUser(user, audience = {}) {
+  if (!user || user.isDeleted === true || !user.userId) return false;
+  const tag = String(audience.tag || "").trim();
+  const tags = getUserBroadcastTags(user);
+  if (tag && !tags.includes(tag)) return false;
+  const tier = String(audience.memberTier || "").trim();
+  if (tier && String(user.memberTier || "") !== tier) return false;
+  const gender = String(audience.gender || "").trim();
+  if (gender && String(user.gender || "") !== gender) return false;
+  const keyword = String(audience.keyword || "").trim().toLowerCase();
+  if (keyword) {
+    const haystack = [user.name, user.phone, user.industry, user.address, user.userId].map(v => String(v || "").toLowerCase()).join(" ");
+    if (!haystack.includes(keyword)) return false;
+  }
+  return true;
+}
+
+function selectBroadcastAudience(users, audience = {}) {
+  return uniqueUsersById(Array.isArray(users) ? users : []).filter(user => audienceMatchesUser(user, audience));
+}
+
+async function sendLineMulticast(env, recipients, messages) {
+  const token = String(env.LINE_CHANNEL_ACCESS_TOKEN || "").trim();
+  if (!token) throw new Error("Cloudflare 尚未綁定 LINE_CHANNEL_ACCESS_TOKEN 金鑰！");
+  const ids = [...new Set((recipients || []).map(user => String(user.userId || "").trim()).filter(Boolean))];
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += 500) chunks.push(ids.slice(i, i + 500));
+  let sent = 0;
+  const errors = [];
+  for (const to of chunks) {
+    const res = await fetch("https://api.line.me/v2/bot/message/multicast", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ to, messages }),
+    });
+    if (res.ok) {
+      sent += to.length;
+    } else {
+      const text = await res.text();
+      errors.push(`HTTP ${res.status}: ${text.slice(0, 240)}`);
+    }
+  }
+  return { sent, failed: ids.length - sent, total: ids.length, errors };
 }
 
 async function buildPointLedgerFromCurrentLogs(env, users = []) {
@@ -2304,6 +2372,84 @@ export default {
           if (!access.isAdmin) throw new Error("Admin authorization required");
           const auditLogs = await safeGetKV(env, "AUDIT_LOGS", [], { preferWasabi: false });
           result.data = Array.isArray(auditLogs) ? auditLogs : [];
+          break;
+        }
+
+        case "ADMIN_GET_BROADCAST_DATA": {
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          result.data = {
+            tags: normalizeAudienceTags(await safeGetKV(env, "BROADCAST_TAGS", [])),
+            campaigns: await safeGetKV(env, "PAID_BROADCASTS", []),
+          };
+          break;
+        }
+
+        case "ADMIN_SAVE_AUDIENCE_TAG": {
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          const name = String(payload?.name || "").trim();
+          if (!name) throw new Error("請輸入標籤名稱");
+          const tags = normalizeAudienceTags(await safeGetKV(env, "BROADCAST_TAGS", []));
+          const existingIndex = tags.findIndex(tag => tag.name === name || tag.id === payload?.id);
+          const tag = {
+            id: String(payload?.id || name).trim(),
+            name,
+            color: String(payload?.color || "#06C755").trim(),
+            description: String(payload?.description || "").trim(),
+            createdAt: payload?.createdAt || new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }),
+          };
+          if (existingIndex >= 0) tags[existingIndex] = { ...tags[existingIndex], ...tag };
+          else tags.unshift(tag);
+          await safePutKV(env, "BROADCAST_TAGS", tags);
+          result.data = { success: true, tags };
+          break;
+        }
+
+        case "ADMIN_TAG_MEMBER": {
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          const targetUid = String(payload?.userId || "").trim();
+          const tagName = String(payload?.tagName || "").trim();
+          const enabled = payload?.enabled !== false;
+          if (!targetUid || !tagName) throw new Error("缺少會員 UID 或標籤");
+          const member = await safeGetKV(env, `USER_${targetUid}`, null);
+          if (!member) throw new Error("找不到會員資料");
+          const tags = new Set(getUserBroadcastTags(member));
+          if (enabled) tags.add(tagName);
+          else tags.delete(tagName);
+          member.broadcastTags = [...tags];
+          await safePutKV(env, `USER_${targetUid}`, member);
+          await observeHighRiskDualWrite(env, null, "users");
+          result.data = { success: true, member };
+          break;
+        }
+
+        case "ADMIN_SEND_PAID_BROADCAST": {
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          const title = String(payload?.title || "").trim();
+          const text = String(payload?.message || "").trim();
+          if (!title) throw new Error("請輸入推播名稱");
+          if (!text) throw new Error("請輸入推播內容");
+          const allUsers = uniqueUsersById(await listUserRecords(env));
+          const recipients = selectBroadcastAudience(allUsers, payload?.audience || {});
+          if (!recipients.length) throw new Error("目前受眾為 0，沒有可推播會員");
+          const sendResult = await sendLineMulticast(env, recipients, [{ type: "text", text }]);
+          const campaigns = await safeGetKV(env, "PAID_BROADCASTS", []);
+          const campaign = {
+            id: crypto.randomUUID ? crypto.randomUUID() : `BCAST_${Date.now()}`,
+            title,
+            message: text,
+            audience: payload?.audience || {},
+            targetCount: recipients.length,
+            sent: sendResult.sent,
+            failed: sendResult.failed,
+            errors: sendResult.errors,
+            operatorUid: userId,
+            operatorName: access.userData?.name || "",
+            createdAt: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }),
+            createdTs: Date.now(),
+          };
+          const nextCampaigns = [campaign, ...(Array.isArray(campaigns) ? campaigns : [])].slice(0, 200);
+          await safePutKV(env, "PAID_BROADCASTS", nextCampaigns);
+          result.data = { success: sendResult.failed === 0, campaign };
           break;
         }
 
