@@ -1579,13 +1579,14 @@ export default {
           
         case "GET_COURSES":
           const courses = await safeGetCourses(env);
-          result.data = courses.filter(c => c.isPublished !== false);
+          result.data = courses.filter(c => c && c.isDeleted !== true && c.isPublished !== false);
           break;
 
         case "GET_PRODUCTS":
           const products = await safeGetProducts(env);
           result.data = products.filter(p => {
             if (!p || p.isPublished === false) return false;
+            if (p.isDeleted === true) return false;
             const status = String(p.status || "");
             return !status || status.includes("販賣") || /sell|active|on/i.test(status);
           });
@@ -2266,6 +2267,26 @@ export default {
           result.data = { success: true, storage: courseSaveStorage.storage };
           break;
 
+        case "ADMIN_DELETE_COURSE": {
+          const courseId = String(payload?.courseId || "").trim();
+          if (!courseId) throw new Error("缺少課程 ID");
+          const coursesForDelete = await safeGetCourses(env);
+          const courseIndex = coursesForDelete.findIndex(c => c && String(c.id) === courseId);
+          if (courseIndex < 0) throw new Error("找不到要刪除的課程");
+          coursesForDelete[courseIndex] = {
+            ...coursesForDelete[courseIndex],
+            isPublished: false,
+            isDeleted: true,
+            deletedAt: new Date().toISOString(),
+            deletedBy: userId,
+            deleteReason: String(payload?.reason || "後台名義刪除").trim(),
+          };
+          const courseDeleteStorage = await safePutCourses(env, coursesForDelete);
+          touchLastUpdate(env, ctx, "Courses");
+          result.data = { success: true, storage: courseDeleteStorage.storage, course: coursesForDelete[courseIndex] };
+          break;
+        }
+
         case "ADMIN_UPDATE_PRODUCT":
           const productToSave = normalizeProduct(payload);
           if (!productToSave.name) throw new Error("請輸入商品名稱");
@@ -2280,10 +2301,19 @@ export default {
 
         case "ADMIN_DELETE_PRODUCT":
           const productDeleteList = await safeGetProducts(env);
-          const keptProducts = productDeleteList.filter(p => p && p.id !== payload.productId);
-          await safePutProducts(env, keptProducts);
+          const productDeleteIndex = productDeleteList.findIndex(p => p && p.id === payload.productId);
+          if (productDeleteIndex < 0) throw new Error("找不到要刪除的商品");
+          productDeleteList[productDeleteIndex] = {
+            ...productDeleteList[productDeleteIndex],
+            isPublished: false,
+            isDeleted: true,
+            deletedAt: new Date().toISOString(),
+            deletedBy: userId,
+            deleteReason: String(payload?.reason || "後台名義刪除").trim(),
+          };
+          await safePutProducts(env, productDeleteList);
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()).catch(e => console.error("[Products] SYS_LAST_UPDATE 寫入失敗", e)));
-          result.data = { success: true };
+          result.data = { success: true, product: productDeleteList[productDeleteIndex] };
           break;
           
         case "ADMIN_UPDATE_ORDER":
@@ -2453,6 +2483,28 @@ export default {
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
           break;
+
+        case "ADMIN_DELETE_MEMBER": {
+          const targetUid = String(payload?.targetUid || "").trim();
+          if (!targetUid) throw new Error("缺少學員 UID");
+          const memberToDelete = await safeGetKV(env, `USER_${targetUid}`, null);
+          if (!memberToDelete || !memberToDelete.userId) throw new Error("找不到要刪除的學員");
+          const memberIsPrivileged = Boolean(memberToDelete.isAdmin) || Boolean(memberToDelete.crmOperator) || Boolean(memberToDelete.isTeacher) || ["admin", "operator", "teacher"].includes(String(memberToDelete.role || "")) || ["admin", "operator", "teacher"].includes(String(memberToDelete.crmRole || "")) || String(memberToDelete.memberTier || "").includes("導師");
+          if (memberIsPrivileged && !access.adminPasswordOk) {
+            throw new Error("刪除具權限身分的帳號時，必須重新輸入管理密碼");
+          }
+          const deletedMember = {
+            ...memberToDelete,
+            isDeleted: true,
+            deletedAt: new Date().toISOString(),
+            deletedBy: userId,
+            deleteReason: String(payload?.reason || "後台名義刪除").trim(),
+          };
+          await putUserKV(env, ctx, targetUid, deletedMember);
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()).catch(e => console.error("[Members] SYS_LAST_UPDATE 寫入失敗", e)));
+          result.data = { success: true, deletedUid: targetUid, memberData: deletedMember };
+          break;
+        }
 
         case "ADMIN_APPROVE_TEACHER":
           const { teacherUid, rentPrice, commissionRate } = payload;

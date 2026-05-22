@@ -961,9 +961,12 @@
                         </div>
                     </div>
                 </div>
-                <div class="px-6 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl">
-                    <button @click="editingCourse = null" class="text-[16px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button>
-                    <button @click="saveCourse" :disabled="isLoading" class="btn-green-main px-8 text-[17px] py-3"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存</button>
+                <div class="px-6 py-5 bg-white flex justify-between items-center gap-4 border-t border-slate-200 rounded-b-xl">
+                    <button v-if="editingCourse?.id && !String(editingCourse.id).startsWith('NEW_')" @click="deleteCourse" class="px-4 py-3 rounded-lg bg-red-50 text-red-600 font-bold border border-red-100 hover:bg-red-100"><i class="fas fa-trash-alt mr-2"></i>刪除課程</button>
+                    <div class="ml-auto flex gap-3">
+                        <button @click="editingCourse = null" class="text-[16px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button>
+                        <button @click="saveCourse" :disabled="isLoading" class="btn-green-main px-8 text-[17px] py-3"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1582,13 +1585,14 @@
                     });
 
                     const filteredMembers = computed(() => {
-                        if (!memberSearch.value) return users.value.filter(u => u);
+                        const visibleUsers = users.value.filter(u => u && u.isDeleted !== true);
+                        if (!memberSearch.value) return visibleUsers;
                         const q = memberSearch.value.toLowerCase();
-                        return users.value.filter(u => u && ((u.name && u.name.toLowerCase().includes(q)) || (u.phone && u.phone.includes(q)) || (u.userId && u.userId.toLowerCase().includes(q))));
+                        return visibleUsers.filter(u => ((u.name && u.name.toLowerCase().includes(q)) || (u.phone && u.phone.includes(q)) || (u.userId && u.userId.toLowerCase().includes(q))));
                     });
 
                     const filteredAdminCourses = computed(() => {
-                        let result = courses.value.filter(c => c);
+                        let result = courses.value.filter(c => c && c.isDeleted !== true);
                         result = result.filter(c => courseTypeFilter.value === 'reservation' ? isReservationCourse(c) : !isReservationCourse(c));
                         const q = courseSearchQuery.value.toLowerCase();
                         if (q) result = result.filter(c => c && ((c.name && c.name.toLowerCase().includes(q)) || (c.type && c.type.toLowerCase().includes(q)) || (c.id && c.id.toLowerCase().includes(q))));
@@ -1616,9 +1620,10 @@
                     });
 
                     const filteredProducts = computed(() => {
-                        if (!productSearchQuery.value) return products.value.filter(p => p);
+                        const visibleProducts = products.value.filter(p => p && p.isDeleted !== true);
+                        if (!productSearchQuery.value) return visibleProducts;
                         const q = productSearchQuery.value.toLowerCase();
-                        return products.value.filter(p => p && (
+                        return visibleProducts.filter(p => (
                             String(p.name || '').toLowerCase().includes(q) ||
                             String(p.code || '').toLowerCase().includes(q) ||
                             String(p.storeName || '').toLowerCase().includes(q)
@@ -2057,14 +2062,15 @@
                     };
 
                     const deleteMember = async (m) => {
-                        if(!confirm(`⚠️ 警告：確定要永久刪除學員 ${m.name} 嗎？\n刪除後該學員需重新註冊，此操作無法復原！`)) return;
+                        if (!m || !m.userId) return;
+                        if (!requireDeleteConfirmation(`學員 ${m.name || m.userId}`, m.userId)) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_DELETE_MEMBER', { targetUid: m.userId });
+                            const res = await callApi('ADMIN_DELETE_MEMBER', { targetUid: m.userId, reason: 'CRM 名義刪除' });
                             if(res) {
-                                alert('🗑️ 已成功刪除該學員');
+                                alert('🗑️ 已隱藏該學員，資料仍保留於系統紀錄');
+                                users.value = users.value.filter(u => u && u.userId !== m.userId);
                                 activeMember.value = null;
-                                await fetchData(true);
                             }
                         } catch(e) { console.error(e); alert('刪除失敗：' + e.message); } finally { isLoading.value = false; }
                     };
@@ -2108,6 +2114,18 @@
                         }
                     };
 
+                    const requireDeleteConfirmation = (label, expectedValue) => {
+                        const expected = String(expectedValue || '').trim();
+                        if (!expected) return false;
+                        const input = prompt(`⚠️ 即將刪除「${label}」。\n系統會從一般畫面隱藏，但保留後台資料紀錄。\n\n請完整輸入以下文字確認：\n${expected}`);
+                        if (input === null) return false;
+                        if (String(input).trim() !== expected) {
+                            alert('確認文字不一致，已取消刪除。');
+                            return false;
+                        }
+                        return true;
+                    };
+
                     const openNewCourseModal = () => {
                         const isReservation = courseTypeFilter.value === 'reservation';
                         editingCourse.value = { id: 'NEW_' + Date.now(), name: '', priceText: '', type: isReservation ? '預約類' : '課程類', price: 0, maxPoints: 0, capacity: 0, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', publishStartDate: '', publishEndDate: '', instructor: '', location: '', description: '', image: '', isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [], stageTags: [] };
@@ -2144,6 +2162,21 @@
                         } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
                     };
 
+                    const deleteCourse = async () => {
+                        if (!editingCourse.value || !editingCourse.value.id) return;
+                        const courseName = String(editingCourse.value.name || '').split('\n')[0].trim() || editingCourse.value.id;
+                        if (!requireDeleteConfirmation(`課程 ${courseName}`, courseName)) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_DELETE_COURSE', { courseId: editingCourse.value.id, reason: '課程名義刪除' });
+                            if (res) {
+                                courses.value = courses.value.filter(c => c && c.id !== editingCourse.value.id);
+                                editingCourse.value = null;
+                                alert('課程已隱藏，資料仍保留於系統紀錄');
+                            }
+                        } catch(e) { console.error(e); alert('課程刪除失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
                     const copyCourse = (c) => {
                         const copy = JSON.parse(JSON.stringify(c));
                         copy.id = 'NEW_' + Date.now();
@@ -2172,13 +2205,15 @@
                     };
 
                     const deleteProduct = async () => {
-                        if (!editingProduct.value || !confirm('確定刪除此商品？')) return;
+                        if (!editingProduct.value) return;
+                        const productName = String(editingProduct.value.name || '').trim() || editingProduct.value.id;
+                        if (!requireDeleteConfirmation(`商品 ${productName}`, productName)) return;
                         isLoading.value = true;
                         try {
-                            await callApi('ADMIN_DELETE_PRODUCT', { productId: editingProduct.value.id });
+                            await callApi('ADMIN_DELETE_PRODUCT', { productId: editingProduct.value.id, reason: '商品名義刪除' });
                             products.value = products.value.filter(p => p && p.id !== editingProduct.value.id);
                             editingProduct.value = null;
-                            alert('商品已刪除');
+                            alert('商品已隱藏，資料仍保留於系統紀錄');
                         } catch(e) { console.error(e); alert('商品刪除失敗：' + e.message); } finally { isLoading.value = false; }
                     };
 
@@ -2809,7 +2844,7 @@
                         activeMember, activeMemberPoints, editingPointAction,
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, forceSyncFromCloud,
                         triggerBackup, runHealthCheck, openMemberDetail, toggleMemberAdmin, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
-                        openNewCourseModal, openEditModal, saveCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
+                        openNewCourseModal, openEditModal, saveCourse, deleteCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
                         handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
