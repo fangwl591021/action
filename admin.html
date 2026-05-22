@@ -893,7 +893,7 @@
         <div v-if="editingCourse" class="modal-mask" @click.self="editingCourse = null">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[900px] !rounded-xl bg-white">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
-                    <h3 class="text-[21px] font-black text-slate-800">{{ editingCourse?.id && String(editingCourse.id).startsWith('NEW_') ? '新增課程/方案' : '編輯：' + String(editingCourse?.name || '').split('\n')[0] }}</h3>
+                    <h3 class="text-[21px] font-black text-slate-800">{{ isExistingEditingCourse ? '編輯：' + String(editingCourse?.name || '').split('\n')[0] : '新增課程/方案' }}</h3>
                     <button @click="editingCourse = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button>
                 </div>
                 <div class="p-8 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar">
@@ -962,7 +962,7 @@
                     </div>
                 </div>
                 <div class="px-6 py-5 bg-white flex justify-between items-center gap-4 border-t border-slate-200 rounded-b-xl">
-                    <button v-if="editingCourse?.id && !String(editingCourse.id).startsWith('NEW_')" @click="deleteCourse" class="px-4 py-3 rounded-lg bg-red-50 text-red-600 font-bold border border-red-100 hover:bg-red-100"><i class="fas fa-trash-alt mr-2"></i>刪除課程</button>
+                    <button v-if="isExistingEditingCourse" @click="deleteCourse" class="px-4 py-3 rounded-lg bg-red-50 text-red-600 font-bold border border-red-100 hover:bg-red-100"><i class="fas fa-trash-alt mr-2"></i>刪除課程</button>
                     <div class="ml-auto flex gap-3">
                         <button @click="editingCourse = null" class="text-[16px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button>
                         <button @click="saveCourse" :disabled="isLoading" class="btn-green-main px-8 text-[17px] py-3"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>確認儲存</button>
@@ -974,7 +974,7 @@
         <div v-if="editingProduct" class="modal-mask" @click.self="editingProduct = null">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[760px] !rounded-xl bg-white">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100">
-                    <h3 class="text-[21px] font-black text-slate-800">{{ editingProduct?.id && String(editingProduct.id).startsWith('PROD_NEW_') ? '新增商城商品' : '編輯商品：' + String(editingProduct?.name || '') }}</h3>
+                    <h3 class="text-[21px] font-black text-slate-800">{{ isExistingEditingProduct ? '編輯商品：' + String(editingProduct?.name || '') : '新增商城商品' }}</h3>
                     <button @click="editingProduct = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button>
                 </div>
                 <div class="p-6 overflow-y-auto">
@@ -1006,7 +1006,7 @@
                     </div>
                 </div>
                 <div class="px-6 py-5 bg-white flex justify-between items-center gap-4 border-t border-slate-200 rounded-b-xl">
-                    <button v-if="editingProduct?.id && !String(editingProduct.id).startsWith('PROD_NEW_')" @click="deleteProduct" class="px-4 py-3 rounded-lg bg-red-50 text-red-600 font-bold border border-red-100 hover:bg-red-100">刪除商品</button>
+                    <button v-if="isExistingEditingProduct" @click="deleteProduct" class="px-4 py-3 rounded-lg bg-red-50 text-red-600 font-bold border border-red-100 hover:bg-red-100">刪除商品</button>
                     <div class="ml-auto flex gap-3"><button @click="editingProduct = null" class="text-[16px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button><button @click="saveProduct" :disabled="isLoading" class="btn-green-main px-8 text-[17px] py-3"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>儲存商品</button></div>
                 </div>
             </div>
@@ -1517,6 +1517,14 @@
                     });
 
                     const isEditingReservationCourse = computed(() => String(editingCourse.value?.type || '').includes('預約'));
+                    const isExistingEditingCourse = computed(() => {
+                        const id = String(editingCourse.value?.id || '');
+                        return !!id && courses.value.some(c => c && String(c.id) === id);
+                    });
+                    const isExistingEditingProduct = computed(() => {
+                        const id = String(editingProduct.value?.id || '');
+                        return !!id && products.value.some(p => p && String(p.id) === id);
+                    });
 
                     const isReservationCourse = (course) => String(course?.type || '').includes('預約');
                     const normalizeCourseText = (value) => String(value || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
@@ -2833,7 +2841,7 @@
                         currentAccess, isAdminRole, isOperatorRole, canViewFinance,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText,
                         currentViewName, totalRevenue, courseStatsFiltered,
-                        isEditingReservationCourse, courseLocationOptions,
+                        isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions,
                         transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
                         memberSearch, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
                         orderSearch, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary,
