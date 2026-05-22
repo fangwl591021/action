@@ -49,6 +49,7 @@ function getHighRiskLiveKey(key) {
   const rawKey = String(key || "");
   if (rawKey === "ORDERS") return "live/high-risk/orders.json";
   if (rawKey === "POINT_LEDGER") return "live/high-risk/point-ledger.json";
+  if (rawKey === "AUDIT_LOGS") return "live/high-risk/audit-logs.json";
   if (rawKey.startsWith("USER_")) return `live/high-risk/users/${encodeURIComponent(rawKey.slice(5))}.json`;
   if (rawKey.startsWith("POINTS_")) return `live/high-risk/points/${encodeURIComponent(rawKey.slice(7))}.json`;
   return "";
@@ -1175,6 +1176,61 @@ async function appendPointsLedger(env, entry) {
   await safePutKV(env, "POINT_LEDGER", next);
 }
 
+function shouldAuditAction(action, access) {
+  if (!action) return false;
+  if (action === "CHECK_USER") return !!(access?.isAdmin || access?.canCrmLogin || access?.isTeacher);
+  if (action === "LOG_ADMIN_EVENT") return true;
+  if (action === "ADMIN_GET_AUDIT_LOGS") return false;
+  if (action.startsWith("TEACHER_")) return true;
+  if (action === "UPLOAD_IMAGE" || action === "DEPLOY_RICH_MENU") return true;
+  if (!action.startsWith("ADMIN_")) return false;
+  return /_(UPDATE|DELETE|MANAGE|IMPORT|SYNC|BATCH|APPROVE|REMOVE|TRANSFER|WASABI|DAILY|GET_POINTS_LEDGER)/.test(action);
+}
+
+function summarizeAuditPayload(action, payload = {}) {
+  const p = payload && typeof payload === "object" ? payload : {};
+  if (action === "LOG_ADMIN_EVENT") return String(p.message || p.view || "後台操作").slice(0, 180);
+  if (action === "CHECK_USER") return "後台登入驗證";
+  if (action === "ADMIN_UPDATE_MEMBER") return `更新會員 ${p.memberData?.name || p.memberData?.userId || ""}`.trim();
+  if (action === "ADMIN_DELETE_MEMBER") return `隱藏會員 ${p.targetUid || ""}`.trim();
+  if (action === "ADMIN_UPDATE_COURSE") return `儲存課程 ${String(p.name || p.id || "").split("\n")[0]}`.trim();
+  if (action === "ADMIN_DELETE_COURSE") return `隱藏課程 ${p.courseId || ""}`.trim();
+  if (action === "ADMIN_UPDATE_PRODUCT") return `儲存商品 ${p.name || p.code || p.id || ""}`.trim();
+  if (action === "ADMIN_DELETE_PRODUCT") return `隱藏商品 ${p.productId || ""}`.trim();
+  if (action === "ADMIN_UPDATE_ORDER") return `更新訂單 ${p.orderId || ""}`.trim();
+  if (action === "ADMIN_MANAGE_POINTS") return `調整點數 ${p.uid || ""} ${p.type || ""} ${p.amount || ""}`.trim();
+  if (action === "TEACHER_DEDUCT_POINTS") return `講師扣點 ${p.targetUid || p.studentName || ""} ${p.amount || ""}`.trim();
+  return action.replace(/_/g, " ");
+}
+
+async function appendAuditLog(env, access, action, payload = {}, request = null) {
+  try {
+    const now = new Date();
+    const userData = access?.userData || {};
+    const role = access?.isAdmin ? "admin" : access?.canCrmLogin ? "operator" : access?.isTeacher ? "teacher" : "user";
+    const entry = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      uid: access?.userId || "GUEST",
+      name: userData.name || userData.displayName || "",
+      role,
+      action,
+      summary: summarizeAuditPayload(action, payload),
+      view: payload?.view || "",
+      targetUid: payload?.targetUid || payload?.memberData?.userId || payload?.uid || "",
+      targetId: payload?.courseId || payload?.productId || payload?.orderId || payload?.id || "",
+      createdAt: now.toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }),
+      createdTs: now.getTime(),
+      ip: request?.headers?.get("cf-connecting-ip") || "",
+      userAgent: String(request?.headers?.get("user-agent") || "").slice(0, 180),
+    };
+    const logs = await safeGetKV(env, "AUDIT_LOGS", [], { preferWasabi: false });
+    const next = [entry, ...(Array.isArray(logs) ? logs : [])].slice(0, 1200);
+    await safePutKV(env, "AUDIT_LOGS", next);
+  } catch (e) {
+    console.error("[AuditLog] append failed", e);
+  }
+}
+
 async function buildPointLedgerFromCurrentLogs(env, users = []) {
   const userMap = new Map((Array.isArray(users) ? users : []).map(user => [user.userId, user]));
   const entries = [];
@@ -1531,6 +1587,10 @@ export default {
         throw new Error("LINE authorization required");
       }
 
+      if (action === "LOG_ADMIN_EVENT" && !(access.isAdmin || access.canCrmLogin || access.isTeacher)) {
+        throw new Error("Admin authorization required");
+      }
+
       switch (action) {
         case "CHECK_UPDATES":
           result.data = { lastUpdate: await env.ACTION_DATA.get("SYS_LAST_UPDATE") || "0" };
@@ -1558,6 +1618,10 @@ export default {
 
         case "ADMIN_WASABI_DAILY_CHECK":
           result.data = await runWasabiDailyAcceptanceCheck(env);
+          break;
+
+        case "LOG_ADMIN_EVENT":
+          result.data = { success: true };
           break;
 
         case "GET_SETTINGS":
@@ -2236,6 +2300,13 @@ export default {
           result.data = await getPointsLedger(env, payload.limit || 2000);
           break;
 
+        case "ADMIN_GET_AUDIT_LOGS": {
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          const auditLogs = await safeGetKV(env, "AUDIT_LOGS", [], { preferWasabi: false });
+          result.data = Array.isArray(auditLogs) ? auditLogs : [];
+          break;
+        }
+
         case "ADMIN_UPDATE_SETTINGS":
           await env.ACTION_DATA.put("SYSTEM_SETTINGS", JSON.stringify(payload));
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
@@ -2798,6 +2869,10 @@ export default {
             redirect: "follow"
           });
           return new Response(await proxyRes.text(), { headers: corsHeaders });
+      }
+
+      if (shouldAuditAction(action, access)) {
+        ctx.waitUntil(appendAuditLog(env, access, action, payload, request));
       }
 
       return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

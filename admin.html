@@ -101,6 +101,7 @@
                             <div v-if="isAdminRole" @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
                             <div v-if="isAdminRole" @click="switchView('flex_rules')" class="nav-item" :class="{'nav-active': view === 'flex_rules'}"><i class="fas fa-robot w-6 text-center"></i>機器人與專區卡片</div>
                             <div v-if="isAdminRole" @click="switchView('wasabi_migration')" class="nav-item" :class="{'nav-active': view === 'wasabi_migration'}"><i class="fas fa-database w-6 text-center"></i>Wasabi 遷移檢查</div>
+                            <div v-if="isAdminRole" @click="switchView('audit_logs')" class="nav-item" :class="{'nav-active': view === 'audit_logs'}"><i class="fas fa-clipboard-check w-6 text-center"></i>操作紀錄</div>
                             <div v-if="isAdminRole" @click="switchView('settings')" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>系統設定</div>
                         </div>
                     </div>
@@ -398,6 +399,37 @@
                                     <td class="text-sm text-slate-600">{{ log.message }}</td>
                                 </tr>
                                 <tr v-if="!paymentLogs.length"><td colspan="5" class="text-center py-12 text-slate-400 font-bold">目前尚無金流通知紀錄</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-if="isAdminRole && view === 'audit_logs'" class="animate-fade-in">
+                    <div class="p-6 bg-white border-b border-slate-100">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="relative w-full max-w-md">
+                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                <input type="text" v-model="auditLogSearch" placeholder="搜尋 UID、姓名、動作、摘要" class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]">
+                            </div>
+                            <button @click="loadAuditLogs" :disabled="isLoading" class="btn-outline bg-white"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新整理</button>
+                        </div>
+                    </div>
+                    <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
+                        <table class="admin-table">
+                            <thead><tr><th>登入時間</th><th>登入者</th><th>身分</th><th>動作</th><th>目標</th><th>做了甚麼</th></tr></thead>
+                            <tbody>
+                                <tr v-for="log in filteredAuditLogs" :key="log.id || (log.createdTs + '_' + log.action)">
+                                    <td><div class="font-mono text-[12px] text-slate-500">{{ log.createdAt || '-' }}</div></td>
+                                    <td>
+                                        <div class="font-bold text-slate-800">{{ log.name || '未命名' }}</div>
+                                        <div class="font-mono text-[12px] text-slate-400 max-w-[260px] truncate">{{ log.uid || '-' }}</div>
+                                    </td>
+                                    <td><span class="status-badge" :class="log.role === 'admin' ? 'bg-red-100 text-red-700' : log.role === 'teacher' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'">{{ log.role || '-' }}</span></td>
+                                    <td class="font-mono text-[12px] text-slate-600">{{ log.action || '-' }}</td>
+                                    <td class="font-mono text-[12px] text-slate-500 max-w-[260px] truncate">{{ log.targetUid || log.targetId || log.view || '-' }}</td>
+                                    <td class="text-sm font-bold text-slate-700 max-w-[420px]">{{ log.summary || '-' }}</td>
+                                </tr>
+                                <tr v-if="!filteredAuditLogs.length"><td colspan="6" class="text-center py-20 text-slate-300 font-bold">目前沒有操作紀錄</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1189,6 +1221,7 @@
                     const paymentLogs = ref([]);
                     const flexRules = ref([]);
                     const pointsLedger = ref([]);
+                    const auditLogs = ref([]);
                     const wasabiCheck = ref(null);
                     const wasabiExportResult = ref(null);
                     const wasabiVerifyResult = ref(null);
@@ -1208,6 +1241,7 @@
                     const productSearchQuery = ref('');
                     const orderSearch = ref('');
                     const pointsLedgerSearch = ref('');
+                    const auditLogSearch = ref('');
                     const bookingReportSearch = ref('');
                     const bookingReportStatus = ref('ALL');
                     const approveForm = ref({ uid: '', rent: 0, comm: 0 });
@@ -1241,7 +1275,7 @@
                     const isAdminRole = computed(() => !!currentAccess.value.isAdmin);
                     const isOperatorRole = computed(() => !isAdminRole.value && !!currentAccess.value.canCrmLogin);
                     const canViewFinance = computed(() => isAdminRole.value);
-                    const adminOnlyViews = new Set(['dashboard', 'orders', 'booking_report', 'points_ledger', 'payment_logs', 'richmenu', 'settings', 'flex_rules']);
+                    const adminOnlyViews = new Set(['dashboard', 'orders', 'booking_report', 'points_ledger', 'payment_logs', 'audit_logs', 'richmenu', 'settings', 'flex_rules']);
                     const operatorDefaultView = 'members';
                     const goTeacherScheduling = () => {
                         localStorage.removeItem('act_crm_logged_in');
@@ -1489,9 +1523,14 @@
                         }
                         view.value = viewName;
                         if (viewName === 'points_ledger' && !pointsLedger.value.length) loadPointsLedger();
+                        if (viewName === 'audit_logs' && !auditLogs.value.length) loadAuditLogs();
+                        if (isAuthenticated.value) {
+                            callApi('LOG_ADMIN_EVENT', { view: viewName, message: `切換後台頁面：${viewName}` }, true).catch(() => {});
+                        }
                     };
 
                     const currentViewName = computed(() => {
+                        if (view.value === 'audit_logs') return '操作紀錄';
                         const map = {
                             dashboard: '營運統計中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程 / 預約服務', products: '商城商品',
                             consultation: '預約設定', orders: '訂單維護', booking_report: '預約報表', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片', wasabi_migration: 'Wasabi 遷移檢查'
@@ -1729,6 +1768,20 @@
                         }
                     };
 
+                    const loadAuditLogs = async () => {
+                        if (!isAdminRole.value) return;
+                        isLoading.value = true;
+                        try {
+                            const data = await callApi('ADMIN_GET_AUDIT_LOGS', {}, true);
+                            auditLogs.value = Array.isArray(data) ? data : [];
+                        } catch (e) {
+                            console.error(e);
+                            alert('操作紀錄讀取失敗：' + e.message);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
                     const runWasabiCheck = async () => {
                         if (!isAdminRole.value) return alert('Wasabi 遷移檢查僅限 Admin 使用');
                         isLoading.value = true;
@@ -1817,6 +1870,15 @@
                             ));
                         }
                         return result;
+                    });
+
+                    const filteredAuditLogs = computed(() => {
+                        const q = auditLogSearch.value.trim().toLowerCase();
+                        const result = auditLogs.value.filter(log => log);
+                        if (!q) return result;
+                        return result.filter(log => [
+                            log.uid, log.name, log.role, log.action, log.summary, log.targetUid, log.targetId, log.view
+                        ].some(value => String(value || '').toLowerCase().includes(q)));
                     });
 
                     const pointsLedgerSummary = computed(() => {
@@ -2818,14 +2880,14 @@
 
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, courseStageOptions, productStatusOptions,
-                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
+                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, auditLogs, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
                         currentAccess, isAdminRole, isOperatorRole, canViewFinance,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText,
                         currentViewName, totalRevenue, courseStatsFiltered,
                         isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions,
                         transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
                         memberSearch, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
-                        orderSearch, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary,
+                        orderSearch, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary, auditLogSearch, filteredAuditLogs,
                         approveForm, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
@@ -2838,7 +2900,7 @@
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
+                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
