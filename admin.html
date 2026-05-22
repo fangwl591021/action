@@ -946,8 +946,17 @@
                                 <div><label class="input-label">報名開關</label><select v-model="editingCourse.isRegistrationOpen" class="input-field font-bold"><option :value="true">✅ 開放購買</option><option :value="false">⏸️ 暫停購買</option></select></div>
                                 <div><label class="input-label">開放上架時間 (選填)</label><input type="datetime-local" v-model="editingCourse.publishStartDate" class="input-field text-sm"></div>
                                 <div><label class="input-label">自動下架時間 (選填)</label><input type="datetime-local" v-model="editingCourse.publishEndDate" class="input-field text-sm"></div>
-                                <div v-if="!isEditingReservationCourse"><label class="input-label">紅包折抵規則</label><select v-model="editingCourse.discountRule" class="input-field font-bold"><option value="NONE">❌ 不可折抵</option><option value="RULE_A">🟡 20% 折抵</option><option value="RULE_B">🟠 50% 折抵</option><option value="RULE_D">🟣 60% 折抵</option><option value="RULE_C">🟢 100% 全額折抵</option></select></div>
+                            <div v-if="!isEditingReservationCourse"><label class="input-label">紅包折抵規則</label><select v-model="editingCourse.discountRule" class="input-field font-bold"><option value="NONE">❌ 不可折抵</option><option value="RULE_A">🟡 20% 折抵</option><option value="RULE_B">🟠 50% 折抵</option><option value="RULE_D">🟣 60% 折抵</option><option value="RULE_C">🟢 100% 全額折抵</option></select></div>
                                 <div v-else><label class="input-label">折抵方式</label><div class="input-field bg-green-50 text-[#06C755] font-black flex items-center">最多可抵 {{ formatPrice(editingCourse.maxPoints || 0) }} 點</div></div>
+                                <div class="col-span-2">
+                                    <label class="input-label">適用階段（可複選，未勾選代表全部階段可見）</label>
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <label v-for="stage in courseStageOptions" :key="stage" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 font-black text-slate-700 cursor-pointer hover:border-[#06C755] transition">
+                                            <input type="checkbox" :value="stage" v-model="editingCourse.stageTags" class="w-5 h-5 accent-[#06C755]">
+                                            <span>{{ stage }}</span>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1180,6 +1189,7 @@
                     const currentAccess = ref({ isAdmin: false, canCrmLogin: false, isTeacher: false });
                     
                     const memberTiers = ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師'];
+                    const courseStageOptions = ['喚醒', '蛻變', '完整'];
                     const productStatusOptions = ['販賣中', '暫停販售', '已售完'];
                     
                     const users = ref([]);
@@ -2100,18 +2110,20 @@
 
                     const openNewCourseModal = () => {
                         const isReservation = courseTypeFilter.value === 'reservation';
-                        editingCourse.value = { id: 'NEW_' + Date.now(), name: '', priceText: '', type: isReservation ? '預約類' : '課程類', price: 0, maxPoints: 0, capacity: 0, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', publishStartDate: '', publishEndDate: '', instructor: '', location: '', description: '', image: '', isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] };
+                        editingCourse.value = { id: 'NEW_' + Date.now(), name: '', priceText: '', type: isReservation ? '預約類' : '課程類', price: 0, maxPoints: 0, capacity: 0, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', publishStartDate: '', publishEndDate: '', instructor: '', location: '', description: '', image: '', isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [], stageTags: [] };
                     };
 
                     const openEditModal = (c) => {
                         const copy = JSON.parse(JSON.stringify(c));
                         copy.type = String(copy.type || '').includes('預約') ? '預約類' : '課程類';
+                        copy.stageTags = Array.isArray(copy.stageTags) ? copy.stageTags : [];
                         editingCourse.value = copy;
                     };
 
                     const saveCourse = async () => {
                         isLoading.value = true;
                         try {
+                            editingCourse.value.stageTags = Array.isArray(editingCourse.value.stageTags) ? editingCourse.value.stageTags.filter(Boolean) : [];
                             if (String(editingCourse.value.type || '').includes('預約')) {
                                 editingCourse.value.capacity = 0;
                                 editingCourse.value.startDate = '';
@@ -2781,7 +2793,7 @@
                     });
 
                     return {
-                        isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, productStatusOptions,
+                        isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, courseStageOptions, productStatusOptions,
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
                         currentAccess, isAdminRole, isOperatorRole, canViewFinance,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText,

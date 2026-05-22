@@ -823,6 +823,7 @@
                     const showTeacherDeductModal = ref(false);
                     const teacherDeductForm = ref({ targetUid: '', studentName: '', amount: 0, reason: '' });
                     
+                    const courseStageOptions = ['喚醒', '蛻變', '完整'];
                     const predefinedCategories = ['會員', '喚醒階段', '蛻變階段', '完整階段', '預約類'];
                     const activeCategory = ref('會員');
 
@@ -934,6 +935,26 @@
                         }
                         if (order?.type === 'PRODUCT') return `$ ${formatPrice(order.amount || 0)}${order.pointsUsed ? ` / 折抵 ${formatPrice(order.pointsUsed)} 點` : ''}`;
                         return `$ ${formatPrice(order?.amount || 0)}`;
+                    };
+
+                    const getCourseStages = (course) => Array.isArray(course?.stageTags)
+                        ? course.stageTags.map(String).filter(Boolean)
+                        : [];
+                    const getMemberStage = () => {
+                        const tier = String(userStatus.value?.info?.memberTier || userStatus.value?.memberTier || '');
+                        return courseStageOptions.find(stage => tier.includes(stage)) || '';
+                    };
+                    const courseMatchesStage = (course, stage) => {
+                        const stages = getCourseStages(course);
+                        if (stages.length) return stages.includes(stage);
+                        const searchTarget = `${course?.name || ''} ${course?.type || ''}`;
+                        return searchTarget.includes(stage);
+                    };
+                    const courseVisibleToMemberStage = (course) => {
+                        const stages = getCourseStages(course);
+                        if (!stages.length) return true;
+                        const memberStage = getMemberStage();
+                        return !memberStage || stages.includes(memberStage);
                     };
 
                     const productSafeQuantity = computed(() => {
@@ -1418,7 +1439,7 @@
                     
                     const openEditMyCourse = (c) => {
                         if (c) { editingMyCourse.value = JSON.parse(JSON.stringify(c)); } 
-                        else { editingMyCourse.value = { id: 'NEW_' + Date.now(), name: '', priceText: '', type: '預約類', price: 0, maxPoints: 0, capacity: 0, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', publishStartDate: '', publishEndDate: '', instructor: userStatus.value.info?.name || liffProfile.value.displayName, teacherUid: liffProfile.value.userId, location: '', description: '', image: '', isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [] }; }
+                        else { editingMyCourse.value = { id: 'NEW_' + Date.now(), name: '', priceText: '', type: '預約類', price: 0, maxPoints: 0, capacity: 0, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', publishStartDate: '', publishEndDate: '', instructor: userStatus.value.info?.name || liffProfile.value.displayName, teacherUid: liffProfile.value.userId, location: '', description: '', image: '', isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [], stageTags: [] }; }
                     };
                     
                     const handleCourseImgUpload = async (e) => {
@@ -1832,12 +1853,16 @@
                                 
                                 if (c.publishStartDate && nowTs < new Date(String(c.publishStartDate).replace(/-/g, '/')).getTime()) return false;
                                 if (c.publishEndDate && nowTs > new Date(String(c.publishEndDate).replace(/-/g, '/')).getTime()) return false;
+                                if (!courseVisibleToMemberStage(c)) return false;
                                 
                                 if (activeCategory.value === '全部') return true;
                                 const searchTarget = (c.name || '') + ' ' + (c.type || '');
-                                if (activeCategory.value === '一般') return !['會員', '喚醒', '蛻變', '完整', '預約'].some(k => searchTarget.includes(k));
+                                if (activeCategory.value === '一般') return !['會員', '喚醒', '蛻變', '完整', '預約'].some(k => searchTarget.includes(k)) && getCourseStages(c).length === 0;
                                 else if (activeCategory.value === '會員') return searchTarget.includes('會員') && !['喚醒', '蛻變', '完整', '預約'].some(k => searchTarget.includes(k));
-                                else { const key = activeCategory.value.replace('階段', '').replace('類', ''); return searchTarget.includes(key); }
+                                else {
+                                    const key = activeCategory.value.replace('階段', '').replace('類', '');
+                                    return courseStageOptions.includes(key) ? courseMatchesStage(c, key) : searchTarget.includes(key);
+                                }
                             });
                         }),
                         shareUrl, shareToFriend, copyShareUrl,

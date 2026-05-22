@@ -2244,7 +2244,11 @@ export default {
 
         case "ADMIN_UPDATE_COURSE":
           let cList = await safeGetCourses(env);
-          const courseToSave = { ...payload, maxPoints: Math.max(0, Number(payload.maxPoints || 0)) };
+          const courseToSave = {
+            ...payload,
+            maxPoints: Math.max(0, Number(payload.maxPoints || 0)),
+            stageTags: Array.isArray(payload.stageTags) ? payload.stageTags.filter(Boolean) : [],
+          };
           if (String(courseToSave.type || "").includes("預約")) {
             courseToSave.capacity = 0;
             courseToSave.startDate = "";
