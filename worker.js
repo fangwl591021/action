@@ -1990,9 +1990,12 @@ export default {
           const productList = await safeGetProducts(env);
           const product = productList.find(p => p && (p.id === payload.productId || p.code === payload.productId));
           if (!product || product.isPublished === false) throw new Error("商品不存在或未上架");
+          const quantity = Math.max(1, Math.floor(Number(payload.quantity || 1)));
           if (product.stock !== null && product.stock !== undefined && Number(product.stock) <= 0) throw new Error("商品已售完");
-          const productPrice = Math.max(0, Number(product.price || 0));
-          const maxPointDeduction = Math.max(0, Number(product.pointsPrice || 0));
+          if (product.stock !== null && product.stock !== undefined && quantity > Number(product.stock || 0)) throw new Error("商品庫存不足");
+          const unitPrice = Math.max(0, Number(product.price || 0));
+          const productPrice = unitPrice * quantity;
+          const maxPointDeduction = Math.max(0, Number(product.pointsPrice || 0)) * quantity;
           const pointCost = Math.max(0, Number(payload.pointsUsed ?? payload.customPoints ?? 0));
           if (pointCost > maxPointDeduction) throw new Error("使用點數超過商品可扣點上限");
           if (pointCost > productPrice) throw new Error("使用點數不可超過商品售價");
@@ -2010,6 +2013,8 @@ export default {
             productId: product.id,
             productName: product.name,
             productCode: product.code || "",
+            quantity,
+            unitPrice,
             originalAmount: productPrice,
             amount: payableAmount,
             pointsUsed: pointCost,
@@ -2019,7 +2024,7 @@ export default {
           };
           if (pointCost > 0) await this.updatePoints(env, ctx, userId, -pointCost, `商城商品折抵：${product.name}`);
           if (product.stock !== null && product.stock !== undefined) {
-            product.stock = Math.max(0, Number(product.stock) - 1);
+            product.stock = Math.max(0, Number(product.stock) - quantity);
             await safePutProducts(env, productList);
           }
           shopOrders.unshift(productOrder);

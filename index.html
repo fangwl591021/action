@@ -200,7 +200,7 @@
                     <div class="pt-2 pb-20 px-4">
                         <div v-for="o in myOrders" :key="o.orderId" class="native-card relative overflow-hidden shadow-sm border border-slate-100">
                             <div class="flex justify-between items-start mb-3"><div class="text-[12px] font-mono font-bold text-[#AAAAAA]">{{ o.orderId }}</div><div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="orderStatusClass(o)">{{ orderStatusText(o) }}</div></div>
-                            <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ o.type === 'PRODUCT' ? o.productName : String(getCourseName(o.courseId) || '').split('\n')[0] }}</div>
+                            <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ o.type === 'PRODUCT' ? `${o.productName}${Number(o.quantity || 1) > 1 ? ' x ' + Number(o.quantity || 1) : ''}` : String(getCourseName(o.courseId) || '').split('\n')[0] }}</div>
                             <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">{{ orderAmountText(o) }}</div>
                             <div v-if="o.type === 'BOOKING'" class="text-[12px] text-slate-500 font-bold bg-indigo-50 p-3 rounded-lg mb-3 border border-indigo-100 leading-relaxed">
                                 <i class="fas fa-user-tie mr-1.5 text-indigo-500"></i>此預約由講師現場或私下收費，系統不代收款項。
@@ -450,6 +450,19 @@
                         <div class="bg-slate-50 rounded-2xl p-4 mb-5 border border-slate-100">
                             <div class="flex justify-between items-center mb-2"><span class="text-[13px] font-bold text-slate-400">商品售價</span><span class="text-[24px] font-black text-[#111111]">$ {{ formatPrice(selectedProduct.price || 0) }}</span></div>
                             <div class="flex justify-between items-center"><span class="text-[13px] font-bold text-slate-400">最高可扣點</span><span class="text-[18px] font-black text-[#06C755]">{{ formatPrice(selectedProduct.pointsPrice || 0) }} 點</span></div>
+                            <div v-if="selectedProduct.stock !== null && selectedProduct.stock !== undefined" class="flex justify-between items-center mt-2"><span class="text-[13px] font-bold text-slate-400">剩餘庫存</span><span class="text-[14px] font-black text-slate-600">{{ formatPrice(selectedProduct.stock || 0) }} 件</span></div>
+                        </div>
+                        <div class="mb-5">
+                            <div class="text-[13px] font-black text-slate-500 mb-3">購買數量</div>
+                            <div class="flex items-center gap-3">
+                                <button @click="productQuantity = Math.max(1, Number(productQuantity || 1) - 1)" class="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 font-black text-lg active:scale-95 transition"><i class="fas fa-minus"></i></button>
+                                <input type="number" min="1" :max="selectedProduct.stock !== null && selectedProduct.stock !== undefined ? Number(selectedProduct.stock || 1) : 999" v-model.number="productQuantity" class="flex-1 input-field text-center font-black text-xl">
+                                <button @click="productQuantity = Math.min(selectedProduct.stock !== null && selectedProduct.stock !== undefined ? Number(selectedProduct.stock || 1) : 999, Number(productQuantity || 1) + 1)" class="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 font-black text-lg active:scale-95 transition"><i class="fas fa-plus"></i></button>
+                            </div>
+                            <div class="mt-3 rounded-xl bg-green-50 border border-green-100 p-3 flex justify-between items-center text-sm font-black">
+                                <span class="text-slate-500">小計</span>
+                                <span class="text-[#06C755]">$ {{ formatPrice((selectedProduct.price || 0) * Math.max(1, Number(productQuantity || 1))) }}</span>
+                            </div>
                         </div>
                         <div v-if="Number(selectedProduct.price || 0) > 0" class="mb-5">
                             <div class="text-[13px] font-black text-slate-500 mb-3">付款方式</div>
@@ -774,6 +787,7 @@
                     const myOrders = ref([]); 
                     const selectedCourse = ref(null);
                     const selectedProduct = ref(null);
+                    const productQuantity = ref(1);
                     
                     const regForm = ref({ name: '', gender: '', birthday: '', phone: '', industry: '', address: '' });
                     const isEditingProfile = ref(false);
@@ -1717,29 +1731,36 @@
 
                     const buyProduct = async (product) => {
                         if (!userStatus.value.registered) { view.value = 'register'; return; }
-                        const price = Math.max(0, Number(product.price || 0));
-                        const maxDeduct = Math.min(price, Math.max(0, Number(product.pointsPrice || 0)), Math.max(0, Number(userPoints.value.balance || 0)));
+                        const quantity = selectedProduct.value?.id === product.id ? Math.max(1, Math.floor(Number(productQuantity.value || 1))) : 1;
+                        const stockLimit = product.stock === null || product.stock === undefined ? null : Math.max(0, Math.floor(Number(product.stock || 0)));
+                        if (stockLimit !== null && quantity > stockLimit) { alert(`庫存不足，目前最多可購買 ${formatPrice(stockLimit)} 件`); return; }
+                        const unitPrice = Math.max(0, Number(product.price || 0));
+                        const price = unitPrice * quantity;
+                        const pointLimit = Math.max(0, Number(product.pointsPrice || 0)) * quantity;
+                        const maxDeduct = Math.min(price, pointLimit, Math.max(0, Number(userPoints.value.balance || 0)));
                         let pointsUsed = 0;
                         if (maxDeduct > 0) {
-                            const input = prompt(`此商品售價 $${formatPrice(price)}，最多可折抵 ${formatPrice(maxDeduct)} 點。請輸入本次要使用的點數：`, String(maxDeduct));
+                            const input = prompt(`此商品共 ${formatPrice(quantity)} 件，小計 $${formatPrice(price)}，最多可折抵 ${formatPrice(maxDeduct)} 點。請輸入本次要使用的點數：`, String(maxDeduct));
                             if (input === null) return;
                             pointsUsed = Math.max(0, Number(String(input).replace(/[^0-9.]/g, '')) || 0);
                             if (pointsUsed > maxDeduct) { alert(`最多只能折抵 ${formatPrice(maxDeduct)} 點`); return; }
                         }
                         const payable = Math.max(0, price - pointsUsed);
                         const paymentName = payable === 0 ? '點數全額折抵' : (paymentMethod.value === 'NEWEBPAY' ? '刷卡' : '匯款');
-                        const confirmMsg = `確認購買「${product.name}」？\n商品售價：$${formatPrice(price)}\n點數折抵：${formatPrice(pointsUsed)} 點\n應付金額：$${formatPrice(payable)}\n付款方式：${paymentName}`;
+                        const confirmMsg = `確認購買「${product.name}」？\n購買數量：${formatPrice(quantity)} 件\n商品小計：$${formatPrice(price)}\n點數折抵：${formatPrice(pointsUsed)} 點\n應付金額：$${formatPrice(payable)}\n付款方式：${paymentName}`;
                         if (!confirm(confirmMsg)) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('BUY_PRODUCT', { productId: product.id, pointsUsed, paymentMethod: paymentMethod.value }, false);
+                            const res = await callApi('BUY_PRODUCT', { productId: product.id, quantity, pointsUsed, paymentMethod: paymentMethod.value }, false);
                             if (res && res.orderId) {
-                                const [pData, oData] = await Promise.all([
+                                const [pData, oData, productData] = await Promise.all([
                                     callApi('GET_USER_POINTS', {}, true),
-                                    callApi('GET_USER_ORDERS', {}, true)
+                                    callApi('GET_USER_ORDERS', {}, true),
+                                    callApi('GET_PRODUCTS', {}, true)
                                 ]);
                                 if (pData) userPoints.value = pData;
                                 if (oData) myOrders.value = oData;
+                                if (productData) products.value = productData;
                                 if (payable > 0) {
                                     if (paymentMethod.value === 'NEWEBPAY') { await initiatePayment(res.orderId, payable, product.name); return; }
                                     showRemittanceInfoModal.value = true;
@@ -1765,7 +1786,7 @@
                     onMounted(() => { initApp(); });
 
                     return { 
-                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, products, videos, selectedVideo, activeVideoTeacher, videoTeachers, filteredVideos, openVideo, setActiveVideoTeacher, myOrders, selectedCourse, selectedProduct, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
+                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, products, videos, selectedVideo, activeVideoTeacher, videoTeachers, filteredVideos, openVideo, setActiveVideoTeacher, myOrders, selectedCourse, selectedProduct, productQuantity, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
                         orderStatusText, orderStatusClass, orderAmountText,
                         isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                         isProfileInfoOpen, isImageUploading, handleAvatarUpload,
@@ -1777,7 +1798,7 @@
                         },
                         pointsToUse, pointDeductionLabel, finalPrice, checkoutButtonText, executeBooking,
                         payOrder, cancelOrder, buyProduct,
-                        openProductDetail: (p) => { selectedProduct.value = p; paymentMethod.value = 'NEWEBPAY'; view.value = 'productDetail'; window.scrollTo(0,0); },
+                        openProductDetail: (p) => { selectedProduct.value = p; productQuantity.value = 1; paymentMethod.value = 'NEWEBPAY'; view.value = 'productDetail'; window.scrollTo(0,0); },
                         openRemittanceModal: (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; }, 
                         submitRemittance, navigateTo, dailyCheckin, submitRegistration, 
                         formatPrice, getCourseName,
