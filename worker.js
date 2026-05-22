@@ -887,6 +887,7 @@ const VERIFIED_USER_ACTIONS = new Set([
   "DAILY_CHECKIN",
   "REGISTER",
   "BUY_PRODUCT",
+  "GET_PAYMENT_PAYLOAD",
   "UPLOAD_IMAGE",
   "TEACHER_GET_MY_COURSES",
   "TEACHER_UPDATE_COURSE",
@@ -2027,6 +2028,50 @@ export default {
           result.data = { success: true, orderId: productOrder.orderId, amount: payableAmount, pointsUsed: pointCost, balance: (Number(buyerPoints.balance) || 0) - pointCost };
           break;
 
+        case "UPDATE_MY_ORDER": {
+          const orderId = String(payload?.orderId || "").trim();
+          if (!orderId) throw new Error("缺少訂單編號");
+          const remittance = String(payload?.remittance || "").replace(/\D/g, "").slice(0, 5);
+          if (remittance && remittance.length !== 5) throw new Error("匯款末五碼格式錯誤");
+          const userOrders = await safeGetKV(env, "ORDERS", []);
+          const orderIndex = userOrders.findIndex(o => o && o.orderId === orderId && o.userId === userId);
+          if (orderIndex < 0) throw new Error("找不到可更新的訂單");
+          const currentOrder = userOrders[orderIndex];
+          if (String(currentOrder.status || "").toUpperCase() !== "PENDING") throw new Error("此訂單目前不可回報付款");
+          userOrders[orderIndex] = {
+            ...currentOrder,
+            remittance,
+            remittanceReportedAt: new Date().toLocaleString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await putOrdersKV(env, ctx, userOrders);
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()).catch(e => console.error("[Orders] SYS_LAST_UPDATE 寫入失敗", e)));
+          result.data = { success: true, order: userOrders[orderIndex] };
+          break;
+        }
+
+        case "CANCEL_MY_ORDER": {
+          const orderId = String(payload?.orderId || "").trim();
+          if (!orderId) throw new Error("缺少訂單編號");
+          const cancelOrders = await safeGetKV(env, "ORDERS", []);
+          const cancelIndex = cancelOrders.findIndex(o => o && o.orderId === orderId && o.userId === userId);
+          if (cancelIndex < 0) throw new Error("找不到可取消的訂單");
+          const targetOrder = cancelOrders[cancelIndex];
+          if (String(targetOrder.status || "").toUpperCase() !== "PENDING" || targetOrder.remittance) {
+            throw new Error("此訂單目前不可取消");
+          }
+          cancelOrders[cancelIndex] = {
+            ...targetOrder,
+            status: "CANCELLED",
+            cancelledAt: new Date().toLocaleString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await putOrdersKV(env, ctx, cancelOrders);
+          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()).catch(e => console.error("[Orders] SYS_LAST_UPDATE 寫入失敗", e)));
+          result.data = { success: true, order: cancelOrders[cancelIndex] };
+          break;
+        }
+
         case "ADMIN_IMPORT_PRODUCTS":
           if (!Array.isArray(payload.products)) throw new Error("缺少商品資料");
           const oldProducts = await safeGetProducts(env);
@@ -2665,7 +2710,20 @@ export default {
           break;
 
         case "GET_PAYMENT_PAYLOAD":
-          result.data = await this.preparePayment(payload, env);
+          const paymentOrderId = String(payload?.orderId || "").trim();
+          if (!paymentOrderId) throw new Error("缺少訂單編號");
+          const paymentOrders = await safeGetKV(env, "ORDERS", []);
+          const paymentOrder = paymentOrders.find(o => o && o.orderId === paymentOrderId && o.userId === userId);
+          if (!paymentOrder) throw new Error("找不到可付款的訂單");
+          if (String(paymentOrder.status || "").toUpperCase() !== "PENDING") throw new Error("此訂單目前不可付款");
+          const paymentAmount = Math.max(0, Number(paymentOrder.amount || 0));
+          if (paymentAmount <= 0) throw new Error("此訂單不需要線上付款");
+          result.data = await this.preparePayment({
+            ...payload,
+            orderId: paymentOrder.orderId,
+            amount: paymentAmount,
+            courseName: paymentOrder.type === "PRODUCT" ? (paymentOrder.productName || "商城商品") : (payload.courseName || paymentOrder.courseId || "人生進化課程"),
+          }, env);
           break;
 
         default:
@@ -2717,11 +2775,14 @@ export default {
 
     if (!mId || !hKey || !hIv) throw new Error("藍新金流設定未完成 (請先至後台填寫)");
 
+    const workerUrl = String(payload.workerUrl || "").replace(/\/$/, "");
+    const notifyUrl = payload.notifyUrl || (workerUrl ? `${workerUrl}?action=NEWEBPAY_NOTIFY` : "");
+    const merchantOrderNo = String(payload.orderId || `ACT${Date.now()}`).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 30);
     const tradeInfo = {
       MerchantID: mId, RespondType: 'JSON', TimeStamp: Math.floor(Date.now() / 1000).toString(),
-      Version: '2.0', MerchantOrderNo: `ACT${Date.now()}`, Amt: payload.amount,
+      Version: '2.0', MerchantOrderNo: merchantOrderNo, Amt: payload.amount,
       ItemDesc: String(payload.courseName || "人生進化課程").substring(0, 45),
-      ReturnURL: payload.returnUrl || "", NotifyURL: payload.notifyUrl || "", Email: payload.email || "", LoginType: 0
+      ReturnURL: payload.returnUrl || "", NotifyURL: notifyUrl, Email: payload.email || "", LoginType: 0
     };
     const tradeInfoStr = Object.keys(tradeInfo).map(k => `${k}=${encodeURIComponent(tradeInfo[k])}`).join('&');
     const encrypted = await aesEncrypt(tradeInfoStr, hKey, hIv);
@@ -2843,17 +2904,38 @@ export default {
     ctx.waitUntil((async () => {
       try {
           const sets = await safeGetKV(env, "SYSTEM_SETTINGS", {});
-          if (sets.newebpay_hash_key && env.GAS_URL) {
+          if (sets.newebpay_hash_key && sets.newebpay_hash_iv) {
               const decrypted = await aesDecrypt(tradeInfoHex, sets.newebpay_hash_key, sets.newebpay_hash_iv);
               const data = JSON.parse(decrypted);
+              const result = data?.Result || {};
+              const orderId = String(result.MerchantOrderNo || "").trim();
 
-              if (data && data.Status === 'SUCCESS' && env.TG_BOT_TOKEN) {
-                  this.sendTgMessage(env, `💳 <b>藍新刷卡成功</b>\n單號：${data.Result.MerchantOrderNo}\n金額：$${data.Result.Amt}\n狀態：已完款`);
+              if (data && data.Status === 'SUCCESS' && orderId) {
+                  const orders = await safeGetKV(env, "ORDERS", []);
+                  const idx = orders.findIndex(o => o && o.orderId === orderId);
+                  if (idx > -1) {
+                    orders[idx] = {
+                      ...orders[idx],
+                      status: "PAID",
+                      paidAt: new Date().toLocaleString(),
+                      newebpayTradeNo: result.TradeNo || "",
+                      newebpayMerchantOrderNo: orderId,
+                      paymentAmount: Number(result.Amt || orders[idx].amount || 0),
+                      updatedAt: new Date().toISOString(),
+                    };
+                    await putOrdersKV(env, ctx, orders);
+                  }
               }
 
-              await fetch(env.GAS_URL, {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "NEWEBPAY_NOTIFY_DECRYPTED", payload: { decryptedData: data } }), redirect: "follow"
-              });
+              if (data && data.Status === 'SUCCESS' && env.TG_BOT_TOKEN) {
+                  this.sendTgMessage(env, `💳 <b>藍新刷卡成功</b>\n單號：${orderId || result.MerchantOrderNo || "未知"}\n金額：$${result.Amt || ""}\n狀態：已完款`);
+              }
+
+              if (env.GAS_URL) {
+                await fetch(env.GAS_URL, {
+                  method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "NEWEBPAY_NOTIFY_DECRYPTED", payload: { decryptedData: data } }), redirect: "follow"
+                });
+              }
           }
       } catch (e) { console.error("NewebPay decrypt error", e); }
     })());
