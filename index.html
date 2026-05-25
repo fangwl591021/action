@@ -945,19 +945,16 @@
                         return courseStageOptions.find(stage => tier.includes(stage)) || '';
                     };
                     const courseMatchesStage = (course, stage) => {
+                        const searchTarget = `${course?.name || ''} ${course?.type || ''}`;
+                        if (searchTarget.includes(stage)) return true;
                         const stages = getCourseStages(course);
                         if (stages.length) return stages.includes(stage);
-                        const searchTarget = `${course?.name || ''} ${course?.type || ''}`;
                         return searchTarget.includes(stage);
                     };
                     const displayCourseCategory = (course) => {
                         if (!course) return '';
                         const searchTarget = `${course.name || ''} ${course.type || ''}`;
                         if (searchTarget.includes('預約')) return '預約服務';
-                        const stages = getCourseStages(course);
-                        if (stages.includes('一般')) return '一般報名';
-                        const stage = stages.find(s => ['喚醒', '蛻變', '完整'].includes(s));
-                        if (stage) return `${stage}階段`;
                         if (searchTarget.includes('喚醒')) return '喚醒階段';
                         if (searchTarget.includes('蛻變')) return '蛻變階段';
                         if (searchTarget.includes('完整')) return '完整階段';
