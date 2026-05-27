@@ -2093,6 +2093,7 @@ export default {
               courseId: payload.courseId,
               amount: payload.amount,
               pointsUsed: coursePointsUsed,
+              paymentMethod: Number(payload.amount || 0) <= 0 ? "POINTS" : (payload.paymentMethod || "NEWEBPAY"),
               status: Number(payload.amount || 0) <= 0 ? 'PAID' : 'PENDING',
               createdAt: new Date().toLocaleString()
           };
