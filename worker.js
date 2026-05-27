@@ -52,6 +52,7 @@ function getHighRiskLiveKey(key) {
   if (rawKey === "AUDIT_LOGS") return "live/high-risk/audit-logs.json";
   if (rawKey.startsWith("USER_")) return `live/high-risk/users/${encodeURIComponent(rawKey.slice(5))}.json`;
   if (rawKey.startsWith("POINTS_")) return `live/high-risk/points/${encodeURIComponent(rawKey.slice(7))}.json`;
+  if (rawKey.startsWith("CHECKIN_")) return `live/high-risk/checkins/${encodeURIComponent(rawKey.slice(8))}.json`;
   return "";
 }
 
@@ -2030,10 +2031,10 @@ export default {
         case "DAILY_CHECKIN":
           const today = taipeiDateKey();
           const checkKey = `CHECKIN_${userId}_${today}`;
-          if (await env.ACTION_DATA.get(checkKey)) throw new Error("今天已經領過紅包囉！");
+          if (await safeGetKV(env, checkKey, false, { preferWasabi: false })) throw new Error("今天已經領過紅包囉！");
           const setsDaily = await safeGetKV(env, "SYSTEM_SETTINGS", {});
           const pts = setsDaily.reward_daily || 10;
-          await env.ACTION_DATA.put(checkKey, "true", { expirationTtl: secondsUntilNextTaipeiMidnight() });
+          await safePutKV(env, checkKey, true, { expirationTtl: secondsUntilNextTaipeiMidnight() });
           
           await this.updatePoints(env, ctx, userId, pts, "每日登入紅包");
           result.data = { earned: pts };
