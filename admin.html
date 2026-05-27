@@ -2178,7 +2178,12 @@
                         return String(raw || '').split(/[\n,，、]/).map(v => v.trim()).filter(Boolean);
                     };
                     const memberHasBroadcastTag = (member, tagName) => !!tagName && memberBroadcastTags(member).includes(tagName);
-                    const memberTierOptions = computed(() => [...new Set(users.value.map(u => String(u?.memberTier || '').trim()).filter(Boolean))]);
+                    const memberTierOptions = computed(() => [
+                        ...new Set([
+                            ...memberTiers,
+                            ...users.value.map(u => String(u?.memberTier || '').trim()).filter(Boolean)
+                        ])
+                    ]);
                     const broadcastTagCount = (tagName) => users.value.filter(u => memberHasBroadcastTag(u, tagName)).length;
                     const broadcastAudienceMatches = (member) => {
                         if (!member || member.isDeleted === true || !member.userId) return false;
