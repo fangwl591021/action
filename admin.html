@@ -1716,6 +1716,13 @@
 
                     const logout = () => {
                         isAuthenticated.value = false;
+                        try {
+                            if (typeof liff !== 'undefined' && typeof liff.isLoggedIn === 'function' && liff.isLoggedIn() && typeof liff.logout === 'function') {
+                                liff.logout();
+                            }
+                        } catch (e) {
+                            console.warn('LINE logout skipped:', e);
+                        }
                         localStorage.removeItem('act_crm_logged_in');
                         localStorage.removeItem('act_crm_access');
                         localStorage.removeItem('act_admin_logged_in');
@@ -1723,6 +1730,7 @@
                         localStorage.removeItem(CACHE_KEY);
                         sessionStorage.removeItem('act_admin_pwd');
                         currentAccess.value = { isAdmin: false, canCrmLogin: false, isTeacher: false, canSystemTools: false };
+                        liffProfile.value = {};
                         loginForm.value = { account: '', password: '' };
                     };
 
