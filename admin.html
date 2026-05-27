@@ -2400,8 +2400,11 @@
                     };
 
                     const buildMemberReportRows = (sourceMembers) => {
-                        const rows = [["姓名", "手機", "等級", "業種", "性別", "生日", "註冊時間"]];
+                        const memberNameByUid = new Map((users.value || []).map(user => [String(user?.userId || '').trim(), displayMemberName(user)]));
+                        const rows = [["姓名", "手機", "等級", "業種", "性別", "生日", "聯絡地址", "推薦人 UID / 姓名", "註冊時間"]];
                         sourceMembers.forEach(member => {
+                            const referrerUid = String(member.referrerUid || member.referrerUID || "").trim();
+                            const referrerName = referrerUid ? (memberNameByUid.get(referrerUid) || "") : "";
                             rows.push([
                                 displayMemberName(member),
                                 member.phone || "",
@@ -2409,6 +2412,8 @@
                                 member.industry || "",
                                 member.gender || "",
                                 member.birthday || "",
+                                member.address || "",
+                                referrerUid ? `${referrerUid}${referrerName ? ` / ${referrerName}` : ""}` : "",
                                 member.createdAt || ""
                             ]);
                         });
@@ -2420,8 +2425,8 @@
                         if (!rows.length) return alert('目前沒有符合條件的會員資料可以匯出。');
                         const suffix = showDeletedMembers.value ? '隱藏名單' : '一般名單';
                         downloadExcel(`宏學_會員CRM_${suffix}_${reportDate()}.xls`, buildMemberReportRows(rows), {
-                            widths: [150, 150, 140, 160, 90, 130, 180],
-                            textColumns: [0, 1, 2, 3, 4, 5, 6]
+                            widths: [150, 150, 140, 160, 90, 130, 260, 360, 180],
+                            textColumns: [0, 1, 2, 3, 4, 5, 6, 7, 8]
                         });
                         alert(`會員 Excel 下載成功。\n共匯出 ${rows.length} 筆會員資料。`);
                     };
