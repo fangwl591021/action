@@ -1633,7 +1633,7 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
   }
   const hasVerifiedLineUser = !!verifiedUserId;
   const crmLineLoginEnabled = String(settings.crm_line_login_enabled || "false").toLowerCase() === "true";
-  const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin" || userData?.crmRole === "admin");
+  const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || crmLoginUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin" || userData?.crmRole === "admin");
   const isAdmin = isAdminByUser;
   const isHeadquarterByUser = crmLineLoginEnabled && hasVerifiedLineUser && !isAdmin && crmLoginUidSet.has(userId);
   const isSystemByUser = crmLineLoginEnabled && hasVerifiedLineUser && !isAdmin && (userData?.crmSystem === true || userData?.role === "system" || userData?.crmRole === "system");
