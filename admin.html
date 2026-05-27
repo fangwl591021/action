@@ -119,7 +119,7 @@
                             <option value="ALL">全部課程/服務</option>
                             <option v-for="c in reportCourseOptions" :key="c.id" :value="c.id">{{ String(c.name || '').split('\n')[0] }}</option>
                         </select>
-                        <button v-if="canViewFinance" @click="downloadSalesReport" class="btn-outline text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"><i class="fas fa-file-csv mr-2"></i>業績報表下載</button>
+                        <button v-if="canViewFinance" @click="downloadSalesReport" class="btn-outline text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"><i class="fas fa-file-excel mr-2"></i>業績報表下載</button>
                         <button v-if="canViewFinance" @click="downloadCourseReport" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i class="fas fa-list-alt mr-2"></i>課程報表下載</button>
                         <button v-if="canViewFinance && view === 'booking_report'" @click="downloadBookingReport" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-calendar-check mr-2"></i>預約報表下載</button>
                         <button @click="manualRefreshData" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
@@ -320,7 +320,7 @@
                                     <option value="CANCELLED">已取消</option>
                                 </select>
                             </div>
-                            <button @click="downloadBookingReport" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-file-csv mr-2"></i>匯出 CSV</button>
+                            <button @click="downloadBookingReport" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-file-excel mr-2"></i>匯出 Excel</button>
                         </div>
                     </div>
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
@@ -2279,6 +2279,40 @@
                         document.body.removeChild(link);
                         URL.revokeObjectURL(url);
                     };
+                    const excelCell = (value) => String(value ?? '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/\n/g, '<br>');
+                    const downloadExcel = (filename, rows, options = {}) => {
+                        const widths = options.widths || [];
+                        const textColumns = new Set(options.textColumns || []);
+                        const numericColumns = new Set(options.numericColumns || []);
+                        const tableRows = rows.map((row, rowIndex) => {
+                            const tag = rowIndex === 0 ? 'th' : 'td';
+                            return `<tr>${row.map((value, colIndex) => {
+                                const width = widths[colIndex] ? `width:${widths[colIndex]}px;` : '';
+                                const textFormat = textColumns.has(colIndex) ? "mso-number-format:'\\@';" : '';
+                                const align = numericColumns.has(colIndex) && rowIndex > 0 ? 'text-align:right;' : '';
+                                return `<${tag} style="${width}${textFormat}${align}">${excelCell(value)}</${tag}>`;
+                            }).join('')}</tr>`;
+                        }).join('');
+                        const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+                            table{border-collapse:collapse;font-family:"Microsoft JhengHei",Arial,sans-serif;font-size:12pt;}
+                            th{background:#f1f5f9;font-weight:700;}
+                            th,td{border:1px solid #cbd5e1;padding:6px 10px;white-space:nowrap;vertical-align:top;}
+                        </style></head><body><table>${tableRows}</table></body></html>`;
+                        const blob = new Blob(["\uFEFF" + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", filename);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    };
                     const buildOrderReportRows = (sourceOrders) => {
                         const paymentSourceText = (order) => {
                             if (order?.type === 'BOOKING' || order?.paymentMethod === 'TEACHER_DIRECT') return '講師自收';
@@ -2289,66 +2323,66 @@
                             if (order?.status === 'PENDING') return '待付款';
                             return '';
                         };
-                        const rows = ["訂單編號,建立時間,學員姓名,聯絡電話,課程與服務名稱,系統代收,講師應收,點數折抵,狀態,學員備註,付款來源"];
+                        const rows = [["訂單編號", "建立時間", "學員姓名", "聯絡電話", "課程與服務名稱", "系統代收", "講師應收", "點數折抵", "狀態", "學員備註", "付款來源"]];
                         sourceOrders.forEach(o => {
                             const amount = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
                             const teacherAmount = o.type === 'BOOKING' ? Number(o.teacherCollectAmount || 0) : 0;
                             rows.push([
-                                csvCell(o.orderId),
-                                csvCell(o.createdAt),
-                                csvCell(o.name),
-                                csvCell(o.phone),
-                                csvCell(orderCourseName(o)),
+                                o.orderId,
+                                o.createdAt,
+                                o.name,
+                                o.phone,
+                                orderCourseName(o),
                                 amount,
                                 teacherAmount,
                                 Number(o.pointsUsed || 0),
-                                csvCell(statusText(o.status, o)),
-                                csvCell(o.note),
-                                csvCell(paymentSourceText(o))
-                            ].join(','));
+                                statusText(o.status, o),
+                                o.note,
+                                paymentSourceText(o)
+                            ]);
                         });
                         return rows;
                     };
 
                     const buildBookingReportRows = (rowsSource) => {
-                        const rows = ["預約單號,建立時間,預約日期,預約時段,講師,講師UID,學員,學員UID,電話,服務,服務標價,點數折抵,講師應收,系統代收,開通扣點,完成抽成,狀態,備註"];
+                        const rows = [["預約單號", "建立時間", "預約日期", "預約時段", "講師", "講師UID", "學員", "學員UID", "電話", "服務", "服務標價", "點數折抵", "講師應收", "系統代收", "開通扣點", "完成抽成", "狀態", "備註"]];
                         rowsSource.forEach(row => {
                             rows.push([
-                                csvCell(row.orderId),
-                                csvCell(row.createdAt),
-                                csvCell(row.bookingDate),
-                                csvCell(row.bookingTime),
-                                csvCell(row.teacherName),
-                                csvCell(row.teacherUid),
-                                csvCell(row.studentName),
-                                csvCell(row.userId),
-                                csvCell(row.phone),
-                                csvCell(row.serviceName),
+                                row.orderId,
+                                row.createdAt,
+                                row.bookingDate,
+                                row.bookingTime,
+                                row.teacherName,
+                                row.teacherUid,
+                                row.studentName,
+                                row.userId,
+                                row.phone,
+                                row.serviceName,
                                 row.servicePrice,
                                 row.pointsUsed,
                                 row.teacherCollectAmount,
                                 row.platformCollectedAmount,
                                 row.openCost,
                                 row.commissionPoints,
-                                csvCell(adminOrderStatusText(row.raw)),
-                                csvCell(row.note)
-                            ].join(','));
+                                adminOrderStatusText(row.raw),
+                                row.note
+                            ]);
                         });
                         return rows;
                     };
 
                     const buildMemberReportRows = (sourceMembers) => {
-                        const rows = ["姓名,手機,等級,業種,性別,生日,註冊時間"];
+                        const rows = [["姓名", "手機", "等級", "業種", "性別", "生日", "註冊時間"]];
                         sourceMembers.forEach(member => {
                             rows.push([
-                                csvCell(displayMemberName(member)),
-                                csvCell(member.phone || ""),
-                                csvCell(member.memberTier || ""),
-                                csvCell(member.industry || ""),
-                                csvCell(member.gender || ""),
-                                csvCell(member.birthday || ""),
-                                csvCell(member.createdAt || "")
-                            ].join(','));
+                                displayMemberName(member),
+                                member.phone || "",
+                                member.memberTier || "",
+                                member.industry || "",
+                                member.gender || "",
+                                member.birthday || "",
+                                member.createdAt || ""
+                            ]);
                         });
                         return rows;
                     };
@@ -2357,7 +2391,10 @@
                         const rows = filteredMembers.value;
                         if (!rows.length) return alert('目前沒有符合條件的會員資料可以匯出。');
                         const suffix = showDeletedMembers.value ? '隱藏名單' : '一般名單';
-                        downloadCsv(`宏學_會員CRM_${suffix}_${reportDate()}.csv`, buildMemberReportRows(rows));
+                        downloadExcel(`宏學_會員CRM_${suffix}_${reportDate()}.xls`, buildMemberReportRows(rows), {
+                            widths: [150, 150, 140, 160, 90, 130, 180],
+                            textColumns: [0, 1, 2, 3, 4, 5, 6]
+                        });
                         alert(`會員 Excel 下載成功。\n共匯出 ${rows.length} 筆會員資料。`);
                     };
 
@@ -2369,7 +2406,11 @@
                             return;
                         }
                         const totalRev = validOrders.reduce((sum, o) => sum + (Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0), 0);
-                        downloadCsv(`宏學_業績報表_${reportDate()}.csv`, buildOrderReportRows(validOrders));
+                        downloadExcel(`宏學_業績報表_${reportDate()}.xls`, buildOrderReportRows(validOrders), {
+                            widths: [150, 170, 140, 150, 280, 110, 110, 110, 110, 220, 160],
+                            textColumns: [0, 1, 2, 3, 4, 8, 9, 10],
+                            numericColumns: [5, 6, 7]
+                        });
                         alert(`業績報表下載成功。\n共匯出 ${validOrders.length} 筆資料，系統代收總額 $${totalRev.toLocaleString()}。`);
                     };
 
@@ -2380,7 +2421,11 @@
                             alert("目前沒有符合條件的課程訂單可以匯出。");
                             return;
                         }
-                        downloadCsv(`宏學_課程報表_${reportDate()}.csv`, buildOrderReportRows(courseOrders));
+                        downloadExcel(`宏學_課程報表_${reportDate()}.xls`, buildOrderReportRows(courseOrders), {
+                            widths: [150, 170, 140, 150, 280, 110, 110, 110, 110, 220, 160],
+                            textColumns: [0, 1, 2, 3, 4, 8, 9, 10],
+                            numericColumns: [5, 6, 7]
+                        });
                         alert(`課程報表下載成功。\n共匯出 ${courseOrders.length} 筆課程訂單。`);
                     };
 
@@ -2391,7 +2436,11 @@
                             alert('目前沒有符合條件的預約資料可以匯出。');
                             return;
                         }
-                        downloadCsv(`宏學_預約報表_${reportDate()}.csv`, buildBookingReportRows(rows));
+                        downloadExcel(`宏學_預約報表_${reportDate()}.xls`, buildBookingReportRows(rows), {
+                            widths: [150, 170, 120, 120, 130, 260, 130, 260, 150, 240, 110, 110, 110, 110, 110, 110, 110, 220],
+                            textColumns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17],
+                            numericColumns: [10, 11, 12, 13, 14, 15]
+                        });
                         alert(`預約報表下載成功。\n共匯出 ${rows.length} 筆預約資料。`);
                     };
 
