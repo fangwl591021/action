@@ -1622,7 +1622,7 @@
                                     liffProfile.value = await liff.getProfile();
                                     const checkRes = await callApi('CHECK_USER', {}, true);
                                     if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
-                                        currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools };
+                                        currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools, userId: checkRes.userId || liffProfile.value.userId || '', name: checkRes.name || liffProfile.value.displayName || '' };
                                         isAuthenticated.value = true;
                                         localStorage.setItem('act_crm_logged_in', 'true');
                                         localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
@@ -1661,7 +1661,7 @@
                             const checkRes = await callApi('CHECK_USER', {}, false);
 
                             if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
-                                currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools };
+                                currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools, userId: checkRes.userId || liffProfile.value.userId || '', name: checkRes.name || liffProfile.value.displayName || '' };
                                 isAuthenticated.value = true;
                                 localStorage.setItem('act_crm_logged_in', 'true');
                                 localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
@@ -1680,18 +1680,48 @@
                         }
                     };
 
-                    const handleLogin = () => {
+                    const handleLogin = async () => {
                         const acc = String(loginForm.value.account || '').trim().toLowerCase();
                         const pwd = String(loginForm.value.password || '').trim();
-                        if (acc === 'admin' && pwd === '@1234') {
-                            currentAccess.value = { isAdmin: true, canCrmLogin: true, isTeacher: false, canSystemTools: true };
+                        if (acc !== 'admin' || pwd !== '@1234') {
+                            alert('帳號或密碼錯誤');
+                            return;
+                        }
+                        isLoading.value = true;
+                        try {
+                            const data = await callApi('GET_SETTINGS', { adminPwd: pwd }, false);
+                            let finalLiffId = String(data.liff_id || '').trim();
+                            if (finalLiffId.includes('liff.line.me/')) {
+                                finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
+                            }
+                            if (!finalLiffId) throw new Error('管理員尚未設定系統主 LIFF ID');
+                            if (typeof liff === 'undefined') throw new Error('LINE Login SDK 尚未載入，請重新整理後再試');
+
+                            await liff.init({ liffId: finalLiffId });
+                            if (!ensureLineToken()) return;
+
+                            liffProfile.value = await liff.getProfile();
+                            const checkRes = await callApi('CHECK_USER', { adminPwd: pwd }, false);
+                            if (!checkRes?.userId || checkRes.userId === 'GUEST') {
+                                throw new Error('LINE 身分驗證失敗，請重新使用 LINE 授權登入');
+                            }
+                            currentAccess.value = {
+                                isAdmin: !!checkRes.isAdmin,
+                                canCrmLogin: !!checkRes.canCrmLogin,
+                                isTeacher: !!checkRes.isTeacher,
+                                canSystemTools: !!checkRes.canSystemTools,
+                                userId: checkRes.userId,
+                                name: checkRes.name || liffProfile.value.displayName || ''
+                            };
                             isAuthenticated.value = true;
                             localStorage.setItem('act_crm_logged_in', 'true');
                             localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
                             sessionStorage.setItem('act_admin_pwd', pwd);
                             fetchData(false);
-                        } else {
-                            alert('帳號或密碼錯誤');
+                        } catch (e) {
+                            alert(`登入失敗: ${e.message}`);
+                        } finally {
+                            isLoading.value = false;
                         }
                     };
 
@@ -3328,10 +3358,10 @@
 
                     const currentCourseOrders = computed(() => selectedCourseOrders.value);
 
-                    onMounted(() => { 
+                    onMounted(async () => {
                         loadCache();
+                        await autoLineLogin();
                         if (isAuthenticated.value) fetchData(true);
-                        autoLineLogin(); 
                     });
 
                     return {

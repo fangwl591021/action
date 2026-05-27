@@ -1218,11 +1218,12 @@ async function appendAuditLog(env, access, action, payload = {}, request = null)
   try {
     const now = new Date();
     const userData = access?.userData || {};
+    const lineProfile = access?.lineProfile || {};
     const role = access?.isAdmin ? "admin" : access?.canCrmLogin ? "operator" : access?.isTeacher ? "teacher" : "user";
     const entry = {
       id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`,
       uid: access?.userId || "GUEST",
-      name: userData.name || userData.displayName || "",
+      name: userData.name || userData.displayName || lineProfile.name || lineProfile.displayName || "",
       role,
       action,
       summary: summarizeAuditPayload(action, payload),
@@ -1629,7 +1630,7 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
   const canSystemTools = isAdmin || isSystemByUser;
   const canCrmLogin = isAdmin || isSystemByUser || isOperatorByUser;
   const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
-  return { settings, userData, userId, isAdmin, canCrmLogin, canSystemTools, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk };
+  return { settings, userData, userId, lineProfile: verifiedLineProfile || null, isAdmin, canCrmLogin, canSystemTools, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk };
 }
 
 export default {
@@ -1813,6 +1814,8 @@ export default {
           result.data = {
             registered: !!access.userData,
             info: access.userData,
+            userId: access.userId,
+            name: access.userData?.name || access.userData?.displayName || access.lineProfile?.name || "",
             isAdmin: access.isAdmin,
             canCrmLogin: access.canCrmLogin,
             canSystemTools: access.canSystemTools,
