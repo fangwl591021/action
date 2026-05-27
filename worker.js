@@ -2312,6 +2312,15 @@ export default {
           let adminCourses = await safeGetCourses(env);
           let adminOrders = await safeGetKV(env, "ORDERS", []);
           let adminSettings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
+          let repairedPaidOrders = false;
+          adminOrders = Array.isArray(adminOrders) ? adminOrders.map(order => {
+              if (!order || String(order.status || "").toUpperCase() === "PAID") return order;
+              const hasPaidEvidence = !!(order.newebpayTradeNo || order.paidAt) || String(order.paymentStatus || "").toUpperCase() === "SUCCESS" || String(order.newebpayStatus || "").toUpperCase() === "SUCCESS";
+              if (!hasPaidEvidence) return order;
+              repairedPaidOrders = true;
+              return { ...order, status: "PAID", updatedAt: order.updatedAt || new Date().toISOString() };
+          }) : [];
+          if (repairedPaidOrders) ctx.waitUntil(putOrdersKV(env, ctx, adminOrders));
 
           // 🛡️ 降落傘救援：如果 KV 設定檔是空的，代表這是初次轉移或 KV 被洗掉，立刻向 GAS 求救
           if (Object.keys(adminSettings).length === 0 && env.GAS_URL) {
@@ -3231,6 +3240,8 @@ export default {
                     orders[idx] = {
                       ...orders[idx],
                       status: "PAID",
+                      paymentStatus: "SUCCESS",
+                      newebpayStatus: "SUCCESS",
                       paidAt: new Date().toLocaleString(),
                       newebpayTradeNo: result.TradeNo || "",
                       newebpayMerchantOrderNo: orderId,

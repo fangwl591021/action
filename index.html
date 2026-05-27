@@ -553,7 +553,7 @@
                         </div>
                     </div>
                     <div v-for="o in teacherReport.orders" :key="o.orderId || o.createdAt" class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-                        <div class="flex justify-between gap-3 mb-2"><div class="font-black text-slate-800 text-[15px] leading-snug">{{ getCourseName(o.courseId) }}</div><span class="shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg" :class="String(o.status || '').toUpperCase() === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'">{{ o.status || 'PENDING' }}</span></div>
+                        <div class="flex justify-between gap-3 mb-2"><div class="font-black text-slate-800 text-[15px] leading-snug">{{ getCourseName(o.courseId) }}</div><span class="shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg" :class="orderStatusClass(o)">{{ orderStatusText(o) }}</span></div>
                         <div class="grid grid-cols-2 gap-2 text-[12px] text-slate-500 font-bold">
                             <div>學員：{{ o.name || '-' }}</div>
                             <div>金額：$ {{ formatPrice(o.amount || 0) }}</div>
@@ -911,13 +911,21 @@
                         const c = courses.value.find(x => x && (x.id === id || x.name === id)); 
                         return c ? c.name : id; 
                     };
+                    const isPaidOrder = (order) => {
+                        if (!order) return false;
+                        if (String(order.status || '').toUpperCase() === 'PAID') return true;
+                        if (order.newebpayTradeNo || order.paidAt) return true;
+                        if (String(order.paymentStatus || '').toUpperCase() === 'SUCCESS') return true;
+                        if (String(order.newebpayStatus || '').toUpperCase() === 'SUCCESS') return true;
+                        return false;
+                    };
                     const orderStatusText = (order) => {
                         if (order?.type === 'BOOKING') {
                             if (order.status === 'CANCELLED') return '已取消';
                             if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return '已完成';
                             return '已預約';
                         }
-                        return order?.status === 'PAID' ? '已付款' : (order?.status === 'CANCELLED' ? '已取消' : '待付款');
+                        return isPaidOrder(order) ? '已付款' : (order?.status === 'CANCELLED' ? '已取消' : '待付款');
                     };
                     const orderStatusClass = (order) => {
                         if (order?.type === 'BOOKING') {
@@ -925,7 +933,7 @@
                             if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return 'bg-green-100 text-green-700';
                             return 'bg-indigo-100 text-indigo-700';
                         }
-                        return order?.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700';
+                        return isPaidOrder(order) ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700';
                     };
                     const orderAmountText = (order) => {
                         if (order?.type === 'BOOKING') {

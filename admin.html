@@ -1337,7 +1337,7 @@
         </div>
 
         <div v-if="activeEnrollmentCourse" class="modal-mask" @click.self="activeEnrollmentCourse = null">
-            <div class="modal-body modal-body-lg animate-fade-in"><div class="px-6 py-5 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm"><h3 class="text-lg font-bold text-slate-800">{{ String(activeEnrollmentCourse?.name || '').split('\n')[0] }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400 text-3xl"><i class="fas fa-times"></i></button></div><div class="flex-grow overflow-y-auto p-8"><div class="bg-blue-50 p-6 rounded-xl border border-blue-200 mb-8 flex items-center gap-6 shadow-sm"><div class="flex-grow"><label class="text-xs font-bold text-blue-600 mb-1.5 block uppercase tracking-wider">導師簽到管理密碼</label><input type="text" v-model="activeEnrollmentCourse.checkinPwd" class="input-field border-blue-300 bg-white font-mono font-bold" placeholder="請設定密碼"></div><button @click="generateCheckinLink(activeEnrollmentCourse)" class="bg-blue-600 text-white px-8 py-3.5 rounded-lg font-bold mt-5 shadow-lg hover:bg-blue-700 transition">更新密碼</button></div><table class="admin-table !m-0 !min-w-full border rounded-lg"><thead><tr class="bg-slate-50"><th>姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>出席標記</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId" class="border-b last:border-0"><td class="font-bold text-slate-800">{{ o.name }}</td><td class="font-mono text-sm text-slate-500">{{ o.phone }}</td><td class="font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td><td><span :class="o.status==='PAID'?'status-pill-paid':'status-pill-waiting'" class="status-badge">{{ o.status==='PAID'?'已完款':'待付' }}</span></td><td><select v-model="o.attendance" @change="updateOrderAttendance(o)" class="input-field !py-1.5 !text-xs w-28 font-black"><option value="">未標記</option><option value="ATTENDED">出席</option><option value="ABSENT">缺席</option></select></td></tr></tbody></table></div></div>
+            <div class="modal-body modal-body-lg animate-fade-in"><div class="px-6 py-5 border-b flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm"><h3 class="text-lg font-bold text-slate-800">{{ String(activeEnrollmentCourse?.name || '').split('\n')[0] }} - 名單</h3><button @click="activeEnrollmentCourse = null" class="text-slate-400 text-3xl"><i class="fas fa-times"></i></button></div><div class="flex-grow overflow-y-auto p-8"><div class="bg-blue-50 p-6 rounded-xl border border-blue-200 mb-8 flex items-center gap-6 shadow-sm"><div class="flex-grow"><label class="text-xs font-bold text-blue-600 mb-1.5 block uppercase tracking-wider">導師簽到管理密碼</label><input type="text" v-model="activeEnrollmentCourse.checkinPwd" class="input-field border-blue-300 bg-white font-mono font-bold" placeholder="請設定密碼"></div><button @click="generateCheckinLink(activeEnrollmentCourse)" class="bg-blue-600 text-white px-8 py-3.5 rounded-lg font-bold mt-5 shadow-lg hover:bg-blue-700 transition">更新密碼</button></div><table class="admin-table !m-0 !min-w-full border rounded-lg"><thead><tr class="bg-slate-50"><th>姓名</th><th>電話</th><th>金額</th><th>狀態</th><th>出席標記</th></tr></thead><tbody><tr v-for="o in courseOrders" :key="o.orderId" class="border-b last:border-0"><td class="font-bold text-slate-800">{{ o.name }}</td><td class="font-mono text-sm text-slate-500">{{ o.phone }}</td><td class="font-bold text-[#06C755]">$ {{ formatPrice(o.amount) }}</td><td><span :class="adminOrderStatusClass(o)" class="status-badge">{{ adminOrderStatusText(o) }}</span></td><td><select v-model="o.attendance" @change="updateOrderAttendance(o)" class="input-field !py-1.5 !text-xs w-28 font-black"><option value="">未標記</option><option value="ATTENDED">出席</option><option value="ABSENT">缺席</option></select></td></tr></tbody></table></div></div>
         </div>
 
         <div v-if="editingSysConfig" class="modal-mask" @click.self="editingSysConfig = null">
@@ -1801,9 +1801,17 @@
                         if (['CANCELLED', 'TRANSFERRED'].includes(String(editingOrder.value.status || ''))) return false;
                         return true;
                     });
+                    const isPaidOrder = (order) => {
+                        if (!order) return false;
+                        if (String(order.status || '').toUpperCase() === 'PAID') return true;
+                        if (order.newebpayTradeNo || order.paidAt) return true;
+                        if (String(order.paymentStatus || '').toUpperCase() === 'SUCCESS') return true;
+                        if (String(order.newebpayStatus || '').toUpperCase() === 'SUCCESS') return true;
+                        return false;
+                    };
 
                     const totalRevenue = computed(() => {
-                        return orders.value.filter(o => o && o.status === 'PAID').reduce((sum, o) => {
+                        return orders.value.filter(o => o && isPaidOrder(o)).reduce((sum, o) => {
                             const amt = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
                             return sum + amt;
                         }, 0).toLocaleString();
@@ -1816,7 +1824,7 @@
                             let paidAmount = 0, pendingAmount = 0;
                             courseOrders.forEach(o => {
                                 const amt = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
-                                if (o.status === 'PAID') paidAmount += amt;
+                                if (isPaidOrder(o)) paidAmount += amt;
                                 else pendingAmount += amt;
                             });
                             return { id: c.id, name: String(c.name || '').split('\n')[0], totalOrders, totalExpected: paidAmount + pendingAmount, paidAmount, pendingAmount };
@@ -2221,7 +2229,7 @@
                             return '已預約';
                         }
                         if (order?.status === 'TRANSFERRED') return '已轉課';
-                        return order?.status === 'PAID' ? '已完款' : (order?.status === 'CANCELLED' ? '已取消' : '待付');
+                        return isPaidOrder(order) ? '已完款' : (order?.status === 'CANCELLED' ? '已取消' : '待付');
                     };
                     const adminOrderStatusClass = (order) => {
                         if (order?.type === 'BOOKING') {
@@ -2230,7 +2238,7 @@
                             return 'bg-indigo-100 text-indigo-700';
                         }
                         if (order?.status === 'TRANSFERRED') return 'bg-indigo-100 text-indigo-700';
-                        return order?.status === 'PAID' ? 'status-pill-paid' : 'status-pill-waiting';
+                        return isPaidOrder(order) ? 'status-pill-paid' : 'status-pill-waiting';
                     };
                     const adminOrderAmountText = (order) => {
                         if (order?.type === 'BOOKING') {
@@ -2238,7 +2246,7 @@
                         }
                         return `$${formatPrice(order?.amount || 0)}`;
                     };
-                    const statusText = (status, order = null) => order ? adminOrderStatusText(order) : ({ PAID: '已付款', PENDING: '待付款', BOOKED: '已預約', COMPLETED: '已完成', CANCELLED: '已取消', TRANSFERRED: '已轉課' }[status] || status || '');
+                    const statusText = (status, order = null) => order ? adminOrderStatusText(order) : ({ PAID: '已完款', PENDING: '待付款', BOOKED: '已預約', COMPLETED: '已完成', CANCELLED: '已取消', TRANSFERRED: '已轉課' }[status] || status || '');
                     const orderCourseName = (order) => order?.type === 'PRODUCT' ? (order.productName || '商城商品') : getCourseName(order.courseId);
                     const orderMatchesReportCourses = (order) => {
                         if (selectedReportCourseId.value === 'ALL') return true;
@@ -2317,7 +2325,7 @@
 
                     const downloadSalesReport = () => {
                         if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
-                        const validOrders = orders.value.filter(o => o && ((o.type === 'BOOKING' && o.status !== 'CANCELLED') || o.status === 'PAID') && orderMatchesReportCourses(o));
+                        const validOrders = orders.value.filter(o => o && ((o.type === 'BOOKING' && o.status !== 'CANCELLED') || isPaidOrder(o)) && orderMatchesReportCourses(o));
                         if(validOrders.length === 0) {
                             alert("目前沒有符合條件的業績資料可以匯出。");
                             return;
@@ -2765,6 +2773,7 @@
 
                     const openOrderEditModal = (o) => {
                         editingOrder.value = JSON.parse(JSON.stringify(o));
+                        if (isPaidOrder(editingOrder.value)) editingOrder.value.status = 'PAID';
                         transferTargetCourseId.value = '';
                         transferReason.value = '';
                         transferConfirmed.value = false;
