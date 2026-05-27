@@ -1191,6 +1191,25 @@ function parsePointLogTime(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function taipeiDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (type) => parts.find(part => part.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function secondsUntilNextTaipeiMidnight(date = new Date()) {
+  const taipeiNow = new Date(date.toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
+  const nextMidnight = new Date(taipeiNow);
+  nextMidnight.setHours(24, 0, 0, 0);
+  const seconds = Math.ceil((nextMidnight.getTime() - taipeiNow.getTime()) / 1000);
+  return Math.max(60, seconds + 300);
+}
+
 async function appendPointsLedger(env, entry) {
   const ledger = await safeGetKV(env, "POINT_LEDGER", []);
   const list = Array.isArray(ledger) ? ledger : [];
@@ -2009,12 +2028,12 @@ export default {
           break;
           
         case "DAILY_CHECKIN":
-          const today = new Date().toISOString().split('T')[0];
+          const today = taipeiDateKey();
           const checkKey = `CHECKIN_${userId}_${today}`;
           if (await env.ACTION_DATA.get(checkKey)) throw new Error("今天已經領過紅包囉！");
           const setsDaily = await safeGetKV(env, "SYSTEM_SETTINGS", {});
           const pts = setsDaily.reward_daily || 10;
-          await env.ACTION_DATA.put(checkKey, "true", { expirationTtl: 86400 });
+          await env.ACTION_DATA.put(checkKey, "true", { expirationTtl: secondsUntilNextTaipeiMidnight() });
           
           await this.updatePoints(env, ctx, userId, pts, "每日登入紅包");
           result.data = { earned: pts };
