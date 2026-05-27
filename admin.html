@@ -161,6 +161,9 @@
                 <div v-if="view === 'members'" class="animate-fade-in">
                     <div class="px-6 py-4 flex gap-3 border-b border-slate-100 bg-white">
                         <div class="relative w-full max-w-sm"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="memberSearch" placeholder="搜尋姓名、電話、ID..." class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
+                        <button @click="showDeletedMembers = !showDeletedMembers" class="btn-outline !py-2" :class="showDeletedMembers ? 'text-red-600 border-red-200 bg-red-50' : 'text-slate-500 bg-white'">
+                            <i class="fas fa-eye-slash mr-2"></i>{{ showDeletedMembers ? '返回一般名單' : '隱藏名單' }}
+                        </button>
                     </div>
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
                         <table class="admin-table">
@@ -169,7 +172,7 @@
                                 <tr v-for="u in filteredMembers" :key="u.userId">
                                     <td class="font-bold text-slate-800">{{ displayMemberName(u) }}</td>
                                     <td class="font-mono text-slate-500">{{ u.phone || '-' }}</td>
-                                    <td><span class="tag-orange">{{ u.memberTier }}</span></td>
+                                    <td><span class="tag-orange">{{ u.isDeleted ? '已隱藏' : u.memberTier }}</span></td>
                                     <td class="text-slate-400 text-sm font-mono">{{ u.createdAt }}</td>
                                     <td class="text-right"><button @click="openMemberDetail(u)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">CRM 檔案</button></td>
                                 </tr>
@@ -1294,7 +1297,8 @@
                                     </div>
                                 </div>
                             </div>
-                            <button v-if="isAdminRole" @click="deleteMember(activeMember)" class="mt-5 w-full py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"><i class="fas fa-trash-alt mr-2"></i>刪除此學員檔案</button>
+                            <button v-if="isAdminRole && !activeMember.isDeleted" @click="deleteMember(activeMember)" class="mt-5 w-full py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"><i class="fas fa-eye-slash mr-2"></i>隱藏此學員檔案</button>
+                            <button v-if="isAdminRole && activeMember.isDeleted" @click="restoreMember(activeMember)" class="mt-5 w-full py-2.5 border border-emerald-200 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-bold hover:bg-emerald-100 transition"><i class="fas fa-eye mr-2"></i>恢復此學員檔案</button>
                         </div>
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-comment-dots text-orange-500"></i> 管理員備註</h4><textarea v-model="activeMember.adminNote" class="input-field h-32 resize-none leading-relaxed text-[15px]" placeholder="紀錄學員個案狀況..."></textarea></div>
                         <div v-if="isAdminRole" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -1399,6 +1403,7 @@
                     });
                     
                     const memberSearch = ref('');
+                    const showDeletedMembers = ref(false);
                     const courseSearchQuery = ref('');
                     const courseTypeFilter = ref('course');
                     const selectedReportCourseId = ref('ALL');
@@ -1838,7 +1843,7 @@
                     });
 
                     const filteredMembers = computed(() => {
-                        const visibleUsers = users.value.filter(u => u && u.isDeleted !== true);
+                        const visibleUsers = users.value.filter(u => u && (showDeletedMembers.value ? u.isDeleted === true : u.isDeleted !== true));
                         if (!memberSearch.value) return visibleUsers;
                         const q = memberSearch.value.toLowerCase();
                         return visibleUsers.filter(u => ((u.name && u.name.toLowerCase().includes(q)) || (u.phone && u.phone.includes(q)) || (u.userId && u.userId.toLowerCase().includes(q))));
@@ -2465,16 +2470,40 @@
 
                     const deleteMember = async (m) => {
                         if (!m || !m.userId) return;
-                        if (!requireDeleteConfirmation(`學員 ${m.name || m.userId}`)) return;
+                        if (!confirm(`即將隱藏「${displayMemberName(m)}」。\n\n資料不會真正刪除，之後可從「隱藏名單」找回。`)) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_DELETE_MEMBER', { targetUid: m.userId, reason: 'CRM 名義刪除' });
+                            const res = await callApi('ADMIN_DELETE_MEMBER', { targetUid: m.userId, reason: 'CRM 名義隱藏' });
                             if(res) {
-                                alert('🗑️ 已隱藏該學員，資料仍保留於系統紀錄');
-                                users.value = users.value.filter(u => u && u.userId !== m.userId);
+                                alert('學員已隱藏，可從「隱藏名單」找回。');
+                                const hiddenMember = res.memberData || { ...m, isDeleted: true, deletedAt: new Date().toISOString() };
+                                const idx = users.value.findIndex(u => u && u.userId === m.userId);
+                                if (idx > -1) users.value[idx] = hiddenMember;
                                 activeMember.value = null;
                             }
-                        } catch(e) { console.error(e); alert('刪除失敗：' + e.message); } finally { isLoading.value = false; }
+                        } catch(e) { console.error(e); alert('隱藏失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const restoreMember = async (m) => {
+                        if (!m || !m.userId || !isAdminRole.value) return;
+                        if (!confirm(`確定要恢復「${displayMemberName(m)}」到一般名單嗎？`)) return;
+                        isLoading.value = true;
+                        try {
+                            const nextMember = { ...m };
+                            delete nextMember.isDeleted;
+                            delete nextMember.deletedAt;
+                            delete nextMember.deletedBy;
+                            delete nextMember.deleteReason;
+                            const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: nextMember });
+                            if (res) {
+                                const restoredMember = res.memberData || nextMember;
+                                const idx = users.value.findIndex(u => u && u.userId === restoredMember.userId);
+                                if (idx > -1) users.value[idx] = restoredMember;
+                                activeMember.value = null;
+                                showDeletedMembers.value = false;
+                                alert('學員已恢復到一般名單。');
+                            }
+                        } catch(e) { console.error(e); alert('恢復失敗：' + e.message); } finally { isLoading.value = false; }
                     };
 
                     const openPointActionModal = (type) => { editingPointAction.value = { type: type, amount: '', reason: '' }; };
@@ -3237,7 +3266,7 @@
                         currentViewName, totalRevenue, courseStatsFiltered,
                         isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions, courseDisplayCategory, applyCourseCategoryType,
                         transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
-                        memberSearch, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
+                        memberSearch, showDeletedMembers, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
                         orderSearch, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary, auditLogSearch, filteredAuditLogs,
                         newBroadcastTag, selectedBroadcastTag, broadcastMemberSearch, broadcastForm, memberTierOptions, broadcastAudiencePreview, filteredBroadcastMembers, memberBroadcastTags, memberHasBroadcastTag, broadcastTagCount,
                         approveForm, wpImportForm, isImageUploading, editingCourse, editingProduct,
@@ -3246,7 +3275,7 @@
                         showReservationCourseModal, selectedTeacherForReservation, teacherReservationCourses, isTeacherCourse,
                         activeMember, activeMemberPoints, editingPointAction,
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, manualRefreshData,
-                        triggerBackup, runHealthCheck, openMemberDetail, displayMemberName, toggleMemberSystem, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
+                        triggerBackup, runHealthCheck, openMemberDetail, displayMemberName, toggleMemberSystem, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, restoreMember, openPointActionModal, submitPointAction,
                         openNewCourseModal, openEditModal, saveCourse, deleteCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
                         handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
