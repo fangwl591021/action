@@ -1555,6 +1555,35 @@ async function verifyLineAccessToken(accessToken) {
   };
 }
 
+async function fetchLineBotProfile(env, uid) {
+  const token = String(env.LINE_CHANNEL_ACCESS_TOKEN || "").trim();
+  const userId = String(uid || "").trim();
+  if (!token || !userId) return null;
+  const res = await fetch(`https://api.line.me/v2/bot/profile/${encodeURIComponent(userId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  const profile = await res.json();
+  return {
+    displayName: profile.displayName || "",
+    pictureUrl: profile.pictureUrl || "",
+  };
+}
+
+async function fillMissingLineProfile(env, user) {
+  if (!user?.userId) return user;
+  if (String(user.name || user.displayName || "").trim()) return user;
+  const profile = await fetchLineBotProfile(env, user.userId);
+  if (!profile?.displayName) return user;
+  return {
+    ...user,
+    name: user.name || profile.displayName,
+    displayName: user.displayName || profile.displayName,
+    pictureUrl: user.pictureUrl || profile.pictureUrl || "",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) {
   const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
   const providedAdminPwd = String(payload?.adminPwd || "");
@@ -1580,7 +1609,17 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
   const crmLoginUidSet = new Set([...splitCsv(env.CRM_LOGIN_UIDS), ...splitCsv(settings.crm_login_uids)]);
   const teacherUidSet = new Set(splitCsv(env.TEACHER_UIDS));
   const userId = verifiedUserId || (adminPasswordOk ? String(claimedUserId || "GUEST") : "GUEST");
-  const userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
+  let userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
+  if (userData && verifiedLineProfile?.name && !String(userData.name || userData.displayName || "").trim()) {
+    userData = {
+      ...userData,
+      name: verifiedLineProfile.name,
+      displayName: verifiedLineProfile.name,
+      pictureUrl: userData.pictureUrl || verifiedLineProfile.picture || "",
+      updatedAt: new Date().toISOString(),
+    };
+    await safePutKV(env, `USER_${userId}`, userData);
+  }
   const hasVerifiedLineUser = !!verifiedUserId;
   const crmLineLoginEnabled = String(settings.crm_line_login_enabled || "false").toLowerCase() === "true";
   const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin" || userData?.crmRole === "admin");
@@ -2309,6 +2348,16 @@ export default {
           } catch(e) { console.error("[KV Sync Error] 使用者讀取異常:", e); }
           
           localUsers = uniqueUsersById(await listUserRecords(env));
+          let repairedLineNames = false;
+          localUsers = await Promise.all(localUsers.map(async user => {
+              const filledUser = await fillMissingLineProfile(env, user);
+              if (filledUser !== user) {
+                  repairedLineNames = true;
+                  await safePutKV(env, `USER_${filledUser.userId}`, filledUser);
+              }
+              return filledUser;
+          }));
+          if (repairedLineNames) ctx.waitUntil(observeHighRiskDualWrite(env, null, "users"));
           let adminCourses = await safeGetCourses(env);
           let adminOrders = await safeGetKV(env, "ORDERS", []);
           let adminSettings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
