@@ -866,6 +866,19 @@ const CRM_LOGIN_ALLOWED_ACTIONS = new Set([
   "ADMIN_UPDATE_MEMBER",
 ]);
 
+const HQ_ALLOWED_ACTIONS = new Set([
+  "ADMIN_GET_DATA",
+  "ADMIN_GET_SLOTS",
+  "ADMIN_UPDATE_MEMBER",
+  "ADMIN_UPDATE_COURSE",
+  "ADMIN_DELETE_COURSE",
+  "ADMIN_UPDATE_PRODUCT",
+  "ADMIN_DELETE_PRODUCT",
+  "ADMIN_UPDATE_ORDER",
+  "ADMIN_TRANSFER_ORDER_COURSE",
+  "UPLOAD_IMAGE",
+]);
+
 const CRM_SYSTEM_ALLOWED_ACTIONS = new Set([
   "ADMIN_GET_DATA",
   "ADMIN_GET_SLOTS",
@@ -1219,7 +1232,7 @@ async function appendAuditLog(env, access, action, payload = {}, request = null)
     const now = new Date();
     const userData = access?.userData || {};
     const lineProfile = access?.lineProfile || {};
-    const role = access?.isAdmin ? "admin" : access?.canCrmLogin ? "operator" : access?.isTeacher ? "teacher" : "user";
+    const role = access?.isAdmin ? "admin" : access?.canHeadquarter ? "headquarter" : access?.canCrmLogin ? "operator" : access?.isTeacher ? "teacher" : "user";
     const entry = {
       id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`,
       uid: access?.userId || "GUEST",
@@ -1622,12 +1635,13 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
   const crmLineLoginEnabled = String(settings.crm_line_login_enabled || "false").toLowerCase() === "true";
   const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin" || userData?.crmRole === "admin");
   const isAdmin = isAdminByUser;
+  const isHeadquarterByUser = crmLineLoginEnabled && hasVerifiedLineUser && !isAdmin && crmLoginUidSet.has(userId);
   const isSystemByUser = crmLineLoginEnabled && hasVerifiedLineUser && !isAdmin && (userData?.crmSystem === true || userData?.role === "system" || userData?.crmRole === "system");
-  const isOperatorByUser = crmLineLoginEnabled && hasVerifiedLineUser && (crmLoginUidSet.has(userId) || userData?.crmOperator === true || userData?.role === "operator" || userData?.crmRole === "operator");
+  const isOperatorByUser = crmLineLoginEnabled && hasVerifiedLineUser && (userData?.crmOperator === true || userData?.role === "operator" || userData?.crmRole === "operator");
   const canSystemTools = isAdmin || isSystemByUser;
-  const canCrmLogin = isAdmin || isSystemByUser || isOperatorByUser;
+  const canCrmLogin = isAdmin || isHeadquarterByUser || isSystemByUser || isOperatorByUser;
   const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
-  return { settings, userData, userId, lineProfile: verifiedLineProfile || null, isAdmin, canCrmLogin, canSystemTools, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk: false };
+  return { settings, userData, userId, lineProfile: verifiedLineProfile || null, isAdmin, canCrmLogin, canHeadquarter: isHeadquarterByUser, canSystemTools, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk: false };
 }
 
 export default {
@@ -1691,7 +1705,7 @@ export default {
       const isSystemAction = CRM_SYSTEM_ALLOWED_ACTIONS.has(action);
 
       if (isSensitiveAdminAction && !access.isAdmin) {
-        if (!(access.isTeacher && isTeacherAction) && !(access.canSystemTools && isSystemAction) && !(access.canCrmLogin && !access.canSystemTools && CRM_LOGIN_ALLOWED_ACTIONS.has(action))) {
+        if (!(access.isTeacher && isTeacherAction) && !(access.canSystemTools && isSystemAction) && !(access.canHeadquarter && HQ_ALLOWED_ACTIONS.has(action)) && !(access.canCrmLogin && !access.canSystemTools && CRM_LOGIN_ALLOWED_ACTIONS.has(action))) {
           throw new Error("Admin authorization required");
         }
       }
@@ -1815,6 +1829,7 @@ export default {
             name: access.userData?.name || access.userData?.displayName || access.lineProfile?.name || "",
             isAdmin: access.isAdmin,
             canCrmLogin: access.canCrmLogin,
+            canHeadquarter: access.canHeadquarter,
             canSystemTools: access.canSystemTools,
             isTeacher: access.isTeacher,
             crmLineLoginEnabled: access.crmLineLoginEnabled,
