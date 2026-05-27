@@ -94,7 +94,16 @@
         const ApiHelper = { 
             call: async (act, pl = {}) => { 
                 const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; 
-                const needsAdmin = act === 'DEPLOY_RICH_MENU' || act === 'UPLOAD_IMAGE';
+                const hasParentSystemAccess = () => {
+                    try {
+                        const raw = window.parent?.localStorage?.getItem('act_crm_access') || localStorage.getItem('act_crm_access') || '{}';
+                        const access = JSON.parse(raw);
+                        return !!(access.isAdmin || access.canSystemTools);
+                    } catch(e) {
+                        return false;
+                    }
+                };
+                const needsAdmin = (act === 'DEPLOY_RICH_MENU' || act === 'UPLOAD_IMAGE') && !hasParentSystemAccess();
                 const getParentSessionPwd = () => {
                     try { return window.parent?.sessionStorage?.getItem('act_admin_pwd') || ''; } catch(e) { return ''; }
                 };

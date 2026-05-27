@@ -866,6 +866,15 @@ const CRM_LOGIN_ALLOWED_ACTIONS = new Set([
   "ADMIN_UPDATE_MEMBER",
 ]);
 
+const CRM_SYSTEM_ALLOWED_ACTIONS = new Set([
+  "ADMIN_GET_DATA",
+  "ADMIN_GET_SLOTS",
+  "ADMIN_MANAGE_POINTS",
+  "GET_USER_POINTS",
+  "UPLOAD_IMAGE",
+  "DEPLOY_RICH_MENU",
+]);
+
 const DEFAULT_VIDEOS = [
   { id: "VOD_YOUCI_06", title: "有慈老師-6", teacher: "有慈老師", episode: 6, driveFileId: "1Bqdq32X0w6LUoND1KSQfQmSNvwEdjvth", isPublished: true, createdAt: "2026-05-16" },
   { id: "VOD_YIJIE_04", title: "依潔老師-4", teacher: "依潔老師", episode: 4, driveFileId: "17ZxOAH2IJ7MFg3w2bWnFs-foLUWzPsWB", isPublished: true, createdAt: "2026-05-10" },
@@ -1576,10 +1585,12 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
   const crmLineLoginEnabled = String(settings.crm_line_login_enabled || "false").toLowerCase() === "true";
   const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin" || userData?.crmRole === "admin");
   const isAdmin = adminPasswordOk || isAdminByUser;
+  const isSystemByUser = crmLineLoginEnabled && hasVerifiedLineUser && !isAdmin && (userData?.crmSystem === true || userData?.role === "system" || userData?.crmRole === "system");
   const isOperatorByUser = crmLineLoginEnabled && hasVerifiedLineUser && (crmLoginUidSet.has(userId) || userData?.crmOperator === true || userData?.role === "operator" || userData?.crmRole === "operator");
-  const canCrmLogin = isAdmin || isOperatorByUser;
+  const canSystemTools = isAdmin || isSystemByUser;
+  const canCrmLogin = isAdmin || isSystemByUser || isOperatorByUser;
   const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
-  return { settings, userData, userId, isAdmin, canCrmLogin, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk };
+  return { settings, userData, userId, isAdmin, canCrmLogin, canSystemTools, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk };
 }
 
 export default {
@@ -1640,14 +1651,15 @@ export default {
       const userId = access.userId;
       const isSensitiveAdminAction = action?.startsWith("ADMIN_") || action === "UPLOAD_IMAGE" || action === "DEPLOY_RICH_MENU";
       const isTeacherAction = TEACHER_ALLOWED_ACTIONS.has(action);
+      const isSystemAction = CRM_SYSTEM_ALLOWED_ACTIONS.has(action);
 
       if (isSensitiveAdminAction && !access.isAdmin) {
-        if (!(access.isTeacher && isTeacherAction) && !(access.canCrmLogin && CRM_LOGIN_ALLOWED_ACTIONS.has(action))) {
+        if (!(access.isTeacher && isTeacherAction) && !(access.canSystemTools && isSystemAction) && !(access.canCrmLogin && !access.canSystemTools && CRM_LOGIN_ALLOWED_ACTIONS.has(action))) {
           throw new Error("Admin authorization required");
         }
       }
 
-      if (action === "GET_USER_POINTS" && payload?.targetUid && payload.targetUid !== userId && !access.isAdmin) {
+      if (action === "GET_USER_POINTS" && payload?.targetUid && payload.targetUid !== userId && !access.isAdmin && !access.canSystemTools) {
         throw new Error("Admin authorization required");
       }
 
@@ -1764,6 +1776,7 @@ export default {
             info: access.userData,
             isAdmin: access.isAdmin,
             canCrmLogin: access.canCrmLogin,
+            canSystemTools: access.canSystemTools,
             isTeacher: access.isTeacher,
             crmLineLoginEnabled: access.crmLineLoginEnabled,
           };
@@ -2647,6 +2660,7 @@ export default {
               const nextIsTeacher = Boolean(payload.memberData.isTeacher) || payload.memberData.role === "teacher" || String(payload.memberData.memberTier || "").includes("導師");
               const permissionChanged = (
                 Boolean(currentMember.isAdmin) !== Boolean(payload.memberData.isAdmin) ||
+                Boolean(currentMember.crmSystem) !== Boolean(payload.memberData.crmSystem) ||
                 Boolean(currentMember.crmOperator) !== Boolean(payload.memberData.crmOperator) ||
                 currentIsTeacher !== nextIsTeacher ||
                 String(currentMember.role || "") !== String(payload.memberData.role || "") ||
@@ -2655,7 +2669,7 @@ export default {
               if (permissionChanged && !access.adminPasswordOk) {
                 throw new Error("任命或變更 CRM 權限時，必須重新輸入管理密碼");
               }
-              const currentIsPrivileged = currentIsTeacher || Boolean(currentMember.isAdmin) || Boolean(currentMember.crmOperator) || ["admin", "operator", "teacher"].includes(String(currentMember.role || "")) || ["admin", "operator", "teacher"].includes(String(currentMember.crmRole || ""));
+              const currentIsPrivileged = currentIsTeacher || Boolean(currentMember.isAdmin) || Boolean(currentMember.crmSystem) || Boolean(currentMember.crmOperator) || ["admin", "system", "operator", "teacher"].includes(String(currentMember.role || "")) || ["admin", "system", "operator", "teacher"].includes(String(currentMember.crmRole || ""));
               if (!access.isAdmin && currentIsPrivileged) {
                 throw new Error("操作員不能修改具權限身分的帳號");
               }
@@ -2668,25 +2682,42 @@ export default {
               if (savedMember.isAdmin === true) {
                 savedMember.crmRole = "admin";
                 savedMember.role = "admin";
+                savedMember.crmSystem = false;
                 savedMember.crmOperator = false;
+              } else if (savedMember.crmSystem === true) {
+                savedMember.isAdmin = false;
+                savedMember.crmOperator = false;
+                savedMember.crmRole = "system";
+                savedMember.role = "system";
               } else if (savedMember.crmOperator === true) {
+                savedMember.isAdmin = false;
+                savedMember.crmSystem = false;
                 savedMember.crmRole = "operator";
                 savedMember.role = "operator";
               } else if (savedMember.role === "admin" || savedMember.crmRole === "admin") {
                 savedMember.isAdmin = true;
+                savedMember.crmSystem = false;
                 savedMember.crmRole = "admin";
                 savedMember.role = "admin";
                 savedMember.crmOperator = false;
+              } else if (savedMember.role === "system" || savedMember.crmRole === "system") {
+                savedMember.isAdmin = false;
+                savedMember.crmSystem = true;
+                savedMember.crmOperator = false;
+                savedMember.crmRole = "system";
+                savedMember.role = "system";
               } else if (savedMember.role === "operator" || savedMember.crmRole === "operator") {
                 savedMember.isAdmin = false;
+                savedMember.crmSystem = false;
                 savedMember.crmOperator = true;
                 savedMember.crmRole = "operator";
                 savedMember.role = "operator";
               } else {
                 savedMember.isAdmin = false;
+                savedMember.crmSystem = false;
                 savedMember.crmOperator = false;
                 delete savedMember.crmRole;
-                if (savedMember.role === "operator") delete savedMember.role;
+                if (["system", "operator"].includes(savedMember.role)) delete savedMember.role;
               }
               if (savedMember.isTeacher === true) {
                 if (!String(savedMember.memberTier || "").includes("導師")) savedMember.memberTier = "專業導師";
@@ -2707,7 +2738,7 @@ export default {
           if (!targetUid) throw new Error("缺少學員 UID");
           const memberToDelete = await safeGetKV(env, `USER_${targetUid}`, null);
           if (!memberToDelete || !memberToDelete.userId) throw new Error("找不到要刪除的學員");
-          const memberIsPrivileged = Boolean(memberToDelete.isAdmin) || Boolean(memberToDelete.crmOperator) || Boolean(memberToDelete.isTeacher) || ["admin", "operator", "teacher"].includes(String(memberToDelete.role || "")) || ["admin", "operator", "teacher"].includes(String(memberToDelete.crmRole || "")) || String(memberToDelete.memberTier || "").includes("導師");
+          const memberIsPrivileged = Boolean(memberToDelete.isAdmin) || Boolean(memberToDelete.crmSystem) || Boolean(memberToDelete.crmOperator) || Boolean(memberToDelete.isTeacher) || ["admin", "system", "operator", "teacher"].includes(String(memberToDelete.role || "")) || ["admin", "system", "operator", "teacher"].includes(String(memberToDelete.crmRole || "")) || String(memberToDelete.memberTier || "").includes("導師");
           if (memberIsPrivileged && !access.adminPasswordOk) {
             throw new Error("刪除具權限身分的帳號時，必須重新輸入管理密碼");
           }
