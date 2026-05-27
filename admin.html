@@ -122,8 +122,7 @@
                         <button v-if="canViewFinance" @click="downloadSalesReport" class="btn-outline text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"><i class="fas fa-file-csv mr-2"></i>業績報表下載</button>
                         <button v-if="canViewFinance" @click="downloadCourseReport" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i class="fas fa-list-alt mr-2"></i>課程報表下載</button>
                         <button v-if="canViewFinance && view === 'booking_report'" @click="downloadBookingReport" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-calendar-check mr-2"></i>預約報表下載</button>
-                        <button v-if="isAdminRole" @click="forceSyncFromCloud" class="btn-outline text-red-600 border-red-200 bg-red-50 hover:bg-red-100"><i class="fas fa-download mr-2"></i>強制同步</button>
-                        <button @click="fetchData(false)" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
+                        <button @click="manualRefreshData" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
                         <button v-if="isAdminRole" @click="triggerBackup" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-hdd mr-2"></i>資料備份</button>
                         <button v-if="isAdminRole" @click="runHealthCheck" class="btn-outline text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100"><i class="fas fa-stethoscope mr-2"></i>系統健檢</button>
                     </div>
@@ -1576,26 +1575,21 @@
                                     console.warn('LocalStorage 快取空間已滿，系統將改為即時連線模式');
                                 }
                             }
+                            return true;
                         } catch(e) {
                             console.error(e);
+                            return false;
                         } finally {
                             isLoading.value = false;
                         }
                     };
 
-                    const forceSyncFromCloud = async () => {
-                        if (!confirm('⚠️ 確定要從雲端強制同步最新資料嗎？\n\n注意：您在本頁面未儲存的修改將會遺失！')) {
-                            return;
-                        }
-                        isLoading.value = true;
-                        try {
-                            await fetchData(true);
-                            alert('✅ 資料同步完成！已從雲端載入最新資料。');
-                        } catch(e) { 
-                            console.error(e); 
-                            alert('同步失敗：' + e.message);
-                        } finally { 
-                            isLoading.value = false; 
+                    const manualRefreshData = async () => {
+                        const ok = await fetchData(false);
+                        if (ok) {
+                            alert(`重新同步完成\n會員：${users.value.length} 筆\n課程/預約：${courses.value.length} 筆\n商城商品：${products.value.length} 筆\n訂單：${orders.value.length} 筆`);
+                        } else {
+                            alert('重新同步失敗，請稍後再試或開啟系統健檢。');
                         }
                     };
 
@@ -3236,7 +3230,7 @@
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
                         showReservationCourseModal, selectedTeacherForReservation, teacherReservationCourses, isTeacherCourse,
                         activeMember, activeMemberPoints, editingPointAction,
-                        lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, forceSyncFromCloud,
+                        lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, manualRefreshData,
                         triggerBackup, runHealthCheck, openMemberDetail, toggleMemberSystem, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, openPointActionModal, submitPointAction,
                         openNewCourseModal, openEditModal, saveCourse, deleteCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
                         handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
