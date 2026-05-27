@@ -164,6 +164,9 @@
                         <button @click="showDeletedMembers = !showDeletedMembers" class="btn-outline !py-2" :class="showDeletedMembers ? 'text-red-600 border-red-200 bg-red-50' : 'text-slate-500 bg-white'">
                             <i class="fas fa-eye-slash mr-2"></i>{{ showDeletedMembers ? '返回一般名單' : '隱藏名單' }}
                         </button>
+                        <button @click="downloadMemberReport" class="btn-outline !py-2 text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100">
+                            <i class="fas fa-file-excel mr-2"></i>會員 Excel 下載
+                        </button>
                     </div>
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
                         <table class="admin-table">
@@ -2334,6 +2337,30 @@
                         return rows;
                     };
 
+                    const buildMemberReportRows = (sourceMembers) => {
+                        const rows = ["姓名,手機,等級,業種,性別,生日,註冊時間"];
+                        sourceMembers.forEach(member => {
+                            rows.push([
+                                csvCell(displayMemberName(member)),
+                                csvCell(member.phone || ""),
+                                csvCell(member.memberTier || ""),
+                                csvCell(member.industry || ""),
+                                csvCell(member.gender || ""),
+                                csvCell(member.birthday || ""),
+                                csvCell(member.createdAt || "")
+                            ].join(','));
+                        });
+                        return rows;
+                    };
+
+                    const downloadMemberReport = () => {
+                        const rows = filteredMembers.value;
+                        if (!rows.length) return alert('目前沒有符合條件的會員資料可以匯出。');
+                        const suffix = showDeletedMembers.value ? '隱藏名單' : '一般名單';
+                        downloadCsv(`宏學_會員CRM_${suffix}_${reportDate()}.csv`, buildMemberReportRows(rows));
+                        alert(`會員 Excel 下載成功。\n共匯出 ${rows.length} 筆會員資料。`);
+                    };
+
                     const downloadSalesReport = () => {
                         if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
                         const validOrders = orders.value.filter(o => o && ((o.type === 'BOOKING' && o.status !== 'CANCELLED') || isPaidOrder(o)) && orderMatchesReportCourses(o));
@@ -3281,7 +3308,7 @@
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
+                        downloadMemberReport, downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
