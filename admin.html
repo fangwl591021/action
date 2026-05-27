@@ -1320,7 +1320,7 @@
                                     <span><b class="block text-slate-800">專業講師</b><small class="text-slate-500 font-bold">只能扣點、查看自己的業績報表</small></span>
                                 </label>
                             </div>
-                            <div class="text-xs text-amber-600 font-bold mt-3">變更這些權限時，儲存會要求重新輸入管理密碼。</div>
+                            <div class="text-xs text-amber-600 font-bold mt-3">權限變更只允許總部管理白名單內的 Admin LINE UID 操作。</div>
                         </div>
                     </div>
                     <div v-if="canManagePoints" class="md:col-span-5 flex flex-col space-y-6">
@@ -1503,17 +1503,7 @@
                             } catch (err) {}
 
                             const requestPayload = { ...pl };
-                            if (requestPayload.adminPwd) {}
-                            else if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
-                            else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
-                            else if (act && (act.startsWith('ADMIN_') || act === 'GET_USER_POINTS' || act === 'UPLOAD_IMAGE' || act === 'DEPLOY_RICH_MENU') && !(isOperatorRole.value && ['ADMIN_GET_DATA', 'ADMIN_GET_SLOTS', 'ADMIN_UPDATE_MEMBER'].includes(act)) && !(isSystemRole.value && systemAllowedActions.has(act))) {
-                                const pwd = window.prompt('請重新輸入管理密碼以儲存 CRM 變更');
-                                if (pwd) {
-                                    sessionStorage.setItem('act_admin_pwd', pwd);
-                                    requestPayload.adminPwd = pwd;
-                                }
-                            }
-                            
+
                             const res = await fetch(WORKER_URL, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -1689,7 +1679,7 @@
                         }
                         isLoading.value = true;
                         try {
-                            const data = await callApi('GET_SETTINGS', { adminPwd: pwd }, false);
+                            const data = await callApi('GET_SETTINGS', {}, false);
                             let finalLiffId = String(data.liff_id || '').trim();
                             if (finalLiffId.includes('liff.line.me/')) {
                                 finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
@@ -1701,7 +1691,7 @@
                             if (!ensureLineToken()) return;
 
                             liffProfile.value = await liff.getProfile();
-                            const checkRes = await callApi('CHECK_USER', { adminPwd: pwd }, false);
+                            const checkRes = await callApi('CHECK_USER', {}, false);
                             if (!checkRes?.userId || checkRes.userId === 'GUEST') {
                                 throw new Error('LINE 身分驗證失敗，請重新使用 LINE 授權登入');
                             }
@@ -1716,7 +1706,6 @@
                             isAuthenticated.value = true;
                             localStorage.setItem('act_crm_logged_in', 'true');
                             localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
-                            sessionStorage.setItem('act_admin_pwd', pwd);
                             fetchData(false);
                         } catch (e) {
                             alert(`登入失敗: ${e.message}`);
@@ -2553,15 +2542,7 @@
                         if (!activeMember.value || !activeMember.value.userId) return;
                         isLoading.value = true;
                         try {
-                            const snap = activeMemberPermissionSnapshot.value || {};
-                            const currentTeacherTier = String(activeMember.value.memberTier || '').includes('導師');
-                            const permissionChanged = snap.isAdmin !== !!activeMember.value.isAdmin || snap.crmSystem !== !!activeMember.value.crmSystem || snap.crmOperator !== !!activeMember.value.crmOperator || snap.isTeacher !== !!activeMember.value.isTeacher || snap.teacherTier !== currentTeacherTier || snap.role !== (activeMember.value.role || '') || snap.crmRole !== (activeMember.value.crmRole || '');
                             const payload = { memberData: activeMember.value };
-                            if (permissionChanged) {
-                                const pwd = window.prompt('任命或變更 CRM 權限，請輸入管理密碼');
-                                if (!pwd) throw new Error('已取消權限變更');
-                                payload.adminPwd = pwd;
-                            }
                             const res = await callApi('ADMIN_UPDATE_MEMBER', payload);
                             if(res) {
                                 const savedMember = res.memberData || activeMember.value;

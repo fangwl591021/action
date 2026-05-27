@@ -1587,9 +1587,6 @@ async function fillMissingLineProfile(env, user) {
 
 async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) {
   const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
-  const providedAdminPwd = String(payload?.adminPwd || "");
-  const configuredAdminPwd = String(env.ADMIN_PASSWORD || settings.adminPwd || settings.admin_password || "");
-  const adminPasswordOk = !!providedAdminPwd && !!configuredAdminPwd && providedAdminPwd === configuredAdminPwd;
   let verifiedLineProfile = null;
   let tokenVerificationError = null;
   try {
@@ -1602,14 +1599,14 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
       verifiedLineProfile = await verifyLineAccessToken(accessToken);
     } catch (e) {
       tokenVerificationError = e;
-      if (!adminPasswordOk) verifiedLineProfile = null;
+      verifiedLineProfile = null;
     }
   }
   const verifiedUserId = verifiedLineProfile?.sub || "";
   const adminUidSet = new Set([...splitCsv(env.ADMIN_UIDS), ...splitCsv(settings.admin_uids)]);
   const crmLoginUidSet = new Set([...splitCsv(env.CRM_LOGIN_UIDS), ...splitCsv(settings.crm_login_uids)]);
   const teacherUidSet = new Set(splitCsv(env.TEACHER_UIDS));
-  const userId = verifiedUserId || (adminPasswordOk ? String(claimedUserId || "GUEST") : "GUEST");
+  const userId = verifiedUserId || "GUEST";
   let userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
   if (userData && verifiedLineProfile?.name && !String(userData.name || userData.displayName || "").trim()) {
     userData = {
@@ -1624,13 +1621,13 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
   const hasVerifiedLineUser = !!verifiedUserId;
   const crmLineLoginEnabled = String(settings.crm_line_login_enabled || "false").toLowerCase() === "true";
   const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin" || userData?.crmRole === "admin");
-  const isAdmin = adminPasswordOk || isAdminByUser;
+  const isAdmin = isAdminByUser;
   const isSystemByUser = crmLineLoginEnabled && hasVerifiedLineUser && !isAdmin && (userData?.crmSystem === true || userData?.role === "system" || userData?.crmRole === "system");
   const isOperatorByUser = crmLineLoginEnabled && hasVerifiedLineUser && (crmLoginUidSet.has(userId) || userData?.crmOperator === true || userData?.role === "operator" || userData?.crmRole === "operator");
   const canSystemTools = isAdmin || isSystemByUser;
   const canCrmLogin = isAdmin || isSystemByUser || isOperatorByUser;
   const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
-  return { settings, userData, userId, lineProfile: verifiedLineProfile || null, isAdmin, canCrmLogin, canSystemTools, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk };
+  return { settings, userData, userId, lineProfile: verifiedLineProfile || null, isAdmin, canCrmLogin, canSystemTools, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk: false };
 }
 
 export default {
@@ -2727,8 +2724,8 @@ export default {
                 String(currentMember.role || "") !== String(payload.memberData.role || "") ||
                 String(currentMember.crmRole || "") !== String(payload.memberData.crmRole || "")
               );
-              if (permissionChanged && !access.adminPasswordOk) {
-                throw new Error("任命或變更 CRM 權限時，必須重新輸入管理密碼");
+              if (permissionChanged && !access.isAdmin) {
+                throw new Error("任命或變更 CRM 權限時，必須使用總部管理白名單 Admin LINE UID 登入");
               }
               const currentIsPrivileged = currentIsTeacher || Boolean(currentMember.isAdmin) || Boolean(currentMember.crmSystem) || Boolean(currentMember.crmOperator) || ["admin", "system", "operator", "teacher"].includes(String(currentMember.role || "")) || ["admin", "system", "operator", "teacher"].includes(String(currentMember.crmRole || ""));
               if (!access.isAdmin && currentIsPrivileged) {
@@ -2799,10 +2796,6 @@ export default {
           if (!targetUid) throw new Error("缺少學員 UID");
           const memberToDelete = await safeGetKV(env, `USER_${targetUid}`, null);
           if (!memberToDelete || !memberToDelete.userId) throw new Error("找不到要刪除的學員");
-          const memberIsPrivileged = Boolean(memberToDelete.isAdmin) || Boolean(memberToDelete.crmSystem) || Boolean(memberToDelete.crmOperator) || Boolean(memberToDelete.isTeacher) || ["admin", "system", "operator", "teacher"].includes(String(memberToDelete.role || "")) || ["admin", "system", "operator", "teacher"].includes(String(memberToDelete.crmRole || "")) || String(memberToDelete.memberTier || "").includes("導師");
-          if (memberIsPrivileged && !access.adminPasswordOk) {
-            throw new Error("刪除具權限身分的帳號時，必須重新輸入管理密碼");
-          }
           const deletedMember = {
             ...memberToDelete,
             isDeleted: true,
