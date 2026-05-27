@@ -1285,7 +1285,15 @@
                                 <div><label class="input-label">性別</label><select v-model="activeMember.gender" class="input-field"><option value="男">男</option><option value="女">女</option></select></div>
                                 <div><label class="input-label">生日</label><input type="date" v-model="activeMember.birthday" class="input-field font-mono text-sm"></div>
                                 <div class="col-span-2"><label class="input-label">聯絡地址</label><input type="text" v-model="activeMember.address" class="input-field"></div>
-                                <div class="col-span-2"><label class="input-label">推薦人 UID (供測試或補登用，若無請留空)</label><input type="text" v-model="activeMember.referrerUid" class="input-field font-mono text-sm text-blue-600" placeholder="請貼上介紹人的 LINE UID"></div>
+                                <div class="col-span-2">
+                                    <label class="input-label">推薦人 UID (供測試或補登用，若無請留空)</label>
+                                    <div class="flex flex-col md:flex-row gap-3">
+                                        <input type="text" v-model="activeMember.referrerUid" class="input-field font-mono text-sm text-blue-600 flex-1" placeholder="請貼上介紹人的 LINE UID">
+                                        <div class="min-w-[180px] px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 flex items-center">
+                                            {{ activeReferrerName || '查無姓名' }}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <button v-if="isAdminRole" @click="deleteMember(activeMember)" class="mt-5 w-full py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"><i class="fas fa-trash-alt mr-2"></i>刪除此學員檔案</button>
                         </div>
@@ -1440,6 +1448,12 @@
                     const canManagePoints = computed(() => isAdminRole.value || isSystemRole.value);
                     const canManageRichMenu = computed(() => isAdminRole.value || isSystemRole.value);
                     const canEditMemberProfile = computed(() => isAdminRole.value || isOperatorRole.value);
+                    const activeReferrerName = computed(() => {
+                        const uid = String(activeMember.value?.referrerUid || activeMember.value?.referrerUID || '').trim();
+                        if (!uid) return '';
+                        const member = users.value.find(u => String(u?.userId || '').trim() === uid);
+                        return member?.name || member?.displayName || '';
+                    });
                     const adminOnlyViews = new Set(['dashboard', 'orders', 'booking_report', 'points_ledger', 'payment_logs', 'audit_logs', 'paid_broadcast', 'richmenu', 'settings', 'flex_rules']);
                     const systemAllowedViews = new Set(['richmenu']);
                     const systemAllowedActions = new Set(['ADMIN_GET_DATA', 'ADMIN_GET_SLOTS', 'ADMIN_MANAGE_POINTS', 'GET_USER_POINTS', 'UPLOAD_IMAGE', 'DEPLOY_RICH_MENU', 'LOG_ADMIN_EVENT']);
@@ -3204,7 +3218,7 @@
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, courseStageOptions, productStatusOptions,
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, auditLogs, broadcastTags, broadcastCampaigns, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
-                        currentAccess, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile,
+                        currentAccess, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile, activeReferrerName,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText,
                         currentViewName, totalRevenue, courseStatsFiltered,
                         isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions, courseDisplayCategory, applyCourseCategoryType,
