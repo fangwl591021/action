@@ -303,6 +303,11 @@
                 <div v-if="canViewFinance && view === 'orders'" class="animate-fade-in">
                     <div class="px-6 py-4 flex gap-3 border-b border-slate-100 bg-white">
                         <div class="relative w-full max-w-sm"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="orderSearch" placeholder="搜尋單號、姓名、電話、課程..." class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
+                        <select v-model="orderTypeFilter" class="btn-outline bg-white min-w-[150px] font-bold text-slate-700">
+                            <option value="ALL">全部訂單</option>
+                            <option value="COURSE">課程/服務</option>
+                            <option value="PRODUCT">商城商品</option>
+                        </select>
                     </div>
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
                         <table class="admin-table">
@@ -1446,6 +1451,7 @@
                     const courseSearchQuery = ref('');
                     const courseTypeFilter = ref('course');
                     const selectedReportCourseId = ref('ALL');
+                    const orderTypeFilter = ref('ALL');
                     const productSearchQuery = ref('');
                     const orderSearch = ref('');
                     const pointsLedgerSearch = ref('');
@@ -2032,6 +2038,11 @@
 
                     const filteredOrders = computed(() => {
                         let result = orders.value.filter(o => o);
+                        if (orderTypeFilter.value === 'PRODUCT') {
+                            result = result.filter(o => o && o.type === 'PRODUCT');
+                        } else if (orderTypeFilter.value === 'COURSE') {
+                            result = result.filter(o => o && o.type !== 'PRODUCT');
+                        }
                         
                         result.sort((a, b) => {
                             const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
@@ -2426,11 +2437,34 @@
                         .replace(/>/g, '&gt;')
                         .replace(/"/g, '&quot;')
                         .replace(/\n/g, '<br>');
+                    const excelXmlCell = (value) => String(value ?? '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/\n/g, '&#10;');
                     const downloadExcel = (filename, rows, options = {}) => {
                         const widths = options.widths || [];
                         const textColumns = new Set(options.textColumns || []);
                         const numericColumns = new Set(options.numericColumns || []);
-                        const tableRows = rows.map((row, rowIndex) => {
+                        const tableRows = buildExcelTableRows(rows, widths, textColumns, numericColumns);
+                        const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+                            table{border-collapse:collapse;font-family:"Microsoft JhengHei",Arial,sans-serif;font-size:12pt;}
+                            th{background:#f1f5f9;font-weight:700;}
+                            th,td{border:1px solid #cbd5e1;padding:6px 10px;white-space:nowrap;vertical-align:top;}
+                        </style></head><body><table>${tableRows}</table></body></html>`;
+                        const blob = new Blob(["\uFEFF" + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", filename);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    };
+                    const buildExcelTableRows = (rows, widths = [], textColumns = new Set(), numericColumns = new Set()) => {
+                        return rows.map((row, rowIndex) => {
                             const tag = rowIndex === 0 ? 'th' : 'td';
                             return `<tr>${row.map((value, colIndex) => {
                                 const width = widths[colIndex] ? `width:${widths[colIndex]}px;` : '';
@@ -2439,12 +2473,39 @@
                                 return `<${tag} style="${width}${textFormat}${align}">${excelCell(value)}</${tag}>`;
                             }).join('')}</tr>`;
                         }).join('');
-                        const html = `<!doctype html><html><head><meta charset="utf-8"><style>
-                            table{border-collapse:collapse;font-family:"Microsoft JhengHei",Arial,sans-serif;font-size:12pt;}
-                            th{background:#f1f5f9;font-weight:700;}
-                            th,td{border:1px solid #cbd5e1;padding:6px 10px;white-space:nowrap;vertical-align:top;}
-                        </style></head><body><table>${tableRows}</table></body></html>`;
-                        const blob = new Blob(["\uFEFF" + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                    };
+                    const downloadExcelWorkbook = (filename, sheets) => {
+                        const worksheetNames = sheets.map(sheet => String(sheet.name || '').replace(/[\\/?*\[\]:]/g, '').slice(0, 31) || 'Sheet');
+                        const worksheets = sheets.map((sheet, index) => {
+                            const widths = sheet.options?.widths || [];
+                            const textColumns = new Set(sheet.options?.textColumns || []);
+                            const numericColumns = new Set(sheet.options?.numericColumns || []);
+                            const columns = widths.map(width => `<Column ss:Width="${Number(width) || 120}"/>`).join('');
+                            const rowsXml = (sheet.rows || []).map((row, rowIndex) => {
+                                const cells = row.map((value, colIndex) => {
+                                    const numeric = numericColumns.has(colIndex) && rowIndex > 0 && value !== '' && value !== null && value !== undefined && !Number.isNaN(Number(value));
+                                    const style = rowIndex === 0 ? ' ss:StyleID="header"' : (textColumns.has(colIndex) ? ' ss:StyleID="text"' : '');
+                                    const type = numeric ? 'Number' : 'String';
+                                    const cellValue = numeric ? Number(value) : value;
+                                    return `<Cell${style}><Data ss:Type="${type}">${excelXmlCell(cellValue)}</Data></Cell>`;
+                                }).join('');
+                                return `<Row>${cells}</Row>`;
+                            }).join('');
+                            return `<Worksheet ss:Name="${excelXmlCell(worksheetNames[index])}"><Table>${columns}${rowsXml}</Table></Worksheet>`;
+                        }).join('');
+                        const workbook = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="header"><Font ss:Bold="1"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="text"><NumberFormat ss:Format="@"/></Style>
+ </Styles>
+ ${worksheets}
+</Workbook>`;
+                        const blob = new Blob(["\uFEFF" + workbook], { type: 'application/vnd.ms-excel;charset=utf-8;' });
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement("a");
                         link.setAttribute("href", url);
@@ -2551,13 +2612,19 @@
                             alert("目前沒有符合條件的業績資料可以匯出。");
                             return;
                         }
-                        const totalRev = validOrders.reduce((sum, o) => sum + (Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0), 0);
-                        downloadExcel(`宏學_業績報表_${reportDate()}.xls`, buildOrderReportRows(validOrders), {
+                        const reportOptions = {
                             widths: [150, 170, 140, 150, 280, 110, 110, 110, 110, 220, 160],
                             textColumns: [0, 1, 2, 3, 4, 8, 9, 10],
                             numericColumns: [5, 6, 7]
-                        });
-                        alert(`業績報表下載成功。\n共匯出 ${validOrders.length} 筆資料，系統代收總額 $${totalRev.toLocaleString()}。`);
+                        };
+                        const courseOrders = validOrders.filter(o => o.type !== 'PRODUCT');
+                        const productOrders = validOrders.filter(o => o.type === 'PRODUCT');
+                        const totalRev = validOrders.reduce((sum, o) => sum + (Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0), 0);
+                        downloadExcelWorkbook(`摰飛_璆剔蜀?梯”_${reportDate()}.xls`, [
+                            { name: '課程', rows: buildOrderReportRows(courseOrders), options: reportOptions },
+                            { name: '商品', rows: buildOrderReportRows(productOrders), options: reportOptions }
+                        ]);
+                        alert(`業績報表下載成功。\n課程 ${courseOrders.length} 筆；商品 ${productOrders.length} 筆。\n系統代收總額 $${totalRev.toLocaleString()}。`);
                     };
 
                     const downloadCourseReport = () => {
@@ -3479,7 +3546,7 @@
                         isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions, courseDisplayCategory, applyCourseCategoryType,
                         transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
                         memberSearch, showDeletedMembers, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
-                        orderSearch, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary, auditLogSearch, filteredAuditLogs,
+                        orderSearch, orderTypeFilter, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary, auditLogSearch, filteredAuditLogs,
                         newBroadcastTag, selectedBroadcastTag, broadcastMemberSearch, broadcastForm, memberTierOptions, broadcastAudiencePreview, filteredBroadcastMembers, memberBroadcastTags, memberHasBroadcastTag, broadcastTagCount,
                         approveForm, teacherApprovalCandidates, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
