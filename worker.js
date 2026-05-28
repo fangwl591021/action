@@ -2758,8 +2758,8 @@ export default {
           if (payload.memberData && payload.memberData.userId) {
               const memberUid = String(payload.memberData.userId).trim();
               const currentMember = await safeGetKV(env, `USER_${memberUid}`, {});
-              const currentIsTeacher = Boolean(currentMember.isTeacher) || currentMember.role === "teacher" || String(currentMember.memberTier || "").includes("導師");
-              const nextIsTeacher = Boolean(payload.memberData.isTeacher) || payload.memberData.role === "teacher" || String(payload.memberData.memberTier || "").includes("導師");
+              const currentIsTeacher = Boolean(currentMember.isTeacher) || currentMember.role === "teacher" || currentMember.crmRole === "teacher";
+              const nextIsTeacher = Boolean(payload.memberData.isTeacher) || payload.memberData.role === "teacher" || payload.memberData.crmRole === "teacher";
               const permissionChanged = (
                 Boolean(currentMember.isAdmin) !== Boolean(payload.memberData.isAdmin) ||
                 Boolean(currentMember.crmSystem) !== Boolean(payload.memberData.crmSystem) ||
@@ -2823,8 +2823,6 @@ export default {
               }
               if (savedMember.isTeacher === true) {
                 if (!String(savedMember.memberTier || "").includes("導師")) savedMember.memberTier = "專業導師";
-              } else if (String(savedMember.memberTier || "").includes("導師")) {
-                savedMember.memberTier = "一般會員";
               }
               await putUserKV(env, ctx, memberUid, savedMember);
               result.data = { success: true, memberData: savedMember };
@@ -2832,7 +2830,7 @@ export default {
               throw new Error("Missing memberData.userId");
           }
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          touchLastUpdate(env, ctx, "Members");
           break;
 
         case "ADMIN_DELETE_MEMBER": {
