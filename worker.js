@@ -1396,8 +1396,8 @@ async function buildPointLedgerFromCurrentLogs(env, users = []) {
   return entries;
 }
 
-async function getPointsLedger(env, limit = 500, options = {}) {
-  const maxRows = Math.max(1, Math.min(Number(limit) || 500, 2000));
+async function getPointsLedger(env, limit = 50, options = {}) {
+  const maxRows = Math.max(1, Math.min(Number(limit) || 50, 2000));
   const stored = await safeGetKV(env, "POINT_LEDGER", []);
   const storedList = Array.isArray(stored) ? stored : [];
   let userMap = new Map();
@@ -2497,7 +2497,7 @@ export default {
 
         case "ADMIN_GET_POINTS_LEDGER":
           if (!access.isAdmin) throw new Error("Admin authorization required");
-          result.data = await getPointsLedger(env, payload.limit || 500, { includeLegacy: payload.includeLegacy === true });
+          result.data = await getPointsLedger(env, payload.limit || 50, { includeLegacy: payload.includeLegacy === true });
           break;
 
         case "ADMIN_GET_AUDIT_LOGS": {
