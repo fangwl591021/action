@@ -1506,11 +1506,20 @@
                         alert('找不到對應會員檔案，已將 UID 帶入 CRM 搜尋。');
                     };
                     const hasRole = (member, role) => String(member?.role || '') === role || String(member?.crmRole || '') === role;
+                    const splitUidList = (value) => String(value || '').split(/[\s,，;；]+/).map(v => v.trim()).filter(Boolean);
+                    const isHeadquarterUid = (uid) => {
+                        const id = String(uid || '').trim();
+                        if (!id) return false;
+                        return new Set([
+                            ...splitUidList(sysSettings.value.admin_uids),
+                            ...splitUidList(sysSettings.value.crm_login_uids)
+                        ]).has(id);
+                    };
                     const memberRoleTags = (member) => {
                         if (!member) return [{ label: '未分級', className: 'bg-slate-100 text-slate-500' }];
                         const tags = [];
                         if (member.isDeleted === true) tags.push({ label: '已隱藏', className: 'bg-slate-200 text-slate-600' });
-                        if (member.isAdmin === true || hasRole(member, 'admin')) tags.push({ label: 'Admin', className: 'bg-red-100 text-red-700 border border-red-200' });
+                        if (member.isAdmin === true || hasRole(member, 'admin') || isHeadquarterUid(member.userId)) tags.push({ label: 'Admin', className: 'bg-red-100 text-red-700 border border-red-200' });
                         if (member.crmSystem === true || hasRole(member, 'system')) tags.push({ label: '系統權限', className: 'bg-violet-100 text-violet-700 border border-violet-200' });
                         if (member.crmOperator === true || hasRole(member, 'operator')) tags.push({ label: '操作員', className: 'bg-blue-100 text-blue-700 border border-blue-200' });
                         if (member.isTeacher === true || hasRole(member, 'teacher')) tags.push({ label: '專業講師', className: 'bg-amber-100 text-amber-700 border border-amber-200' });
