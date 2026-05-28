@@ -302,7 +302,7 @@
 
                 <div v-if="canViewFinance && view === 'orders'" class="animate-fade-in">
                     <div class="px-6 py-4 flex gap-3 border-b border-slate-100 bg-white">
-                        <div class="relative w-full max-w-sm"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="orderSearch" placeholder="搜尋單號、姓名、電話、課程..." class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
+                        <div class="relative w-full max-w-sm"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" v-model="orderSearch" :placeholder="orderTypeFilter === 'PRODUCT' ? '搜尋單號、購買人、電話、商品...' : '搜尋單號、姓名、電話、課程...'" class="w-full border border-slate-200 rounded px-9 py-2 text-sm font-bold outline-none focus:border-[#06C755]"></div>
                         <select v-model="orderTypeFilter" class="btn-outline bg-white min-w-[150px] font-bold text-slate-700">
                             <option value="ALL">全部訂單</option>
                             <option value="COURSE">課程/服務</option>
@@ -311,7 +311,7 @@
                     </div>
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
                         <table class="admin-table">
-                            <thead><tr><th>單號 / 日期</th><th>課程</th><th>學員</th><th>金額</th><th>狀態</th><th class="text-right">操作</th></tr></thead>
+                            <thead><tr><th>單號 / 日期</th><th>{{ orderTypeFilter === 'PRODUCT' ? '商品' : '課程' }}</th><th>{{ orderTypeFilter === 'PRODUCT' ? '購買人' : '學員' }}</th><th>金額</th><th>狀態</th><th class="text-right">操作</th></tr></thead>
                             <tbody>
                                 <tr v-for="o in filteredOrders" :key="o.orderId">
                                     <td><div class="font-mono font-bold text-[13px] text-slate-500">{{o.orderId}}</div><div class="text-[11px] text-slate-400 mt-0.5">{{o.createdAt}}</div></td>
