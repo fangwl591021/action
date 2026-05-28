@@ -93,6 +93,13 @@
         
         const ApiHelper = { 
             call: async (act, pl = {}) => { 
+                try {
+                    if (window.parent && window.parent !== window && typeof window.parent.ACT_ADMIN_API_CALL === 'function') {
+                        return await window.parent.ACT_ADMIN_API_CALL(act, pl, false);
+                    }
+                } catch(e) {
+                    throw e;
+                }
                 const url = (window.parent && window.parent.WORKER_URL) ? window.parent.WORKER_URL : 'https://action.fangwl591021.workers.dev/'; 
                 const hasParentSystemAccess = () => {
                     try {
@@ -133,11 +140,13 @@
 
                 let idToken = null;
                 let accessToken = null;
+                let userProfile = {};
                 try {
                     const parentLiff = window.parent?.liff;
                     if (parentLiff && typeof parentLiff.isLoggedIn === 'function' && parentLiff.isLoggedIn()) {
                         idToken = typeof parentLiff.getIDToken === 'function' ? parentLiff.getIDToken() : null;
                         accessToken = typeof parentLiff.getAccessToken === 'function' ? parentLiff.getAccessToken() : null;
+                        userProfile = window.parent?.liffProfile?.value || window.parent?.liffProfile || {};
                     }
                 } catch(e) {}
 
@@ -145,7 +154,7 @@
                     const res = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: act, payload, idToken, accessToken })
+                        body: JSON.stringify({ action: act, payload, userProfile, idToken, accessToken })
                     });
 
                     const text = await res.text();
@@ -551,8 +560,8 @@
                         cacheLocalSaves(currentSaves);
                     } catch(e) {
                         console.error(e);
-                        currentSaves = readLocalSaves();
-                        container.innerHTML = `<div class="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-sm font-bold">雲端檔案庫載入失敗：${e.message}</div>`;
+                        currentSaves = [];
+                        container.innerHTML = `<div class="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-sm font-bold">雲端檔案庫載入失敗：${e.message}<div class="mt-2 text-xs text-red-500">請重新登入後再開啟圖文選單；檔案庫現在以雲端為準，不再讀取本機暫存。</div></div>`;
                         return;
                     }
                     container.innerHTML = currentSaves.map((item, idx) => `
