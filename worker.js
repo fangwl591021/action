@@ -50,6 +50,7 @@ function getHighRiskLiveKey(key) {
   if (rawKey === "ORDERS") return "live/high-risk/orders.json";
   if (rawKey === "POINT_LEDGER") return "live/high-risk/point-ledger.json";
   if (rawKey === "AUDIT_LOGS") return "live/high-risk/audit-logs.json";
+  if (rawKey === "RICH_MENU_SAVES") return "live/high-risk/rich-menu-saves.json";
   if (rawKey.startsWith("USER_")) return `live/high-risk/users/${encodeURIComponent(rawKey.slice(5))}.json`;
   if (rawKey.startsWith("POINTS_")) return `live/high-risk/points/${encodeURIComponent(rawKey.slice(7))}.json`;
   if (rawKey.startsWith("CHECKIN_")) return `live/high-risk/checkins/${encodeURIComponent(rawKey.slice(8))}.json`;
@@ -877,6 +878,9 @@ const HQ_ALLOWED_ACTIONS = new Set([
   "ADMIN_DELETE_PRODUCT",
   "ADMIN_UPDATE_ORDER",
   "ADMIN_TRANSFER_ORDER_COURSE",
+  "ADMIN_GET_RICH_MENU_SAVES",
+  "ADMIN_SAVE_RICH_MENU",
+  "ADMIN_DELETE_RICH_MENU_SAVE",
   "UPLOAD_IMAGE",
 ]);
 
@@ -887,6 +891,9 @@ const CRM_SYSTEM_ALLOWED_ACTIONS = new Set([
   "GET_USER_POINTS",
   "UPLOAD_IMAGE",
   "DEPLOY_RICH_MENU",
+  "ADMIN_GET_RICH_MENU_SAVES",
+  "ADMIN_SAVE_RICH_MENU",
+  "ADMIN_DELETE_RICH_MENU_SAVE",
 ]);
 
 const DEFAULT_VIDEOS = [
@@ -1226,7 +1233,7 @@ function shouldAuditAction(action, access) {
   if (action.startsWith("TEACHER_")) return true;
   if (action === "UPLOAD_IMAGE" || action === "DEPLOY_RICH_MENU") return true;
   if (!action.startsWith("ADMIN_")) return false;
-  return /_(UPDATE|DELETE|MANAGE|IMPORT|SYNC|BATCH|APPROVE|REMOVE|TRANSFER|WASABI|DAILY|SEND|TAG|GET_POINTS_LEDGER)/.test(action);
+  return /_(UPDATE|DELETE|SAVE|MANAGE|IMPORT|SYNC|BATCH|APPROVE|REMOVE|TRANSFER|WASABI|DAILY|SEND|TAG|GET_POINTS_LEDGER)/.test(action);
 }
 
 function summarizeAuditPayload(action, payload = {}) {
@@ -1239,6 +1246,8 @@ function summarizeAuditPayload(action, payload = {}) {
   if (action === "ADMIN_DELETE_COURSE") return `隱藏課程 ${p.courseId || ""}`.trim();
   if (action === "ADMIN_UPDATE_PRODUCT") return `儲存商品 ${p.name || p.code || p.id || ""}`.trim();
   if (action === "ADMIN_DELETE_PRODUCT") return `隱藏商品 ${p.productId || ""}`.trim();
+  if (action === "ADMIN_SAVE_RICH_MENU") return `儲存圖文選單 ${p.name || p.id || ""}`.trim();
+  if (action === "ADMIN_DELETE_RICH_MENU_SAVE") return `刪除圖文選單 ${p.id || ""}`.trim();
   if (action === "ADMIN_UPDATE_ORDER") return `更新訂單 ${p.orderId || ""}`.trim();
   if (action === "ADMIN_MANAGE_POINTS") return `調整點數 ${p.uid || ""} ${p.type || ""} ${p.amount || ""}`.trim();
   if (action === "ADMIN_TAG_MEMBER") return `會員標籤 ${p.tagName || ""} ${p.userId || ""}`.trim();
@@ -3046,6 +3055,46 @@ export default {
             message: "舊系統補登 API 尚未部署到後端，因此不是會員沒有點數，而是補登功能尚未接上。"
           };
           break;
+
+        case "ADMIN_GET_RICH_MENU_SAVES": {
+          const saves = await safeGetKV(env, "RICH_MENU_SAVES", []);
+          result.data = Array.isArray(saves) ? saves : [];
+          break;
+        }
+
+        case "ADMIN_SAVE_RICH_MENU": {
+          const saves = await safeGetKV(env, "RICH_MENU_SAVES", []);
+          const list = Array.isArray(saves) ? saves : [];
+          const now = new Date();
+          const id = String(payload?.id || Date.now()).trim();
+          const entry = {
+            id,
+            name: String(payload?.name || "New Rich Menu").trim() || "New Rich Menu",
+            date: now.toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }),
+            updatedAt: now.toISOString(),
+            updatedBy: userId,
+            updatedByName: access.userData?.name || access.lineProfile?.name || "",
+            data: payload?.data || {},
+            image: payload?.image || "",
+          };
+          const idx = list.findIndex(item => item && String(item.id) === id);
+          if (idx > -1) list[idx] = { ...list[idx], ...entry };
+          else list.unshift(entry);
+          const next = list.slice(0, 30);
+          const storage = await safePutKV(env, "RICH_MENU_SAVES", next);
+          result.data = { success: true, item: entry, saves: next, storage };
+          break;
+        }
+
+        case "ADMIN_DELETE_RICH_MENU_SAVE": {
+          const id = String(payload?.id || "").trim();
+          if (!id) throw new Error("缺少圖文選單 ID");
+          const saves = await safeGetKV(env, "RICH_MENU_SAVES", []);
+          const next = (Array.isArray(saves) ? saves : []).filter(item => item && String(item.id) !== id);
+          const storage = await safePutKV(env, "RICH_MENU_SAVES", next);
+          result.data = { success: true, saves: next, storage };
+          break;
+        }
 
         case "UPLOAD_IMAGE":
           if (!env['act-image']) throw new Error("尚未綁定名為 'act-image' 的 R2 Bucket。");

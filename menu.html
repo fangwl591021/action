@@ -475,52 +475,36 @@
 
         window.StorageModule = (function() {
             let currentSaves = [], currentId = null;
+            const readLocalSaves = () => {
+                try { return JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); } catch(e) { return []; }
+            };
+            const cacheLocalSaves = (saves) => {
+                try { localStorage.setItem('rich_menu_saves', JSON.stringify((saves || []).slice(0, 5))); } catch(e) {}
+            };
             return {
                 toggleDrawer: function() { const d = document.getElementById('right-drawer'); const o = document.getElementById('right-drawer-overlay'); if (d.classList.contains('translate-x-full')) { d.classList.remove('translate-x-full'); o.classList.remove('hidden'); this.renderList(); } else { d.classList.add('translate-x-full'); o.classList.add('hidden'); } },
-                saveCurrent: function(isNew) {
-                    const base64 = MenuModule.getCurrentBase64(); 
+                saveCurrent: async function(isNew) {
+                    const base64 = MenuModule.getCurrentBase64();
                     if(!base64) return alert('請先載入圖片');
-                    
-                    let saves = [];
-                    try { saves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); } catch(e) {}
-                    
+
                     let json = {};
                     try { json = JSON.parse(document.getElementById('json-output').value); } catch(e) {}
-                    
+
                     const name = document.getElementById('save-filename').value;
-                    const imageToSave = MenuModule.getCurrentBase64(); 
-
-                    if (isNew || !currentId) { 
-                        const newId = Date.now().toString(); 
-                        saves.unshift({ id: newId, name: name, date: new Date().toLocaleString(), data: json, image: imageToSave }); 
-                        currentId = newId; 
-                    } else { 
-                        const idx = saves.findIndex(x => x.id === currentId); 
-                        if (idx > -1) saves[idx] = { id: currentId, name: name, date: new Date().toLocaleString(), data: json, image: imageToSave }; 
-                    }
-
-                    let success = false;
-                    while(!success && saves.length > 0) {
-                        try {
-                            localStorage.setItem('rich_menu_saves', JSON.stringify(saves.slice(0, 5)));
-                            success = true;
-                        } catch(e) {
-                            if (saves.length > 1) {
-                                saves.pop();
-                            } else {
-                                break; 
-                            }
-                        }
-                    }
-                    
-                    if(success) {
-                        this.renderList(); 
-                        alert('✅ 儲存成功');
-                    } else {
-                        alert('❌ 儲存失敗：瀏覽器空間嚴重不足');
+                    const imageToSave = MenuModule.getCurrentBase64();
+                    const id = (isNew || !currentId) ? Date.now().toString() : currentId;
+                    try {
+                        const res = await ApiHelper.call('ADMIN_SAVE_RICH_MENU', { id, name, data: json, image: imageToSave });
+                        currentId = res?.item?.id || id;
+                        currentSaves = res?.saves || [];
+                        cacheLocalSaves(currentSaves);
+                        await this.renderList(false);
+                        alert('✅ 儲存成功，其他 Admin 重新整理後也可看到。');
+                    } catch(e) {
+                        alert('❌ 儲存失敗：' + e.message);
                     }
                 },
-                loadFromIndex: function(idx) { 
+                loadFromIndex: function(idx) {
                     try {
                         const item = currentSaves[idx]; if(!item) return; 
                         currentId = item.id; 
@@ -532,17 +516,54 @@
                         alert('❌ 載入失敗，檔案可能已損毀');
                     }
                 },
-                deleteFromIndex: function(idx) { if(!confirm('確定永久刪除此選單紀錄？')) return; const saves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); saves.splice(idx, 1); localStorage.setItem('rich_menu_saves', JSON.stringify(saves)); this.renderList(); },
-                renderList: function() {
-                    currentSaves = JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); const container = document.getElementById('saved-files-list');
+                deleteFromIndex: async function(idx) {
+                    if(!confirm('確定永久刪除此選單紀錄？')) return;
+                    const item = currentSaves[idx];
+                    if (!item) return;
+                    try {
+                        const res = await ApiHelper.call('ADMIN_DELETE_RICH_MENU_SAVE', { id: item.id });
+                        currentSaves = res?.saves || [];
+                        cacheLocalSaves(currentSaves);
+                        await this.renderList(false);
+                    } catch(e) {
+                        alert('❌ 刪除失敗：' + e.message);
+                    }
+                },
+                renderList: async function(allowMigrate = true) {
+                    const container = document.getElementById('saved-files-list');
+                    container.innerHTML = '<div class="text-center text-slate-400 font-bold py-8"><i class="fas fa-spinner fa-spin mr-2"></i>載入選單檔案庫...</div>';
+                    try {
+                        let remoteSaves = await ApiHelper.call('ADMIN_GET_RICH_MENU_SAVES', {});
+                        remoteSaves = Array.isArray(remoteSaves) ? remoteSaves : [];
+                        const localSaves = readLocalSaves();
+                        const migrated = localStorage.getItem('rich_menu_saves_cloud_migrated') === 'true';
+                        if (allowMigrate && !migrated && localSaves.length) {
+                            const remoteIds = new Set(remoteSaves.map(item => String(item?.id || '')));
+                            for (const item of localSaves) {
+                                if (item && item.id && !remoteIds.has(String(item.id))) {
+                                    await ApiHelper.call('ADMIN_SAVE_RICH_MENU', item);
+                                }
+                            }
+                            localStorage.setItem('rich_menu_saves_cloud_migrated', 'true');
+                            remoteSaves = await ApiHelper.call('ADMIN_GET_RICH_MENU_SAVES', {});
+                        }
+                        currentSaves = Array.isArray(remoteSaves) ? remoteSaves : [];
+                        cacheLocalSaves(currentSaves);
+                    } catch(e) {
+                        console.error(e);
+                        currentSaves = readLocalSaves();
+                        container.innerHTML = `<div class="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-sm font-bold">雲端檔案庫載入失敗：${e.message}</div>`;
+                        return;
+                    }
                     container.innerHTML = currentSaves.map((item, idx) => `
                         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative">
                             <button onclick="StorageModule.deleteFromIndex(${idx})" class="absolute top-4 right-4 text-slate-300 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>
                             <div class="font-black text-sm mb-1">${item.name}</div>
-                            <div class="text-[11px] text-slate-400 mb-4">${item.date}</div>
+                            <div class="text-[11px] text-slate-400 mb-1">${item.date || ''}</div>
+                            <div class="text-[11px] text-slate-400 mb-4">${item.updatedByName ? `儲存者：${item.updatedByName}` : ''}</div>
                             <button onclick="StorageModule.loadFromIndex(${idx})" class="w-full py-2 bg-orange-50 text-orange-600 font-black rounded-xl border border-orange-100 text-[13px]">載入選單</button>
                         </div>
-                    `).join('');
+                    `).join('') || '<div class="text-center text-slate-400 font-bold py-8">目前沒有已儲存的選單</div>';
                 }
             };
         })(); 
