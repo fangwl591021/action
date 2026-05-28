@@ -1615,9 +1615,11 @@ async function fetchLineBotProfile(env, uid) {
 
 async function fillMissingLineProfile(env, user) {
   if (!user?.userId) return user;
-  if (String(user.name || user.displayName || "").trim()) return user;
+  const hasName = String(user.name || user.displayName || "").trim();
+  const hasPicture = String(user.pictureUrl || user.avatar || "").trim();
+  if (hasName && hasPicture) return user;
   const profile = await fetchLineBotProfile(env, user.userId);
-  if (!profile?.displayName) return user;
+  if (!profile?.displayName && !profile?.pictureUrl) return user;
   return {
     ...user,
     name: user.name || profile.displayName,
@@ -1650,11 +1652,11 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
   const teacherUidSet = new Set(splitCsv(env.TEACHER_UIDS));
   const userId = verifiedUserId || "GUEST";
   let userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
-  if (userData && verifiedLineProfile?.name && !String(userData.name || userData.displayName || "").trim()) {
+  if (userData && verifiedLineProfile && ((!String(userData.name || userData.displayName || "").trim() && verifiedLineProfile.name) || (!String(userData.pictureUrl || userData.avatar || "").trim() && verifiedLineProfile.picture))) {
     userData = {
       ...userData,
-      name: verifiedLineProfile.name,
-      displayName: verifiedLineProfile.name,
+      name: userData.name || verifiedLineProfile.name,
+      displayName: userData.displayName || verifiedLineProfile.name,
       pictureUrl: userData.pictureUrl || verifiedLineProfile.picture || "",
       updatedAt: new Date().toISOString(),
     };
@@ -1856,6 +1858,7 @@ export default {
             info: access.userData,
             userId: access.userId,
             name: access.userData?.name || access.userData?.displayName || access.lineProfile?.name || "",
+            pictureUrl: access.userData?.pictureUrl || access.userData?.avatar || access.lineProfile?.picture || "",
             isAdmin: access.isAdmin,
             canCrmLogin: access.canCrmLogin,
             canHeadquarter: access.canHeadquarter,

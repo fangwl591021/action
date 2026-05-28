@@ -173,7 +173,13 @@
                             <thead><tr><th>姓名</th><th>聯絡電話</th><th>目前等級</th><th>註冊日期</th><th class="text-right">操作</th></tr></thead>
                             <tbody>
                                 <tr v-for="u in filteredMembers" :key="u.userId">
-                                    <td class="font-bold text-slate-800">{{ displayMemberName(u) }}</td>
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            <img v-if="memberAvatarUrl(u)" :src="memberAvatarUrl(u)" class="w-10 h-10 rounded-full object-cover border border-slate-200 bg-slate-100" referrerpolicy="no-referrer">
+                                            <div v-else class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 text-sm font-black">{{ memberInitial(u) }}</div>
+                                            <div class="font-bold text-slate-800">{{ displayMemberName(u) }}</div>
+                                        </div>
+                                    </td>
                                     <td class="font-mono text-slate-500">{{ u.phone || '-' }}</td>
                                     <td><span class="tag-orange">{{ u.isDeleted ? '已隱藏' : u.memberTier }}</span></td>
                                     <td class="text-slate-400 text-sm font-mono">{{ u.createdAt }}</td>
@@ -1278,7 +1284,7 @@
 
         <div v-if="activeMember" class="modal-mask" @click.self="activeMember = null" style="z-index: 1000;">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[1000px] !rounded-xl bg-white shadow-2xl">
-                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100 shadow-sm z-10 relative"><h3 class="text-[19px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-address-card text-[#06C755]"></i> 會員檔案：{{ displayMemberName(activeMember) }} <span class="text-[13px] font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 ml-3">UID: {{ activeMember?.userId }}</span></h3><button @click="activeMember = null" class="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><i class="fas fa-times text-xl"></i></button></div>
+                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100 shadow-sm z-10 relative"><h3 class="text-[19px] font-black text-slate-800 flex items-center gap-3"><img v-if="memberAvatarUrl(activeMember)" :src="memberAvatarUrl(activeMember)" class="w-10 h-10 rounded-full object-cover border border-slate-200 bg-slate-100" referrerpolicy="no-referrer"><span v-else class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 text-sm font-black">{{ memberInitial(activeMember) }}</span><i class="fas fa-address-card text-[#06C755]"></i> 會員檔案：{{ displayMemberName(activeMember) }} <span class="text-[13px] font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 ml-3">UID: {{ activeMember?.userId }}</span></h3><button @click="activeMember = null" class="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><i class="fas fa-times text-xl"></i></button></div>
                 <div class="p-8 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar grid grid-cols-1 md:grid-cols-12 gap-8">
                     <div class="md:col-span-7 space-y-6">
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-user-edit text-indigo-500"></i> 基本資料</h4>
@@ -1306,6 +1312,14 @@
                         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-comment-dots text-orange-500"></i> 管理員備註</h4><textarea v-model="activeMember.adminNote" class="input-field h-32 resize-none leading-relaxed text-[15px]" placeholder="紀錄學員個案狀況..."></textarea></div>
                         <div v-if="isAdminRole" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                             <h4 class="font-bold text-slate-700 mb-5 border-b pb-3 flex items-center gap-2"><i class="fas fa-user-shield text-emerald-500"></i> CRM 登入權限</h4>
+                            <div class="mb-4 flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                                <img v-if="memberAvatarUrl(activeMember)" :src="memberAvatarUrl(activeMember)" class="w-11 h-11 rounded-full object-cover border border-white shadow-sm bg-slate-100" referrerpolicy="no-referrer">
+                                <div v-else class="w-11 h-11 rounded-full bg-white border border-emerald-100 flex items-center justify-center text-emerald-600 text-sm font-black">{{ memberInitial(activeMember) }}</div>
+                                <div class="min-w-0">
+                                    <div class="font-black text-slate-800 truncate">{{ displayMemberName(activeMember) }}</div>
+                                    <div class="text-xs font-mono text-slate-500 truncate">{{ activeMember?.userId }}</div>
+                                </div>
+                            </div>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <label class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
                                     <input type="checkbox" v-model="activeMember.crmSystem" @change="toggleMemberSystem" class="mt-1 w-4 h-4">
@@ -1454,6 +1468,8 @@
                         const uid = String(member?.userId || '').trim();
                         return uid ? `未填姓名 (${uid.slice(0, 8)}...)` : '未填姓名';
                     };
+                    const memberAvatarUrl = (member) => String(member?.pictureUrl || member?.avatar || member?.linePictureUrl || member?.profile?.pictureUrl || '').trim();
+                    const memberInitial = (member) => displayMemberName(member).trim().slice(0, 1).toUpperCase();
                     const isAdminRole = computed(() => !!currentAccess.value.isAdmin);
                     const isSystemRole = computed(() => !isAdminRole.value && !!currentAccess.value.canSystemTools);
                     const isOperatorRole = computed(() => !isAdminRole.value && !isSystemRole.value && !!currentAccess.value.canCrmLogin);
@@ -1616,7 +1632,7 @@
                                     liffProfile.value = await liff.getProfile();
                                     const checkRes = await callApi('CHECK_USER', {}, true);
                                     if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
-                                        currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, canHeadquarter: !!checkRes.canHeadquarter, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools, userId: checkRes.userId || liffProfile.value.userId || '', name: checkRes.name || liffProfile.value.displayName || '' };
+                                        currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, canHeadquarter: !!checkRes.canHeadquarter, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools, userId: checkRes.userId || liffProfile.value.userId || '', name: checkRes.name || liffProfile.value.displayName || '', pictureUrl: checkRes.pictureUrl || liffProfile.value.pictureUrl || '' };
                                         isAuthenticated.value = true;
                                         localStorage.setItem('act_crm_logged_in', 'true');
                                         localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
@@ -1655,7 +1671,7 @@
                             const checkRes = await callApi('CHECK_USER', {}, false);
 
                             if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
-                                currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, canHeadquarter: !!checkRes.canHeadquarter, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools, userId: checkRes.userId || liffProfile.value.userId || '', name: checkRes.name || liffProfile.value.displayName || '' };
+                                currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, canHeadquarter: !!checkRes.canHeadquarter, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools, userId: checkRes.userId || liffProfile.value.userId || '', name: checkRes.name || liffProfile.value.displayName || '', pictureUrl: checkRes.pictureUrl || liffProfile.value.pictureUrl || '' };
                                 isAuthenticated.value = true;
                                 localStorage.setItem('act_crm_logged_in', 'true');
                                 localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
@@ -1706,7 +1722,8 @@
                                 isTeacher: !!checkRes.isTeacher,
                                 canSystemTools: !!checkRes.canSystemTools,
                                 userId: checkRes.userId,
-                                name: checkRes.name || liffProfile.value.displayName || ''
+                                name: checkRes.name || liffProfile.value.displayName || '',
+                                pictureUrl: checkRes.pictureUrl || liffProfile.value.pictureUrl || ''
                             };
                             isAuthenticated.value = true;
                             localStorage.setItem('act_crm_logged_in', 'true');
@@ -3378,7 +3395,7 @@
                         showReservationCourseModal, selectedTeacherForReservation, teacherReservationCourses, isTeacherCourse,
                         activeMember, activeMemberPoints, editingPointAction,
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, manualRefreshData,
-                        triggerBackup, runHealthCheck, openMemberDetail, displayMemberName, toggleMemberSystem, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, restoreMember, openPointActionModal, submitPointAction,
+                        triggerBackup, runHealthCheck, openMemberDetail, displayMemberName, memberAvatarUrl, memberInitial, toggleMemberSystem, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, restoreMember, openPointActionModal, submitPointAction,
                         openNewCourseModal, openEditModal, saveCourse, deleteCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
                         handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
