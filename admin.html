@@ -381,18 +381,22 @@
                     </div>
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
                         <table class="admin-table">
-                            <thead><tr><th>時間</th><th>會員</th><th>LINE UID</th><th>類型</th><th class="text-right">點數異動</th><th class="text-right">異動後餘額</th><th>原因</th></tr></thead>
+                            <thead><tr><th>時間</th><th>會員</th><th>LINE UID</th><th>類型</th><th class="text-right">點數異動</th><th class="text-right">異動後餘額</th><th>原因</th><th class="text-right">反查</th></tr></thead>
                             <tbody>
                                 <tr v-for="log in filteredPointsLedger" :key="log.uid + '_' + log.logId + '_' + log.createdTs">
                                     <td><div class="font-mono text-[12px] text-slate-500">{{ log.createdAt || '-' }}</div><div v-if="log.source === 'legacy_user_log'" class="text-[11px] text-slate-400 mt-1">舊紀錄回填</div></td>
-                                    <td><div class="font-bold text-slate-800">{{ log.userName || '未命名會員' }}</div><div class="text-xs text-slate-400">{{ log.phone || log.memberTier || '' }}</div></td>
-                                    <td class="font-mono text-[12px] text-slate-500 max-w-[260px] truncate">{{ log.uid }}</td>
+                                    <td><div class="font-bold text-slate-800">{{ ledgerMemberName(log) }}</div><div class="text-xs text-slate-400">{{ log.phone || log.memberTier || '' }}</div><div v-if="log.operatorName || log.operatorUid" class="text-[11px] text-slate-400 mt-1">操作者：{{ log.operatorName || log.operatorUid }}</div></td>
+                                    <td class="font-mono text-[12px] text-slate-500 max-w-[360px] break-all">{{ log.uid }}</td>
                                     <td><span class="status-badge" :class="Number(log.amount || 0) >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">{{ Number(log.amount || 0) >= 0 ? '進點' : '出點' }}</span></td>
                                     <td class="text-right font-black text-lg" :class="Number(log.amount || 0) >= 0 ? 'text-[#06C755]' : 'text-red-600'">{{ Number(log.amount || 0) >= 0 ? '+' : '-' }}{{ formatPrice(Math.abs(Number(log.amount || 0))) }}</td>
                                     <td class="text-right font-bold text-slate-700">{{ log.balanceAfter === null || log.balanceAfter === undefined ? '-' : formatPrice(log.balanceAfter) }}</td>
                                     <td class="text-sm font-bold text-slate-600 max-w-[360px]">{{ log.reason || '-' }}</td>
+                                    <td class="text-right whitespace-nowrap">
+                                        <button @click="copyText(log.uid)" class="btn-outline !py-1 !px-2 text-xs bg-white mr-2">複製 UID</button>
+                                        <button @click="openLedgerMember(log)" class="btn-outline !py-1 !px-2 text-xs text-blue-600 bg-blue-50 border-blue-100">CRM 檔案</button>
+                                    </td>
                                 </tr>
-                                <tr v-if="!filteredPointsLedger.length"><td colspan="7" class="text-center py-20 text-slate-300 font-bold">目前沒有點數流水資料</td></tr>
+                                <tr v-if="!filteredPointsLedger.length"><td colspan="8" class="text-center py-20 text-slate-300 font-bold">目前沒有點數流水資料</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1470,6 +1474,33 @@
                     };
                     const memberAvatarUrl = (member) => String(member?.pictureUrl || member?.avatar || member?.linePictureUrl || member?.profile?.pictureUrl || '').trim();
                     const memberInitial = (member) => displayMemberName(member).trim().slice(0, 1).toUpperCase();
+                    const findMemberByUid = (uid) => users.value.find(u => String(u?.userId || '').trim() === String(uid || '').trim());
+                    const ledgerMemberName = (log) => {
+                        const member = findMemberByUid(log?.uid);
+                        return log?.userName || member?.name || member?.displayName || (log?.uid ? `未命名會員 (${String(log.uid).slice(0, 8)}...)` : '未命名會員');
+                    };
+                    const copyText = async (text) => {
+                        const value = String(text || '').trim();
+                        if (!value) return;
+                        try {
+                            await navigator.clipboard.writeText(value);
+                            alert('已複製 UID');
+                        } catch (e) {
+                            window.prompt('請手動複製 UID', value);
+                        }
+                    };
+                    const openLedgerMember = (log) => {
+                        const uid = String(log?.uid || '').trim();
+                        if (!uid) return;
+                        const member = findMemberByUid(uid);
+                        if (member) {
+                            openMemberDetail(member);
+                            return;
+                        }
+                        memberSearch.value = uid;
+                        view.value = 'members';
+                        alert('找不到對應會員檔案，已將 UID 帶入 CRM 搜尋。');
+                    };
                     const isAdminRole = computed(() => !!currentAccess.value.isAdmin);
                     const isSystemRole = computed(() => !isAdminRole.value && !!currentAccess.value.canSystemTools);
                     const isOperatorRole = computed(() => !isAdminRole.value && !isSystemRole.value && !!currentAccess.value.canCrmLogin);
@@ -2221,6 +2252,8 @@
                                 String(log.userName || '').toLowerCase().includes(q) ||
                                 String(log.uid || '').toLowerCase().includes(q) ||
                                 String(log.phone || '').toLowerCase().includes(q) ||
+                                String(log.operatorName || '').toLowerCase().includes(q) ||
+                                String(log.operatorUid || '').toLowerCase().includes(q) ||
                                 String(log.reason || '').toLowerCase().includes(q)
                             ));
                         }
@@ -3394,7 +3427,7 @@
                         showReservationCourseModal, selectedTeacherForReservation, teacherReservationCourses, isTeacherCourse,
                         activeMember, activeMemberPoints, editingPointAction,
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, manualRefreshData,
-                        triggerBackup, runHealthCheck, openMemberDetail, displayMemberName, memberAvatarUrl, memberInitial, toggleMemberSystem, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, restoreMember, openPointActionModal, submitPointAction,
+                        triggerBackup, runHealthCheck, openMemberDetail, displayMemberName, memberAvatarUrl, memberInitial, ledgerMemberName, copyText, openLedgerMember, toggleMemberSystem, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, restoreMember, openPointActionModal, submitPointAction,
                         openNewCourseModal, openEditModal, saveCourse, deleteCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
                         handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
                         openTeacherReservationCourses, editReservationCourseFromTeacher,

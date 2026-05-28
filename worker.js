@@ -1413,9 +1413,12 @@ async function getPointsLedger(env, limit = 2000) {
     if (byKey.has(key)) continue;
     byKey.set(key, {
       ...entry,
-      userName: entry.userName || user.name || "",
+      userName: entry.userName || entry.targetName || user.name || user.displayName || "",
       phone: entry.phone || user.phone || "",
       memberTier: entry.memberTier || user.memberTier || "",
+      pictureUrl: entry.pictureUrl || user.pictureUrl || user.avatar || "",
+      operatorName: entry.operatorName || "",
+      operatorUid: entry.operatorUid || "",
       amount,
       points,
       type: entry.type || (amount < 0 ? "SPEND" : "EARN"),
