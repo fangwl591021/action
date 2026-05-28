@@ -100,13 +100,13 @@ async function safeGetHighRiskWasabiValue(env, key, defaultVal) {
 
 async function safeGetKV(env, key, defaultVal, options = {}) {
   const liveKey = getHighRiskLiveKey(key);
-  if (liveKey && options.preferWasabi !== false && await shouldReadHighRiskFromWasabi(env)) {
-    const wasabiValue = await safeGetHighRiskWasabiValue(env, key, undefined);
-    if (wasabiValue !== undefined) return wasabiValue;
-  }
   if (liveKey) {
     const r2Value = await safeGetR2Json(env, liveKey, undefined);
     if (r2Value !== undefined) return r2Value;
+  }
+  if (liveKey && options.preferWasabi !== false && await shouldReadHighRiskFromWasabi(env)) {
+    const wasabiValue = await safeGetHighRiskWasabiValue(env, key, undefined);
+    if (wasabiValue !== undefined) return wasabiValue;
   }
   try {
       const val = await env.ACTION_DATA.get(key);
