@@ -120,7 +120,7 @@
                     
                     <div class="px-4 mt-5 mb-10 grid grid-cols-2 gap-4">
                         <div v-for="c in filteredCourses" :key="c.id" @click="openCourseDetail(c)" class="course-card shadow-sm cursor-pointer flex flex-col justify-between h-full">
-                            <div class="w-full aspect-video bg-[#F8F9FA] relative overflow-hidden border-b border-[#EEEEEE] shrink-0"><img v-if="c.image" :src="c.image" class="absolute inset-0 w-full h-full object-cover"><div v-else class="absolute inset-0 flex items-center justify-center text-[#DDE0E5]"><i class="far fa-image text-3xl"></i></div></div>
+                            <div class="w-full aspect-video bg-[#F8F9FA] relative overflow-hidden border-b border-[#EEEEEE] shrink-0"><img :src="courseThumbUrl(c)" class="absolute inset-0 w-full h-full object-cover"></div>
                             <div class="p-4 flex flex-col flex-1 justify-between"><div class="mb-2"><div class="text-[15px] font-black text-[#111111] leading-snug mb-1 line-clamp-2">{{ String(c?.name || '').split('\n')[0] }}</div><div v-if="(c?.name || '').includes('\n')" class="text-[11px] text-slate-500 line-clamp-2 leading-relaxed font-medium">{{ c.name.substring(c.name.indexOf('\n') + 1).trim() }}</div></div><div class="border-t border-[#F4F5F7] pt-3 mt-2 flex justify-between items-end shrink-0"><div class="text-[17px] font-black text-[#06C755] leading-none">{{ c.priceText || ('$' + formatPrice(c.price)) }}</div></div></div>
                         </div>
                         <div v-if="filteredCourses.length === 0" class="col-span-2 text-center py-12 text-[#AAAAAA] font-bold bg-white rounded-xl border border-dashed border-[#DDDDDD] mx-1"><i class="fas fa-box-open text-3xl mb-3 text-[#E0E0E0]"></i><br>此分類目前沒有可報名的項目</div>
@@ -399,7 +399,7 @@
             <div v-if="view === 'courseDetail' && selectedCourse" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[60] flex flex-col overflow-hidden">
                 <div class="absolute top-0 left-0 w-full z-50 flex justify-between items-center p-4 pt-[max(env(safe-area-inset-top),16px)] bg-gradient-to-b from-black/60 to-transparent pointer-events-none"><button @click="view = 'home'" class="w-10 h-10 text-lg bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto active:scale-90 transition shadow-sm"><i class="fas fa-arrow-left"></i></button></div>
                 <div class="flex-1 overflow-y-auto pb-32 hide-scrollbar">
-                    <div class="w-full aspect-video bg-slate-100 relative overflow-hidden"><div class="absolute top-4 left-4 z-10" v-if="displayCourseCategory(selectedCourse)"><span class="category-pill !text-[12px] !px-3 !py-1.5">{{ displayCourseCategory(selectedCourse) }}</span></div><img v-if="selectedCourse.image" :src="selectedCourse.image" class="absolute inset-0 w-full h-full object-cover"><div v-else class="absolute inset-0 flex items-center justify-center text-slate-300"><i class="far fa-image text-5xl"></i></div></div>
+                    <div class="w-full aspect-video bg-slate-100 relative overflow-hidden"><div class="absolute top-4 left-4 z-10" v-if="displayCourseCategory(selectedCourse)"><span class="category-pill !text-[12px] !px-3 !py-1.5">{{ displayCourseCategory(selectedCourse) }}</span></div><img :src="courseThumbUrl(selectedCourse)" class="absolute inset-0 w-full h-full object-cover"></div>
                     <div class="p-6 mt-2">
                         <h1 class="text-2xl font-black text-slate-800 mb-3 leading-normal">{{ String(selectedCourse?.name || '').split('\n')[0] }}</h1>
                         <div class="text-3xl font-black text-[#06C755] mb-8">{{ selectedCourse.priceText || ('$' + formatPrice(selectedCourse.price)) }}</div>
@@ -500,7 +500,7 @@
                 <div class="sticky top-0 bg-[#ffffff] z-30 border-b border-[#EEEEEE] p-4 flex items-center justify-between"><button @click="view = 'profile'" class="text-[#111111] p-2 -ml-2"><i class="fas fa-arrow-left text-xl"></i></button><h2 class="text-[17px] font-bold text-[#111111]">我的諮詢預約項目</h2><button @click="openEditMyCourse(null)" class="text-[#06C755] font-bold text-sm bg-green-50 px-3 py-1.5 rounded-lg border border-green-100"><i class="fas fa-plus mr-1"></i>新增</button></div>
                 <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F4F5F7] pb-32">
                     <div v-for="c in teacherCourses" :key="c.id" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex gap-4">
-                        <div class="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-100"><img v-if="c.image" :src="c.image" class="w-full h-full object-cover"><i v-else class="fas fa-image text-slate-300 text-2xl w-full h-full flex items-center justify-center"></i></div>
+                        <div class="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-100"><img :src="courseThumbUrl(c)" class="w-full h-full object-cover"></div>
                         <div class="flex-1 flex flex-col justify-between py-0.5 min-w-0"><div><div class="flex justify-between items-start gap-2"><h3 class="font-bold text-slate-800 text-[15px] truncate">{{ String(c?.name || '').split('\n')[0] }}</h3><span class="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded" :class="c.isPublished !== false ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">{{ c.isPublished !== false ? '上架中' : '已下架' }}</span></div><div class="text-[12px] text-slate-500 mt-1">分類: {{ displayCourseCategory(c) || '預約服務' }}</div></div><div class="flex justify-between items-end mt-2"><div class="font-black text-[#06C755] text-[15px]">${{ formatPrice(c.price) }}</div><button @click="openEditMyCourse(c)" class="text-[12px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition">編輯</button></div></div>
                     </div>
                     <div v-if="teacherCourses.length === 0" class="text-center py-12 text-slate-400 font-bold bg-white rounded-2xl border border-dashed border-slate-200"><i class="fas fa-box-open text-3xl mb-3 block text-slate-300"></i>尚無建立任何諮詢項目<br>點擊右上角「新增」開始建立</div>
@@ -657,7 +657,7 @@
                                 <h3 class="text-[15px] font-black text-slate-800 mb-3 ml-1 flex items-center gap-2"><i class="fas fa-list-ul text-[#06C755]"></i> 可預約的諮詢項目</h3>
                                 <div class="space-y-3">
                                     <div v-for="svc in teacherServices" :key="svc.id" @click="chooseService(svc)" class="bg-white flex gap-3 p-3 border border-slate-100 rounded-2xl active:scale-[0.98] transition cursor-pointer shadow-sm">
-                                        <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-slate-50"><img v-if="svc.image" :src="svc.image" class="w-full h-full object-cover"><div v-else class="w-full h-full flex items-center justify-center text-slate-300"><i class="fas fa-chalkboard-teacher text-2xl"></i></div></div>
+                                        <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-slate-50"><img :src="courseThumbUrl(svc)" class="w-full h-full object-cover"></div>
                                         <div class="flex-1 flex flex-col justify-between py-0.5 pr-1"><div><div class="text-[15px] font-bold text-slate-800 line-clamp-1">{{ String(svc?.name || '').split('\n')[0] }}</div><div class="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">{{ svc.description || '點擊選擇此項目進行時段預約' }}</div></div><div class="flex justify-between items-end mt-2"><span class="text-[16px] font-black text-[#06C755]">{{ svc.priceText || ('$' + formatPrice(svc.price)) }}</span><div class="w-8 h-8 rounded-full bg-green-50 text-[#06C755] flex items-center justify-center"><i class="fas fa-arrow-right text-sm"></i></div></div></div>
                                     </div>
                                 </div>
@@ -864,6 +864,18 @@
                     };
 
                     const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString();
+                    const defaultCourseThumb = () => sysSettings.value.banner_image || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80';
+                    const courseThumbUrl = (course) => String(
+                        course?.image ||
+                        course?.imageUrl ||
+                        course?.image_url ||
+                        course?.thumbnail ||
+                        course?.thumbnailUrl ||
+                        course?.cover ||
+                        course?.coverImage ||
+                        course?.featured_image ||
+                        ''
+                    ).trim() || defaultCourseThumb();
                     const normalizeTeacherName = (value) => String(value || '')
                         .normalize('NFKC')
                         .replace(/[\u200B-\u200D\uFEFF]/g, '')
@@ -1863,7 +1875,7 @@
                         openProductDetail: (p) => { selectedProduct.value = p; productQuantity.value = 1; productPointsToUse.value = 0; paymentMethod.value = 'NEWEBPAY'; view.value = 'productDetail'; window.scrollTo(0,0); },
                         openRemittanceModal: (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; }, 
                         submitRemittance, navigateTo, dailyCheckin, submitRegistration, 
-                        formatPrice, getCourseName,
+                        formatPrice, getCourseName, courseThumbUrl,
                         categories: predefinedCategories, activeCategory, displayCourseCategory,
                         filteredCourses: computed(() => {
                             const nowTs = Date.now();
