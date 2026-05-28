@@ -1541,32 +1541,25 @@
                     };
 
                     const loadCache = () => {
-                        if (localStorage.getItem('act_crm_logged_in') === 'true') {
-                            isAuthenticated.value = true;
-                            currentAccess.value = JSON.parse(localStorage.getItem('act_crm_access') || '{"isAdmin":false,"canCrmLogin":false,"isTeacher":false,"canSystemTools":false}');
-                            if (!currentAccess.value.isAdmin && !currentAccess.value.canCrmLogin) {
-                                logout();
-                                return;
+                        isAuthenticated.value = false;
+                        currentAccess.value = { isAdmin: false, canCrmLogin: false, isTeacher: false, canSystemTools: false };
+                        try {
+                            const c = JSON.parse(localStorage.getItem(CACHE_KEY));
+                            if (c) {
+                                users.value = c.users || [];
+                                teachers.value = c.teachers || [];
+                                courses.value = c.courses || [];
+                                products.value = c.products || [];
+                                orders.value = c.orders || [];
+                                sysSettings.value = normalizeSystemSettings(c.settings || {});
+                                slots.value = c.slots || [];
+                                occupiedLocations.value = c.occupiedLocations || [];
+                                paymentLogs.value = c.paymentLogs || [];
+                                flexRules.value = c.flexRules || [];
+                                broadcastTags.value = c.broadcastTags || [];
+                                broadcastCampaigns.value = c.broadcastCampaigns || [];
                             }
-                            if (!isAdminRole.value && view.value === 'dashboard') view.value = operatorDefaultView;
-                            try {
-                                const c = JSON.parse(localStorage.getItem(CACHE_KEY));
-                                if (c) {
-                                    users.value = c.users || [];
-                                    teachers.value = c.teachers || [];
-                                    courses.value = c.courses || [];
-                                    products.value = c.products || [];
-                                    orders.value = c.orders || [];
-                                    sysSettings.value = normalizeSystemSettings(c.settings || {});
-                                    slots.value = c.slots || [];
-                                    occupiedLocations.value = c.occupiedLocations || [];
-                                    paymentLogs.value = c.paymentLogs || [];
-                                    flexRules.value = c.flexRules || [];
-                                    broadcastTags.value = c.broadcastTags || [];
-                                    broadcastCampaigns.value = c.broadcastCampaigns || [];
-                                }
-                            } catch(e) {}
-                        }
+                        } catch(e) {}
                     };
 
                     const fetchData = async (silent = false) => {
@@ -1633,6 +1626,8 @@
                                     const checkRes = await callApi('CHECK_USER', {}, true);
                                     if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
                                         currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, canHeadquarter: !!checkRes.canHeadquarter, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools, userId: checkRes.userId || liffProfile.value.userId || '', name: checkRes.name || liffProfile.value.displayName || '', pictureUrl: checkRes.pictureUrl || liffProfile.value.pictureUrl || '' };
+                                        const cachedAccess = JSON.parse(localStorage.getItem('act_crm_access') || '{}');
+                                        if (cachedAccess.userId && cachedAccess.userId !== currentAccess.value.userId) localStorage.removeItem(CACHE_KEY);
                                         isAuthenticated.value = true;
                                         localStorage.setItem('act_crm_logged_in', 'true');
                                         localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
@@ -1672,6 +1667,8 @@
 
                             if (checkRes && (checkRes.isAdmin || checkRes.canCrmLogin)) {
                                 currentAccess.value = { isAdmin: !!checkRes.isAdmin, canCrmLogin: !!checkRes.canCrmLogin, canHeadquarter: !!checkRes.canHeadquarter, isTeacher: !!checkRes.isTeacher, canSystemTools: !!checkRes.canSystemTools, userId: checkRes.userId || liffProfile.value.userId || '', name: checkRes.name || liffProfile.value.displayName || '', pictureUrl: checkRes.pictureUrl || liffProfile.value.pictureUrl || '' };
+                                const cachedAccess = JSON.parse(localStorage.getItem('act_crm_access') || '{}');
+                                if (cachedAccess.userId && cachedAccess.userId !== currentAccess.value.userId) localStorage.removeItem(CACHE_KEY);
                                 isAuthenticated.value = true;
                                 localStorage.setItem('act_crm_logged_in', 'true');
                                 localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
@@ -1725,6 +1722,8 @@
                                 name: checkRes.name || liffProfile.value.displayName || '',
                                 pictureUrl: checkRes.pictureUrl || liffProfile.value.pictureUrl || ''
                             };
+                            const cachedAccess = JSON.parse(localStorage.getItem('act_crm_access') || '{}');
+                            if (cachedAccess.userId && cachedAccess.userId !== currentAccess.value.userId) localStorage.removeItem(CACHE_KEY);
                             isAuthenticated.value = true;
                             localStorage.setItem('act_crm_logged_in', 'true');
                             localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
