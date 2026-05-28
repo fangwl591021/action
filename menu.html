@@ -484,6 +484,15 @@
 
         window.StorageModule = (function() {
             let currentSaves = [], currentId = null;
+            const saveTimeValue = (item) => {
+                const isoTime = Date.parse(item?.updatedAt || '');
+                if (Number.isFinite(isoTime)) return isoTime;
+                const dateTime = Date.parse(item?.date || '');
+                if (Number.isFinite(dateTime)) return dateTime;
+                const idTime = Number(String(item?.id || '').replace(/\D/g, ''));
+                return Number.isFinite(idTime) ? idTime : 0;
+            };
+            const sortSaves = (saves) => (Array.isArray(saves) ? saves : []).slice().sort((a, b) => saveTimeValue(b) - saveTimeValue(a));
             const readLocalSaves = () => {
                 try { return JSON.parse(localStorage.getItem('rich_menu_saves') || '[]'); } catch(e) { return []; }
             };
@@ -505,7 +514,7 @@
                     try {
                         const res = await ApiHelper.call('ADMIN_SAVE_RICH_MENU', { id, name, data: json, image: imageToSave });
                         currentId = res?.item?.id || id;
-                        currentSaves = res?.saves || [];
+                        currentSaves = sortSaves(res?.saves || []);
                         cacheLocalSaves(currentSaves);
                         await this.renderList(false);
                         alert('✅ 儲存成功，其他 Admin 重新整理後也可看到。');
@@ -531,7 +540,7 @@
                     if (!item) return;
                     try {
                         const res = await ApiHelper.call('ADMIN_DELETE_RICH_MENU_SAVE', { id: item.id });
-                        currentSaves = res?.saves || [];
+                        currentSaves = sortSaves(res?.saves || []);
                         cacheLocalSaves(currentSaves);
                         await this.renderList(false);
                     } catch(e) {
@@ -556,7 +565,7 @@
                             localStorage.setItem('rich_menu_saves_cloud_migrated', 'true');
                             remoteSaves = await ApiHelper.call('ADMIN_GET_RICH_MENU_SAVES', {});
                         }
-                        currentSaves = Array.isArray(remoteSaves) ? remoteSaves : [];
+                        currentSaves = sortSaves(remoteSaves);
                         cacheLocalSaves(currentSaves);
                     } catch(e) {
                         console.error(e);
