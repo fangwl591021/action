@@ -1396,14 +1396,24 @@ async function buildPointLedgerFromCurrentLogs(env, users = []) {
   return entries;
 }
 
-async function getPointsLedger(env, limit = 2000) {
-  const users = uniqueUsersById(await listUserRecords(env));
-  const userMap = new Map(users.map(user => [user.userId, user]));
+async function getPointsLedger(env, limit = 500, options = {}) {
+  const maxRows = Math.max(1, Math.min(Number(limit) || 500, 2000));
   const stored = await safeGetKV(env, "POINT_LEDGER", []);
-  const legacy = await buildPointLedgerFromCurrentLogs(env, users);
+  const storedList = Array.isArray(stored) ? stored : [];
+  let userMap = new Map();
+  let legacy = [];
+  if (options.includeLegacy === true) {
+    const users = uniqueUsersById(await listUserRecords(env));
+    userMap = new Map(users.map(user => [user.userId, user]));
+    legacy = await buildPointLedgerFromCurrentLogs(env, users);
+  } else {
+    const uids = [...new Set(storedList.slice(0, maxRows).map(entry => String(entry?.uid || "").trim()).filter(Boolean))].slice(0, 200);
+    const users = await Promise.all(uids.map(async uid => await safeGetKV(env, `USER_${uid}`, null)));
+    userMap = new Map(users.filter(user => user && user.userId).map(user => [user.userId, user]));
+  }
   const byKey = new Map();
 
-  for (const entry of [...(Array.isArray(stored) ? stored : []), ...legacy]) {
+  for (const entry of [...storedList, ...legacy]) {
     if (!entry || !entry.uid) continue;
     const amount = Number(entry.amount || 0);
     const points = Math.abs(amount || Number(entry.points || 0));
@@ -1428,7 +1438,7 @@ async function getPointsLedger(env, limit = 2000) {
 
   return Array.from(byKey.values())
     .sort((a, b) => (Number(b.createdTs || 0) - Number(a.createdTs || 0)))
-    .slice(0, Math.max(1, Math.min(Number(limit) || 2000, 5000)));
+    .slice(0, maxRows);
 }
 
 function getWpApiUrl(settings) {
@@ -2487,7 +2497,7 @@ export default {
 
         case "ADMIN_GET_POINTS_LEDGER":
           if (!access.isAdmin) throw new Error("Admin authorization required");
-          result.data = await getPointsLedger(env, payload.limit || 2000);
+          result.data = await getPointsLedger(env, payload.limit || 500, { includeLegacy: payload.includeLegacy === true });
           break;
 
         case "ADMIN_GET_AUDIT_LOGS": {
