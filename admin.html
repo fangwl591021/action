@@ -248,7 +248,7 @@
                         <div class="w-1/3 p-6 border-r border-slate-100 bg-slate-50/20">
                             <h3 class="section-title">核准師資入駐</h3>
                             <div class="space-y-5 mt-5">
-                                <select v-model="approveForm.uid" class="input-field text-[17px]"><option value="">-- 選擇學員 --</option><option v-for="u in users" :key="u.userId" :value="u.userId">{{ String(u.name || '') }}</option></select>
+                                <select v-model="approveForm.uid" class="input-field text-[17px]"><option value="">-- 選擇已勾選講師的學員 --</option><option v-for="u in teacherApprovalCandidates" :key="u.userId" :value="u.userId">{{ displayMemberName(u) }}</option></select>
                                 <div class="flex gap-4"><div class="flex-1"><label class="text-[15px] font-bold text-slate-400">時段租金 (扣點)</label><input type="number" v-model="approveForm.rent" class="input-field mt-1 font-bold text-slate-700"></div><div class="flex-1"><label class="text-[15px] font-bold text-slate-400">平台抽成%</label><input type="number" v-model="approveForm.comm" class="input-field mt-1 font-bold text-slate-700"></div></div>
                                 <button @click="handleApproveTeacher" :disabled="!approveForm.uid || isLoading" class="w-full py-4 bg-[#06C755] text-white rounded-lg text-[17px] font-bold shadow-md transition disabled:opacity-50">啟動導師分表模式</button>
                             </div>
@@ -1467,6 +1467,10 @@
                         const member = users.value.find(u => String(u?.userId || '').trim() === uid);
                         return member?.name || member?.displayName || '';
                     });
+                    const teacherApprovalCandidates = computed(() => users.value.filter(user => {
+                        if (!user || user.isDeleted === true || !user.userId) return false;
+                        return user.isTeacher === true || user.role === 'teacher' || user.crmRole === 'teacher' || String(user.memberTier || '').includes('導師');
+                    }));
                     const adminOnlyViews = new Set(['dashboard', 'orders', 'booking_report', 'points_ledger', 'payment_logs', 'audit_logs', 'paid_broadcast', 'richmenu', 'settings', 'flex_rules']);
                     const systemAllowedViews = new Set(['richmenu']);
                     const systemAllowedActions = new Set(['ADMIN_GET_DATA', 'ADMIN_GET_SLOTS', 'ADMIN_MANAGE_POINTS', 'GET_USER_POINTS', 'UPLOAD_IMAGE', 'DEPLOY_RICH_MENU', 'LOG_ADMIN_EVENT']);
@@ -3370,7 +3374,7 @@
                         memberSearch, showDeletedMembers, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
                         orderSearch, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary, auditLogSearch, filteredAuditLogs,
                         newBroadcastTag, selectedBroadcastTag, broadcastMemberSearch, broadcastForm, memberTierOptions, broadcastAudiencePreview, filteredBroadcastMembers, memberBroadcastTags, memberHasBroadcastTag, broadcastTagCount,
-                        approveForm, wpImportForm, isImageUploading, editingCourse, editingProduct,
+                        approveForm, teacherApprovalCandidates, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,
                         showReservationCourseModal, selectedTeacherForReservation, teacherReservationCourses, isTeacherCourse,

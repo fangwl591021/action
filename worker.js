@@ -2857,7 +2857,10 @@ export default {
           const { teacherUid, rentPrice, commissionRate } = payload;
           let targetUser = await safeGetKV(env, `USER_${teacherUid}`, null);
           if (targetUser) {
+              if (!isTeacherRecord(targetUser)) throw new Error("此學員尚未勾選為專業講師，不能啟動導師分表模式");
               targetUser.memberTier = '專業導師';
+              targetUser.isTeacher = true;
+              targetUser.role = targetUser.role === "admin" ? "admin" : "teacher";
               targetUser.config = { rent: rentPrice, comm: commissionRate };
               await putUserKV(env, ctx, teacherUid, targetUser);
           }
