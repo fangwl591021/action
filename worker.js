@@ -932,7 +932,7 @@ const VERIFIED_USER_ACTIONS = new Set([
 
 function splitCsv(value) {
   return String(value || "")
-    .split(",")
+    .split(/[\s,，;；]+/)
     .map(item => item.trim())
     .filter(Boolean);
 }
@@ -2570,9 +2570,9 @@ export default {
         }
 
         case "ADMIN_UPDATE_SETTINGS":
-          await env.ACTION_DATA.put("SYSTEM_SETTINGS", JSON.stringify(payload));
+          await safePutKV(env, "SYSTEM_SETTINGS", payload);
           if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
-          ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
+          touchLastUpdate(env, ctx, "Settings");
           result.data = { success: true };
           break;
 
