@@ -310,7 +310,7 @@
                             <tbody>
                                 <tr v-for="o in filteredOrders" :key="o.orderId">
                                     <td><div class="font-mono font-bold text-[13px] text-slate-500">{{o.orderId}}</div><div class="text-[11px] text-slate-400 mt-0.5">{{o.createdAt}}</div></td>
-                                    <td class="font-bold text-slate-700">{{ String(getCourseName(o.courseId) || '').split('\n')[0] }}</td>
+                                    <td class="font-bold text-slate-700">{{ String(orderCourseName(o) || '').split('\n')[0] }}</td>
                                     <td class="font-bold">{{o.name}}</td>
                                     <td class="font-bold text-[#06C755] text-lg">{{ adminOrderAmountText(o) }}</td>
                                     <td><span :class="adminOrderStatusClass(o)" class="status-badge">{{ adminOrderStatusText(o) }}</span></td>
@@ -2042,7 +2042,7 @@
                         if (orderSearch.value) {
                             const q = orderSearch.value.toLowerCase().trim();
                             result = result.filter(o => {
-                                const cName = getCourseName(o.courseId) || '';
+                                const cName = orderCourseName(o) || '';
                                 return (
                                     (o.orderId && o.orderId.toLowerCase().includes(q)) ||
                                     (o.name && o.name.toLowerCase().includes(q)) ||
@@ -2702,7 +2702,7 @@
                         isLoading.value = true;
                         try {
                             const nextMember = { ...m };
-                            delete nextMember.isDeleted;
+                            nextMember.isDeleted = false;
                             delete nextMember.deletedAt;
                             delete nextMember.deletedBy;
                             delete nextMember.deleteReason;

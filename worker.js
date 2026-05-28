@@ -2787,6 +2787,12 @@ export default {
                 userId: memberUid,
                 updatedAt: new Date().toISOString(),
               };
+              if (payload.memberData.isDeleted === false) {
+                delete savedMember.isDeleted;
+                delete savedMember.deletedAt;
+                delete savedMember.deletedBy;
+                delete savedMember.deleteReason;
+              }
               if (savedMember.isAdmin === true) {
                 savedMember.crmRole = "admin";
                 savedMember.role = "admin";
