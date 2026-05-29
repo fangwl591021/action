@@ -3387,8 +3387,20 @@ export default {
     const redirectUrl = url.searchParams.get("redirect") || "";
     const rawText = await request.text();
     const formData = new URLSearchParams(rawText);
-    const tradeInfoHex = formData.get('TradeInfo');
+    const tradeInfoHex = formData.get('TradeInfo') || url.searchParams.get('TradeInfo') || "";
+    const receivedStatus = formData.get('Status') || url.searchParams.get('Status') || "";
     if (!tradeInfoHex) {
+      const missingLog = appendPaymentLog(env, {
+        timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
+        orderNo: formData.get('MerchantOrderNo') || url.searchParams.get('MerchantOrderNo') || "",
+        amount: Number(formData.get('Amt') || url.searchParams.get('Amt') || 0),
+        status: receivedStatus || "MISSING_TRADE_INFO",
+        message: "金流回傳未帶 TradeInfo，無法解密更新訂單",
+        tradeNo: formData.get('TradeNo') || url.searchParams.get('TradeNo') || "",
+        source: redirectUrl ? "RETURN_URL" : "NOTIFY_URL",
+      });
+      if (redirectUrl) await missingLog;
+      else ctx.waitUntil(missingLog);
       if (redirectUrl) return Response.redirect(redirectUrl, 302);
       return new Response("OK", { status: 200 });
     }
@@ -3448,7 +3460,18 @@ export default {
                 });
               }
           }
-      } catch (e) { console.error("NewebPay decrypt error", e); }
+      } catch (e) {
+        console.error("NewebPay decrypt error", e);
+        await appendPaymentLog(env, {
+          timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
+          orderNo: "",
+          amount: 0,
+          status: "DECRYPT_ERROR",
+          message: `金流回傳解密失敗：${e?.message || e}`,
+          tradeNo: "",
+          source: redirectUrl ? "RETURN_URL" : "NOTIFY_URL",
+        });
+      }
     })();
 
     if (redirectUrl) {
