@@ -311,17 +311,21 @@
                     </div>
                     <div class="admin-table-container !mt-0 !mx-0 !border-x-0 !border-t-0 shadow-none">
                         <table class="admin-table">
-                            <thead><tr><th>單號 / 日期</th><th>{{ orderTypeFilter === 'PRODUCT' ? '商品' : '課程' }}</th><th>{{ orderTypeFilter === 'PRODUCT' ? '購買人' : '學員' }}</th><th>金額</th><th>狀態</th><th class="text-right">操作</th></tr></thead>
+                            <thead><tr><th>單號 / 日期</th><th>{{ orderTypeFilter === 'PRODUCT' ? '商品' : '課程' }}</th><th>{{ orderTypeFilter === 'PRODUCT' ? '購買人' : '學員' }}</th><th>金額</th><th>付款 / 回報</th><th>狀態</th><th class="text-right">操作</th></tr></thead>
                             <tbody>
                                 <tr v-for="o in filteredOrders" :key="o.orderId">
                                     <td><div class="font-mono font-bold text-[13px] text-slate-500">{{o.orderId}}</div><div class="text-[11px] text-slate-400 mt-0.5">{{o.createdAt}}</div></td>
                                     <td class="font-bold text-slate-700">{{ String(orderCourseName(o) || '').split('\n')[0] }}</td>
                                     <td class="font-bold">{{o.name}}</td>
                                     <td class="font-bold text-[#06C755] text-lg">{{ adminOrderAmountText(o) }}</td>
+                                    <td>
+                                        <div class="text-[12px] font-black" :class="o.remittance ? 'text-orange-600' : 'text-slate-500'">{{ adminOrderPaymentText(o) }}</div>
+                                        <div v-if="o.remittanceReportedAt" class="text-[11px] text-slate-400 mt-0.5">{{ o.remittanceReportedAt }}</div>
+                                    </td>
                                     <td><span :class="adminOrderStatusClass(o)" class="status-badge">{{ adminOrderStatusText(o) }}</span></td>
                                     <td class="text-right"><button @click="openOrderEditModal(o)" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">維護</button></td>
                                 </tr>
-                                <tr v-if="!filteredOrders.length"><td colspan="6" class="text-center py-20 text-slate-300 font-bold">找不到符合條件的訂單</td></tr>
+                                <tr v-if="!filteredOrders.length"><td colspan="7" class="text-center py-20 text-slate-300 font-bold">找不到符合條件的訂單</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1289,6 +1293,12 @@
             <div class="modal-body p-0 animate-fade-in !max-w-[500px] !rounded-xl bg-white">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100"><h3 class="text-[21px] font-black text-slate-800">訂單狀態維護：{{ editingOrder?.orderId }}</h3><button @click="editingOrder = null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-2xl"></i></button></div>
                 <div class="p-8 bg-slate-50 space-y-5 custom-scrollbar max-h-[70vh] overflow-y-auto">
+                    <div class="bg-white rounded-xl border border-slate-200 p-4">
+                        <div class="text-[12px] font-black text-slate-400 mb-2">付款 / 回報資訊</div>
+                        <div class="text-[15px] font-black" :class="editingOrder.remittance ? 'text-orange-600' : 'text-slate-700'">{{ adminOrderPaymentText(editingOrder) }}</div>
+                        <div v-if="editingOrder.remittanceReportedAt" class="text-[12px] text-slate-500 font-bold mt-1">回報時間：{{ editingOrder.remittanceReportedAt }}</div>
+                        <div v-if="editingOrder.newebpayTradeNo" class="text-[12px] text-slate-500 font-mono font-bold mt-1">交易序號：{{ editingOrder.newebpayTradeNo }}</div>
+                    </div>
                     <div><label class="input-label">付款狀態</label><select v-model="editingOrder.status" class="input-field font-bold"><option value="PENDING">⏳ 待付款</option><option value="PAID">✅ 已完款</option><option value="CANCELLED">❌ 已取消</option><option value="TRANSFERRED" disabled>↪ 已轉課</option></select></div>
                     <div><label class="input-label">實付金額</label><input type="number" v-model.number="editingOrder.amount" class="input-field font-black text-[#06C755]"></div>
                     <div><label class="input-label">訂單備註</label><textarea v-model="editingOrder.note" class="input-field h-24 resize-none leading-relaxed text-[15px]"></textarea></div>
@@ -2058,6 +2068,9 @@
                                     (o.orderId && o.orderId.toLowerCase().includes(q)) ||
                                     (o.name && o.name.toLowerCase().includes(q)) ||
                                     (o.phone && o.phone.includes(q)) ||
+                                    (o.remittance && String(o.remittance).includes(q)) ||
+                                    (o.remittanceReportedAt && String(o.remittanceReportedAt).toLowerCase().includes(q)) ||
+                                    (adminOrderPaymentText(o).toLowerCase().includes(q)) ||
                                     (cName.toLowerCase().includes(q))
                                 );
                             });
@@ -2411,6 +2424,15 @@
                             return `$ ${formatPrice(order.teacherCollectAmount || 0)} 給講師${order.pointsUsed ? ` / 折 ${formatPrice(order.pointsUsed)}P` : ''}`;
                         }
                         return `$${formatPrice(order?.amount || 0)}`;
+                    };
+                    const adminOrderPaymentText = (order) => {
+                        if (!order) return '-';
+                        if (order.type === 'BOOKING' || order.paymentMethod === 'TEACHER_DIRECT') return '講師自行收款';
+                        if (order.remittance) return `匯款回報：末五碼 ${order.remittance}`;
+                        if (order.newebpayTradeNo || order.paymentMethod === 'NEWEBPAY') return '線上刷卡';
+                        if (order.paymentMethod === 'REMITTANCE') return '銀行匯款：尚未回報';
+                        if (order.paymentMethod === 'POINTS' || (Number(order.amount || 0) <= 0 && Number(order.pointsUsed || 0) > 0)) return '點數折抵';
+                        return '未指定';
                     };
                     const statusText = (status, order = null) => order ? adminOrderStatusText(order) : ({ PAID: '已完款', PENDING: '待付款', BOOKED: '已預約', COMPLETED: '已完成', CANCELLED: '已取消', TRANSFERRED: '已轉課' }[status] || status || '');
                     const orderCourseName = (order) => order?.type === 'PRODUCT' ? (order.productName || '商城商品') : getCourseName(order.courseId);
@@ -3541,7 +3563,7 @@
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, courseStageOptions, productStatusOptions,
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, auditLogs, broadcastTags, broadcastCampaigns, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
                         currentAccess, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile, activeReferrerName,
-                        adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText, orderCourseName,
+                        adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText, adminOrderPaymentText, orderCourseName,
                         currentViewName, totalRevenue, courseStatsFiltered, courseThumbUrl,
                         isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions, courseDisplayCategory, applyCourseCategoryType,
                         transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
