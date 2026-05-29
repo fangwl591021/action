@@ -1225,6 +1225,13 @@ async function appendPointsLedger(env, entry) {
   await safePutKV(env, "POINT_LEDGER", next);
 }
 
+async function appendPaymentLog(env, entry) {
+  const logs = await safeGetKV(env, "PAYMENT_LOGS", [], { preferWasabi: false });
+  const list = Array.isArray(logs) ? logs : [];
+  const next = [entry, ...list].slice(0, 1000);
+  await safePutKV(env, "PAYMENT_LOGS", next);
+}
+
 function shouldAuditAction(action, access) {
   if (!action) return false;
   if (action === "CHECK_USER") return !!(access?.isAdmin || access?.canCrmLogin || access?.isTeacher);
@@ -2470,6 +2477,7 @@ export default {
               courses: adminCourses,
               orders: adminOrders,
               products: await safeGetProducts(env),
+              paymentLogs: await safeGetKV(env, "PAYMENT_LOGS", [], { preferWasabi: false }),
               teachers: localUsers.filter(u => u.memberTier && ['專業導師', '導師'].some(t => u.memberTier.includes(t))),
               settings: adminSettings
           };
@@ -3251,13 +3259,17 @@ export default {
     if (!mId || !hKey || !hIv) throw new Error("藍新金流設定未完成 (請先至後台填寫)");
 
     const workerUrl = String(payload.workerUrl || "").replace(/\/$/, "");
+    const originalReturnUrl = String(payload.returnUrl || "");
     const notifyUrl = payload.notifyUrl || (workerUrl ? `${workerUrl}?action=NEWEBPAY_NOTIFY` : "");
+    const returnNotifyUrl = workerUrl
+      ? `${workerUrl}?action=NEWEBPAY_NOTIFY${originalReturnUrl ? `&redirect=${encodeURIComponent(originalReturnUrl)}` : ""}`
+      : originalReturnUrl;
     const merchantOrderNo = String(payload.orderId || `ACT${Date.now()}`).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 30);
     const tradeInfo = {
       MerchantID: mId, RespondType: 'JSON', TimeStamp: Math.floor(Date.now() / 1000).toString(),
       Version: '2.0', MerchantOrderNo: merchantOrderNo, Amt: payload.amount,
       ItemDesc: String(payload.courseName || "人生進化課程").substring(0, 45),
-      ReturnURL: payload.returnUrl || "", NotifyURL: notifyUrl, Email: payload.email || "", LoginType: 0
+      ReturnURL: returnNotifyUrl, NotifyURL: notifyUrl, ClientBackURL: originalReturnUrl, Email: payload.email || "", LoginType: 0
     };
     const tradeInfoStr = Object.keys(tradeInfo).map(k => `${k}=${encodeURIComponent(tradeInfo[k])}`).join('&');
     const encrypted = await aesEncrypt(tradeInfoStr, hKey, hIv);
@@ -3371,12 +3383,17 @@ export default {
   },
 
   async handleNewebpayNotify(request, env, ctx) {
+    const url = new URL(request.url);
+    const redirectUrl = url.searchParams.get("redirect") || "";
     const rawText = await request.text();
     const formData = new URLSearchParams(rawText);
     const tradeInfoHex = formData.get('TradeInfo');
-    if (!tradeInfoHex) return new Response("OK", { status: 200 });
+    if (!tradeInfoHex) {
+      if (redirectUrl) return Response.redirect(redirectUrl, 302);
+      return new Response("OK", { status: 200 });
+    }
 
-    ctx.waitUntil((async () => {
+    const task = (async () => {
       try {
           const sets = await safeGetKV(env, "SYSTEM_SETTINGS", {});
           if (sets.newebpay_hash_key && sets.newebpay_hash_iv) {
@@ -3384,6 +3401,8 @@ export default {
               const data = JSON.parse(decrypted);
               const result = data?.Result || {};
               const orderId = String(result.MerchantOrderNo || "").trim();
+              let orderUpdated = false;
+              let message = "";
 
               if (data && data.Status === 'SUCCESS' && orderId) {
                   const orders = await safeGetKV(env, "ORDERS", []);
@@ -3401,8 +3420,23 @@ export default {
                       updatedAt: new Date().toISOString(),
                     };
                     await putOrdersKV(env, ctx, orders);
+                    orderUpdated = true;
+                  } else {
+                    message = "order_not_found";
                   }
+              } else {
+                message = data?.Status || "invalid_payment_status";
               }
+
+              await appendPaymentLog(env, {
+                timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
+                orderNo: orderId || result.MerchantOrderNo || "",
+                amount: Number(result.Amt || 0),
+                status: data?.Status || "",
+                message: orderUpdated ? "訂單已更新為已付款" : (message || "未更新訂單"),
+                tradeNo: result.TradeNo || "",
+                source: redirectUrl ? "RETURN_URL" : "NOTIFY_URL",
+              });
 
               if (data && data.Status === 'SUCCESS' && env.TG_BOT_TOKEN) {
                   this.sendTgMessage(env, `💳 <b>藍新刷卡成功</b>\n單號：${orderId || result.MerchantOrderNo || "未知"}\n金額：$${result.Amt || ""}\n狀態：已完款`);
@@ -3415,8 +3449,13 @@ export default {
               }
           }
       } catch (e) { console.error("NewebPay decrypt error", e); }
-    })());
+    })();
 
+    if (redirectUrl) {
+      await task;
+      return Response.redirect(redirectUrl, 302);
+    }
+    ctx.waitUntil(task);
     return new Response("OK", { status: 200 });
   }
 };
