@@ -2204,16 +2204,17 @@ export default {
             if ((Number(currentPointData.balance) || 0) < coursePointsUsed) throw new Error("點數不足，無法完成折抵");
             await this.updatePoints(env, ctx, userId, -coursePointsUsed, `課程折抵：${payload.courseId}`);
           }
+          const coursePayableAmount = Math.max(0, Number(String(payload.amount ?? 0).replace(/[^0-9.-]/g, "")) || 0);
           const newOrder = {
               orderId: `ORD${Date.now()}`,
               userId: userId,
               name: userInfo.name || "未填寫",
               phone: userInfo.phone || "未填寫",
               courseId: payload.courseId,
-              amount: payload.amount,
+              amount: coursePayableAmount,
               pointsUsed: coursePointsUsed,
-              paymentMethod: Number(payload.amount || 0) <= 0 ? "POINTS" : (payload.paymentMethod || "NEWEBPAY"),
-              status: Number(payload.amount || 0) <= 0 ? 'PAID' : 'PENDING',
+              paymentMethod: coursePayableAmount <= 0 ? "POINTS" : (payload.paymentMethod || "NEWEBPAY"),
+              status: coursePayableAmount <= 0 ? 'PAID' : 'PENDING',
               createdAt: new Date().toLocaleString()
           };
           currentOrders.unshift(newOrder); 
@@ -2231,11 +2232,11 @@ export default {
              let cList = await safeGetCourses(env);
              let targetCourse = cList.find(c => c.id === payload.courseId);
              let courseName = targetCourse ? targetCourse.name.split('\n')[0] : payload.courseId;
-             const finalAmount = Number(payload.amount || 0);
+             const finalAmount = Number(newOrder.amount || 0);
              const statusLabel = finalAmount <= 0
                ? (Number(newOrder.pointsUsed || 0) > 0 ? "點數全額折抵" : "免費")
                : "待付款";
-             await this.sendTgMessage(env, `💰 <b>新課程報名單</b>\n學員：${newOrder.name}\n電話：${newOrder.phone}\n課程：${courseName}\n金額：$${payload.amount}\n狀態：${statusLabel}`);
+             await this.sendTgMessage(env, `💰 <b>新課程報名單</b>\n學員：${newOrder.name}\n電話：${newOrder.phone}\n課程：${courseName}\n金額：$${newOrder.amount}\n狀態：${statusLabel}`);
           })());
           
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString())); 
