@@ -1199,6 +1199,28 @@ function parsePointLogTime(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function parseTaipeiWallTime(value, endOfDay = false) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  let normalized = raw.replace(/\//g, "-").replace(" ", "T");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    normalized += endOfDay ? "T23:59:59" : "T00:00:00";
+  }
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(normalized)) normalized += "+08:00";
+  const ts = Date.parse(normalized);
+  return Number.isFinite(ts) ? ts : null;
+}
+
+function courseIsPublicNow(course, nowTs = Date.now()) {
+  if (!course || course.isDeleted === true) return false;
+  if (course.isPublished === false) return false;
+  const startTs = parseTaipeiWallTime(course.publishStartDate, false);
+  const endTs = parseTaipeiWallTime(course.publishEndDate, true);
+  if (startTs !== null && nowTs < startTs) return false;
+  if (endTs !== null && nowTs > endTs) return false;
+  return true;
+}
+
 function taipeiDateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Taipei",
@@ -1825,7 +1847,7 @@ export default {
           
         case "GET_COURSES":
           const courses = await safeGetCourses(env);
-          result.data = courses.filter(c => c && c.isDeleted !== true && c.isPublished !== false);
+          result.data = courses.filter(c => courseIsPublicNow(c));
           break;
 
         case "GET_PRODUCTS":
@@ -2188,7 +2210,13 @@ export default {
           let userInfo = await safeGetKV(env, `USER_${userId}`, {});
           const coursePointsUsed = Math.max(0, Number(payload.pointsUsed || 0));
           const courseListForOrder = await safeGetCourses(env);
-          const courseForOrder = courseListForOrder.find(c => c && (c.id === payload.courseId || c.name === payload.courseId)) || {};
+          const courseForOrder = courseListForOrder.find(c => c && (c.id === payload.courseId || c.name === payload.courseId));
+          if (!courseForOrder) throw new Error("課程不存在，無法報名");
+          if (!courseIsPublicNow(courseForOrder)) throw new Error("此課程尚未公開或已下架，無法報名");
+          if (courseForOrder.isRegistrationOpen === false) throw new Error("此課程目前暫停報名");
+          const capacity = Number(courseForOrder.capacity || 0);
+          const enrolled = Number(courseForOrder.enrolled || 0);
+          if (capacity > 0 && enrolled >= capacity) throw new Error("此課程名額已滿");
           const coursePrice = Number(courseForOrder.price || 0);
           const isReservationOrderCourse = String(courseForOrder.type || "").includes("預約");
           const customMaxCoursePoints = isReservationOrderCourse ? Math.max(0, Number(courseForOrder.maxPoints || 0)) : 0;
@@ -2204,7 +2232,7 @@ export default {
             if ((Number(currentPointData.balance) || 0) < coursePointsUsed) throw new Error("點數不足，無法完成折抵");
             await this.updatePoints(env, ctx, userId, -coursePointsUsed, `課程折抵：${payload.courseId}`);
           }
-          const coursePayableAmount = Math.max(0, Number(String(payload.amount ?? 0).replace(/[^0-9.-]/g, "")) || 0);
+          const coursePayableAmount = Math.max(0, coursePrice - coursePointsUsed);
           const newOrder = {
               orderId: `ORD${Date.now()}`,
               userId: userId,
