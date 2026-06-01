@@ -39,6 +39,65 @@ async function aesDecrypt(hex, key, iv) {
   return utils.bytesToString(new Uint8Array(decrypted));
 }
 
+async function aesDecryptBytes(bytes, key, iv) {
+  const cryptoKey = await crypto.subtle.importKey('raw', utils.prepareKey(String(key || "").trim(), 32), { name: 'AES-CBC' }, false, ['decrypt']);
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: utils.prepareIV(String(iv || "").trim()) }, cryptoKey, bytes);
+  return utils.bytesToString(new Uint8Array(decrypted));
+}
+
+function base64ToBytes(value) {
+  const binary = atob(String(value || ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function getNewebpayTradeInfoCandidates(value) {
+  const raw = String(value || "").trim();
+  const decoded = (() => {
+    try { return decodeURIComponent(raw).trim(); } catch (_) { return raw; }
+  })();
+  return Array.from(new Set([
+    raw,
+    decoded,
+    raw.replace(/\s+/g, "+"),
+    decoded.replace(/\s+/g, "+"),
+    raw.replace(/[^0-9a-f]/gi, ""),
+    decoded.replace(/[^0-9a-f]/gi, ""),
+  ].filter(Boolean)));
+}
+
+async function decryptNewebpayTradeInfo(value, key, iv) {
+  const candidates = getNewebpayTradeInfoCandidates(value);
+  const errors = [];
+  for (const candidate of candidates) {
+    try {
+      if (/^[0-9a-f]+$/i.test(candidate) && candidate.length % 2 === 0) {
+        return { text: await aesDecryptBytes(utils.hexToBytes(candidate), key, iv), format: "hex" };
+      }
+      if (/^[A-Za-z0-9+/=]+$/.test(candidate)) {
+        return { text: await aesDecryptBytes(base64ToBytes(candidate), key, iv), format: "base64" };
+      }
+    } catch (e) {
+      errors.push(e?.message || String(e));
+    }
+  }
+  throw new Error(`NewebPay TradeInfo decrypt failed (${errors.slice(0, 2).join(" | ") || "no valid candidate"})`);
+}
+
+function parseNewebpayPayload(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch (_) {
+    const params = new URLSearchParams(raw);
+    const obj = {};
+    for (const [key, value] of params.entries()) obj[key] = value;
+    return obj;
+  }
+}
+
 async function sha256(text) {
   const hash = await crypto.subtle.digest('SHA-256', utils.stringToBytes(text));
   return utils.bytesToHex(new Uint8Array(hash));
@@ -1256,6 +1315,47 @@ function courseIsPublicNow(course, nowTs = Date.now()) {
   if (startTs !== null && nowTs < startTs) return false;
   if (endTs !== null && nowTs > endTs) return false;
   return true;
+}
+
+function getMembershipTierFromPaidCourse(course, order) {
+  if (order?.type === "PRODUCT" || order?.type === "BOOKING") return "";
+  const courseId = String(order?.courseId || course?.id || "").trim();
+  const title = getCourseTitle(course) || String(order?.courseName || "");
+  const text = `${courseId} ${title} ${course?.type || ""}`;
+  if (courseId === "C_AWAKE_MEM" || (/成為/.test(text) && /喚醒/.test(text))) return "喚醒階段會員";
+  if (courseId === "C_TRANS_MEM" || (/成為/.test(text) && /蛻變/.test(text))) return "蛻變階段會員";
+  if (courseId === "C_FULL_MEM" || (/成為/.test(text) && /完整/.test(text))) return "完整階段會員";
+  return "";
+}
+
+function memberTierRank(tier) {
+  const text = String(tier || "");
+  if (text.includes("完整")) return 3;
+  if (text.includes("蛻變")) return 2;
+  if (text.includes("喚醒")) return 1;
+  return 0;
+}
+
+async function applyPaidOrderMemberUpgrade(env, ctx, order, courses = null) {
+  const nextTier = getMembershipTierFromPaidCourse(
+    (courses || []).find(c => c && (String(c.id) === String(order?.courseId) || String(c.name) === String(order?.courseId))),
+    order
+  );
+  if (!nextTier || !order?.userId) return { upgraded: false, tier: "" };
+  const userKey = `USER_${order.userId}`;
+  const user = await safeGetKV(env, userKey, {});
+  if (!user || typeof user !== "object") return { upgraded: false, tier: nextTier, reason: "user_not_found" };
+  const currentTier = String(user.memberTier || "一般會員");
+  if (memberTierRank(currentTier) >= memberTierRank(nextTier)) return { upgraded: false, tier: nextTier, reason: "already_same_or_higher" };
+  const nextUser = {
+    ...user,
+    memberTier: nextTier,
+    membershipUpgradedAt: new Date().toISOString(),
+    membershipSourceOrderId: order.orderId || "",
+    updatedAt: new Date().toISOString(),
+  };
+  await putUserKV(env, ctx, order.userId, nextUser);
+  return { upgraded: true, tier: nextTier };
 }
 
 function taipeiDateKey(date = new Date()) {
@@ -2753,6 +2853,10 @@ export default {
               if (attendanceChangedToAttended && !nextOrder.teacherCommissionDeductedAt) {
                 Object.assign(nextOrder, await deductTeacherCommissionForOrder(env, ctx, nextOrder, userId, access.userData?.name || userProfile?.displayName || "Admin", this.updatePoints.bind(this)));
               }
+              if (String(beforeOrder.status || "").toUpperCase() !== "PAID" && String(nextOrder.status || "").toUpperCase() === "PAID") {
+                const paidCoursesForUpgrade = await safeGetCourses(env);
+                await applyPaidOrderMemberUpgrade(env, ctx, nextOrder, paidCoursesForUpgrade);
+              }
               editOrders[oIdx] = nextOrder;
               await putOrdersKV(env, ctx, editOrders);
           }
@@ -3479,14 +3583,16 @@ export default {
       try {
           const sets = await safeGetKV(env, "SYSTEM_SETTINGS", {});
           if (sets.newebpay_hash_key && sets.newebpay_hash_iv) {
-              const decrypted = await aesDecrypt(tradeInfoHex, sets.newebpay_hash_key, sets.newebpay_hash_iv);
-              const data = JSON.parse(decrypted);
-              const result = data?.Result || {};
+              const decryptedResult = await decryptNewebpayTradeInfo(tradeInfoHex, sets.newebpay_hash_key, sets.newebpay_hash_iv);
+              const data = parseNewebpayPayload(decryptedResult.text);
+              const result = data?.Result && typeof data.Result === "object" ? data.Result : data;
               const orderId = String(result.MerchantOrderNo || "").trim();
               let orderUpdated = false;
+              let membershipUpgrade = { upgraded: false, tier: "" };
               let message = "";
 
-              if (data && data.Status === 'SUCCESS' && orderId) {
+              const paymentStatus = String(data?.Status || result?.Status || "").toUpperCase();
+              if (data && paymentStatus === 'SUCCESS' && orderId) {
                   const orders = await safeGetKV(env, "ORDERS", []);
                   const idx = orders.findIndex(o => o && o.orderId === orderId);
                   if (idx > -1) {
@@ -3502,25 +3608,27 @@ export default {
                       updatedAt: new Date().toISOString(),
                     };
                     await putOrdersKV(env, ctx, orders);
+                    const courses = await safeGetCourses(env);
+                    membershipUpgrade = await applyPaidOrderMemberUpgrade(env, ctx, orders[idx], courses);
                     orderUpdated = true;
                   } else {
                     message = "order_not_found";
                   }
               } else {
-                message = data?.Status || "invalid_payment_status";
+                message = paymentStatus || "invalid_payment_status";
               }
 
               await appendPaymentLog(env, {
                 timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
                 orderNo: orderId || result.MerchantOrderNo || "",
                 amount: Number(result.Amt || 0),
-                status: data?.Status || "",
-                message: orderUpdated ? "訂單已更新為已付款" : (message || "未更新訂單"),
+                status: data?.Status || result?.Status || "",
+                message: orderUpdated ? `order_paid${membershipUpgrade.upgraded ? `; member_upgraded:${membershipUpgrade.tier}` : ""}; decrypt:${decryptedResult.format}` : (message || "payment_not_applied"),
                 tradeNo: result.TradeNo || "",
                 source: redirectUrl ? "RETURN_URL" : "NOTIFY_URL",
               });
 
-              if (data && data.Status === 'SUCCESS' && env.TG_BOT_TOKEN) {
+              if (data && paymentStatus === 'SUCCESS' && env.TG_BOT_TOKEN) {
                   this.sendTgMessage(env, `💳 <b>藍新刷卡成功</b>\n單號：${orderId || result.MerchantOrderNo || "未知"}\n金額：$${result.Amt || ""}\n狀態：已完款`);
               }
 
@@ -3537,7 +3645,7 @@ export default {
           orderNo: "",
           amount: 0,
           status: "DECRYPT_ERROR",
-          message: `金流回傳解密失敗：${e?.message || e}`,
+          message: `decrypt_failed:${e?.message || e}; tradeInfoLength:${tradeInfoHex.length}; status:${receivedStatus || "-"}`,
           tradeNo: "",
           source: redirectUrl ? "RETURN_URL" : "NOTIFY_URL",
         });
