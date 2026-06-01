@@ -994,9 +994,29 @@
                             <select v-model="sysSettings.enable_einvoice" class="input-field !w-32 !py-2 !text-[14px] font-black bg-white text-blue-700 border-blue-200"><option value="true">🟢 啟用</option><option value="false">🔴 停用</option></select>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-4 mb-8">
-                            <div><label class="input-label">商店代號 (MerchantID)</label><input type="text" v-model="sysSettings.newebpay_merchant_id" class="input-field font-mono"></div>
-                            <div class="grid grid-cols-2 gap-4"><div><label class="input-label">HashKey</label><input type="text" v-model="sysSettings.newebpay_hash_key" class="input-field font-mono text-sm"></div><div><label class="input-label">HashIV</label><input type="text" v-model="sysSettings.newebpay_hash_iv" class="input-field font-mono text-sm"></div></div>
+                        <div class="space-y-5 mb-8">
+                            <div>
+                                <label class="input-label">金流模式</label>
+                                <select v-model="sysSettings.newebpay_mode" class="input-field font-bold text-blue-700">
+                                    <option value="test">測試模式</option>
+                                    <option value="production">正式模式</option>
+                                </select>
+                                <p class="text-[12px] text-slate-500 font-bold mt-2">測試模式會送到 ccore.newebpay.com；正式模式會送到 core.newebpay.com。</p>
+                            </div>
+                            <div class="p-4 rounded-xl border border-amber-200 bg-amber-50">
+                                <div class="font-black text-amber-800 mb-3">測試金流資料</div>
+                                <div class="grid grid-cols-1 gap-4">
+                                    <div><label class="input-label">測試 MerchantID</label><input type="text" v-model="sysSettings.newebpay_test_merchant_id" class="input-field font-mono"></div>
+                                    <div class="grid grid-cols-2 gap-4"><div><label class="input-label">測試 HashKey</label><input type="text" v-model="sysSettings.newebpay_test_hash_key" class="input-field font-mono text-sm"></div><div><label class="input-label">測試 HashIV</label><input type="text" v-model="sysSettings.newebpay_test_hash_iv" class="input-field font-mono text-sm"></div></div>
+                                </div>
+                            </div>
+                            <div class="p-4 rounded-xl border border-blue-200 bg-blue-50">
+                                <div class="font-black text-blue-800 mb-3">正式金流資料</div>
+                                <div class="grid grid-cols-1 gap-4">
+                                    <div><label class="input-label">正式 MerchantID</label><input type="text" v-model="sysSettings.newebpay_prod_merchant_id" class="input-field font-mono"></div>
+                                    <div class="grid grid-cols-2 gap-4"><div><label class="input-label">正式 HashKey</label><input type="text" v-model="sysSettings.newebpay_prod_hash_key" class="input-field font-mono text-sm"></div><div><label class="input-label">正式 HashIV</label><input type="text" v-model="sysSettings.newebpay_prod_hash_iv" class="input-field font-mono text-sm"></div></div>
+                                </div>
+                            </div>
                         </div>
                         <button @click="saveSettings" :disabled="isLoading" class="btn-green-main w-full py-4 text-[16px] mt-4"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i> 確認儲存並同步雲端參數</button>
                     </div>
@@ -1453,6 +1473,16 @@
                     const wasabiDailyCheckResult = ref(null);
                     const normalizeSystemSettings = (settings = {}) => ({
                         ...settings,
+                        newebpay_mode: ['test', 'production'].includes(String(settings.newebpay_mode || '')) ? String(settings.newebpay_mode) : 'production',
+                        newebpay_prod_merchant_id: settings.newebpay_prod_merchant_id || settings.newebpay_merchant_id || '',
+                        newebpay_prod_hash_key: settings.newebpay_prod_hash_key || settings.newebpay_hash_key || '',
+                        newebpay_prod_hash_iv: settings.newebpay_prod_hash_iv || settings.newebpay_hash_iv || '',
+                        newebpay_merchant_id: settings.newebpay_prod_merchant_id || settings.newebpay_merchant_id || '',
+                        newebpay_hash_key: settings.newebpay_prod_hash_key || settings.newebpay_hash_key || '',
+                        newebpay_hash_iv: settings.newebpay_prod_hash_iv || settings.newebpay_hash_iv || '',
+                        newebpay_test_merchant_id: settings.newebpay_test_merchant_id || '',
+                        newebpay_test_hash_key: settings.newebpay_test_hash_key || '',
+                        newebpay_test_hash_iv: settings.newebpay_test_hash_iv || '',
                         low_risk_wasabi_read_enabled: String(settings.low_risk_wasabi_read_enabled || 'false'),
                         high_risk_wasabi_read_enabled: String(settings.high_risk_wasabi_read_enabled || 'false')
                     });

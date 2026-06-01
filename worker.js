@@ -98,6 +98,38 @@ function parseNewebpayPayload(text) {
   }
 }
 
+function getNewebpayConfigs(settings = {}, preferredMerchantId = "") {
+  const mode = String(settings.newebpay_mode || settings.newebpayMode || "production").toLowerCase();
+  const configs = [
+    {
+      mode: "test",
+      merchantId: String(settings.newebpay_test_merchant_id || "").trim(),
+      hashKey: String(settings.newebpay_test_hash_key || "").trim(),
+      hashIv: String(settings.newebpay_test_hash_iv || "").trim(),
+      gatewayUrl: "https://ccore.newebpay.com/MPG/mpg_gateway",
+    },
+    {
+      mode: "production",
+      merchantId: String(settings.newebpay_prod_merchant_id || settings.newebpay_merchant_id || "").trim(),
+      hashKey: String(settings.newebpay_prod_hash_key || settings.newebpay_hash_key || "").trim(),
+      hashIv: String(settings.newebpay_prod_hash_iv || settings.newebpay_hash_iv || "").trim(),
+      gatewayUrl: "https://core.newebpay.com/MPG/mpg_gateway",
+    },
+  ].filter(cfg => cfg.merchantId && cfg.hashKey && cfg.hashIv);
+  const preferred = String(preferredMerchantId || "").trim();
+  if (preferred) {
+    configs.sort((a, b) => Number(b.merchantId === preferred) - Number(a.merchantId === preferred));
+  } else {
+    configs.sort((a, b) => Number(b.mode === mode) - Number(a.mode === mode));
+  }
+  return configs;
+}
+
+function getActiveNewebpayConfig(settings = {}) {
+  const configs = getNewebpayConfigs(settings);
+  return configs[0] || null;
+}
+
 async function sha256(text) {
   const hash = await crypto.subtle.digest('SHA-256', utils.stringToBytes(text));
   return utils.bytesToHex(new Uint8Array(hash));
@@ -3438,9 +3470,10 @@ export default {
 
   async preparePayment(payload, env) {
     const sets = await safeGetKV(env, "SYSTEM_SETTINGS", {});
-    const mId = sets.newebpay_merchant_id;
-    const hKey = sets.newebpay_hash_key;
-    const hIv = sets.newebpay_hash_iv;
+    const payConfig = getActiveNewebpayConfig(sets);
+    const mId = payConfig?.merchantId;
+    const hKey = payConfig?.hashKey;
+    const hIv = payConfig?.hashIv;
 
     if (!mId || !hKey || !hIv) throw new Error("藍新金流設定未完成 (請先至後台填寫)");
 
@@ -3475,6 +3508,7 @@ export default {
       orderId: merchantOrderNo,
       amount: Number(payload.amount || 0),
       merchantId: mId,
+      mode: payConfig.mode,
       keyFingerprint,
       ivFingerprint,
       tradeInfoLength: encrypted.length,
@@ -3489,13 +3523,13 @@ export default {
       orderNo: merchantOrderNo,
       amount: Number(payload.amount || 0),
       status: "PAYMENT_PREPARED",
-      message: `merchant:${mId}; key:${keyFingerprint}; iv:${ivFingerprint}; tradeInfoLength:${encrypted.length}; selfTest:${selfTest}`,
+      message: `mode:${payConfig.mode}; merchant:${mId}; key:${keyFingerprint}; iv:${ivFingerprint}; tradeInfoLength:${encrypted.length}; selfTest:${selfTest}`,
       tradeNo: "",
       source: "PREPARE_PAYMENT",
     });
     
     return {
-      GatewayUrl: mId.includes('TEST') || mId.includes('DUMMY') ? "https://ccore.newebpay.com/MPG/mpg_gateway" : "https://core.newebpay.com/MPG/mpg_gateway",
+      GatewayUrl: payConfig.gatewayUrl,
       MerchantID: mId, TradeInfo: encrypted, TradeSha: sha, Version: '2.0'
     };
   },
@@ -3630,8 +3664,21 @@ export default {
     const task = (async () => {
       try {
           const sets = await safeGetKV(env, "SYSTEM_SETTINGS", {});
-          if (sets.newebpay_hash_key && sets.newebpay_hash_iv) {
-              const decryptedResult = await decryptNewebpayTradeInfo(tradeInfoHex, sets.newebpay_hash_key, sets.newebpay_hash_iv);
+          const callbackConfigs = getNewebpayConfigs(sets, callbackMerchantId);
+          if (callbackConfigs.length) {
+              let decryptedResult = null;
+              let usedPaymentConfig = null;
+              const decryptErrors = [];
+              for (const cfg of callbackConfigs) {
+                try {
+                  decryptedResult = await decryptNewebpayTradeInfo(tradeInfoHex, cfg.hashKey, cfg.hashIv);
+                  usedPaymentConfig = cfg;
+                  break;
+                } catch (cfgErr) {
+                  decryptErrors.push(`${cfg.mode}:${cfgErr?.message || cfgErr}`);
+                }
+              }
+              if (!decryptedResult) throw new Error(`all_configs_failed:${decryptErrors.slice(0, 2).join(" | ")}`);
               const data = parseNewebpayPayload(decryptedResult.text);
               const result = data?.Result && typeof data.Result === "object" ? data.Result : data;
               const orderId = String(result.MerchantOrderNo || "").trim();
@@ -3671,7 +3718,7 @@ export default {
                 orderNo: orderId || result.MerchantOrderNo || "",
                 amount: Number(result.Amt || 0),
                 status: data?.Status || result?.Status || "",
-                message: orderUpdated ? `order_paid${membershipUpgrade.upgraded ? `; member_upgraded:${membershipUpgrade.tier}` : ""}; decrypt:${decryptedResult.format}` : (message || "payment_not_applied"),
+                message: orderUpdated ? `order_paid${membershipUpgrade.upgraded ? `; member_upgraded:${membershipUpgrade.tier}` : ""}; mode:${usedPaymentConfig?.mode || "-"}; decrypt:${decryptedResult.format}` : (message || "payment_not_applied"),
                 tradeNo: result.TradeNo || "",
                 source: redirectUrl ? "RETURN_URL" : "NOTIFY_URL",
               });
@@ -3689,14 +3736,15 @@ export default {
       } catch (e) {
         console.error("NewebPay decrypt error", e);
         const currentSettings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
-        const keyFingerprint = await shortDigest(currentSettings.newebpay_hash_key || "");
-        const ivFingerprint = await shortDigest(currentSettings.newebpay_hash_iv || "");
+        const activeErrorConfig = getActiveNewebpayConfig(currentSettings) || {};
+        const keyFingerprint = await shortDigest(activeErrorConfig.hashKey || currentSettings.newebpay_hash_key || "");
+        const ivFingerprint = await shortDigest(activeErrorConfig.hashIv || currentSettings.newebpay_hash_iv || "");
         await appendPaymentLog(env, {
           timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
           orderNo: "",
           amount: 0,
           status: "DECRYPT_ERROR",
-          message: `decrypt_failed:${e?.message || e}; merchant:${callbackMerchantId || "-"}; configuredMerchant:${currentSettings.newebpay_merchant_id || "-"}; key:${keyFingerprint || "-"}; iv:${ivFingerprint || "-"}; version:${callbackVersion || "-"}; tradeSha:${callbackTradeSha ? callbackTradeSha.slice(0, 16) : "-"}; tradeInfoLength:${tradeInfoHex.length}; tradeInfoKind:${/^[0-9a-f]+$/i.test(tradeInfoHex) ? "hex" : "non_hex"}; status:${receivedStatus || "-"}`,
+          message: `decrypt_failed:${e?.message || e}; merchant:${callbackMerchantId || "-"}; configuredMerchant:${activeErrorConfig.merchantId || currentSettings.newebpay_merchant_id || "-"}; mode:${activeErrorConfig.mode || currentSettings.newebpay_mode || "-"}; key:${keyFingerprint || "-"}; iv:${ivFingerprint || "-"}; version:${callbackVersion || "-"}; tradeSha:${callbackTradeSha ? callbackTradeSha.slice(0, 16) : "-"}; tradeInfoLength:${tradeInfoHex.length}; tradeInfoKind:${/^[0-9a-f]+$/i.test(tradeInfoHex) ? "hex" : "non_hex"}; status:${receivedStatus || "-"}`,
           tradeNo: "",
           source: redirectUrl ? "RETURN_URL" : "NOTIFY_URL",
         });
