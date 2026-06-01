@@ -103,6 +103,17 @@ async function sha256(text) {
   return utils.bytesToHex(new Uint8Array(hash));
 }
 
+async function shortDigest(value, length = 12) {
+  if (!value) return "";
+  return (await sha256(String(value))).slice(0, length);
+}
+
+async function rememberPaymentIntent(env, intent) {
+  const intents = await safeGetKV(env, "PAYMENT_INTENTS", [], { preferWasabi: false });
+  const next = [intent, ...(Array.isArray(intents) ? intents : [])].slice(0, 100);
+  await safePutKV(env, "PAYMENT_INTENTS", next);
+}
+
 // 🛡️ 核心升級：無敵防彈讀取器，就算資料損毀也絕對不會造成系統當機
 function getHighRiskLiveKey(key) {
   const rawKey = String(key || "");
@@ -2648,6 +2659,7 @@ export default {
               orders: adminOrders,
               products: await safeGetProducts(env),
               paymentLogs: await safeGetKV(env, "PAYMENT_LOGS", [], { preferWasabi: false }),
+              paymentIntents: await safeGetKV(env, "PAYMENT_INTENTS", [], { preferWasabi: false }),
               teachers: localUsers.filter(u => u.memberTier && ['專業導師', '導師'].some(t => u.memberTier.includes(t))),
               settings: adminSettings
           };
@@ -3448,6 +3460,39 @@ export default {
     const tradeInfoStr = Object.keys(tradeInfo).map(k => `${k}=${encodeURIComponent(tradeInfo[k])}`).join('&');
     const encrypted = await aesEncrypt(tradeInfoStr, hKey, hIv);
     const sha = await sha256(`HashKey=${hKey}&${encrypted}&HashIV=${hIv}`);
+    let selfTest = "PASS";
+    try {
+      const check = await decryptNewebpayTradeInfo(encrypted, hKey, hIv);
+      const parsed = parseNewebpayPayload(check.text);
+      if (String(parsed.MerchantOrderNo || "") !== merchantOrderNo) selfTest = "ORDER_MISMATCH";
+    } catch (e) {
+      selfTest = `FAIL:${e?.message || e}`;
+    }
+    const keyFingerprint = await shortDigest(hKey);
+    const ivFingerprint = await shortDigest(hIv);
+    await rememberPaymentIntent(env, {
+      createdAt: new Date().toISOString(),
+      orderId: merchantOrderNo,
+      amount: Number(payload.amount || 0),
+      merchantId: mId,
+      keyFingerprint,
+      ivFingerprint,
+      tradeInfoLength: encrypted.length,
+      tradeInfoFormat: "hex",
+      tradeShaPrefix: sha.slice(0, 16),
+      notifyUrl,
+      returnNotifyUrl,
+      selfTest,
+    });
+    await appendPaymentLog(env, {
+      timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
+      orderNo: merchantOrderNo,
+      amount: Number(payload.amount || 0),
+      status: "PAYMENT_PREPARED",
+      message: `merchant:${mId}; key:${keyFingerprint}; iv:${ivFingerprint}; tradeInfoLength:${encrypted.length}; selfTest:${selfTest}`,
+      tradeNo: "",
+      source: "PREPARE_PAYMENT",
+    });
     
     return {
       GatewayUrl: mId.includes('TEST') || mId.includes('DUMMY') ? "https://ccore.newebpay.com/MPG/mpg_gateway" : "https://core.newebpay.com/MPG/mpg_gateway",
@@ -3563,6 +3608,9 @@ export default {
     const formData = new URLSearchParams(rawText);
     const tradeInfoHex = formData.get('TradeInfo') || url.searchParams.get('TradeInfo') || "";
     const receivedStatus = formData.get('Status') || url.searchParams.get('Status') || "";
+    const callbackMerchantId = formData.get("MerchantID") || url.searchParams.get("MerchantID") || "";
+    const callbackTradeSha = formData.get("TradeSha") || url.searchParams.get("TradeSha") || "";
+    const callbackVersion = formData.get("Version") || url.searchParams.get("Version") || "";
     if (!tradeInfoHex) {
       const missingLog = appendPaymentLog(env, {
         timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
@@ -3640,12 +3688,15 @@ export default {
           }
       } catch (e) {
         console.error("NewebPay decrypt error", e);
+        const currentSettings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
+        const keyFingerprint = await shortDigest(currentSettings.newebpay_hash_key || "");
+        const ivFingerprint = await shortDigest(currentSettings.newebpay_hash_iv || "");
         await appendPaymentLog(env, {
           timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
           orderNo: "",
           amount: 0,
           status: "DECRYPT_ERROR",
-          message: `decrypt_failed:${e?.message || e}; tradeInfoLength:${tradeInfoHex.length}; status:${receivedStatus || "-"}`,
+          message: `decrypt_failed:${e?.message || e}; merchant:${callbackMerchantId || "-"}; configuredMerchant:${currentSettings.newebpay_merchant_id || "-"}; key:${keyFingerprint || "-"}; iv:${ivFingerprint || "-"}; version:${callbackVersion || "-"}; tradeSha:${callbackTradeSha ? callbackTradeSha.slice(0, 16) : "-"}; tradeInfoLength:${tradeInfoHex.length}; tradeInfoKind:${/^[0-9a-f]+$/i.test(tradeInfoHex) ? "hex" : "non_hex"}; status:${receivedStatus || "-"}`,
           tradeNo: "",
           source: redirectUrl ? "RETURN_URL" : "NOTIFY_URL",
         });
