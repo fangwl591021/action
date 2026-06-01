@@ -1149,8 +1149,45 @@ async function importWpProductsFromActionEndpoint(siteUrl, postIds, authHeader) 
   }));
 }
 
-async function listUserRecords(env) {
+async function listR2UserRecords(env) {
+  const bucket = getDataBucket(env);
   const users = [];
+  if (!bucket) return users;
+  try {
+    let cursor = undefined;
+    do {
+      const listed = await bucket.list({ prefix: "live/high-risk/users/", cursor });
+      const objects = Array.isArray(listed?.objects) ? listed.objects : [];
+      const chunkSize = 20;
+      for (let i = 0; i < objects.length; i += chunkSize) {
+        const chunk = objects.slice(i, i + chunkSize);
+        const chunkUsers = await Promise.all(chunk.map(async object => {
+          if (!object?.key || !object.key.endsWith(".json")) return null;
+          const obj = await bucket.get(object.key);
+          if (!obj) return null;
+          const user = JSON.parse(await obj.text());
+          if (!user || !user.userId || user.userId === "GUEST") return null;
+          const kvKey = `USER_${user.userId}`;
+          try {
+            const existing = await env.ACTION_DATA.get(kvKey);
+            if (!existing) await env.ACTION_DATA.put(kvKey, JSON.stringify(user));
+          } catch (e) {
+            console.error(`[UserList] Failed to backfill KV user index: ${kvKey}`, e);
+          }
+          return user;
+        }));
+        users.push(...chunkUsers.filter(Boolean));
+      }
+      cursor = listed?.truncated ? listed.cursor : undefined;
+    } while (cursor);
+  } catch (e) {
+    console.error("[UserList] Failed to load R2 user records", e);
+  }
+  return users;
+}
+
+async function listUserRecords(env) {
+  const users = await listR2UserRecords(env);
   try {
     let listComplete = false;
     let cursor = null;
