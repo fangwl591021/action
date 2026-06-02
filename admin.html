@@ -228,7 +228,7 @@
                                     </td>
                                     <td><span class="tag-blue mb-1.5">{{ courseDisplayCategory(c) }}</span><div class="text-sm text-slate-500 font-bold mt-1">{{ String(c.type || '').includes('預約') ? (c.location || '預約制') : ((c.startDate ? c.startDate : '') + ' ~ ' + (c.endDate ? c.endDate : '')) }}</div></td>
                                     <td><div class="font-black text-[#06C755] text-lg">$ {{ formatPrice(c.price) }}</div><div v-if="c.priceText" class="text-xs font-bold text-slate-500 mt-1">{{ c.priceText }}</div></td>
-                                    <td><div class="text-slate-600 font-bold mb-1">{{ String(c.type || '').includes('預約') ? '預約制' : ((c.enrolled || 0) + ' / ' + (c.capacity || 0) + ' 人') }}</div><button @click="openEnrollments(c)" class="btn-outline !py-1 !px-3 text-xs bg-white">報名名單</button><div class="mt-2"><span class="status-badge" :class="c.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'">{{ c.isPublished ? '🟢 已上架' : '🔴 已下架' }}</span></div></td>
+                                    <td><div class="text-slate-600 font-bold mb-1">{{ String(c.type || '').includes('預約') ? '預約制' : (courseEnrollmentCount(c) + ' / ' + (c.capacity || 0) + ' 人') }}</div><button @click="openEnrollments(c)" class="btn-outline !py-1 !px-3 text-xs bg-white">報名名單</button><div class="mt-2"><span class="status-badge" :class="c.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'">{{ c.isPublished ? '🟢 已上架' : '🔴 已下架' }}</span></div></td>
                                     <td class="text-right"><div class="flex justify-end items-center gap-4"><i class="fas fa-calendar-plus text-slate-300 hover:text-orange-500 cursor-pointer text-lg transition" title="同步至日曆" @click="syncToCalendar(c)"></i><i class="far fa-copy text-slate-300 hover:text-slate-800 cursor-pointer text-lg transition" title="複製課程" @click="copyCourse(c)"></i><button @click="openEditModal(c)" class="text-[14px] text-blue-600 font-bold hover:underline text-sm ml-2">進階設定</button></div></td>
                                 </tr>
                             </tbody>
@@ -2017,9 +2017,24 @@
                         }, 0).toLocaleString();
                     });
 
+                    const activeCourseOrders = (course) => {
+                        if (!course) return [];
+                        const courseId = String(course.id || '');
+                        const courseName = String(course.name || '');
+                        return orders.value.filter(o => {
+                            if (!o || o.type === 'PRODUCT') return false;
+                            const status = String(o.status || '').toUpperCase();
+                            if (['CANCELLED', 'TRANSFERRED'].includes(status)) return false;
+                            const orderCourseId = String(o.courseId || '');
+                            return orderCourseId === courseId || orderCourseId === courseName;
+                        });
+                    };
+
+                    const courseEnrollmentCount = (course) => activeCourseOrders(course).length;
+
                     const courseStatsFiltered = computed(() => {
                         return courses.value.filter(c => c).map(c => {
-                            const courseOrders = orders.value.filter(o => o && (o.courseId === c.id || o.courseId === c.name) && !['CANCELLED', 'TRANSFERRED'].includes(String(o.status || '')));
+                            const courseOrders = activeCourseOrders(c);
                             const totalOrders = courseOrders.length;
                             let paidAmount = 0, pendingAmount = 0;
                             courseOrders.forEach(o => {
@@ -3104,7 +3119,7 @@
 
                     const openEnrollments = (c) => {
                         activeEnrollmentCourse.value = JSON.parse(JSON.stringify(c));
-                        courseOrders.value = orders.value.filter(o => o && (o.courseId === c.id || o.courseId === c.name) && !['CANCELLED', 'TRANSFERRED'].includes(String(o.status || '')));
+                        courseOrders.value = activeCourseOrders(c);
                     };
                     
                     const openCourseOrdersModal = (course) => {
@@ -3595,7 +3610,7 @@
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, auditLogs, broadcastTags, broadcastCampaigns, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
                         currentAccess, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile, activeReferrerName,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText, adminOrderPaymentText, orderCourseName,
-                        currentViewName, totalRevenue, courseStatsFiltered, courseThumbUrl,
+                        currentViewName, totalRevenue, courseStatsFiltered, courseThumbUrl, courseEnrollmentCount,
                         isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions, courseDisplayCategory, applyCourseCategoryType,
                         transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
                         memberSearch, showDeletedMembers, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,

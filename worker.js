@@ -2411,7 +2411,13 @@ export default {
           if (!courseIsPublicNow(courseForOrder)) throw new Error("此課程尚未公開或已下架，無法報名");
           if (courseForOrder.isRegistrationOpen === false) throw new Error("此課程目前暫停報名");
           const capacity = Number(courseForOrder.capacity || 0);
-          const enrolled = Number(courseForOrder.enrolled || 0);
+          const enrolled = currentOrders.filter(o => {
+            if (!o || o.type === "PRODUCT") return false;
+            const status = String(o.status || "").toUpperCase();
+            if (["CANCELLED", "TRANSFERRED"].includes(status)) return false;
+            const orderCourseId = String(o.courseId || "");
+            return orderCourseId === String(courseForOrder.id || "") || orderCourseId === String(courseForOrder.name || "");
+          }).length;
           if (capacity > 0 && enrolled >= capacity) throw new Error("此課程名額已滿");
           const coursePrice = Number(courseForOrder.price || 0);
           const isReservationOrderCourse = String(courseForOrder.type || "").includes("預約");
