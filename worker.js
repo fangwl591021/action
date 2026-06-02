@@ -3729,6 +3729,7 @@ export default {
               const result = data?.Result && typeof data.Result === "object" ? data.Result : data;
               const orderId = String(result.MerchantOrderNo || "").trim();
               let orderUpdated = false;
+              let paidOrderForNotify = null;
               let membershipUpgrade = { upgraded: false, tier: "" };
               let message = "";
 
@@ -3748,6 +3749,7 @@ export default {
                       paymentAmount: Number(result.Amt || orders[idx].amount || 0),
                       updatedAt: new Date().toISOString(),
                     };
+                    paidOrderForNotify = orders[idx];
                     await putOrdersKV(env, ctx, orders);
                     const courses = await safeGetCourses(env);
                     membershipUpgrade = await applyPaidOrderMemberUpgrade(env, ctx, orders[idx], courses);
@@ -3770,7 +3772,22 @@ export default {
               });
 
               if (data && paymentStatus === 'SUCCESS' && env.TG_BOT_TOKEN) {
-                  this.sendTgMessage(env, `💳 <b>藍新刷卡成功</b>\n單號：${orderId || result.MerchantOrderNo || "未知"}\n金額：$${result.Amt || ""}\n狀態：已完款`);
+                  const notifyOrder = paidOrderForNotify || {};
+                  const itemName = notifyOrder.type === "PRODUCT"
+                    ? (notifyOrder.productName || "商城商品")
+                    : (notifyOrder.courseName || notifyOrder.courseId || "課程");
+                  const modeLabel = usedPaymentConfig?.mode === "test" ? "測試" : "正式";
+                  this.sendTgMessage(env, [
+                    "💳 <b>藍新刷卡成功</b>",
+                    `學員：${notifyOrder.name || "-"}`,
+                    `電話：${notifyOrder.phone || "-"}`,
+                    `項目：${itemName}`,
+                    `單號：${orderId || result.MerchantOrderNo || "未知"}`,
+                    `金額：$${result.Amt || notifyOrder.amount || ""}`,
+                    `交易序號：${result.TradeNo || "-"}`,
+                    `金流模式：${modeLabel}`,
+                    `狀態：已完款`
+                  ].join("\n"));
               }
 
               if (env.GAS_URL) {
