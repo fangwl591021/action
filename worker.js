@@ -3662,6 +3662,35 @@ export default {
     const callbackMerchantId = formData.get("MerchantID") || url.searchParams.get("MerchantID") || "";
     const callbackTradeSha = formData.get("TradeSha") || url.searchParams.get("TradeSha") || "";
     const callbackVersion = formData.get("Version") || url.searchParams.get("Version") || "";
+    const plainOrderNo = String(formData.get("MerchantOrderNo") || url.searchParams.get("MerchantOrderNo") || "").trim();
+    const plainAmount = Number(formData.get("Amt") || url.searchParams.get("Amt") || 0);
+    const plainTradeNo = formData.get("TradeNo") || url.searchParams.get("TradeNo") || "";
+    if (receivedStatus && receivedStatus !== "SUCCESS" && plainOrderNo) {
+      const orders = await safeGetKV(env, "ORDERS", []);
+      const idx = orders.findIndex(o => o && String(o.orderId) === plainOrderNo);
+      if (idx > -1) {
+        orders[idx] = {
+          ...orders[idx],
+          paymentStatus: "FAILED",
+          newebpayStatus: receivedStatus,
+          lastPaymentError: receivedStatus,
+          lastPaymentFailedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await putOrdersKV(env, ctx, orders);
+      }
+      await appendPaymentLog(env, {
+        timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
+        orderNo: plainOrderNo,
+        amount: plainAmount,
+        status: receivedStatus,
+        message: `payment_failed:${receivedStatus}; merchant:${callbackMerchantId || "-"}; version:${callbackVersion || "-"}; tradeSha:${callbackTradeSha ? callbackTradeSha.slice(0, 16) : "-"}`,
+        tradeNo: plainTradeNo,
+        source: redirectUrl ? "RETURN_URL" : "NOTIFY_URL",
+      });
+      if (redirectUrl) return Response.redirect(redirectUrl, 302);
+      return new Response("OK", { status: 200 });
+    }
     if (!tradeInfoHex) {
       const missingLog = appendPaymentLog(env, {
         timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
