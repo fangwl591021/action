@@ -1057,6 +1057,21 @@ function getCourseTitle(course) {
   return String(course?.name || course?.title || "").split("\n")[0].trim();
 }
 
+function attachOrderCourseNames(orders = [], courses = []) {
+  const courseMap = new Map();
+  for (const course of Array.isArray(courses) ? courses : []) {
+    if (!course) continue;
+    const title = getCourseTitle(course);
+    if (course.id) courseMap.set(String(course.id), title || String(course.name || course.title || course.id));
+    if (course.name) courseMap.set(String(course.name), title || String(course.name));
+  }
+  return (Array.isArray(orders) ? orders : []).map(order => {
+    if (!order || order.type === "PRODUCT") return order;
+    const title = order.courseName || courseMap.get(String(order.courseId || "")) || courseMap.get(String(order.name || ""));
+    return title ? { ...order, courseName: title } : order;
+  });
+}
+
 function courseBelongsToTeacher(course, teacherData, teacherUid) {
   if (!course) return false;
   const courseTeacherUid = String(course.teacherUid || course.teacher_user_id || "").trim();
@@ -2096,7 +2111,8 @@ export default {
           
         case "GET_USER_ORDERS":
           const allOrd = await safeGetKV(env, "ORDERS", []);
-          result.data = allOrd.filter(o => o.userId === userId);
+          const userOrderCourses = await safeGetCourses(env);
+          result.data = attachOrderCourseNames(allOrd.filter(o => o.userId === userId), userOrderCourses);
           break;
 
         case "TEACHER_GET_MY_COURSES": {
@@ -2419,6 +2435,7 @@ export default {
               name: userInfo.name || "未填寫",
               phone: userInfo.phone || "未填寫",
               courseId: payload.courseId,
+              courseName: getCourseTitle(courseForOrder) || String(courseForOrder.name || payload.courseId || ""),
               amount: coursePayableAmount,
               pointsUsed: coursePointsUsed,
               paymentMethod: coursePayableAmount <= 0 ? "POINTS" : (payload.paymentMethod || "NEWEBPAY"),

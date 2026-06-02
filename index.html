@@ -200,7 +200,7 @@
                     <div class="pt-2 pb-20 px-4">
                         <div v-for="o in myOrders" :key="o.orderId" class="native-card relative overflow-hidden shadow-sm border border-slate-100">
                             <div class="flex justify-between items-start mb-3"><div class="text-[12px] font-mono font-bold text-[#AAAAAA]">{{ o.orderId }}</div><div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="orderStatusClass(o)">{{ orderStatusText(o) }}</div></div>
-                            <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ o.type === 'PRODUCT' ? `${o.productName}${Number(o.quantity || 1) > 1 ? ' x ' + Number(o.quantity || 1) : ''}` : String(getCourseName(o.courseId) || '').split('\n')[0] }}</div>
+                            <div class="native-title" :class="{'text-slate-400 line-through': o.status==='CANCELLED'}">{{ orderDisplayName(o) }}</div>
                             <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-slate-300': o.status==='CANCELLED'}">{{ orderAmountText(o) }}</div>
                             <div v-if="o.type === 'BOOKING'" class="text-[12px] text-slate-500 font-bold bg-indigo-50 p-3 rounded-lg mb-3 border border-indigo-100 leading-relaxed">
                                 <i class="fas fa-user-tie mr-1.5 text-indigo-500"></i>此預約由講師現場或私下收費，系統不代收款項。
@@ -514,7 +514,7 @@
                 <div class="flex-1 overflow-y-auto p-4 space-y-3 pb-32">
                     <div v-for="o in teacherBookings" :key="o.orderId || o.createdAt" class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
                         <div class="flex justify-between gap-3 mb-3">
-                            <div class="min-w-0"><div class="font-black text-slate-800 text-[15px] leading-snug truncate">{{ getCourseName(o.courseId) }}</div><div class="text-[11px] text-slate-400 font-mono mt-1">{{ o.orderId }}</div></div>
+                            <div class="min-w-0"><div class="font-black text-slate-800 text-[15px] leading-snug truncate">{{ orderDisplayName(o) }}</div><div class="text-[11px] text-slate-400 font-mono mt-1">{{ o.orderId }}</div></div>
                             <span class="shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg" :class="teacherBookingStatusClass(o)">{{ teacherBookingStatusText(o) }}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-2 text-[12px] text-slate-500 font-bold">
@@ -553,7 +553,7 @@
                         </div>
                     </div>
                     <div v-for="o in teacherReport.orders" :key="o.orderId || o.createdAt" class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-                        <div class="flex justify-between gap-3 mb-2"><div class="font-black text-slate-800 text-[15px] leading-snug">{{ getCourseName(o.courseId) }}</div><span class="shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg" :class="orderStatusClass(o)">{{ orderStatusText(o) }}</span></div>
+                        <div class="flex justify-between gap-3 mb-2"><div class="font-black text-slate-800 text-[15px] leading-snug">{{ orderDisplayName(o) }}</div><span class="shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg" :class="orderStatusClass(o)">{{ orderStatusText(o) }}</span></div>
                         <div class="grid grid-cols-2 gap-2 text-[12px] text-slate-500 font-bold">
                             <div>學員：{{ o.name || '-' }}</div>
                             <div>金額：$ {{ formatPrice(o.amount || 0) }}</div>
@@ -922,6 +922,15 @@
                     const getCourseName = (id) => { 
                         const c = courses.value.find(x => x && (x.id === id || x.name === id)); 
                         return c ? c.name : id; 
+                    };
+                    const orderDisplayName = (order) => {
+                        if (!order) return '';
+                        if (order.type === 'PRODUCT') {
+                            const qty = Number(order.quantity || 1);
+                            return `${order.productName || '商城商品'}${qty > 1 ? ' x ' + qty : ''}`;
+                        }
+                        const name = order.courseName || getCourseName(order.courseId || order.name || '');
+                        return String(name || order.courseId || '').split('\n')[0];
                     };
                     const isPaidOrder = (order) => {
                         if (!order) return false;
@@ -1796,7 +1805,7 @@
                         isLoading.value = true;
                         try {
                             const amt = Number(String(o.amount).replace(/[^0-9.]/g, "")) || 0;
-                            const courseName = o.type === 'PRODUCT' ? (o.productName || '商城商品') : (getCourseName(o.courseId) || '').split('\n')[0];
+                            const courseName = orderDisplayName(o);
                             await initiatePayment(o.orderId, amt, courseName);
                         } catch (e) { console.error(e); isLoading.value = false; }
                     };
@@ -1875,7 +1884,7 @@
                         openProductDetail: (p) => { selectedProduct.value = p; productQuantity.value = 1; productPointsToUse.value = 0; paymentMethod.value = 'NEWEBPAY'; view.value = 'productDetail'; window.scrollTo(0,0); },
                         openRemittanceModal: (o) => { currentOrderForRemit.value = o; remittanceInput.value = ''; showRemittanceModal.value = true; }, 
                         submitRemittance, navigateTo, dailyCheckin, submitRegistration, 
-                        formatPrice, getCourseName, courseThumbUrl,
+                        formatPrice, getCourseName, orderDisplayName, courseThumbUrl,
                         categories: predefinedCategories, activeCategory, displayCourseCategory,
                         filteredCourses: computed(() => {
                             const nowTs = Date.now();
