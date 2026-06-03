@@ -177,7 +177,7 @@
                         <table class="admin-table">
                             <thead><tr><th>姓名</th><th>聯絡電話</th><th>目前等級</th><th>註冊日期</th><th class="text-right">操作</th></tr></thead>
                             <tbody>
-                                <tr v-for="u in filteredMembers" :key="u.userId">
+                                <tr v-for="u in pagedMembers" :key="u.userId">
                                     <td>
                                         <div class="flex items-center gap-3">
                                             <img v-if="memberAvatarUrl(u)" :src="memberAvatarUrl(u)" class="w-10 h-10 rounded-full object-cover border border-slate-200 bg-slate-100" referrerpolicy="no-referrer">
@@ -196,6 +196,14 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="px-6 py-3 bg-white border-t border-slate-100 flex items-center justify-between text-sm font-bold text-slate-500">
+                        <div>共 {{ filteredMembers.length }} 筆，每頁 15 筆</div>
+                        <div class="flex items-center gap-2">
+                            <button @click="memberPage = Math.max(1, memberPage - 1)" :disabled="memberPage <= 1" class="btn-outline !py-1.5 !px-3 bg-white disabled:opacity-40">上一頁</button>
+                            <span class="px-2">{{ memberPage }} / {{ memberTotalPages }}</span>
+                            <button @click="memberPage = Math.min(memberTotalPages, memberPage + 1)" :disabled="memberPage >= memberTotalPages" class="btn-outline !py-1.5 !px-3 bg-white disabled:opacity-40">下一頁</button>
+                        </div>
                     </div>
                 </div>
 
@@ -410,7 +418,7 @@
                         <table class="admin-table">
                             <thead><tr><th>時間</th><th>會員</th><th>LINE UID</th><th>類型</th><th class="text-right">點數異動</th><th class="text-right">異動後餘額</th><th>原因</th><th class="text-right">反查</th></tr></thead>
                             <tbody>
-                                <tr v-for="log in filteredPointsLedger" :key="log.uid + '_' + log.logId + '_' + log.createdTs">
+                                <tr v-for="log in pagedPointsLedger" :key="log.uid + '_' + log.logId + '_' + log.createdTs">
                                     <td><div class="font-mono text-[12px] text-slate-500">{{ log.createdAt || '-' }}</div><div v-if="log.source === 'legacy_user_log'" class="text-[11px] text-slate-400 mt-1">舊紀錄回填</div></td>
                                     <td><div class="font-bold text-slate-800">{{ ledgerMemberName(log) }}</div><div class="text-xs text-slate-400">{{ log.phone || log.memberTier || '' }}</div><div v-if="log.operatorName || log.operatorUid" class="text-[11px] text-slate-400 mt-1">操作者：{{ log.operatorName || log.operatorUid }}</div></td>
                                     <td class="font-mono text-[12px] text-slate-500 max-w-[360px] break-all">{{ log.uid }}</td>
@@ -426,6 +434,14 @@
                                 <tr v-if="!filteredPointsLedger.length"><td colspan="8" class="text-center py-20 text-slate-300 font-bold">目前沒有點數流水資料</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="px-6 py-3 bg-white border-t border-slate-100 flex items-center justify-between text-sm font-bold text-slate-500">
+                        <div>共 {{ filteredPointsLedger.length }} 筆，每頁 15 筆</div>
+                        <div class="flex items-center gap-2">
+                            <button @click="pointsLedgerPage = Math.max(1, pointsLedgerPage - 1)" :disabled="pointsLedgerPage <= 1" class="btn-outline !py-1.5 !px-3 bg-white disabled:opacity-40">上一頁</button>
+                            <span class="px-2">{{ pointsLedgerPage }} / {{ pointsLedgerTotalPages }}</span>
+                            <button @click="pointsLedgerPage = Math.min(pointsLedgerTotalPages, pointsLedgerPage + 1)" :disabled="pointsLedgerPage >= pointsLedgerTotalPages" class="btn-outline !py-1.5 !px-3 bg-white disabled:opacity-40">下一頁</button>
+                        </div>
                     </div>
                 </div>
 
@@ -1432,7 +1448,7 @@
                 return;
             }
 
-            const { createApp, ref, computed, onMounted } = Vue;
+            const { createApp, ref, computed, onMounted, watch } = Vue;
             const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
             const CACHE_VERSION = 'v257';
             const CACHE_KEY = `act_admin_cache_${CACHE_VERSION}`;
@@ -1488,6 +1504,8 @@
                     });
                     
                     const memberSearch = ref('');
+                    const memberPage = ref(1);
+                    const memberPageSize = 15;
                     const showDeletedMembers = ref(false);
                     const courseSearchQuery = ref('');
                     const courseTypeFilter = ref('course');
@@ -1496,6 +1514,8 @@
                     const productSearchQuery = ref('');
                     const orderSearch = ref('');
                     const pointsLedgerSearch = ref('');
+                    const pointsLedgerPage = ref(1);
+                    const pointsLedgerPageSize = 15;
                     const auditLogSearch = ref('');
                     const bookingReportSearch = ref('');
                     const bookingReportStatus = ref('ALL');
@@ -2049,8 +2069,24 @@
                     const filteredMembers = computed(() => {
                         const visibleUsers = users.value.filter(u => u && (showDeletedMembers.value ? u.isDeleted === true : u.isDeleted !== true));
                         if (!memberSearch.value) return visibleUsers;
-                        const q = memberSearch.value.toLowerCase();
-                        return visibleUsers.filter(u => ((u.name && u.name.toLowerCase().includes(q)) || (u.phone && u.phone.includes(q)) || (u.userId && u.userId.toLowerCase().includes(q))));
+                        const tokens = memberSearch.value.toLowerCase().split(/\s+/).filter(Boolean);
+                        return visibleUsers.filter(u => {
+                            const roleText = memberRoleTags(u).map(tag => tag.label).join(' ');
+                            const haystack = [
+                                displayMemberName(u), u.name, u.lineName, u.displayName, u.phone, u.userId,
+                                u.memberTier, u.tier, u.level, u.gender, u.birthday, u.birthDate,
+                                u.address, u.industry, u.job, u.referrerUid, u.referrerName,
+                                u.adminNote, roleText
+                            ].map(v => String(v || '').toLowerCase()).join(' ');
+                            return tokens.every(token => haystack.includes(token));
+                        });
+                    });
+
+                    const memberTotalPages = computed(() => Math.max(1, Math.ceil(filteredMembers.value.length / memberPageSize)));
+                    const pagedMembers = computed(() => {
+                        const page = Math.min(memberPage.value, memberTotalPages.value);
+                        const start = (page - 1) * memberPageSize;
+                        return filteredMembers.value.slice(start, start + memberPageSize);
                     });
 
                     const filteredAdminCourses = computed(() => {
@@ -2201,8 +2237,9 @@
                     const loadPointsLedger = async () => {
                         isLoading.value = true;
                         try {
-                            const data = await callApi('ADMIN_GET_POINTS_LEDGER', { limit: 50 });
+                            const data = await callApi('ADMIN_GET_POINTS_LEDGER', { limit: pointsLedgerPageSize });
                             pointsLedger.value = Array.isArray(data) ? data : [];
+                            pointsLedgerPage.value = 1;
                         } finally {
                             isLoading.value = false;
                         }
@@ -2388,6 +2425,13 @@
                             ));
                         }
                         return result;
+                    });
+
+                    const pointsLedgerTotalPages = computed(() => Math.max(1, Math.ceil(filteredPointsLedger.value.length / pointsLedgerPageSize)));
+                    const pagedPointsLedger = computed(() => {
+                        const page = Math.min(pointsLedgerPage.value, pointsLedgerTotalPages.value);
+                        const start = (page - 1) * pointsLedgerPageSize;
+                        return filteredPointsLedger.value.slice(start, start + pointsLedgerPageSize);
                     });
 
                     const filteredAuditLogs = computed(() => {
@@ -3599,6 +3643,11 @@
 
                     const currentCourseOrders = computed(() => selectedCourseOrders.value);
 
+                    watch([memberSearch, showDeletedMembers], () => { memberPage.value = 1; });
+                    watch(pointsLedgerSearch, () => { pointsLedgerPage.value = 1; });
+                    watch(memberTotalPages, (total) => { if (memberPage.value > total) memberPage.value = total; });
+                    watch(pointsLedgerTotalPages, (total) => { if (pointsLedgerPage.value > total) pointsLedgerPage.value = total; });
+
                     onMounted(async () => {
                         loadCache();
                         await autoLineLogin();
@@ -3613,8 +3662,8 @@
                         currentViewName, totalRevenue, courseStatsFiltered, courseThumbUrl, courseEnrollmentCount,
                         isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions, courseDisplayCategory, applyCourseCategoryType,
                         transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
-                        memberSearch, showDeletedMembers, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
-                        orderSearch, orderTypeFilter, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, filteredPointsLedger, pointsLedgerSummary, auditLogSearch, filteredAuditLogs,
+                        memberSearch, memberPage, memberTotalPages, pagedMembers, showDeletedMembers, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
+                        orderSearch, orderTypeFilter, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, pointsLedgerPage, pointsLedgerTotalPages, pagedPointsLedger, filteredPointsLedger, pointsLedgerSummary, auditLogSearch, filteredAuditLogs,
                         newBroadcastTag, selectedBroadcastTag, broadcastMemberSearch, broadcastForm, memberTierOptions, broadcastAudiencePreview, filteredBroadcastMembers, memberBroadcastTags, memberHasBroadcastTag, broadcastTagCount,
                         approveForm, teacherApprovalCandidates, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
