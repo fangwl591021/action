@@ -1778,6 +1778,10 @@
                             }
                             if (finalLiffId) {
                                 await liff.init({ liffId: finalLiffId });
+                                if (!liff.isLoggedIn()) {
+                                    liff.login({ redirectUri: window.location.href });
+                                    return;
+                                }
                                 if (liff.isLoggedIn()) {
                                     if (!ensureLineToken()) return;
                                     liffProfile.value = await liff.getProfile();
