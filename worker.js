@@ -2811,11 +2811,36 @@ export default {
           if (!text) throw new Error("請輸入推播內容");
           const testMode = payload?.testMode === true;
           const allUsers = uniqueUsersById(await listUserRecords(env));
-          const adminUidSet = new Set([...splitCsv(env.ADMIN_UIDS), ...splitCsv(access.settings?.admin_uids)]);
+          const adminUidSet = new Set([
+            ...splitCsv(env.ADMIN_UIDS),
+            ...splitCsv(access.settings?.admin_uids),
+            ...splitCsv(env.CRM_LOGIN_UIDS),
+            ...splitCsv(access.settings?.crm_login_uids),
+          ]);
+          const audience = payload?.audience || {};
+          const audienceUsers = String(audience.memberTier || "").trim() === "Admin"
+            ? (() => {
+                const userMap = new Map(allUsers
+                  .filter(user => user?.userId)
+                  .map(user => [String(user.userId || "").trim(), user]));
+                adminUidSet.forEach(uid => {
+                  if (!userMap.has(uid)) {
+                    userMap.set(uid, {
+                      userId: uid,
+                      name: `總部管理 ${uid.slice(-6)}`,
+                      memberTier: "Admin",
+                      isAdmin: true,
+                      isSyntheticAdmin: true,
+                    });
+                  }
+                });
+                return uniqueUsersById([...userMap.values()]);
+              })()
+            : allUsers;
           if (testMode && (!userId || userId === "GUEST")) throw new Error("測試訊息需要使用 LINE 登入後台，才能取得測試收件 UID");
           const recipients = testMode
             ? [{ userId, name: access.userData?.name || access.lineProfile?.name || "測試管理員" }]
-            : selectBroadcastAudience(allUsers, payload?.audience || {}, { adminUidSet });
+            : selectBroadcastAudience(audienceUsers, audience, { adminUidSet });
           if (!recipients.length) throw new Error("目前受眾為 0，沒有可推播會員");
           const messageText = testMode ? `【測試訊息】\n${text}` : text;
           const sendResult = await sendLineMulticast(env, recipients, [{ type: "text", text: messageText }]);

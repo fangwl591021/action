@@ -2460,14 +2460,34 @@
                             ...users.value.map(u => String(u?.memberTier || '').trim()).filter(Boolean)
                         ])
                     ]);
+                    const adminBroadcastUidSet = computed(() => new Set([
+                        ...splitUidList(sysSettings.value.admin_uids),
+                        ...splitUidList(sysSettings.value.crm_login_uids)
+                    ]));
+                    const adminBroadcastMembers = computed(() => {
+                        const userMap = new Map(users.value
+                            .filter(u => u && u.userId)
+                            .map(u => [String(u.userId || '').trim(), u]));
+                        adminBroadcastUidSet.value.forEach(uid => {
+                            if (!userMap.has(uid)) {
+                                userMap.set(uid, {
+                                    userId: uid,
+                                    name: `總部管理 ${uid.slice(-6)}`,
+                                    memberTier: 'Admin',
+                                    isAdmin: true,
+                                    isSyntheticAdmin: true
+                                });
+                            }
+                        });
+                        return [...userMap.values()].filter(member => adminBroadcastUidSet.value.has(String(member.userId || '').trim()));
+                    });
                     const broadcastTagCount = (tagName) => users.value.filter(u => memberHasBroadcastTag(u, tagName)).length;
                     const broadcastAudienceMatches = (member) => {
                         if (!member || member.isDeleted === true || !member.userId) return false;
                         const audience = broadcastForm.value.audience || {};
                         if (audience.tag && !memberHasBroadcastTag(member, audience.tag)) return false;
                         if (audience.memberTier === 'Admin') {
-                            const adminUidSet = new Set(splitUidList(sysSettings.value.admin_uids));
-                            const isAdminMember = member.isAdmin === true || member.role === 'admin' || member.crmRole === 'admin' || adminUidSet.has(String(member.userId || '').trim());
+                            const isAdminMember = member.isAdmin === true || member.role === 'admin' || member.crmRole === 'admin' || adminBroadcastUidSet.value.has(String(member.userId || '').trim());
                             if (!isAdminMember) return false;
                         } else if (audience.memberTier && String(member.memberTier || '') !== audience.memberTier) return false;
                         if (audience.gender && String(member.gender || '') !== audience.gender) return false;
@@ -2478,7 +2498,11 @@
                         }
                         return true;
                     };
-                    const broadcastAudiencePreview = computed(() => users.value.filter(broadcastAudienceMatches));
+                    const broadcastAudiencePreview = computed(() => {
+                        const audience = broadcastForm.value.audience || {};
+                        const source = audience.memberTier === 'Admin' ? adminBroadcastMembers.value : users.value;
+                        return source.filter(broadcastAudienceMatches);
+                    });
                     const filteredBroadcastMembers = computed(() => {
                         const q = broadcastMemberSearch.value.trim().toLowerCase();
                         let result = users.value.filter(u => u && u.isDeleted !== true && u.userId);
