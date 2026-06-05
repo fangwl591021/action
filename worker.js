@@ -1365,6 +1365,26 @@ function parseTaipeiWallTime(value, endOfDay = false) {
   return Number.isFinite(ts) ? ts : null;
 }
 
+function formatTaipeiDateTime(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("zh-TW", {
+    timeZone: "Asia/Taipei",
+    hour12: false,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(date).reduce((acc, part) => {
+    if (part.type !== "literal") acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${parts.year}/${parts.month}/${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
 function courseIsPublicNow(course, nowTs = Date.now()) {
   if (!course || course.isDeleted === true) return false;
   if (course.isPublished === false) return false;
@@ -2261,7 +2281,7 @@ export default {
         }
 
         case "REGISTER_USER":
-          payload.createdAt = new Date().toLocaleString(); 
+          payload.createdAt = formatTaipeiDateTime(); 
           payload.memberTier = payload.memberTier || "一般會員"; 
           await putUserKV(env, ctx, userId, payload);
           
@@ -2385,7 +2405,7 @@ export default {
             paymentMethod: "TEACHER_DIRECT",
             note: customer.note || "",
             status: "BOOKED",
-            createdAt: new Date().toLocaleString(),
+            createdAt: formatTaipeiDateTime(),
           };
 
           bookingOrderList.unshift(bookingOrder);
@@ -2450,7 +2470,7 @@ export default {
               pointsUsed: coursePointsUsed,
               paymentMethod: coursePayableAmount <= 0 ? "POINTS" : (payload.paymentMethod || "NEWEBPAY"),
               status: coursePayableAmount <= 0 ? 'PAID' : 'PENDING',
-              createdAt: new Date().toLocaleString()
+              createdAt: formatTaipeiDateTime()
           };
           currentOrders.unshift(newOrder); 
           await putOrdersKV(env, ctx, currentOrders);
@@ -2513,7 +2533,7 @@ export default {
             pointsUsed: pointCost,
             paymentMethod: payableAmount > 0 ? (payload.paymentMethod || "NEWEBPAY") : "POINTS",
             status: payableAmount > 0 ? "PENDING" : "PAID",
-            createdAt: new Date().toLocaleString()
+            createdAt: formatTaipeiDateTime()
           };
           if (pointCost > 0) await this.updatePoints(env, ctx, userId, -pointCost, `商城商品折抵：${product.name}`);
           if (product.stock !== null && product.stock !== undefined) {
@@ -2539,7 +2559,7 @@ export default {
           userOrders[orderIndex] = {
             ...currentOrder,
             remittance,
-            remittanceReportedAt: new Date().toLocaleString(),
+            remittanceReportedAt: formatTaipeiDateTime(),
             updatedAt: new Date().toISOString(),
           };
           await putOrdersKV(env, ctx, userOrders);
@@ -2561,7 +2581,7 @@ export default {
           cancelOrders[cancelIndex] = {
             ...targetOrder,
             status: "CANCELLED",
-            cancelledAt: new Date().toLocaleString(),
+            cancelledAt: formatTaipeiDateTime(),
             updatedAt: new Date().toISOString(),
           };
           await putOrdersKV(env, ctx, cancelOrders);
@@ -3009,7 +3029,7 @@ export default {
             courseId: targetCourse.id || targetCourse.name,
             courseName: getCourseTitle(targetCourse),
             status: sourceOrder.status,
-            createdAt: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }),
+            createdAt: formatTaipeiDateTime(),
             transferredFromOrderId: sourceOrder.orderId,
             transferredToOrderId: undefined,
             transferReason,
@@ -3602,7 +3622,7 @@ export default {
     data.balance = Number(data.balance || 0) + numericAmount;
     const typeStr = numericAmount >= 0 ? "EARN" : "SPEND";
     const createdTs = Date.now();
-    const createdAt = new Date(createdTs).toLocaleString();
+    const createdAt = formatTaipeiDateTime(createdTs);
     const logId = crypto.randomUUID ? crypto.randomUUID() : createdTs.toString();
     data.logs.unshift({ logId, amount: Math.abs(numericAmount), reason, createdAt, type: typeStr });
     data.logs = data.logs.slice(0, 50);
@@ -3787,7 +3807,7 @@ export default {
                       status: "PAID",
                       paymentStatus: "SUCCESS",
                       newebpayStatus: "SUCCESS",
-                      paidAt: new Date().toLocaleString(),
+                      paidAt: formatTaipeiDateTime(),
                       newebpayTradeNo: result.TradeNo || "",
                       newebpayMerchantOrderNo: orderId,
                       paymentAmount: Number(result.Amt || orders[idx].amount || 0),

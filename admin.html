@@ -2564,6 +2564,44 @@
                         const course = courses.value.find(c => c && (c.id === order.courseId || c.name === order.courseId));
                         return selectedReportCourseId.value === order.courseId || (course && selectedReportCourseId.value === course.id);
                     };
+                    const formatDateObjectForReport = (date) => {
+                        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+                        const parts = new Intl.DateTimeFormat('zh-TW', {
+                            timeZone: 'Asia/Taipei',
+                            hour12: false,
+                            hourCycle: 'h23',
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        }).formatToParts(date).reduce((acc, part) => {
+                            if (part.type !== 'literal') acc[part.type] = part.value;
+                            return acc;
+                        }, {});
+                        return `${parts.year}/${parts.month}/${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+                    };
+                    const formatReportDateTime = (value) => {
+                        const raw = String(value || '').trim();
+                        if (!raw) return '';
+                        const wall = raw.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})[ T,]+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+                        if (wall) {
+                            const [, y, m, d, h, min, sec = '00'] = wall;
+                            return `${y}/${m.padStart(2, '0')}/${d.padStart(2, '0')} ${h.padStart(2, '0')}:${min}:${sec.padStart(2, '0')}`;
+                        }
+                        const usUtc = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+                        if (usUtc) {
+                            const [, m, d, y, hRaw, min, sec = '00', ampm] = usUtc;
+                            let h = Number(hRaw);
+                            if (/PM/i.test(ampm) && h < 12) h += 12;
+                            if (/AM/i.test(ampm) && h === 12) h = 0;
+                            return formatDateObjectForReport(new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), h, Number(min), Number(sec))));
+                        }
+                        const parsed = new Date(raw);
+                        if (!Number.isNaN(parsed.getTime())) return formatDateObjectForReport(parsed);
+                        return raw;
+                    };
                     const reportDate = () => new Date().toLocaleString('zh-TW', {timeZone: 'Asia/Taipei', hour12: false}).split(' ')[0].replace(/\//g, '-');
                     const downloadCsv = (filename, rows) => {
                         const blob = new Blob(["\uFEFF" + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -2676,7 +2714,7 @@
                             const teacherAmount = o.type === 'BOOKING' ? Number(o.teacherCollectAmount || 0) : 0;
                             rows.push([
                                 o.orderId,
-                                o.createdAt,
+                                formatReportDateTime(o.createdAt),
                                 o.name,
                                 o.phone,
                                 orderCourseName(o),
@@ -2696,7 +2734,7 @@
                         rowsSource.forEach(row => {
                             rows.push([
                                 row.orderId,
-                                row.createdAt,
+                                formatReportDateTime(row.createdAt),
                                 row.bookingDate,
                                 row.bookingTime,
                                 row.teacherName,
