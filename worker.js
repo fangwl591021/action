@@ -1530,13 +1530,17 @@ function getUserBroadcastTags(user) {
   return String(raw || "").split(/[\n,，、]/).map(v => v.trim()).filter(Boolean);
 }
 
-function audienceMatchesUser(user, audience = {}) {
+function audienceMatchesUser(user, audience = {}, options = {}) {
   if (!user || user.isDeleted === true || !user.userId) return false;
   const tag = String(audience.tag || "").trim();
   const tags = getUserBroadcastTags(user);
   if (tag && !tags.includes(tag)) return false;
   const tier = String(audience.memberTier || "").trim();
-  if (tier && String(user.memberTier || "") !== tier) return false;
+  if (tier === "Admin") {
+    const adminUidSet = options.adminUidSet || new Set();
+    const isAdminUser = user.isAdmin === true || user.role === "admin" || user.crmRole === "admin" || adminUidSet.has(String(user.userId || "").trim());
+    if (!isAdminUser) return false;
+  } else if (tier && String(user.memberTier || "") !== tier) return false;
   const gender = String(audience.gender || "").trim();
   if (gender && String(user.gender || "") !== gender) return false;
   const keyword = String(audience.keyword || "").trim().toLowerCase();
@@ -1547,8 +1551,8 @@ function audienceMatchesUser(user, audience = {}) {
   return true;
 }
 
-function selectBroadcastAudience(users, audience = {}) {
-  return uniqueUsersById(Array.isArray(users) ? users : []).filter(user => audienceMatchesUser(user, audience));
+function selectBroadcastAudience(users, audience = {}, options = {}) {
+  return uniqueUsersById(Array.isArray(users) ? users : []).filter(user => audienceMatchesUser(user, audience, options));
 }
 
 async function sendLineMulticast(env, recipients, messages) {
@@ -2805,16 +2809,22 @@ export default {
           const text = String(payload?.message || "").trim();
           if (!title) throw new Error("請輸入推播名稱");
           if (!text) throw new Error("請輸入推播內容");
+          const testMode = payload?.testMode === true;
           const allUsers = uniqueUsersById(await listUserRecords(env));
-          const recipients = selectBroadcastAudience(allUsers, payload?.audience || {});
+          const adminUidSet = new Set([...splitCsv(env.ADMIN_UIDS), ...splitCsv(access.settings?.admin_uids)]);
+          if (testMode && (!userId || userId === "GUEST")) throw new Error("測試訊息需要使用 LINE 登入後台，才能取得測試收件 UID");
+          const recipients = testMode
+            ? [{ userId, name: access.userData?.name || access.lineProfile?.name || "測試管理員" }]
+            : selectBroadcastAudience(allUsers, payload?.audience || {}, { adminUidSet });
           if (!recipients.length) throw new Error("目前受眾為 0，沒有可推播會員");
-          const sendResult = await sendLineMulticast(env, recipients, [{ type: "text", text }]);
-          const campaigns = await safeGetKV(env, "PAID_BROADCASTS", []);
+          const messageText = testMode ? `【測試訊息】\n${text}` : text;
+          const sendResult = await sendLineMulticast(env, recipients, [{ type: "text", text: messageText }]);
           const campaign = {
             id: crypto.randomUUID ? crypto.randomUUID() : `BCAST_${Date.now()}`,
             title,
-            message: text,
+            message: messageText,
             audience: payload?.audience || {},
+            testMode,
             targetCount: recipients.length,
             sent: sendResult.sent,
             failed: sendResult.failed,
@@ -2824,8 +2834,11 @@ export default {
             createdAt: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }),
             createdTs: Date.now(),
           };
-          const nextCampaigns = [campaign, ...(Array.isArray(campaigns) ? campaigns : [])].slice(0, 200);
-          await safePutKV(env, "PAID_BROADCASTS", nextCampaigns);
+          if (!testMode) {
+            const campaigns = await safeGetKV(env, "PAID_BROADCASTS", []);
+            const nextCampaigns = [campaign, ...(Array.isArray(campaigns) ? campaigns : [])].slice(0, 200);
+            await safePutKV(env, "PAID_BROADCASTS", nextCampaigns);
+          }
           result.data = { success: sendResult.failed === 0, campaign };
           break;
         }

@@ -566,7 +566,8 @@
                                     </div>
                                     <div class="flex justify-end gap-3 border-t border-slate-100 pt-5">
                                         <button @click="loadBroadcastData" :disabled="isLoading" class="btn-outline bg-white"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新整理</button>
-                                        <button @click="sendPaidBroadcast" :disabled="isLoading || !broadcastAudiencePreview.length" class="btn-green-main px-8"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-paper-plane mr-2"></i>確認推播</button>
+                                        <button @click="sendPaidBroadcast(true)" :disabled="isLoading" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-vial mr-2"></i>測試訊息</button>
+                                        <button @click="sendPaidBroadcast(false)" :disabled="isLoading || !broadcastAudiencePreview.length" class="btn-green-main px-8"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-paper-plane mr-2"></i>確認推播</button>
                                     </div>
                                 </div>
                             </div>
@@ -2311,21 +2312,25 @@
                         broadcastForm.value.audience = { tag: '', memberTier: '', gender: '', keyword: '' };
                     };
 
-                    const sendPaidBroadcast = async () => {
+                    const sendPaidBroadcast = async (testMode = false) => {
                         if (!broadcastForm.value.title.trim()) return alert('請輸入推播名稱');
                         if (!broadcastForm.value.message.trim()) return alert('請輸入推播內容');
                         const count = broadcastAudiencePreview.value.length;
-                        if (!count) return alert('目前受眾為 0，無法推播');
-                        if (!confirm(`確定要推播給 ${count} 位會員？\n\n送出後會直接透過 LINE OA 發送，請確認文字與受眾條件。`)) return;
+                        if (!testMode && !count) return alert('目前受眾為 0，無法推播');
+                        if (testMode) {
+                            if (!confirm('確定要送出測試訊息給目前登入的管理員？\n\n測試訊息不會發送給受眾名單。')) return;
+                        } else if (!confirm(`確定要推播給 ${count} 位會員？\n\n送出後會直接透過 LINE OA 發送，請確認文字與受眾條件。`)) return;
                         isLoading.value = true;
                         try {
                             const data = await callApi('ADMIN_SEND_PAID_BROADCAST', {
                                 title: broadcastForm.value.title,
                                 message: broadcastForm.value.message,
                                 audience: broadcastForm.value.audience,
+                                testMode,
                             });
-                            if (data?.campaign) broadcastCampaigns.value.unshift(data.campaign);
-                            alert(`推播完成：成功 ${data?.campaign?.sent || 0}，失敗 ${data?.campaign?.failed || 0}`);
+                            if (data?.campaign && !data.campaign.testMode) broadcastCampaigns.value.unshift(data.campaign);
+                            const label = testMode ? '測試訊息' : '推播';
+                            alert(`${label}完成：成功 ${data?.campaign?.sent || 0}，失敗 ${data?.campaign?.failed || 0}`);
                         } catch (e) {
                             console.error(e);
                             alert('推播失敗：' + e.message);
@@ -2450,6 +2455,7 @@
                     const memberHasBroadcastTag = (member, tagName) => !!tagName && memberBroadcastTags(member).includes(tagName);
                     const memberTierOptions = computed(() => [
                         ...new Set([
+                            'Admin',
                             ...memberTiers,
                             ...users.value.map(u => String(u?.memberTier || '').trim()).filter(Boolean)
                         ])
@@ -2459,7 +2465,11 @@
                         if (!member || member.isDeleted === true || !member.userId) return false;
                         const audience = broadcastForm.value.audience || {};
                         if (audience.tag && !memberHasBroadcastTag(member, audience.tag)) return false;
-                        if (audience.memberTier && String(member.memberTier || '') !== audience.memberTier) return false;
+                        if (audience.memberTier === 'Admin') {
+                            const adminUidSet = new Set(splitUidList(sysSettings.value.admin_uids));
+                            const isAdminMember = member.isAdmin === true || member.role === 'admin' || member.crmRole === 'admin' || adminUidSet.has(String(member.userId || '').trim());
+                            if (!isAdminMember) return false;
+                        } else if (audience.memberTier && String(member.memberTier || '') !== audience.memberTier) return false;
                         if (audience.gender && String(member.gender || '') !== audience.gender) return false;
                         const keyword = String(audience.keyword || '').trim().toLowerCase();
                         if (keyword) {
