@@ -556,8 +556,8 @@
                                             <div class="text-3xl font-black text-[#06C755]">{{ broadcastAudiencePreview.length }}</div>
                                         </div>
                                         <div class="rounded-xl border border-slate-200 bg-white p-4">
-                                            <div class="text-xs font-black text-slate-400 mb-1">可發送 UID</div>
-                                            <div class="text-3xl font-black text-slate-800">{{ broadcastAudiencePreview.filter(u => u.userId).length }}</div>
+                                            <div class="text-xs font-black text-slate-400 mb-1">已勾選 UID</div>
+                                            <div class="text-3xl font-black text-slate-800">{{ selectedBroadcastAudience.length }}</div>
                                         </div>
                                         <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
                                             <div class="text-xs font-black text-indigo-700 mb-1">歷史推播</div>
@@ -567,22 +567,32 @@
                                     <div class="flex justify-end gap-3 border-t border-slate-100 pt-5">
                                         <button @click="loadBroadcastData" :disabled="isLoading" class="btn-outline bg-white"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新整理</button>
                                         <button @click="sendPaidBroadcast(true)" :disabled="isLoading" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-vial mr-2"></i>測試訊息</button>
-                                        <button @click="sendPaidBroadcast(false)" :disabled="isLoading || !broadcastAudiencePreview.length" class="btn-green-main px-8"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-paper-plane mr-2"></i>確認推播</button>
+                                        <button @click="sendPaidBroadcast(false)" :disabled="isLoading || !selectedBroadcastAudience.length" class="btn-green-main px-8"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-paper-plane mr-2"></i>確認推播</button>
                                     </div>
                                 </div>
                             </div>
                             <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                                     <h3 class="font-black text-slate-800">受眾預覽</h3>
-                                    <span class="text-xs font-black text-slate-400">最多顯示 80 筆</span>
+                                    <div class="flex items-center gap-3">
+                                        <label class="flex items-center gap-2 text-xs font-black text-slate-500 cursor-pointer select-none">
+                                            <input type="checkbox" class="w-4 h-4 accent-[#06C755]" :checked="isBroadcastAudienceAllSelected" @change="toggleBroadcastAudienceAll($event.target.checked)">
+                                            全選目前名單
+                                        </label>
+                                        <button @click="toggleBroadcastAudienceAll(false)" class="text-xs font-black text-slate-400 hover:text-red-500">清空</button>
+                                        <span class="text-xs font-black text-slate-400">最多顯示 80 筆</span>
+                                    </div>
                                 </div>
                                 <div class="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
                                     <div v-for="member in broadcastAudiencePreview.slice(0, 80)" :key="member.userId" class="p-4 flex items-center justify-between hover:bg-slate-50">
-                                        <div>
-                                            <div class="font-black text-slate-800">{{ member.name || '未命名會員' }}</div>
-                                            <div class="text-xs font-mono text-slate-400 mt-1">{{ member.userId }}</div>
-                                        </div>
-                                        <div class="text-right">
+                                        <label class="flex items-center gap-3 min-w-0 cursor-pointer">
+                                            <input type="checkbox" class="w-5 h-5 accent-[#06C755] shrink-0" :value="member.userId" v-model="broadcastSelectedUids">
+                                            <div class="min-w-0">
+                                                <div class="font-black text-slate-800 truncate">{{ member.name || '未命名會員' }}</div>
+                                                <div class="text-xs font-mono text-slate-400 mt-1 truncate">{{ member.userId }}</div>
+                                            </div>
+                                        </label>
+                                        <div class="text-right shrink-0">
                                             <div class="text-xs font-bold text-slate-500">{{ member.memberTier || '未分級' }}</div>
                                             <div class="flex flex-wrap justify-end gap-1 mt-2 max-w-[260px]"><span v-for="tag in memberBroadcastTags(member)" :key="tag" class="text-[11px] font-black px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100">{{ tag }}</span></div>
                                         </div>
@@ -1525,6 +1535,7 @@
                     const newBroadcastTag = ref({ name: '', color: '#06C755', description: '' });
                     const selectedBroadcastTag = ref('');
                     const broadcastMemberSearch = ref('');
+                    const broadcastSelectedUids = ref([]);
                     const broadcastForm = ref({ title: '', message: '', audience: { tag: '', memberTier: '', gender: '', keyword: '' } });
                     
                     const isImageUploading = ref(false);
@@ -2315,7 +2326,7 @@
                     const sendPaidBroadcast = async (testMode = false) => {
                         if (!broadcastForm.value.title.trim()) return alert('請輸入推播名稱');
                         if (!broadcastForm.value.message.trim()) return alert('請輸入推播內容');
-                        const count = broadcastAudiencePreview.value.length;
+                        const count = testMode ? 1 : selectedBroadcastAudience.value.length;
                         if (!testMode && !count) return alert('目前受眾為 0，無法推播');
                         if (testMode) {
                             if (!confirm('確定要送出測試訊息給目前登入的管理員？\n\n測試訊息不會發送給受眾名單。')) return;
@@ -2326,6 +2337,7 @@
                                 title: broadcastForm.value.title,
                                 message: broadcastForm.value.message,
                                 audience: broadcastForm.value.audience,
+                                selectedUids: testMode ? [] : selectedBroadcastAudience.value.map(member => member.userId),
                                 testMode,
                             });
                             if (data?.campaign && !data.campaign.testMode) broadcastCampaigns.value.unshift(data.campaign);
@@ -2503,6 +2515,23 @@
                         const source = audience.memberTier === 'Admin' ? adminBroadcastMembers.value : users.value;
                         return source.filter(broadcastAudienceMatches);
                     });
+                    const broadcastPreviewUids = computed(() => broadcastAudiencePreview.value.map(member => String(member.userId || '').trim()).filter(Boolean));
+                    const selectedBroadcastAudience = computed(() => {
+                        const selected = new Set(broadcastSelectedUids.value.map(uid => String(uid || '').trim()).filter(Boolean));
+                        return broadcastAudiencePreview.value.filter(member => selected.has(String(member.userId || '').trim()));
+                    });
+                    const isBroadcastAudienceAllSelected = computed(() => {
+                        const uids = broadcastPreviewUids.value;
+                        if (!uids.length) return false;
+                        const selected = new Set(broadcastSelectedUids.value.map(uid => String(uid || '').trim()).filter(Boolean));
+                        return uids.every(uid => selected.has(uid));
+                    });
+                    const toggleBroadcastAudienceAll = (enabled = true) => {
+                        broadcastSelectedUids.value = enabled ? [...broadcastPreviewUids.value] : [];
+                    };
+                    watch(broadcastPreviewUids, (uids) => {
+                        broadcastSelectedUids.value = [...uids];
+                    }, { immediate: true });
                     const filteredBroadcastMembers = computed(() => {
                         const q = broadcastMemberSearch.value.trim().toLowerCase();
                         let result = users.value.filter(u => u && u.isDeleted !== true && u.userId);
@@ -3767,7 +3796,7 @@
                         transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
                         memberSearch, memberPage, memberTotalPages, pagedMembers, showDeletedMembers, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
                         orderSearch, orderTypeFilter, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, pointsLedgerPage, pointsLedgerTotalPages, pagedPointsLedger, filteredPointsLedger, pointsLedgerSummary, auditLogSearch, filteredAuditLogs,
-                        newBroadcastTag, selectedBroadcastTag, broadcastMemberSearch, broadcastForm, memberTierOptions, broadcastAudiencePreview, filteredBroadcastMembers, memberBroadcastTags, memberHasBroadcastTag, broadcastTagCount,
+                        newBroadcastTag, selectedBroadcastTag, broadcastMemberSearch, broadcastSelectedUids, broadcastForm, memberTierOptions, broadcastAudiencePreview, selectedBroadcastAudience, isBroadcastAudienceAllSelected, toggleBroadcastAudienceAll, filteredBroadcastMembers, memberBroadcastTags, memberHasBroadcastTag, broadcastTagCount,
                         approveForm, teacherApprovalCandidates, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,

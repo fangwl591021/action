@@ -2877,6 +2877,10 @@ export default {
           const recipients = testMode
             ? [{ userId, name: access.userData?.name || access.lineProfile?.name || "測試管理員" }]
             : selectBroadcastAudience(audienceUsers, audience, { adminUidSet });
+          if (!testMode && Array.isArray(payload?.selectedUids)) {
+            const selectedUidSet = new Set(payload.selectedUids.map(uid => String(uid || "").trim()).filter(Boolean));
+            recipients.splice(0, recipients.length, ...recipients.filter(user => selectedUidSet.has(String(user.userId || "").trim())));
+          }
           if (!recipients.length) throw new Error("目前受眾為 0，沒有可推播會員");
           const messageText = testMode ? `【測試訊息】\n${text}` : text;
           const sendResult = await sendLineMulticast(env, recipients, [{ type: "text", text: messageText }]);
