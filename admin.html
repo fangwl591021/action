@@ -2923,9 +2923,19 @@
                                 const savedMember = res.memberData || activeMember.value;
                                 const idx = users.value.findIndex(u => u && u.userId === savedMember.userId);
                                 if (idx > -1) users.value[idx] = JSON.parse(JSON.stringify(savedMember));
+                                else users.value.unshift(JSON.parse(JSON.stringify(savedMember)));
                                 alert('✅ 學員檔案更新成功！');
                                 activeMember.value = null;
-                                await fetchData(true); 
+                                try {
+                                    const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+                                    const cachedUsers = Array.isArray(cached.users) ? cached.users : users.value;
+                                    const cachedIdx = cachedUsers.findIndex(u => u && u.userId === savedMember.userId);
+                                    if (cachedIdx > -1) cachedUsers[cachedIdx] = JSON.parse(JSON.stringify(savedMember));
+                                    else cachedUsers.unshift(JSON.parse(JSON.stringify(savedMember)));
+                                    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...cached, users: cachedUsers }));
+                                } catch(cacheError) {
+                                    console.warn('Member cache update skipped:', cacheError);
+                                }
                             }
                         } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
                     };

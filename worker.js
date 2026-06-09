@@ -1336,12 +1336,28 @@ function userScore(user) {
     .reduce((score, key) => score + (user?.[key] ? 1 : 0), 0);
 }
 
+function recordUpdatedTs(record) {
+  const raw = record?.updatedAt || record?.savedAt || record?.createdAt || "";
+  const ts = Date.parse(String(raw).replace(/-/g, "/"));
+  return Number.isFinite(ts) ? ts : 0;
+}
+
 function uniqueUsersById(users) {
   const byId = new Map();
   for (const user of Array.isArray(users) ? users : []) {
     if (!user || !user.userId || user.userId === "GUEST") continue;
     const current = byId.get(user.userId);
-    if (!current || userScore(user) >= userScore(current)) byId.set(user.userId, user);
+    if (!current) {
+      byId.set(user.userId, user);
+      continue;
+    }
+    const userTs = recordUpdatedTs(user);
+    const currentTs = recordUpdatedTs(current);
+    if (userTs !== currentTs) {
+      if (userTs > currentTs) byId.set(user.userId, user);
+      continue;
+    }
+    if (userScore(user) >= userScore(current)) byId.set(user.userId, user);
   }
   return Array.from(byId.values());
 }
@@ -3158,7 +3174,6 @@ export default {
           } else {
               throw new Error("Missing memberData.userId");
           }
-          if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           touchLastUpdate(env, ctx, "Members");
           break;
 
