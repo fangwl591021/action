@@ -3056,9 +3056,10 @@
                             const res = await callApi('ADMIN_UPDATE_COURSE', editingCourse.value);
                             if(res) {
                                 alert('✅ 課程儲存成功');
-                                const idx = courses.value.findIndex(c => c && c.id === editingCourse.value.id);
-                                if (idx > -1) courses.value[idx] = JSON.parse(JSON.stringify(editingCourse.value));
-                                else courses.value.unshift(JSON.parse(JSON.stringify(editingCourse.value)));
+                                const savedCourse = res.course || editingCourse.value;
+                                const idx = courses.value.findIndex(c => c && c.id === savedCourse.id);
+                                if (idx > -1) courses.value[idx] = JSON.parse(JSON.stringify(savedCourse));
+                                else courses.value.unshift(JSON.parse(JSON.stringify(savedCourse)));
                                 editingCourse.value = null;
                             }
                         } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
@@ -3292,11 +3293,10 @@
                             const res = await callApi('ADMIN_UPDATE_ORDER', { orderId: editingOrder.value.orderId, status: editingOrder.value.status, amount: editingOrder.value.amount, note: editingOrder.value.note });
                             if(res) {
                                 alert('✅ 訂單更新成功');
-                                const idx = orders.value.findIndex(o => o && o.orderId === editingOrder.value.orderId);
+                                const savedOrder = res.order || editingOrder.value;
+                                const idx = orders.value.findIndex(o => o && o.orderId === savedOrder.orderId);
                                 if (idx > -1) {
-                                    orders.value[idx].status = editingOrder.value.status;
-                                    orders.value[idx].amount = editingOrder.value.amount;
-                                    orders.value[idx].note = editingOrder.value.note;
+                                    orders.value[idx] = { ...orders.value[idx], ...savedOrder };
                                 }
                                 editingOrder.value = null;
                             }
@@ -3319,7 +3319,13 @@
                                 reason: transferReason.value.trim()
                             });
                             if (res?.orders) orders.value = res.orders;
-                            else await fetchData(true);
+                            else if (res?.sourceOrder || res?.newOrder) {
+                                if (res.sourceOrder) {
+                                    const sourceIdx = orders.value.findIndex(o => o && o.orderId === res.sourceOrder.orderId);
+                                    if (sourceIdx > -1) orders.value[sourceIdx] = res.sourceOrder;
+                                }
+                                if (res.newOrder && !orders.value.some(o => o && o.orderId === res.newOrder.orderId)) orders.value.unshift(res.newOrder);
+                            }
                             if (res?.courses) courses.value = res.courses;
                             alert('✅ 轉課完成，已建立新訂單並保留原訂單紀錄');
                             editingOrder.value = null;
@@ -3344,10 +3350,14 @@
                             const teacherObj = users.value.find(u => u && u.userId === editingSysConfig.value.userId);
                             if (teacherObj) {
                                 teacherObj.config = { rent: editingSysConfig.value.rent, comm: editingSysConfig.value.comm, price: editingSysConfig.value.price, acceptPoints: editingSysConfig.value.acceptPoints, maxPoints: editingSysConfig.value.maxPoints };
-                                await callApi('ADMIN_UPDATE_MEMBER', { memberData: teacherObj });
+                                const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: teacherObj });
                                 alert('✅ 抽成設定更新成功');
-                                const teacherIdx = teachers.value.findIndex(t => t && t.userId === editingSysConfig.value.userId);
-                                if (teacherIdx > -1) teachers.value[teacherIdx].config = teacherObj.config;
+                                const savedTeacher = res?.memberData || teacherObj;
+                                const savedCopy = JSON.parse(JSON.stringify(savedTeacher));
+                                const teacherIdx = teachers.value.findIndex(t => t && t.userId === savedCopy.userId);
+                                if (teacherIdx > -1) teachers.value[teacherIdx] = savedCopy;
+                                const userIdx = users.value.findIndex(u => u && u.userId === savedCopy.userId);
+                                if (userIdx > -1) users.value[userIdx] = savedCopy;
                                 editingSysConfig.value = null;
                             }
                         } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
@@ -3357,7 +3367,20 @@
                         isLoading.value = true;
                         try {
                             const res = await callApi('ADMIN_APPROVE_TEACHER', { teacherUid: approveForm.value.uid, rentPrice: approveForm.value.rent, commissionRate: approveForm.value.comm });
-                            if(res) { alert('導師核准成功'); fetchData(true); approveForm.value = { uid: '', rent: 0, comm: 0 }; }
+                            if(res) {
+                                const savedTeacher = res.memberData;
+                                if (savedTeacher?.userId) {
+                                    const savedCopy = JSON.parse(JSON.stringify(savedTeacher));
+                                    const userIdx = users.value.findIndex(u => u && u.userId === savedCopy.userId);
+                                    if (userIdx > -1) users.value[userIdx] = savedCopy;
+                                    else users.value.unshift(savedCopy);
+                                    const teacherIdx = teachers.value.findIndex(t => t && t.userId === savedCopy.userId);
+                                    if (teacherIdx > -1) teachers.value[teacherIdx] = savedCopy;
+                                    else teachers.value.unshift(savedCopy);
+                                }
+                                alert('導師核准成功');
+                                approveForm.value = { uid: '', rent: 0, comm: 0 };
+                            }
                         } catch(e) { console.error(e); } finally { isLoading.value = false; }
                     };
 
@@ -3382,7 +3405,6 @@
                                     user.memberTier = '一般會員';
                                 }
                                 alert('已移除導師資格');
-                                await fetchData(true);
                             }
                         } catch(e) { console.error(e); alert('移除失敗：' + e.message); } finally { isLoading.value = false; }
                     };

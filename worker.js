@@ -2906,7 +2906,6 @@ export default {
 
         case "ADMIN_UPDATE_SETTINGS":
           await safePutKV(env, "SYSTEM_SETTINGS", payload);
-          if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           touchLastUpdate(env, ctx, "Settings");
           result.data = { success: true };
           break;
@@ -2930,9 +2929,8 @@ export default {
           if (idx > -1) cList[idx] = courseToSave;
           else cList.unshift(courseToSave);
           const courseSaveStorage = await safePutCourses(env, cList);
-          if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           touchLastUpdate(env, ctx, "Courses");
-          result.data = { success: true, storage: courseSaveStorage.storage };
+          result.data = { success: true, course: courseToSave, courses: cList, storage: courseSaveStorage.storage };
           break;
 
         case "ADMIN_DELETE_COURSE": {
@@ -3001,9 +2999,8 @@ export default {
               editOrders[oIdx] = nextOrder;
               await putOrdersKV(env, ctx, editOrders);
           }
-          if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true };
+          result.data = { success: true, order: oIdx > -1 ? editOrders[oIdx] : null, orders: editOrders };
           break;
 
         case "ADMIN_TRANSFER_ORDER_COURSE": {
@@ -3080,14 +3077,6 @@ export default {
 
           await putOrdersKV(env, ctx, transferOrders);
           await safePutCourses(env, transferCourses);
-          if (env.GAS_URL) {
-            ctx.waitUntil(fetch(env.GAS_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "ADMIN_TRANSFER_ORDER_COURSE", payload: { sourceOrder: transferOrders[sourceIdx], newOrder } }),
-              redirect: "follow"
-            }).catch(e => console.error("GAS Transfer Sync Error", e)));
-          }
           touchLastUpdate(env, ctx, "Courses");
           result.data = { success: true, sourceOrder: transferOrders[sourceIdx], newOrder, orders: transferOrders, courses: transferCourses };
           break;
@@ -3206,9 +3195,8 @@ export default {
               targetUser.config = { rent: rentPrice, comm: commissionRate };
               await putUserKV(env, ctx, teacherUid, targetUser);
           }
-          if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true };
+          result.data = { success: true, memberData: targetUser };
           break;
 
         case "ADMIN_REMOVE_TEACHER":
@@ -3220,9 +3208,8 @@ export default {
           if (teacherToRemove.role === "teacher") teacherToRemove.role = "member";
           teacherToRemove.memberTier = payload.memberTier || "一般會員";
           await putUserKV(env, ctx, removeUid, teacherToRemove);
-          if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ADMIN_UPDATE_MEMBER", payload: { memberData: teacherToRemove } }) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true };
+          result.data = { success: true, memberData: teacherToRemove };
           break;
 
         case "ADMIN_GET_SLOTS":
@@ -3272,9 +3259,8 @@ export default {
               });
           });
           await env.ACTION_DATA.put("SLOTS", JSON.stringify(currentSlots));
-          if (env.GAS_URL) ctx.waitUntil(fetch(env.GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
-          result.data = { success: true };
+          result.data = { success: true, slots: currentSlots };
           break;
           
         case "ADMIN_MANAGE_POINTS":
