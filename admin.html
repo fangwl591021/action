@@ -516,6 +516,57 @@
                                         <textarea v-model="broadcastForm.message" class="input-field h-40 resize-none leading-relaxed" maxlength="4900" placeholder="請輸入要推播給受眾的 LINE 文字訊息"></textarea>
                                         <div class="text-right text-xs font-bold text-slate-400 mt-1">{{ broadcastForm.message.length }} / 4900</div>
                                     </div>
+                                    <div class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-5 space-y-4">
+                                        <div class="flex items-center justify-between">
+                                            <h4 class="font-black text-slate-800"><i class="fas fa-cubes text-[#06C755] mr-2"></i>推播格式模組</h4>
+                                            <span class="text-xs font-black text-emerald-700 bg-white border border-emerald-100 rounded px-2 py-1">mylittlesys Flex</span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="input-label">訊息格式</label>
+                                                <select v-model="broadcastForm.messageType" class="input-field font-bold">
+                                                    <option value="text">純文字</option>
+                                                    <option value="flex">Flex 模組</option>
+                                                </select>
+                                            </div>
+                                            <div v-if="broadcastForm.messageType === 'flex'">
+                                                <label class="input-label">Flex 版型</label>
+                                                <select v-model="broadcastForm.flexTemplate" class="input-field font-bold">
+                                                    <option value="v1">影片導購 V1</option>
+                                                    <option value="v2">個人名片 V2</option>
+                                                    <option value="v3">商品目錄 V3</option>
+                                                    <option value="v4">影音圖文選單 V4</option>
+                                                    <option value="json">貼上 Flex JSON</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div v-if="broadcastForm.messageType === 'flex'" class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="input-label">替代文字 Alt Text</label>
+                                                <input v-model.trim="broadcastForm.altText" class="input-field font-bold" placeholder="LINE 通知列顯示文字">
+                                            </div>
+                                            <div>
+                                                <label class="input-label">主按鈕文字</label>
+                                                <input v-model.trim="broadcastForm.buttonText" class="input-field font-bold" placeholder="例如：立即查看">
+                                            </div>
+                                            <div>
+                                                <label class="input-label">圖片 / 預覽圖 URL</label>
+                                                <input v-model.trim="broadcastForm.imageUrl" class="input-field font-mono text-xs" placeholder="https://...">
+                                            </div>
+                                            <div>
+                                                <label class="input-label">主連結 URL</label>
+                                                <input v-model.trim="broadcastForm.actionUrl" class="input-field font-mono text-xs" placeholder="https://...">
+                                            </div>
+                                            <div v-if="broadcastForm.flexTemplate === 'v1' || broadcastForm.flexTemplate === 'v4'" class="col-span-2">
+                                                <label class="input-label">影片 URL（V1/V4 可用）</label>
+                                                <input v-model.trim="broadcastForm.videoUrl" class="input-field font-mono text-xs" placeholder="https://...mp4">
+                                            </div>
+                                            <div v-if="broadcastForm.flexTemplate === 'json'" class="col-span-2">
+                                                <label class="input-label">Flex JSON（可由 mylittlesys 複製）</label>
+                                                <textarea v-model="broadcastForm.flexJson" class="input-field h-44 font-mono text-xs leading-relaxed" placeholder='{"type":"bubble",...} 或 {"type":"flex","altText":"...","contents":{...}}'></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                                         <div class="flex items-center justify-between mb-4">
                                             <h4 class="font-black text-slate-800"><i class="fas fa-filter text-indigo-500 mr-2"></i>受眾條件</h4>
@@ -1536,7 +1587,19 @@
                     const selectedBroadcastTag = ref('');
                     const broadcastMemberSearch = ref('');
                     const broadcastSelectedUids = ref([]);
-                    const broadcastForm = ref({ title: '', message: '', audience: { tag: '', memberTier: '', gender: '', keyword: '' } });
+                    const broadcastForm = ref({
+                        title: '',
+                        message: '',
+                        messageType: 'text',
+                        flexTemplate: 'v1',
+                        altText: '',
+                        imageUrl: '',
+                        videoUrl: '',
+                        actionUrl: '',
+                        buttonText: '立即查看',
+                        flexJson: '',
+                        audience: { tag: '', memberTier: '', gender: '', keyword: '' }
+                    });
                     
                     const isImageUploading = ref(false);
                     const editingCourse = ref(null);
@@ -2323,9 +2386,116 @@
                         broadcastForm.value.audience = { tag: '', memberTier: '', gender: '', keyword: '' };
                     };
 
+                    const broadcastUri = (value, fallback = 'https://line.me') => {
+                        const uri = String(value || '').trim();
+                        return /^https?:\/\//i.test(uri) ? uri : fallback;
+                    };
+
+                    const broadcastImageUrl = () => broadcastUri(
+                        broadcastForm.value.imageUrl,
+                        'https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_cafe.png'
+                    );
+
+                    const buildBroadcastFlexContents = () => {
+                        const title = broadcastForm.value.title.trim() || '推播訊息';
+                        const bodyText = broadcastForm.value.message.trim() || title;
+                        const imageUrl = broadcastImageUrl();
+                        const actionUrl = broadcastUri(broadcastForm.value.actionUrl);
+                        const buttonText = broadcastForm.value.buttonText.trim() || '立即查看';
+                        if (broadcastForm.value.flexTemplate === 'json') {
+                            const raw = JSON.parse(broadcastForm.value.flexJson || '{}');
+                            if (raw.type === 'flex' && raw.contents) return raw.contents;
+                            if (raw.type === 'bubble' || raw.type === 'carousel') return raw;
+                            throw new Error('Flex JSON 必須是 LINE flex message、bubble 或 carousel');
+                        }
+                        if (broadcastForm.value.flexTemplate === 'v2') {
+                            return {
+                                type: 'bubble',
+                                size: 'mega',
+                                body: {
+                                    type: 'box',
+                                    layout: 'vertical',
+                                    backgroundColor: '#102033',
+                                    paddingAll: '24px',
+                                    spacing: 'md',
+                                    contents: [
+                                        { type: 'image', url: imageUrl, size: 'lg', aspectRatio: '1:1', aspectMode: 'cover', align: 'center', gravity: 'center' },
+                                        { type: 'text', text: title, weight: 'bold', size: 'xl', color: '#ffffff', align: 'center', wrap: true },
+                                        { type: 'text', text: bodyText, size: 'sm', color: '#dbeafe', align: 'center', wrap: true }
+                                    ]
+                                },
+                                footer: { type: 'box', layout: 'vertical', contents: [{ type: 'button', style: 'primary', color: '#06C755', action: { type: 'uri', label: buttonText, uri: actionUrl } }] }
+                            };
+                        }
+                        if (broadcastForm.value.flexTemplate === 'v3') {
+                            const items = bodyText.split('\n').map(v => v.trim()).filter(Boolean).slice(0, 8);
+                            const rows = (items.length ? items : [title]).map(item => ({
+                                type: 'box',
+                                layout: 'horizontal',
+                                spacing: 'sm',
+                                contents: [
+                                    { type: 'text', text: item, weight: 'bold', size: 'sm', color: '#111827', wrap: true, flex: 4 },
+                                    { type: 'button', style: 'link', height: 'sm', action: { type: 'uri', label: buttonText, uri: actionUrl }, flex: 2 }
+                                ]
+                            }));
+                            return {
+                                type: 'bubble',
+                                size: 'mega',
+                                hero: { type: 'image', url: imageUrl, size: 'full', aspectRatio: '20:9', aspectMode: 'cover' },
+                                body: { type: 'box', layout: 'vertical', spacing: 'md', contents: [{ type: 'text', text: title, weight: 'bold', size: 'xl', wrap: true }, ...rows] }
+                            };
+                        }
+                        if (broadcastForm.value.flexTemplate === 'v4') {
+                            const videoUrl = broadcastUri(broadcastForm.value.videoUrl || broadcastForm.value.actionUrl);
+                            return {
+                                type: 'bubble',
+                                size: 'mega',
+                                hero: {
+                                    type: 'video',
+                                    url: videoUrl,
+                                    previewUrl: imageUrl,
+                                    altContent: { type: 'image', url: imageUrl, size: 'full', aspectRatio: '20:13', aspectMode: 'cover' },
+                                    action: { type: 'uri', label: buttonText, uri: actionUrl }
+                                },
+                                body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [
+                                    { type: 'text', text: title, weight: 'bold', size: 'xl', wrap: true },
+                                    { type: 'text', text: bodyText, size: 'sm', color: '#64748b', wrap: true }
+                                ] }
+                            };
+                        }
+                        const videoUrl = broadcastUri(broadcastForm.value.videoUrl || broadcastForm.value.actionUrl);
+                        return {
+                            type: 'bubble',
+                            size: 'mega',
+                            hero: {
+                                type: 'video',
+                                url: videoUrl,
+                                previewUrl: imageUrl,
+                                altContent: { type: 'image', url: imageUrl, size: 'full', aspectRatio: '20:13', aspectMode: 'cover' },
+                                action: { type: 'uri', label: buttonText, uri: actionUrl }
+                            },
+                            body: { type: 'box', layout: 'vertical', spacing: 'md', contents: [
+                                { type: 'text', text: title, weight: 'bold', size: 'xl', wrap: true },
+                                { type: 'text', text: bodyText, size: 'sm', color: '#64748b', wrap: true }
+                            ] },
+                            footer: { type: 'box', layout: 'vertical', contents: [{ type: 'button', style: 'primary', color: '#06C755', action: { type: 'uri', label: buttonText, uri: actionUrl } }] }
+                        };
+                    };
+
+                    const buildBroadcastFlexMessage = () => ({
+                        type: 'flex',
+                        altText: (broadcastForm.value.altText || broadcastForm.value.title || 'LINE Flex 推播').slice(0, 400),
+                        contents: buildBroadcastFlexContents()
+                    });
+
                     const sendPaidBroadcast = async (testMode = false) => {
                         if (!broadcastForm.value.title.trim()) return alert('請輸入推播名稱');
-                        if (!broadcastForm.value.message.trim()) return alert('請輸入推播內容');
+                        if (broadcastForm.value.messageType !== 'flex' && !broadcastForm.value.message.trim()) return alert('請輸入推播內容');
+                        let flexMessage = null;
+                        if (broadcastForm.value.messageType === 'flex') {
+                            try { flexMessage = buildBroadcastFlexMessage(); }
+                            catch (e) { return alert('Flex 模組格式錯誤：' + e.message); }
+                        }
                         const count = testMode ? 1 : selectedBroadcastAudience.value.length;
                         if (!testMode && !count) return alert('目前受眾為 0，無法推播');
                         if (testMode) {
@@ -2336,6 +2506,9 @@
                             const data = await callApi('ADMIN_SEND_PAID_BROADCAST', {
                                 title: broadcastForm.value.title,
                                 message: broadcastForm.value.message,
+                                messageType: broadcastForm.value.messageType,
+                                flexTemplate: broadcastForm.value.flexTemplate,
+                                flexMessage,
                                 audience: broadcastForm.value.audience,
                                 selectedUids: testMode ? [] : selectedBroadcastAudience.value.map(member => member.userId),
                                 testMode,

@@ -2843,8 +2843,14 @@ export default {
           if (!access.isAdmin) throw new Error("Admin authorization required");
           const title = String(payload?.title || "").trim();
           const text = String(payload?.message || "").trim();
+          const messageType = String(payload?.messageType || "text").trim();
+          const flexMessage = payload?.flexMessage;
           if (!title) throw new Error("請輸入推播名稱");
-          if (!text) throw new Error("請輸入推播內容");
+          if (messageType !== "flex" && !text) throw new Error("請輸入推播內容");
+          if (messageType === "flex") {
+            if (!flexMessage || flexMessage.type !== "flex" || !flexMessage.contents) throw new Error("Flex message payload invalid");
+            if (!String(flexMessage.altText || "").trim()) throw new Error("Flex altText required");
+          }
           const testMode = payload?.testMode === true;
           const allUsers = uniqueUsersById(await listUserRecords(env));
           const adminUidSet = new Set([
@@ -2882,12 +2888,24 @@ export default {
             recipients.splice(0, recipients.length, ...recipients.filter(user => selectedUidSet.has(String(user.userId || "").trim())));
           }
           if (!recipients.length) throw new Error("目前受眾為 0，沒有可推播會員");
-          const messageText = testMode ? `【測試訊息】\n${text}` : text;
-          const sendResult = await sendLineMulticast(env, recipients, [{ type: "text", text: messageText }]);
+          let messages;
+          let messageText;
+          if (messageType === "flex") {
+            const nextFlex = JSON.parse(JSON.stringify(flexMessage));
+            if (testMode) nextFlex.altText = `【測試訊息】${String(nextFlex.altText || title).slice(0, 380)}`;
+            messages = [nextFlex];
+            messageText = nextFlex.altText || title;
+          } else {
+            messageText = testMode ? `【測試訊息】\n${text}` : text;
+            messages = [{ type: "text", text: messageText }];
+          }
+          const sendResult = await sendLineMulticast(env, recipients, messages);
           const campaign = {
             id: crypto.randomUUID ? crypto.randomUUID() : `BCAST_${Date.now()}`,
             title,
             message: messageText,
+            messageType,
+            flexTemplate: payload?.flexTemplate || "",
             audience: payload?.audience || {},
             testMode,
             targetCount: recipients.length,
