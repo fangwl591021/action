@@ -234,11 +234,11 @@
                 <div v-if="view === 'members'" class="animate-fade-in">
                     <div class="relative w-full mb-4">
                         <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" v-model="userSearchQuery" placeholder="搜尋姓名、手機號碼..." class="native-input pl-10 text-[14px]">
+                        <input type="text" v-model="userSearchQuery" @input="mobileUserPage = 1" placeholder="搜尋姓名、手機、UID、業種、等級..." class="native-input pl-10 text-[14px]">
                     </div>
 
                     <!-- ✅ 學員卡片改為可點擊，點擊後開啟詳細檔案 Modal -->
-                    <div v-for="u in filteredUsers" :key="u.userId" class="native-card flex items-center justify-between !py-4 active:bg-slate-50 transition cursor-pointer" @click="openMemberDetail(u)">
+                    <div v-for="u in pagedFilteredUsers" :key="u.userId" class="native-card flex items-center justify-between !py-4 active:bg-slate-50 transition cursor-pointer" @click="openMemberDetail(u)">
                         <div>
                             <div class="text-[15px] font-bold text-slate-800 mb-1 flex items-center gap-2">
                                 {{ u.name || '未填寫' }} 
@@ -252,6 +252,12 @@
                             <i class="fas fa-chevron-right text-slate-300 text-xs mt-1 block"></i>
                         </div>
                     </div>
+                    <div v-if="filteredUsers.length > mobileUserPageSize" class="flex items-center justify-between mt-4 mb-2">
+                        <button @click="setMobileUserPage(mobileUserPage - 1)" :disabled="mobileUserPage <= 1" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-600 disabled:opacity-40">上一頁</button>
+                        <div class="text-xs font-black text-slate-500">{{ mobileUserPage }} / {{ mobileUserTotalPages }}，共 {{ filteredUsers.length }} 筆</div>
+                        <button @click="setMobileUserPage(mobileUserPage + 1)" :disabled="mobileUserPage >= mobileUserTotalPages" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-600 disabled:opacity-40">下一頁</button>
+                    </div>
+                    <div v-if="!filteredUsers.length" class="text-center py-10 text-slate-400 font-bold">查無符合的學員</div>
                     
                     <div class="mt-8 text-center bg-slate-50 border border-slate-200 rounded-xl p-4">
                         <div class="text-xs text-slate-500 font-bold mb-2">需要進階編輯學員資料？</div>
@@ -473,7 +479,7 @@
                         <div class="bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
                             <div class="p-3 bg-slate-100 text-[12px] font-bold text-slate-500 flex items-center gap-2"><i class="fas fa-history"></i> 紅包歷史紀錄</div>
                             <div class="max-h-[200px] overflow-y-auto">
-                                <div v-for="log in activeMemberPoints.logs" :key="log.logId" class="p-3 border-b border-slate-100 last:border-0 flex justify-between items-center">
+                                <div v-for="log in (activeMemberPoints.logs || []).slice(0, 15)" :key="log.logId" class="p-3 border-b border-slate-100 last:border-0 flex justify-between items-center">
                                     <div><div class="font-bold text-[13px] text-slate-700">{{ log.reason }}</div><div class="text-[10px] text-slate-400 font-mono">{{ log.createdAt }}</div></div>
                                     <div class="font-black text-[16px]" :class="log.type.includes('ADD')||log.type.includes('EARN')?'text-[#06C755]':'text-red-500'">
                                         {{ log.type.includes('ADD')||log.type.includes('EARN')?'+':'-' }}{{ log.amount }}
@@ -532,6 +538,7 @@
                 const view = ref('dashboard');
                 const isLoading = ref(false);
                 const loginForm = ref({ account: '', password: '' });
+                const currentAdminProfile = ref({ userId: '', displayName: '' });
 
                 const sysSettings = ref({});
                 const courses = ref([]);
@@ -555,6 +562,8 @@
                 const orderSearchQuery = ref('');
                 const courseSearchQuery = ref('');
                 const userSearchQuery = ref('');
+                const mobileUserPage = ref(1);
+                const mobileUserPageSize = 15;
                 const editingOrder = ref(null);
                 const showOrdersModal = ref(false);
                 const selectedCourseOrders = ref(null);
@@ -571,7 +580,7 @@
                         const requestPayload = { ...payload };
                         if (loginForm.value.password) requestPayload.adminPwd = loginForm.value.password;
                         else if (sessionStorage.getItem('act_admin_pwd')) requestPayload.adminPwd = sessionStorage.getItem('act_admin_pwd');
-                        else if (action && (action.startsWith('ADMIN_') || action === 'GET_USER_POINTS')) {
+                        else if (!token && action && (action.startsWith('ADMIN_') || action === 'GET_USER_POINTS')) {
                             const pwd = window.prompt('請重新輸入管理密碼以儲存 CRM 變更');
                             if (pwd) {
                                 sessionStorage.setItem('act_admin_pwd', pwd);
@@ -625,6 +634,10 @@
                         
                         if (liff.isLoggedIn()) {
                             const profile = await liff.getProfile();
+                            currentAdminProfile.value = {
+                                userId: profile.userId || '',
+                                displayName: profile.displayName || ''
+                            };
                             const currentSettings = await callApi('GET_SETTINGS', {}, true);
                             const checkRes = await callApi('CHECK_USER', { userId: profile.userId }, true);
                             const isAuthorized = checkRes && (checkRes.isAdmin || checkRes.canCrmLogin);
@@ -656,6 +669,7 @@
                     const pwd = String(loginForm.value.password || '').trim();
                     if (acc === 'admin' && pwd === '@1234') {
                         isAuthenticated.value = true;
+                        currentAdminProfile.value = { userId: '', displayName: acc || 'admin' };
                         sessionStorage.setItem('act_admin_pwd', pwd);
                         fetchData();
                     } else {
@@ -706,7 +720,7 @@
                             amount: amt, 
                             type: editingPointAction.value.type, 
                             reason: editingPointAction.value.reason, 
-                            operator: 'Admin' 
+                            operator: currentAdminProfile.value.displayName || currentAdminProfile.value.userId || 'Mobile Admin'
                         });
                         if (res) {
                             alert('✅ 點數調整成功！已記錄於流水帳。');
@@ -761,10 +775,34 @@
                 });
 
                 const filteredUsers = computed(() => {
-                    if (!userSearchQuery.value) return users.value;
-                    const q = userSearchQuery.value.toLowerCase();
-                    return users.value.filter(u => String(u.name).toLowerCase().includes(q) || String(u.phone).includes(q));
+                    const q = String(userSearchQuery.value || '').trim().toLowerCase();
+                    if (!q) return users.value;
+                    return users.value.filter(u => {
+                        const haystack = [
+                            u.name,
+                            u.phone,
+                            u.userId,
+                            u.memberTier,
+                            u.industry,
+                            u.gender,
+                            u.address,
+                            u.referrerUid,
+                            u.referrerName
+                        ].map(v => String(v || '').toLowerCase()).join(' ');
+                        return haystack.includes(q);
+                    });
                 });
+
+                const mobileUserTotalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / mobileUserPageSize)));
+                const pagedFilteredUsers = computed(() => {
+                    const maxPage = mobileUserTotalPages.value;
+                    if (mobileUserPage.value > maxPage) mobileUserPage.value = maxPage;
+                    const start = (mobileUserPage.value - 1) * mobileUserPageSize;
+                    return filteredUsers.value.slice(start, start + mobileUserPageSize);
+                });
+                const setMobileUserPage = (page) => {
+                    mobileUserPage.value = Math.min(Math.max(1, Number(page) || 1), mobileUserTotalPages.value);
+                };
 
 
                 const memberTierOptions = computed(() => [...new Set(users.value.map(u => u.memberTier).filter(Boolean))]);
@@ -911,7 +949,7 @@
                 return {
                     isAuthenticated, isGlobalLoading, loadingText, view, isLoading, loginForm,
                     users, courses, orders, flexRules, editingOrder, showOrdersModal, selectedCourseOrders,
-                    orderSearchQuery, courseSearchQuery, userSearchQuery,
+                    orderSearchQuery, courseSearchQuery, userSearchQuery, mobileUserPage, mobileUserPageSize,
                     broadcastForm, broadcastSelectedUids, broadcastSelectedModuleIds, editingFlexRule,
                     
                     // CRM 相關
@@ -919,7 +957,7 @@
                     openMemberDetail, saveMemberDetail, openPointActionModal, submitPointAction,
                     
                     viewTitle, formatPrice, getCourseName,
-                    totalRevenue, courseStatsFiltered, currentCourseOrders, filteredOrders, filteredCourses, filteredUsers,
+                    totalRevenue, courseStatsFiltered, currentCourseOrders, filteredOrders, filteredCourses, filteredUsers, pagedFilteredUsers, mobileUserTotalPages, setMobileUserPage,
                     memberTierOptions, broadcastModuleOptions, mobileAudiencePreview, selectedMobileAudience, isMobileAudienceAllSelected, mobileBroadcastMessageCount,
                     
                     lineLogin, handleLogin, fetchData,
