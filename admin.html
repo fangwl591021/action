@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -567,6 +567,23 @@
                                             </div>
                                         </div>
                                     </div>
+                                    <div class="rounded-xl border border-blue-100 bg-blue-50/50 p-5 space-y-4">
+                                        <div class="flex items-center justify-between">
+                                            <h4 class="font-black text-slate-800"><i class="fas fa-layer-group text-blue-600 mr-2"></i>選擇已建立模組（可複選）</h4>
+                                            <span class="text-xs font-black text-blue-700 bg-white border border-blue-100 rounded px-2 py-1">{{ broadcastMessageCount }} / 5 則</span>
+                                        </div>
+                                        <div v-if="broadcastModuleOptions.length" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-52 overflow-y-auto custom-scrollbar pr-1">
+                                            <label v-for="module in broadcastModuleOptions" :key="module.id" class="flex items-start gap-3 p-3 rounded-xl bg-white border border-blue-100 cursor-pointer hover:border-blue-300 transition">
+                                                <input type="checkbox" class="w-5 h-5 accent-[#06C755] mt-0.5" :value="module.id" v-model="broadcastSelectedModuleIds">
+                                                <span class="min-w-0">
+                                                    <span class="block font-black text-slate-800 truncate">{{ module.moduleName || module.keyword || module.id }}</span>
+                                                    <span class="block text-xs font-bold text-slate-400 mt-1">{{ module.replyType }}<span v-if="module.keyword"> · {{ module.keyword }}</span></span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div v-else class="p-5 rounded-xl bg-white border border-blue-100 text-center text-slate-400 font-bold">尚未建立可推播模組，請到「機器人與專區卡片」新增。</div>
+                                        <p class="text-xs font-bold text-slate-500">可與上方文字或臨時 Flex 一起送出；LINE 一次最多 5 則訊息。</p>
+                                    </div>
                                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                                         <div class="flex items-center justify-between mb-4">
                                             <h4 class="font-black text-slate-800"><i class="fas fa-filter text-indigo-500 mr-2"></i>受眾條件</h4>
@@ -716,14 +733,14 @@
                 <div v-if="isAdminRole && view === 'flex_rules'" class="p-8 animate-fade-in">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-xl font-black text-slate-800">自動回覆與會員專區卡片</h2>
-                        <button @click="openEditFlexRule(null)" class="btn-green-main shadow-sm"><i class="fas fa-plus mr-1"></i>新增觸發規則</button>
+                        <button @click="openEditFlexRule(null)" class="btn-green-main shadow-sm"><i class="fas fa-plus mr-1"></i>新增模組</button>
                     </div>
                     
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <table class="admin-table !min-w-0 w-full">
                             <thead>
                                 <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[13px]">
-                                    <th class="p-4 font-bold">觸發關鍵字 / Postback</th>
+                                    <th class="p-4 font-bold">模組 / 觸發關鍵字</th>
                                     <th class="p-4 font-bold">回覆類型</th>
                                     <th class="p-4 font-bold">狀態</th>
                                     <th class="p-4 font-bold text-right">操作</th>
@@ -731,8 +748,11 @@
                             </thead>
                             <tbody>
                                 <tr v-for="rule in flexRules" :key="rule.id" class="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition">
-                                    <td class="p-4 font-bold text-slate-800">{{ rule.keyword }}</td>
-                                    <td class="p-4"><span class="status-badge" :class="rule.replyType === 'FLEX' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'">{{ rule.replyType === 'FLEX' ? 'FLEX 卡片' : '純文字' }}</span></td>
+                                    <td class="p-4">
+                                        <div class="font-bold text-slate-800">{{ rule.moduleName || rule.keyword || rule.id }}</div>
+                                        <div class="text-xs font-mono text-slate-400 mt-1">{{ rule.keyword || '未設定觸發字' }}</div>
+                                    </td>
+                                    <td class="p-4"><span class="status-badge" :class="rule.replyType === 'FLEX' ? 'bg-indigo-100 text-indigo-700' : (rule.replyType === 'IMAGE' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600')">{{ rule.replyType === 'FLEX' ? 'FLEX 卡片' : (rule.replyType === 'IMAGE' ? '圖片訊息' : '純文字') }}</span></td>
                                     <td class="p-4"><span class="status-badge" :class="rule.active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">{{ rule.active !== false ? '啟用中' : '已停用' }}</span></td>
                                     <td class="p-4 text-right">
                                         <button @click="openEditFlexRule(rule)" class="text-blue-500 hover:text-blue-700 font-bold text-sm mr-4 transition"><i class="fas fa-edit"></i></button>
@@ -1150,7 +1170,7 @@
         <div v-if="editingFlexRule" class="modal-mask" @click.self="editingFlexRule = null" style="z-index: 1000;">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !max-w-[700px] !rounded-xl bg-white shadow-2xl">
                 <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100 shadow-sm z-10 relative">
-                    <h3 class="text-[19px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-robot text-[#06C755]"></i> {{ (editingFlexRule?.id || '').startsWith('NEW_') ? '新增觸發規則' : '編輯觸發規則' }}</h3>
+                    <h3 class="text-[19px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-robot text-[#06C755]"></i> {{ editingFlexRule?.createdAt ? '編輯模組' : '新增模組' }}</h3>
                     <button @click="editingFlexRule = null" class="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><i class="fas fa-times text-xl"></i></button>
                 </div>
                 <div class="p-8 overflow-y-auto max-h-[75vh] bg-slate-50 custom-scrollbar space-y-6">
@@ -1164,9 +1184,11 @@
                     </div>
 
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                        <label class="block text-[14px] font-bold text-slate-700 mb-2">觸發關鍵字 / Postback Data <span class="text-red-500">*</span></label>
+                        <label class="block text-[14px] font-bold text-slate-700 mb-2">模組名稱 <span class="text-red-500">*</span></label>
+                        <input type="text" v-model="editingFlexRule.moduleName" class="input-field bg-slate-50 font-bold mb-4" placeholder="例如：完整會員續約圖文">
+                        <label class="block text-[14px] font-bold text-slate-700 mb-2">觸發關鍵字 / Postback Data（選填）</label>
                         <input type="text" v-model="editingFlexRule.keyword" class="input-field bg-slate-50 font-bold mb-2" placeholder="例如：ACTION會員專區">
-                        <p class="text-[12px] text-slate-500 font-bold"><i class="fas fa-info-circle text-[#06C755] mr-1"></i> 請將圖文選單編輯器中的「回傳 Data」設為此關鍵字，即可無縫觸發！</p>
+                        <p class="text-[12px] text-slate-500 font-bold"><i class="fas fa-info-circle text-[#06C755] mr-1"></i> 若只作推播模組，可留空；若要讓圖文選單觸發，才填回傳 Data。</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-5">
@@ -1174,6 +1196,7 @@
                             <label class="block text-[14px] font-bold text-slate-700 mb-2">回覆類型</label>
                             <select v-model="editingFlexRule.replyType" class="input-field bg-slate-50 font-bold text-indigo-700">
                                 <option value="FLEX">🎴 FLEX 卡片 (JSON)</option>
+                                <option value="IMAGE">🖼️ 圖片訊息</option>
                                 <option value="TEXT">💬 純文字訊息</option>
                             </select>
                         </div>
@@ -1187,16 +1210,20 @@
                     </div>
 
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <div v-if="editingFlexRule.replyType === 'IMAGE'" class="mb-5">
+                            <label class="block text-[14px] font-bold text-slate-700 mb-2">預覽圖片 URL（選填）</label>
+                            <input v-model.trim="editingFlexRule.previewImageUrl" class="input-field bg-slate-50 font-mono text-xs" placeholder="若空白，會使用下方圖片 URL">
+                        </div>
                         <div class="flex justify-between items-center mb-3">
                             <label class="block text-[14px] font-bold text-slate-700">回覆內容 (Payload) <span class="text-red-500">*</span></label>
                             <a v-if="editingFlexRule.replyType === 'FLEX'" href="https://developers.line.biz/flex-simulator/" target="_blank" class="text-[12px] text-blue-500 hover:text-blue-700 font-bold transition flex items-center gap-1"><i class="fas fa-external-link-alt"></i> 開啟 LINE Flex Simulator</a>
                         </div>
-                        <textarea v-model="editingFlexRule.payload" rows="12" class="input-field bg-slate-50 font-mono text-[12px] leading-relaxed resize-y" :placeholder="editingFlexRule.replyType === 'FLEX' ? '請將 Simulator 右上角的 JSON (View as JSON) 複製貼上於此...\n\n(系統支援自動補齊，您只需貼上 contents 陣列內的物件即可)' : '請輸入要回覆的純文字訊息...'"></textarea>
+                        <textarea v-model="editingFlexRule.payload" rows="12" class="input-field bg-slate-50 font-mono text-[12px] leading-relaxed resize-y" :placeholder="editingFlexRule.replyType === 'FLEX' ? '請將 Simulator 右上角的 JSON (View as JSON) 複製貼上於此...' : (editingFlexRule.replyType === 'IMAGE' ? '請輸入 https 圖片 URL' : '請輸入要回覆或推播的純文字訊息...')"></textarea>
                     </div>
                 </div>
                 <div class="px-8 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl z-10 relative">
                     <button @click="editingFlexRule = null" class="text-[15px] font-bold text-slate-500 hover:text-slate-800 px-4 transition">取消</button>
-                    <button @click="saveFlexRule" :disabled="isLoading" class="btn-green-main px-10 py-3.5 text-[17px] shadow-lg active:scale-95 flex items-center gap-2"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i>{{ isLoading ? '儲存中...' : '儲存觸發規則' }}</button>
+                    <button @click="saveFlexRule" :disabled="isLoading" class="btn-green-main px-10 py-3.5 text-[17px] shadow-lg active:scale-95 flex items-center gap-2"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i>{{ isLoading ? '儲存中...' : '儲存模組' }}</button>
                 </div>
             </div>
         </div>
@@ -1587,6 +1614,7 @@
                     const selectedBroadcastTag = ref('');
                     const broadcastMemberSearch = ref('');
                     const broadcastSelectedUids = ref([]);
+                    const broadcastSelectedModuleIds = ref([]);
                     const broadcastForm = ref({
                         title: '',
                         message: '',
@@ -2488,14 +2516,67 @@
                         contents: buildBroadcastFlexContents()
                     });
 
+                    const broadcastModuleOptions = computed(() => flexRules.value.filter(rule => {
+                        const type = String(rule?.replyType || '').toUpperCase();
+                        return rule && rule.active !== false && rule.payload && ['TEXT', 'IMAGE', 'FLEX'].includes(type);
+                    }));
+
+                    const selectedBroadcastModules = computed(() => {
+                        const ids = new Set(broadcastSelectedModuleIds.value.map(id => String(id)));
+                        return broadcastModuleOptions.value.filter(rule => ids.has(String(rule.id)));
+                    });
+
+                    const parseBroadcastFlexPayload = (rule) => {
+                        const raw = JSON.parse(rule.payload || '{}');
+                        if (raw.type === 'flex' && raw.contents) return raw;
+                        if (raw.type === 'bubble' || raw.type === 'carousel') {
+                            return {
+                                type: 'flex',
+                                altText: String(rule.moduleName || rule.keyword || 'Flex 推播').slice(0, 400),
+                                contents: raw
+                            };
+                        }
+                        throw new Error(`模組「${rule.moduleName || rule.keyword || rule.id}」不是有效 Flex JSON`);
+                    };
+
+                    const buildMessageFromBroadcastModule = (rule) => {
+                        const type = String(rule.replyType || '').toUpperCase();
+                        if (type === 'TEXT') return { type: 'text', text: String(rule.payload || '').trim() };
+                        if (type === 'IMAGE') {
+                            const url = broadcastUri(rule.payload, '');
+                            const previewUrl = broadcastUri(rule.previewImageUrl || rule.payload, url);
+                            if (!url) throw new Error(`模組「${rule.moduleName || rule.keyword || rule.id}」缺少圖片 URL`);
+                            return { type: 'image', originalContentUrl: url, previewImageUrl: previewUrl };
+                        }
+                        if (type === 'FLEX') return parseBroadcastFlexPayload(rule);
+                        throw new Error(`不支援的模組類型：${type}`);
+                    };
+
+                    const buildBroadcastMessages = () => {
+                        const messages = [];
+                        if (broadcastForm.value.messageType === 'flex') {
+                            messages.push(buildBroadcastFlexMessage());
+                        } else if (broadcastForm.value.message.trim()) {
+                            messages.push({ type: 'text', text: broadcastForm.value.message.trim() });
+                        }
+                        selectedBroadcastModules.value.forEach(rule => messages.push(buildMessageFromBroadcastModule(rule)));
+                        if (!messages.length) throw new Error('請輸入文字、建立臨時 Flex，或選擇至少一個模組');
+                        if (messages.length > 5) throw new Error('LINE 一次最多可推播 5 則訊息，請減少文字或模組數量');
+                        return messages;
+                    };
+
+                    const broadcastMessageCount = computed(() => {
+                        let count = selectedBroadcastModules.value.length;
+                        if (broadcastForm.value.messageType === 'flex') count += 1;
+                        else if (broadcastForm.value.message.trim()) count += 1;
+                        return count;
+                    });
+
                     const sendPaidBroadcast = async (testMode = false) => {
                         if (!broadcastForm.value.title.trim()) return alert('請輸入推播名稱');
-                        if (broadcastForm.value.messageType !== 'flex' && !broadcastForm.value.message.trim()) return alert('請輸入推播內容');
-                        let flexMessage = null;
-                        if (broadcastForm.value.messageType === 'flex') {
-                            try { flexMessage = buildBroadcastFlexMessage(); }
-                            catch (e) { return alert('Flex 模組格式錯誤：' + e.message); }
-                        }
+                        let messages = [];
+                        try { messages = buildBroadcastMessages(); }
+                        catch (e) { return alert('推播內容錯誤：' + e.message); }
                         const count = testMode ? 1 : selectedBroadcastAudience.value.length;
                         if (!testMode && !count) return alert('目前受眾為 0，無法推播');
                         if (testMode) {
@@ -2508,7 +2589,7 @@
                                 message: broadcastForm.value.message,
                                 messageType: broadcastForm.value.messageType,
                                 flexTemplate: broadcastForm.value.flexTemplate,
-                                flexMessage,
+                                messages,
                                 audience: broadcastForm.value.audience,
                                 selectedUids: testMode ? [] : selectedBroadcastAudience.value.map(member => member.userId),
                                 testMode,
@@ -3617,23 +3698,25 @@
                         } else {
                             editingFlexRule.value = {
                                 id: 'FR_' + Date.now(),
+                                moduleName: '',
                                 keyword: '',
                                 replyType: 'FLEX',
                                 payload: '',
+                                previewImageUrl: '',
                                 active: true
                             };
                         }
                     };
 
                     const saveFlexRule = async () => {
-                        if (!editingFlexRule.value.keyword || !editingFlexRule.value.payload) return alert('觸發關鍵字與回覆內容為必填！');
+                        if (!editingFlexRule.value.moduleName || !editingFlexRule.value.payload) return alert('模組名稱與內容為必填');
                         isLoading.value = true;
                         try {
                             const res = await callApi('ADMIN_SAVE_REPLY_RULE', editingFlexRule.value);
                             if (res && res.success) {
                                 alert('✅ 觸發規則儲存成功！');
+                                flexRules.value = res.flexRules || flexRules.value;
                                 editingFlexRule.value = null;
-                                fetchData(true);
                             }
                         } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
                     };
@@ -3643,7 +3726,7 @@
                         isLoading.value = true;
                         try {
                             const res = await callApi('ADMIN_DELETE_REPLY_RULE', { id });
-                            if (res && res.success) fetchData(true);
+                            if (res && res.success) flexRules.value = res.flexRules || flexRules.value.filter(rule => rule.id !== id);
                         } catch(e) {} finally { isLoading.value = false; }
                     };
 
@@ -3939,6 +4022,7 @@
                           }
                         };
                         
+                        editingFlexRule.value.moduleName = editingFlexRule.value.moduleName || "ACTION會員專區卡片";
                         editingFlexRule.value.keyword = "ACTION會員專區";
                         editingFlexRule.value.replyType = "FLEX";
                         editingFlexRule.value.payload = JSON.stringify(template, null, 2);
@@ -3969,7 +4053,7 @@
                         transferableCourses, canTransferEditingOrder, transferTargetCourseId, transferReason, transferConfirmed,
                         memberSearch, memberPage, memberTotalPages, pagedMembers, showDeletedMembers, filteredMembers, courseSearchQuery, courseTypeFilter, selectedReportCourseId, reportCourseOptions, filteredAdminCourses, productSearchQuery, filteredProducts,
                         orderSearch, orderTypeFilter, filteredOrders, bookingReportSearch, bookingReportStatus, filteredBookingReportRows, bookingReportSummary, pointsLedgerSearch, pointsLedgerPage, pointsLedgerTotalPages, pagedPointsLedger, filteredPointsLedger, pointsLedgerSummary, auditLogSearch, filteredAuditLogs,
-                        newBroadcastTag, selectedBroadcastTag, broadcastMemberSearch, broadcastSelectedUids, broadcastForm, memberTierOptions, broadcastAudiencePreview, selectedBroadcastAudience, isBroadcastAudienceAllSelected, toggleBroadcastAudienceAll, filteredBroadcastMembers, memberBroadcastTags, memberHasBroadcastTag, broadcastTagCount,
+                        newBroadcastTag, selectedBroadcastTag, broadcastMemberSearch, broadcastSelectedUids, broadcastSelectedModuleIds, broadcastForm, memberTierOptions, broadcastAudiencePreview, selectedBroadcastAudience, isBroadcastAudienceAllSelected, toggleBroadcastAudienceAll, filteredBroadcastMembers, memberBroadcastTags, memberHasBroadcastTag, broadcastTagCount, broadcastModuleOptions, broadcastMessageCount,
                         approveForm, teacherApprovalCandidates, wpImportForm, isImageUploading, editingCourse, editingProduct,
                         activeEnrollmentCourse, courseOrders, editingOrder, editingSysConfig, editingFlexRule,
                         showOrdersModal, selectedCourseForOrders, selectedCourseOrders, currentCourseOrders,

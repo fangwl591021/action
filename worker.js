@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Project: 人生進化 ACTION - Backend Engine (Full Integration)
  * Version: 2026.04.26.V17_Bulletproof_KV_Rescue
  * Developer: 勝利團隊 - 小李 (Backend)
@@ -983,6 +983,8 @@ const HQ_ALLOWED_ACTIONS = new Set([
   "ADMIN_GET_RICH_MENU_SAVES",
   "ADMIN_SAVE_RICH_MENU",
   "ADMIN_DELETE_RICH_MENU_SAVE",
+  "ADMIN_SAVE_REPLY_RULE",
+  "ADMIN_DELETE_REPLY_RULE",
   "UPLOAD_IMAGE",
 ]);
 
@@ -996,6 +998,8 @@ const CRM_SYSTEM_ALLOWED_ACTIONS = new Set([
   "ADMIN_GET_RICH_MENU_SAVES",
   "ADMIN_SAVE_RICH_MENU",
   "ADMIN_DELETE_RICH_MENU_SAVE",
+  "ADMIN_SAVE_REPLY_RULE",
+  "ADMIN_DELETE_REPLY_RULE",
 ]);
 
 const DEFAULT_VIDEOS = [
@@ -1589,6 +1593,70 @@ function audienceMatchesUser(user, audience = {}, options = {}) {
 
 function selectBroadcastAudience(users, audience = {}, options = {}) {
   return uniqueUsersById(Array.isArray(users) ? users : []).filter(user => audienceMatchesUser(user, audience, options));
+}
+
+function normalizeLineMessageUnit(message) {
+  if (!message || typeof message !== "object") throw new Error("LINE message payload invalid");
+  const type = String(message.type || "").trim();
+  if (type === "text") {
+    const text = String(message.text || "").trim();
+    if (!text) throw new Error("Text message is empty");
+    return { type: "text", text: text.slice(0, 5000) };
+  }
+  if (type === "image") {
+    const originalContentUrl = String(message.originalContentUrl || message.url || "").trim();
+    const previewImageUrl = String(message.previewImageUrl || originalContentUrl).trim();
+    if (!/^https:\/\//i.test(originalContentUrl) || !/^https:\/\//i.test(previewImageUrl)) {
+      throw new Error("Image message requires https image URL");
+    }
+    return { type: "image", originalContentUrl, previewImageUrl };
+  }
+  if (type === "flex") {
+    const altText = String(message.altText || "").trim();
+    if (!altText) throw new Error("Flex altText required");
+    if (!message.contents || typeof message.contents !== "object") throw new Error("Flex contents required");
+    return { type: "flex", altText: altText.slice(0, 400), contents: message.contents };
+  }
+  throw new Error(`Unsupported LINE message type: ${type}`);
+}
+
+function normalizeBroadcastMessages(payload, title) {
+  const rawMessages = Array.isArray(payload?.messages) ? payload.messages : null;
+  if (rawMessages) {
+    const messages = rawMessages.map(normalizeLineMessageUnit);
+    if (!messages.length) throw new Error("No broadcast message selected");
+    if (messages.length > 5) throw new Error("LINE 一次最多可推播 5 則訊息");
+    return messages;
+  }
+  const text = String(payload?.message || "").trim();
+  const messageType = String(payload?.messageType || "text").trim();
+  if (messageType === "flex") return [normalizeLineMessageUnit(payload?.flexMessage)];
+  if (!text) throw new Error("請輸入推播內容");
+  return [normalizeLineMessageUnit({ type: "text", text })];
+}
+
+function markBroadcastMessagesAsTest(messages, title) {
+  const nextMessages = JSON.parse(JSON.stringify(messages));
+  const prefix = "【測試訊息】";
+  if (nextMessages[0]?.type === "text") {
+    nextMessages[0].text = `${prefix}\n${nextMessages[0].text}`.slice(0, 5000);
+    return nextMessages;
+  }
+  if (nextMessages[0]?.type === "flex") {
+    nextMessages[0].altText = `${prefix}${String(nextMessages[0].altText || title).slice(0, 380)}`;
+    return nextMessages;
+  }
+  if (nextMessages.length < 5) return [{ type: "text", text: `${prefix} ${title}` }, ...nextMessages];
+  return nextMessages;
+}
+
+function summarizeBroadcastMessages(messages, title) {
+  const firstText = messages.find(message => message.type === "text")?.text;
+  if (firstText) return firstText.slice(0, 500);
+  const firstFlex = messages.find(message => message.type === "flex")?.altText;
+  if (firstFlex) return firstFlex;
+  if (messages.some(message => message.type === "image")) return `${title}（圖片訊息）`;
+  return title;
 }
 
 async function sendLineMulticast(env, recipients, messages) {
@@ -2753,6 +2821,7 @@ export default {
               courses: adminCourses,
               orders: adminOrders,
               products: await safeGetProducts(env),
+              flexRules: await safeGetKV(env, "FLEX_RULES", []),
               paymentLogs: await safeGetKV(env, "PAYMENT_LOGS", [], { preferWasabi: false }),
               paymentIntents: await safeGetKV(env, "PAYMENT_INTENTS", [], { preferWasabi: false }),
               teachers: localUsers.filter(u => u.memberTier && ['專業導師', '導師'].some(t => u.memberTier.includes(t))),
@@ -2839,18 +2908,53 @@ export default {
           break;
         }
 
+        case "ADMIN_SAVE_REPLY_RULE": {
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          const replyType = String(payload?.replyType || "FLEX").trim().toUpperCase();
+          if (!["TEXT", "IMAGE", "FLEX"].includes(replyType)) throw new Error("Unsupported module type");
+          const payloadText = String(payload?.payload || "").trim();
+          if (!payloadText) throw new Error("請輸入模組內容");
+          const nowIso = new Date().toISOString();
+          const rule = {
+            id: String(payload?.id || `FR_${Date.now()}`).trim(),
+            moduleName: String(payload?.moduleName || payload?.keyword || "未命名模組").trim(),
+            keyword: String(payload?.keyword || "").trim(),
+            replyType,
+            payload: payloadText,
+            previewImageUrl: String(payload?.previewImageUrl || "").trim(),
+            active: payload?.active !== false,
+            updatedAt: nowIso,
+            updatedBy: userId,
+          };
+          const currentRules = await safeGetKV(env, "FLEX_RULES", []);
+          const rules = Array.isArray(currentRules) ? currentRules : [];
+          const existingIndex = rules.findIndex(item => String(item?.id || "") === rule.id);
+          const nextRule = existingIndex >= 0 ? { ...rules[existingIndex], ...rule } : { ...rule, createdAt: nowIso };
+          const nextRules = existingIndex >= 0
+            ? rules.map(item => String(item?.id || "") === rule.id ? nextRule : item)
+            : [nextRule, ...rules];
+          await safePutKV(env, "FLEX_RULES", nextRules);
+          result.data = { success: true, rule: nextRule, flexRules: nextRules };
+          break;
+        }
+
+        case "ADMIN_DELETE_REPLY_RULE": {
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          const id = String(payload?.id || "").trim();
+          if (!id) throw new Error("Missing module id");
+          const currentRules = await safeGetKV(env, "FLEX_RULES", []);
+          const nextRules = (Array.isArray(currentRules) ? currentRules : []).filter(item => String(item?.id || "") !== id);
+          await safePutKV(env, "FLEX_RULES", nextRules);
+          result.data = { success: true, flexRules: nextRules };
+          break;
+        }
+
         case "ADMIN_SEND_PAID_BROADCAST": {
           if (!access.isAdmin) throw new Error("Admin authorization required");
           const title = String(payload?.title || "").trim();
-          const text = String(payload?.message || "").trim();
           const messageType = String(payload?.messageType || "text").trim();
-          const flexMessage = payload?.flexMessage;
           if (!title) throw new Error("請輸入推播名稱");
-          if (messageType !== "flex" && !text) throw new Error("請輸入推播內容");
-          if (messageType === "flex") {
-            if (!flexMessage || flexMessage.type !== "flex" || !flexMessage.contents) throw new Error("Flex message payload invalid");
-            if (!String(flexMessage.altText || "").trim()) throw new Error("Flex altText required");
-          }
+          const normalizedMessages = normalizeBroadcastMessages(payload, title);
           const testMode = payload?.testMode === true;
           const allUsers = uniqueUsersById(await listUserRecords(env));
           const adminUidSet = new Set([
@@ -2888,24 +2992,16 @@ export default {
             recipients.splice(0, recipients.length, ...recipients.filter(user => selectedUidSet.has(String(user.userId || "").trim())));
           }
           if (!recipients.length) throw new Error("目前受眾為 0，沒有可推播會員");
-          let messages;
-          let messageText;
-          if (messageType === "flex") {
-            const nextFlex = JSON.parse(JSON.stringify(flexMessage));
-            if (testMode) nextFlex.altText = `【測試訊息】${String(nextFlex.altText || title).slice(0, 380)}`;
-            messages = [nextFlex];
-            messageText = nextFlex.altText || title;
-          } else {
-            messageText = testMode ? `【測試訊息】\n${text}` : text;
-            messages = [{ type: "text", text: messageText }];
-          }
+          const messages = testMode ? markBroadcastMessagesAsTest(normalizedMessages, title) : normalizedMessages;
+          const messageText = summarizeBroadcastMessages(messages, title);
           const sendResult = await sendLineMulticast(env, recipients, messages);
           const campaign = {
             id: crypto.randomUUID ? crypto.randomUUID() : `BCAST_${Date.now()}`,
             title,
             message: messageText,
-            messageType,
+            messageType: Array.isArray(payload?.messages) ? "mixed" : messageType,
             flexTemplate: payload?.flexTemplate || "",
+            messageCount: messages.length,
             audience: payload?.audience || {},
             testMode,
             targetCount: recipients.length,
