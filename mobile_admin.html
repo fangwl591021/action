@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>行動管理台 | 人生進化ACTION</title>
     <!-- Version: 2026.04.30.Mobile_Admin_V4_CRM_Fix -->
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -616,6 +615,32 @@
                 // ==========================================
                 // 登入驗證模組
                 // ==========================================
+                let liffSdkPromise = null;
+                const loadLiffSdk = (showError = false) => {
+                    if (typeof liff !== 'undefined' && typeof liff.init === 'function') return Promise.resolve(true);
+                    if (!liffSdkPromise) {
+                        liffSdkPromise = new Promise((resolve) => {
+                            const script = document.createElement('script');
+                            const timer = setTimeout(() => resolve(false), 8000);
+                            script.charset = 'utf-8';
+                            script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+                            script.onload = () => {
+                                clearTimeout(timer);
+                                resolve(typeof liff !== 'undefined' && typeof liff.init === 'function');
+                            };
+                            script.onerror = () => {
+                                clearTimeout(timer);
+                                resolve(false);
+                            };
+                            document.head.appendChild(script);
+                        });
+                    }
+                    return liffSdkPromise.then(ok => {
+                        if (!ok && showError) throw new Error('LINE Login SDK 載入逾時，請檢查網路或改用管理員密碼登入');
+                        return ok;
+                    });
+                };
+
                 const initLiffForAdmin = async (manualClick = false) => {
                     try {
                         isGlobalLoading.value = true;
@@ -630,6 +655,8 @@
                             liffId = String(liffId).split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
                         }
                         
+                        const sdkReady = await loadLiffSdk(manualClick);
+                        if (!sdkReady) return;
                         await liff.init({ liffId });
                         
                         if (liff.isLoggedIn()) {

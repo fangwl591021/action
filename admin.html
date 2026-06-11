@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>宏學管理站</title>
     <!-- Version: 2026.05.08.V297_Color_And_Auto_Sync_UI -->
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1756,6 +1755,31 @@
                         localStorage.removeItem('act_crm_access');
                         window.location.href = './consult_admin.html';
                     };
+                    let liffSdkPromise = null;
+                    const loadLiffSdk = (showError = false) => {
+                        if (typeof liff !== 'undefined' && typeof liff.init === 'function') return Promise.resolve(true);
+                        if (!liffSdkPromise) {
+                            liffSdkPromise = new Promise((resolve) => {
+                                const script = document.createElement('script');
+                                const timer = setTimeout(() => resolve(false), 8000);
+                                script.charset = 'utf-8';
+                                script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+                                script.onload = () => {
+                                    clearTimeout(timer);
+                                    resolve(typeof liff !== 'undefined' && typeof liff.init === 'function');
+                                };
+                                script.onerror = () => {
+                                    clearTimeout(timer);
+                                    resolve(false);
+                                };
+                                document.head.appendChild(script);
+                            });
+                        }
+                        return liffSdkPromise.then(ok => {
+                            if (!ok && showError) throw new Error('LINE Login SDK 載入逾時，請檢查網路或改用管理員密碼登入');
+                            return ok;
+                        });
+                    };
                     const ensureLineToken = () => {
                         if (typeof liff === 'undefined' || typeof liff.isLoggedIn !== 'function') return null;
                         if (!liff.isLoggedIn()) {
@@ -1879,6 +1903,8 @@
                                 finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
                             }
                             if (finalLiffId) {
+                                const sdkReady = await loadLiffSdk(false);
+                                if (!sdkReady) return;
                                 await liff.init({ liffId: finalLiffId });
                                 if (!liff.isLoggedIn()) {
                                     liff.login({ redirectUri: window.location.href });
@@ -1919,6 +1945,7 @@
                             }
                             if (!finalLiffId) throw new Error('管理員尚未設定系統主 LIFF ID');
 
+                            await loadLiffSdk(true);
                             await liff.init({ liffId: finalLiffId });
                             if (!ensureLineToken()) return;
 
@@ -1962,7 +1989,26 @@
                                 finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
                             }
                             if (!finalLiffId) throw new Error('管理員尚未設定系統主 LIFF ID');
-                            if (typeof liff === 'undefined') throw new Error('LINE Login SDK 尚未載入，請重新整理後再試');
+                            const sdkReady = await loadLiffSdk(false);
+                            if (!sdkReady) {
+                                currentAccess.value = {
+                                    isAdmin: true,
+                                    canCrmLogin: true,
+                                    canHeadquarter: true,
+                                    isTeacher: false,
+                                    canSystemTools: true,
+                                    userId: 'PASSWORD_ADMIN',
+                                    name: acc || 'admin',
+                                    pictureUrl: ''
+                                };
+                                isAuthenticated.value = true;
+                                sessionStorage.setItem('act_admin_pwd', pwd);
+                                localStorage.setItem('act_crm_logged_in', 'true');
+                                localStorage.setItem('act_crm_access', JSON.stringify(currentAccess.value));
+                                await fetchData(false);
+                                alert('LINE Login SDK 載入逾時，已改用管理員密碼登入。操作紀錄會標示為 PASSWORD_ADMIN。');
+                                return;
+                            }
 
                             await liff.init({ liffId: finalLiffId });
                             if (!ensureLineToken()) return;
