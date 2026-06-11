@@ -549,8 +549,18 @@
                                                 <input v-model.trim="broadcastForm.buttonText" class="input-field font-bold" placeholder="例如：立即查看">
                                             </div>
                                             <div>
-                                                <label class="input-label">圖片 / 預覽圖 URL</label>
-                                                <input v-model.trim="broadcastForm.imageUrl" class="input-field font-mono text-xs" placeholder="https://...">
+                                                <label class="input-label">圖片 / 預覽圖</label>
+                                                <div class="border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+                                                    <img v-if="broadcastForm.imageUrl" :src="broadcastForm.imageUrl" class="w-full h-32 object-cover bg-white">
+                                                    <div v-else class="h-32 flex items-center justify-center text-slate-300 text-3xl"><i class="fas fa-image"></i></div>
+                                                    <div class="p-3 flex items-center gap-2 bg-white border-t border-slate-100">
+                                                        <label class="btn-outline text-blue-600 cursor-pointer flex items-center gap-2">
+                                                            <i class="fas fa-cloud-upload-alt"></i>上傳圖片
+                                                            <input type="file" class="hidden" accept="image/*" @change="handleBroadcastImageUpload">
+                                                        </label>
+                                                        <button v-if="broadcastForm.imageUrl" @click="broadcastForm.imageUrl = ''" class="btn-outline text-red-500">移除</button>
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div>
                                                 <label class="input-label">主連結 URL</label>
@@ -1209,15 +1219,25 @@
                     </div>
 
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                        <div v-if="editingFlexRule.replyType === 'IMAGE'" class="mb-5">
-                            <label class="block text-[14px] font-bold text-slate-700 mb-2">預覽圖片 URL（選填）</label>
-                            <input v-model.trim="editingFlexRule.previewImageUrl" class="input-field bg-slate-50 font-mono text-xs" placeholder="若空白，會使用下方圖片 URL">
-                        </div>
                         <div class="flex justify-between items-center mb-3">
                             <label class="block text-[14px] font-bold text-slate-700">回覆內容 (Payload) <span class="text-red-500">*</span></label>
                             <a v-if="editingFlexRule.replyType === 'FLEX'" href="https://developers.line.biz/flex-simulator/" target="_blank" class="text-[12px] text-blue-500 hover:text-blue-700 font-bold transition flex items-center gap-1"><i class="fas fa-external-link-alt"></i> 開啟 LINE Flex Simulator</a>
                         </div>
-                        <textarea v-model="editingFlexRule.payload" rows="12" class="input-field bg-slate-50 font-mono text-[12px] leading-relaxed resize-y" :placeholder="editingFlexRule.replyType === 'FLEX' ? '請將 Simulator 右上角的 JSON (View as JSON) 複製貼上於此...' : (editingFlexRule.replyType === 'IMAGE' ? '請輸入 https 圖片 URL' : '請輸入要回覆或推播的純文字訊息...')"></textarea>
+                        <div v-if="editingFlexRule.replyType === 'IMAGE'" class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                            <img v-if="editingFlexRule.payload" :src="editingFlexRule.payload" class="w-full max-h-[360px] object-contain bg-white">
+                            <div v-else class="h-56 flex flex-col items-center justify-center text-slate-300 gap-3">
+                                <i class="fas fa-image text-5xl"></i>
+                                <div class="text-sm font-bold">尚未上傳圖片</div>
+                            </div>
+                            <div class="p-4 bg-white border-t border-slate-100 flex items-center gap-3">
+                                <label class="btn-green-main cursor-pointer inline-flex items-center gap-2">
+                                    <i class="fas fa-cloud-upload-alt"></i>上傳模組圖片
+                                    <input type="file" class="hidden" accept="image/*" @change="handleFlexRuleImageUpload">
+                                </label>
+                                <button v-if="editingFlexRule.payload" @click="editingFlexRule.payload = ''; editingFlexRule.previewImageUrl = ''" class="btn-outline text-red-500">移除圖片</button>
+                            </div>
+                        </div>
+                        <textarea v-else v-model="editingFlexRule.payload" rows="12" class="input-field bg-slate-50 font-mono text-[12px] leading-relaxed resize-y" :placeholder="editingFlexRule.replyType === 'FLEX' ? '請將 Simulator 右上角的 JSON (View as JSON) 複製貼上於此...' : '請輸入要回覆或推播的純文字訊息...'"></textarea>
                     </div>
                 </div>
                 <div class="px-8 py-5 bg-white flex justify-end items-center gap-4 border-t border-slate-200 rounded-b-xl z-10 relative">
@@ -3497,6 +3517,47 @@
                         reader.readAsDataURL(file);
                     };
 
+                    const uploadImageFile = (file, assignUrl, errorLabel, inputEl) => {
+                        if (!file) return;
+                        isImageUploading.value = true;
+                        const reader = new FileReader();
+                        reader.onload = async (f) => {
+                            try {
+                                const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result });
+                                if (res && res.url) assignUrl(res.url);
+                            } catch(e) {
+                                console.error(e);
+                                alert(`${errorLabel}上傳失敗：${e.message}`);
+                            } finally {
+                                isImageUploading.value = false;
+                                if (inputEl) inputEl.value = '';
+                            }
+                        };
+                        reader.onerror = () => {
+                            isImageUploading.value = false;
+                            alert('圖片讀取失敗，請換一張圖片再試');
+                            if (inputEl) inputEl.value = '';
+                        };
+                        reader.readAsDataURL(file);
+                    };
+
+                    const handleFlexRuleImageUpload = (e) => {
+                        const file = e.target.files[0];
+                        if (!file || !editingFlexRule.value) return;
+                        uploadImageFile(file, (url) => {
+                            editingFlexRule.value.payload = url;
+                            editingFlexRule.value.previewImageUrl = url;
+                        }, '模組圖片', e.target);
+                    };
+
+                    const handleBroadcastImageUpload = (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        uploadImageFile(file, (url) => {
+                            broadcastForm.value.imageUrl = url;
+                        }, '推播圖片', e.target);
+                    };
+
                     const importWpProducts = async () => {
                         if (!wpImportForm.value.username || !wpImportForm.value.appPassword || !wpImportForm.value.postIds) {
                             alert('請填寫 WordPress 帳號、Application Password 與商品 Post ID');
@@ -4108,7 +4169,7 @@
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, manualRefreshData,
                         triggerBackup, runHealthCheck, openMemberDetail, displayMemberName, memberAvatarUrl, memberInitial, ledgerMemberName, copyText, openLedgerMember, memberRoleTags, toggleMemberSystem, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, restoreMember, openPointActionModal, submitPointAction,
                         openNewCourseModal, openEditModal, saveCourse, deleteCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
-                        handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
+                        handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, handleFlexRuleImageUpload, handleBroadcastImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,

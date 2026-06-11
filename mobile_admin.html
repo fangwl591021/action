@@ -277,8 +277,21 @@
                             <option value="IMAGE">圖片訊息</option>
                             <option value="FLEX">Flex JSON</option>
                         </select>
-                        <input v-if="editingFlexRule.replyType === 'IMAGE'" v-model.trim="editingFlexRule.previewImageUrl" class="native-input" placeholder="預覽圖片 URL，可留空">
-                        <textarea v-model="editingFlexRule.payload" class="native-input h-36 resize-none leading-relaxed" :placeholder="editingFlexRule.replyType === 'FLEX' ? '貼上 Flex JSON' : (editingFlexRule.replyType === 'IMAGE' ? '請輸入 https 圖片 URL' : '請輸入文字內容')"></textarea>
+                        <div v-if="editingFlexRule.replyType === 'IMAGE'" class="rounded-xl overflow-hidden border border-slate-100 bg-slate-50">
+                            <img v-if="editingFlexRule.payload" :src="editingFlexRule.payload" class="w-full max-h-56 object-contain bg-white">
+                            <div v-else class="h-36 flex flex-col items-center justify-center text-slate-300 gap-2">
+                                <i class="fas fa-image text-4xl"></i>
+                                <div class="text-xs font-black">尚未上傳圖片</div>
+                            </div>
+                            <div class="p-3 bg-white border-t border-slate-100 flex gap-2">
+                                <label class="btn-primary !w-auto !text-sm !py-2 !px-4 cursor-pointer">
+                                    <i class="fas fa-cloud-upload-alt"></i>上傳圖片
+                                    <input type="file" class="hidden" accept="image/*" @change="handleFlexRuleImageUpload">
+                                </label>
+                                <button v-if="editingFlexRule.payload" @click="editingFlexRule.payload = ''; editingFlexRule.previewImageUrl = ''" class="btn-secondary !w-auto !py-2 !px-4 text-red-500">移除</button>
+                            </div>
+                        </div>
+                        <textarea v-else v-model="editingFlexRule.payload" class="native-input h-36 resize-none leading-relaxed" :placeholder="editingFlexRule.replyType === 'FLEX' ? '貼上 Flex JSON' : '請輸入文字內容'"></textarea>
                         <button @click="saveFlexRule" :disabled="isLoading" class="btn-primary"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i><i v-else class="fas fa-save"></i>儲存模組</button>
                     </div>
                     <div class="text-xs font-black text-slate-400 px-1 mb-2">已建立模組</div>
@@ -871,6 +884,36 @@
 
                 const editFlexRule = (rule) => { editingFlexRule.value = JSON.parse(JSON.stringify(rule)); };
 
+                const handleFlexRuleImageUpload = (e) => {
+                    const file = e.target.files[0];
+                    if (!file || !editingFlexRule.value) return;
+                    isLoading.value = true;
+                    const reader = new FileReader();
+                    reader.onload = async (f) => {
+                        try {
+                            const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result }, true);
+                            if (res?.url) {
+                                editingFlexRule.value.payload = res.url;
+                                editingFlexRule.value.previewImageUrl = res.url;
+                            } else {
+                                alert('圖片上傳失敗：伺服器未回傳圖片網址');
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            alert(`圖片上傳失敗：${err.message}`);
+                        } finally {
+                            isLoading.value = false;
+                            e.target.value = '';
+                        }
+                    };
+                    reader.onerror = () => {
+                        isLoading.value = false;
+                        e.target.value = '';
+                        alert('圖片讀取失敗，請換一張圖片再試');
+                    };
+                    reader.readAsDataURL(file);
+                };
+
                 const saveFlexRule = async () => {
                     if (!editingFlexRule.value.moduleName || !editingFlexRule.value.payload) return alert('請輸入模組名稱與內容');
                     const res = await callApi('ADMIN_SAVE_REPLY_RULE', editingFlexRule.value);
@@ -989,7 +1032,7 @@
                     
                     lineLogin, handleLogin, fetchData,
                     openCourseOrdersModal, openEditOrder, saveOrder, toggleCoursePublish, toggleCourseRegistration,
-                    toggleMobileAudienceAll, resetFlexRuleForm, editFlexRule, saveFlexRule, deleteFlexRule, sendPaidBroadcast
+                    toggleMobileAudienceAll, resetFlexRuleForm, editFlexRule, handleFlexRuleImageUpload, saveFlexRule, deleteFlexRule, sendPaidBroadcast
                 };
             }
         }).mount('#app');
