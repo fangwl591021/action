@@ -2579,7 +2579,36 @@
     if (data.video) {
       document.getElementById('voomVideoSection').classList.remove('hidden');
       const videoPlayer = document.getElementById('voomVideoPlayer');
+      const dimElement = document.getElementById('voomVideoDimensions');
+      const syncVoomVideoDimensions = (label, width, height, className) => {
+        if (!width || !height) return;
+        const numericWidth = Number(width);
+        const numericHeight = Number(height);
+        data.video.width = numericWidth;
+        data.video.height = numericHeight;
+        data.video.detectedWidth = numericWidth;
+        data.video.detectedHeight = numericHeight;
+        data.video.detectedRatio = String(numericWidth) + ':' + String(numericHeight);
+        data.video.detectedBy = label;
+        dimElement.innerHTML = '<span class="' + className + '">' + label + ': ' + numericWidth + ' x ' + numericHeight + '</span>';
+        document.getElementById('voomJsonOutput').textContent = JSON.stringify(data, null, 2);
+      };
+      const renderInitialDimensions = () => {
+        const w = data.video.width || '??';
+        const h = data.video.height || '??';
+        dimElement.innerHTML = '<span class="inline-block bg-slate-200 text-slate-700 rounded px-2 py-1 text-xs font-bold shadow-sm">????: ' + w + ' x ' + h + '</span>';
+      };
+
+      videoPlayer.addEventListener('loadedmetadata', function onVoomMetadata() {
+        syncVoomVideoDimensions(
+          '??????',
+          this.videoWidth,
+          this.videoHeight,
+          'inline-block bg-green-100 text-green-800 border border-green-200 rounded px-2 py-1 text-xs font-bold shadow-sm'
+        );
+      }, { once: true });
       videoPlayer.src = data.video.videoUrl;
+      videoPlayer.load();
 
       document.getElementById('voomVideoUrlLink').href = data.video.videoUrl;
       document.getElementById('voomVideoUrlLink').textContent = data.video.videoUrl;
@@ -2588,24 +2617,24 @@
         document.getElementById('voomVideoThumbLink').href = data.video.thumbnailUrl;
         document.getElementById('voomVideoThumbLink').textContent = data.video.thumbnailUrl;
         document.getElementById('voomVideoThumbCopyBtn').classList.remove('hidden');
+        const thumbProbe = new Image();
+        thumbProbe.onload = function() {
+          syncVoomVideoDimensions(
+            '??????',
+            this.naturalWidth,
+            this.naturalHeight,
+            'inline-block bg-emerald-100 text-emerald-800 border border-emerald-200 rounded px-2 py-1 text-xs font-bold shadow-sm'
+          );
+        };
+        thumbProbe.src = data.video.thumbnailUrl;
       } else {
-        document.getElementById('voomVideoThumbLink').textContent = '無縮圖';
+        document.getElementById('voomVideoThumbLink').textContent = '???';
         document.getElementById('voomVideoThumbLink').removeAttribute('href');
         document.getElementById('voomVideoThumbCopyBtn').classList.add('hidden');
       }
 
-      const w = data.video.width || '未知';
-      const h = data.video.height || '未知';
-      const dimElement = document.getElementById('voomVideoDimensions');
-      dimElement.innerHTML = `<span class="inline-block bg-slate-200 text-slate-700 rounded px-2 py-1 text-xs font-bold shadow-sm">偵測尺寸: ${w} x ${h}</span>`;
-
-      videoPlayer.onloadedmetadata = function() {
-        if (this.videoWidth && this.videoHeight) {
-          dimElement.innerHTML = `<span class="inline-block bg-green-100 text-green-800 border border-green-200 rounded px-2 py-1 text-xs font-bold shadow-sm">真實畫質: ${this.videoWidth} x ${this.videoHeight}</span>`;
-        }
-      };
+      renderInitialDimensions();
     }
-
     if (data.images && data.images.length > 0) {
       document.getElementById('voomImageSection').classList.remove('hidden');
       document.getElementById('voomImageCount').textContent = data.images.length;
