@@ -1625,6 +1625,7 @@ function sanitizeLineFlexContents(contents) {
   const visit = (node) => {
     if (!node || typeof node !== "object") return;
     if (String(node.type || "") === "video" && node.altContent && typeof node.altContent === "object") {
+      delete node.aspectRatio;
       delete node.altContent.aspectRatio;
     }
     Object.values(node).forEach(value => {
