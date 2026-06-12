@@ -1615,9 +1615,25 @@ function normalizeLineMessageUnit(message) {
     const altText = String(message.altText || "").trim();
     if (!altText) throw new Error("Flex altText required");
     if (!message.contents || typeof message.contents !== "object") throw new Error("Flex contents required");
-    return { type: "flex", altText: altText.slice(0, 400), contents: message.contents };
+    return { type: "flex", altText: altText.slice(0, 400), contents: sanitizeLineFlexContents(message.contents) };
   }
   throw new Error(`Unsupported LINE message type: ${type}`);
+}
+
+function sanitizeLineFlexContents(contents) {
+  const cloned = JSON.parse(JSON.stringify(contents));
+  const visit = (node) => {
+    if (!node || typeof node !== "object") return;
+    if (String(node.type || "") === "video" && node.altContent && typeof node.altContent === "object") {
+      delete node.altContent.aspectRatio;
+    }
+    Object.values(node).forEach(value => {
+      if (Array.isArray(value)) value.forEach(visit);
+      else if (value && typeof value === "object") visit(value);
+    });
+  };
+  visit(cloned);
+  return cloned;
 }
 
 function normalizeBroadcastMessages(payload, title) {
