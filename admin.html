@@ -3824,9 +3824,14 @@
                     };
 
                     const saveFlexRule = async () => {
-                        if (!editingFlexRule.value.moduleName) return alert('模組名稱為必填');
                         if (editingFlexRule.value.replyType === 'FLEX') {
-                            captureMylittlesysFlexJson();
+                            const hasCapturedFlex = captureMylittlesysFlexJson();
+                            if (!hasCapturedFlex && !String(editingFlexRule.value.flexJson || editingFlexRule.value.payload || '').trim()) {
+                                return alert('尚未取得自由版 Flex JSON，請先確認編輯器已載入完成，或按「抓取 JSON」。');
+                            }
+                            if (!editingFlexRule.value.moduleName) {
+                                editingFlexRule.value.moduleName = `Flex ${String(editingFlexRule.value.flexTemplate || 'v1').toUpperCase()} 模組`;
+                            }
                             try {
                                 const rawFlex = String(editingFlexRule.value.flexJson || editingFlexRule.value.payload || '').trim();
                                 const parsedFlex = rawFlex ? JSON.parse(rawFlex) : buildFlexMessageFromForm(editingFlexRule.value);
@@ -3843,6 +3848,7 @@
                                 return alert('Flex 內容錯誤：' + e.message);
                             }
                         }
+                        if (!editingFlexRule.value.moduleName) return alert('模組名稱為必填');
                         if (!editingFlexRule.value.payload) return alert('模組內容為必填');
                         isLoading.value = true;
                         try {
