@@ -1662,7 +1662,42 @@ function summarizeBroadcastMessages(messages, title) {
 async function sendLineMulticast(env, recipients, messages) {
   const token = String(env.LINE_CHANNEL_ACCESS_TOKEN || "").trim();
   if (!token) throw new Error("Cloudflare 尚未綁定 LINE_CHANNEL_ACCESS_TOKEN 金鑰！");
-  const ids = [...new Set((recipients || []).map(user => String(user.userId || "").trim()).filter(Boolean))];
+  const recipientList = uniqueUsersById(Array.isArray(recipients) ? recipients : [])
+    .map(user => ({
+      userId: String(user.userId || "").trim(),
+      name: String(user.name || user.displayName || "").trim(),
+    }))
+    .filter(user => user.userId);
+  const ids = recipientList.map(user => user.userId);
+  const errorDetails = [];
+  if (recipientList.length <= 20) {
+    let sent = 0;
+    for (const user of recipientList) {
+      const res = await fetch("https://api.line.me/v2/bot/message/push", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ to: user.userId, messages }),
+      });
+      if (res.ok) {
+        sent += 1;
+      } else {
+        const text = await res.text();
+        errorDetails.push({
+          uid: user.userId,
+          name: user.name || "",
+          status: res.status,
+          message: text.slice(0, 500),
+        });
+      }
+    }
+    return {
+      sent,
+      failed: ids.length - sent,
+      total: ids.length,
+      errors: errorDetails.map(item => `${item.name || item.uid}: HTTP ${item.status}: ${item.message}`),
+      errorDetails,
+    };
+  }
   const chunks = [];
   for (let i = 0; i < ids.length; i += 500) chunks.push(ids.slice(i, i + 500));
   let sent = 0;
@@ -1680,7 +1715,7 @@ async function sendLineMulticast(env, recipients, messages) {
       errors.push(`HTTP ${res.status}: ${text.slice(0, 240)}`);
     }
   }
-  return { sent, failed: ids.length - sent, total: ids.length, errors };
+  return { sent, failed: ids.length - sent, total: ids.length, errors, errorDetails };
 }
 
 async function buildPointLedgerFromCurrentLogs(env, users = []) {
@@ -3008,6 +3043,7 @@ export default {
             sent: sendResult.sent,
             failed: sendResult.failed,
             errors: sendResult.errors,
+            errorDetails: sendResult.errorDetails || [],
             operatorUid: userId,
             operatorName: access.userData?.name || "",
             createdAt: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }),
