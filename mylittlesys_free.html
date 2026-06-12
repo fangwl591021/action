@@ -2580,8 +2580,9 @@
       document.getElementById('voomVideoSection').classList.remove('hidden');
       const videoPlayer = document.getElementById('voomVideoPlayer');
       const dimElement = document.getElementById('voomVideoDimensions');
-      const syncVoomVideoDimensions = (label, width, height, className) => {
+      const syncVoomVideoDimensions = (label, width, height, className, priority = 'fallback') => {
         if (!width || !height) return;
+        if (data.video.detectedSource === 'video' && priority !== 'video') return;
         const numericWidth = Number(width);
         const numericHeight = Number(height);
         data.video.width = numericWidth;
@@ -2590,6 +2591,7 @@
         data.video.detectedHeight = numericHeight;
         data.video.detectedRatio = String(numericWidth) + ':' + String(numericHeight);
         data.video.detectedBy = label;
+        data.video.detectedSource = priority;
         dimElement.innerHTML = '<span class="' + className + '">' + label + ': ' + numericWidth + ' x ' + numericHeight + '</span>';
         document.getElementById('voomJsonOutput').textContent = JSON.stringify(data, null, 2);
       };
@@ -2604,7 +2606,8 @@
           'Video size',
           this.videoWidth,
           this.videoHeight,
-          'inline-block bg-green-100 text-green-800 border border-green-200 rounded px-2 py-1 text-xs font-bold shadow-sm'
+          'inline-block bg-green-100 text-green-800 border border-green-200 rounded px-2 py-1 text-xs font-bold shadow-sm',
+          'video'
         );
       }, { once: true });
       videoPlayer.src = data.video.videoUrl;
@@ -2623,7 +2626,8 @@
             'Thumbnail size',
             this.naturalWidth,
             this.naturalHeight,
-            'inline-block bg-emerald-100 text-emerald-800 border border-emerald-200 rounded px-2 py-1 text-xs font-bold shadow-sm'
+            'inline-block bg-emerald-100 text-emerald-800 border border-emerald-200 rounded px-2 py-1 text-xs font-bold shadow-sm',
+            'thumbnail'
           );
         };
         thumbProbe.src = data.video.thumbnailUrl;
