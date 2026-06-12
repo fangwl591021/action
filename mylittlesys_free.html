@@ -3634,11 +3634,13 @@
       }
 
       function boot() {
+        var tool = new URLSearchParams(window.location.search).get("tool") || "flex";
+        var workspace = tool === "capture" ? "capture" : "selector";
         try {
           currentUser = {
             username: "action-free-flex",
-            name: "ACTION Free Flex",
-            permissions: "2",
+            name: workspace === "capture" ? "ACTION URL Capture" : "ACTION Free Flex",
+            permissions: workspace === "capture" ? "4" : "2",
             flexQuota: "∞",
             rmQuota: "0"
           };
@@ -3650,8 +3652,8 @@
         var app = document.getElementById("main-app");
         if (app) app.classList.remove("hidden");
         var userInfo = document.getElementById("user-info");
-        if (userInfo) userInfo.innerText = "ACTION Free Flex";
-        if (typeof openWorkspace === "function") openWorkspace("selector");
+        if (userInfo) userInfo.innerText = currentUser.name;
+        if (typeof openWorkspace === "function") openWorkspace(workspace);
 
         window.getMylittlesysFlexJson = readFlexJson;
         window.saveFile = function saveFreeFlexOnly() {

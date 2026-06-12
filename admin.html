@@ -100,6 +100,7 @@
                             <div v-if="canManageRichMenu" @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
                             <div v-if="isAdminRole" @click="switchView('paid_broadcast')" class="nav-item" :class="{'nav-active': view === 'paid_broadcast'}"><i class="fas fa-bullhorn w-6 text-center"></i>付費推播</div>
                             <div v-if="isAdminRole" @click="switchView('flex_rules')" class="nav-item" :class="{'nav-active': view === 'flex_rules'}"><i class="fas fa-robot w-6 text-center"></i>機器人與專區卡片</div>
+                            <div v-if="isAdminRole" @click="switchView('url_capture')" class="nav-item" :class="{'nav-active': view === 'url_capture'}"><i class="fas fa-link w-6 text-center"></i>網址擷取器</div>
                             <div v-if="isAdminRole" @click="switchView('wasabi_migration')" class="nav-item" :class="{'nav-active': view === 'wasabi_migration'}"><i class="fas fa-database w-6 text-center"></i>Wasabi 遷移檢查</div>
                             <div v-if="isAdminRole" @click="switchView('audit_logs')" class="nav-item" :class="{'nav-active': view === 'audit_logs'}"><i class="fas fa-clipboard-check w-6 text-center"></i>操作紀錄</div>
                             <div v-if="isAdminRole" @click="switchView('settings')" class="nav-item" :class="{'nav-active': view === 'settings'}"><i class="fas fa-cog w-6 text-center"></i>系統設定</div>
@@ -677,6 +678,7 @@
                 </div>
                 
                 <div v-if="canManageRichMenu && view === 'richmenu'" class="h-[calc(100vh-73px)]"><iframe src="./menu.html?v=20260528-cloud-auth" class="w-full h-full border-0"></iframe></div>
+                <div v-if="isAdminRole && view === 'url_capture'" class="h-[calc(100vh-73px)]"><iframe src="./mylittlesys_free.html?tool=capture" class="w-full h-full border-0 bg-slate-50"></iframe></div>
 
                 <div v-if="isAdminRole && view === 'flex_rules'" class="p-8 animate-fade-in">
                     <div class="flex justify-between items-center mb-6">
@@ -1721,7 +1723,7 @@
                         if (!user || user.isDeleted === true || !user.userId) return false;
                         return user.isTeacher === true || user.role === 'teacher' || user.crmRole === 'teacher' || String(user.memberTier || '').includes('導師');
                     }));
-                    const adminOnlyViews = new Set(['dashboard', 'orders', 'booking_report', 'points_ledger', 'payment_logs', 'audit_logs', 'paid_broadcast', 'richmenu', 'settings', 'flex_rules']);
+                    const adminOnlyViews = new Set(['dashboard', 'orders', 'booking_report', 'points_ledger', 'payment_logs', 'audit_logs', 'paid_broadcast', 'richmenu', 'settings', 'flex_rules', 'url_capture']);
                     const systemAllowedViews = new Set(['richmenu']);
                     const systemAllowedActions = new Set(['ADMIN_GET_DATA', 'ADMIN_GET_SLOTS', 'ADMIN_MANAGE_POINTS', 'GET_USER_POINTS', 'UPLOAD_IMAGE', 'DEPLOY_RICH_MENU', 'LOG_ADMIN_EVENT']);
                     const operatorDefaultView = 'members';
@@ -2057,7 +2059,7 @@
                         if (view.value === 'paid_broadcast') return '付費推播';
                         const map = {
                             dashboard: '營運統計中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程 / 預約服務', products: '商城商品',
-                            consultation: '預約設定', orders: '訂單維護', booking_report: '預約報表', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片', wasabi_migration: 'Wasabi 遷移檢查'
+                            consultation: '預約設定', orders: '訂單維護', booking_report: '預約報表', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片', url_capture: '網址擷取器', wasabi_migration: 'Wasabi 遷移檢查'
                         };
                         return map[view.value] || '管理站';
                     });
