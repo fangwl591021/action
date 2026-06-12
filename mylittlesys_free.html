@@ -3633,6 +3633,30 @@
         return JSON.stringify(parsed, null, 2);
       }
 
+      function loadFlexJson(raw, name, preferredMode) {
+        try {
+          var parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+          var contents = parsed && parsed.type === "flex" && parsed.contents ? parsed.contents : parsed;
+          var mode = String(preferredMode || "").toLowerCase();
+          if (!["v1", "v2", "v3", "v4"].includes(mode)) {
+            mode = contents && contents.type === "carousel" ? "v3" : "v1";
+          }
+          if (typeof openWorkspace === "function") openWorkspace(mode);
+          setTimeout(function() {
+            var output = document.getElementById("json-output");
+            var filename = document.getElementById("save-filename");
+            if (filename) filename.value = name || filename.value || "ACTION";
+            var loader = window["loadFlexMenu" + mode.toUpperCase() + "_Data"];
+            if (typeof loader === "function") loader(name || "ACTION", contents);
+            if (output) output.value = JSON.stringify(contents, null, 2);
+          }, 300);
+          return true;
+        } catch (error) {
+          console.error("loadMylittlesysFlexJson failed", error);
+          return false;
+        }
+      }
+
       function boot() {
         var tool = new URLSearchParams(window.location.search).get("tool") || "flex";
         var workspace = tool === "capture" ? "capture" : "selector";
@@ -3656,6 +3680,7 @@
         if (typeof openWorkspace === "function") openWorkspace(workspace);
 
         window.getMylittlesysFlexJson = readFlexJson;
+        window.loadMylittlesysFlexJson = loadFlexJson;
         window.saveFile = function saveFreeFlexOnly() {
           try {
             readFlexJson();

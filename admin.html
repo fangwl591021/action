@@ -3783,7 +3783,17 @@
 
                     const syncMylittlesysFlexFrame = () => {
                         if (!editingFlexRule.value || editingFlexRule.value.replyType !== 'FLEX') return;
-                        setTimeout(() => openMylittlesysTemplate(editingFlexRule.value.flexTemplate || 'v1'), 300);
+                        setTimeout(() => {
+                            const form = editingFlexRule.value;
+                            if (!form || form.replyType !== 'FLEX') return;
+                            const win = getMylittlesysFrameWindow();
+                            const raw = String(form.flexJson || form.payload || '').trim();
+                            if (win && raw && typeof win.loadMylittlesysFlexJson === 'function') {
+                                const loaded = win.loadMylittlesysFlexJson(raw, form.moduleName || form.keyword || 'ACTION', form.flexTemplate || 'v1');
+                                if (loaded) return;
+                            }
+                            openMylittlesysTemplate(form.flexTemplate || 'v1');
+                        }, 300);
                     };
 
                     const captureMylittlesysFlexJson = () => {
@@ -3850,15 +3860,30 @@
                         }
                         if (!editingFlexRule.value.moduleName) return alert('模組名稱為必填');
                         if (!editingFlexRule.value.payload) return alert('模組內容為必填');
+                        const ruleToSave = { ...editingFlexRule.value };
+                        let saved = false;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_SAVE_REPLY_RULE', editingFlexRule.value);
+                            const res = await callApi('ADMIN_SAVE_REPLY_RULE', ruleToSave);
                             if (res && res.success) {
-                                alert('✅ 觸發規則儲存成功！');
-                                flexRules.value = res.flexRules || flexRules.value;
+                                if (Array.isArray(res.flexRules)) {
+                                    flexRules.value = res.flexRules;
+                                } else {
+                                    const idx = flexRules.value.findIndex(rule => rule.id === ruleToSave.id);
+                                    if (idx >= 0) flexRules.value.splice(idx, 1, ruleToSave);
+                                    else flexRules.value.unshift(ruleToSave);
+                                }
                                 editingFlexRule.value = null;
+                                saved = true;
                             }
-                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                            if (!saved) throw new Error(res?.message || '後端未回傳儲存成功');
+                        } catch(e) {
+                            console.error(e);
+                            alert('儲存失敗：' + e.message);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                        if (saved) alert('✅ 觸發規則儲存成功！');
                     };
 
                     const deleteFlexRule = async (id) => {
