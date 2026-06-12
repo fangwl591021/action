@@ -1179,8 +1179,8 @@
                         <div v-else-if="editingFlexRule.replyType === 'FLEX'" class="space-y-4">
                             <div class="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                 <div>
-                                    <div class="font-black text-slate-800 flex items-center gap-2"><i class="fas fa-cubes text-[#06C755]"></i>mylittlesys 原始 Flex 編輯器</div>
-                                    <div class="text-xs font-bold text-slate-500 mt-1">V1 / V2 / V3 / V4 會使用原始編輯器產生 JSON，再存成此模組。</div>
+                                    <div class="font-black text-slate-800 flex items-center gap-2"><i class="fas fa-cubes text-[#06C755]"></i>mylittlesys 自由版 Flex 編輯器</div>
+                                    <div class="text-xs font-bold text-slate-500 mt-1">只載入自由版編輯器產生 JSON，不進入小系統後台。</div>
                                 </div>
                                 <div class="flex flex-wrap gap-2">
                                     <button type="button" @click="openMylittlesysTemplate('v1')" class="btn-outline bg-white">V1</button>
@@ -1613,7 +1613,7 @@
                     const editingSysConfig = ref(null);
                     const editingFlexRule = ref(null);
                     const mylittlesysFlexFrame = ref(null);
-                    const mylittlesysFlexUrl = 'https://fangwl591021.github.io/mylittlesys/';
+                    const mylittlesysFlexUrl = 'mylittlesys_free.html';
 
                     const showOrdersModal = ref(false);
                     const selectedCourseForOrders = ref(null);
@@ -3789,8 +3789,9 @@
                         const win = getMylittlesysFrameWindow();
                         if (!win) return false;
                         try {
-                            const output = win.document.getElementById('json-output');
-                            const raw = String(output?.value || '').trim();
+                            const raw = typeof win.getMylittlesysFlexJson === 'function'
+                                ? String(win.getMylittlesysFlexJson() || '').trim()
+                                : String(win.document.getElementById('json-output')?.value || '').trim();
                             if (!raw) return false;
                             JSON.parse(raw);
                             editingFlexRule.value.flexJson = raw;
@@ -3825,7 +3826,16 @@
                         if (editingFlexRule.value.replyType === 'FLEX') {
                             captureMylittlesysFlexJson();
                             try {
-                                editingFlexRule.value.payload = JSON.stringify(buildFlexMessageFromForm(editingFlexRule.value), null, 2);
+                                const rawFlex = String(editingFlexRule.value.flexJson || editingFlexRule.value.payload || '').trim();
+                                const parsedFlex = rawFlex ? JSON.parse(rawFlex) : buildFlexMessageFromForm(editingFlexRule.value);
+                                const message = parsedFlex.type === 'flex' && parsedFlex.contents
+                                    ? parsedFlex
+                                    : {
+                                        type: 'flex',
+                                        altText: String(editingFlexRule.value.altText || editingFlexRule.value.moduleName || editingFlexRule.value.keyword || 'LINE Flex 推播').slice(0, 400),
+                                        contents: parsedFlex
+                                    };
+                                editingFlexRule.value.payload = JSON.stringify(message, null, 2);
                                 editingFlexRule.value.previewImageUrl = editingFlexRule.value.imageUrl || editingFlexRule.value.previewImageUrl || '';
                             } catch (e) {
                                 return alert('Flex 內容錯誤：' + e.message);
