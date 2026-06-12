@@ -21,7 +21,7 @@
     .workspace-hidden { display: none !important; }
     .flex-editor-workspace { display: flex !important; height: 100%; width: 100%; overflow: hidden; background: #fff; }
     .flex-editor-workspace > .flex { height: 100%; width: 100%; overflow: hidden; }
-    .flex-editor-preview-pane { height: 100%; overflow-y: auto !important; overscroll-behavior: contain; }
+    .flex-editor-preview-pane { width: min(34vw, 460px) !important; height: 100%; overflow-y: auto !important; overscroll-behavior: contain; }
     .flex-editor-form-pane { flex: 1 1 auto; height: 100%; min-width: 0; overflow-y: auto !important; overscroll-behavior: contain; }
 
 
@@ -3721,7 +3721,7 @@
   </script>
   <style>
     body.free-flex-embed {
-      overflow: auto;
+      overflow: hidden;
       background: #f4f5f7;
     }
 
@@ -3736,12 +3736,21 @@
     body.free-flex-embed .app-main {
       position: relative;
       inset: auto;
-      min-height: 100vh;
+      height: 100vh;
+      min-height: 0;
       left: 0 !important;
       right: 0 !important;
       top: 0 !important;
       bottom: auto !important;
-      overflow: visible;
+      overflow: hidden;
+    }
+
+    body.free-flex-embed .flex-editor-workspace {
+      height: 100vh;
+    }
+
+    body.free-flex-embed .flex-editor-workspace > .flex {
+      height: 100vh;
     }
 
     body.free-flex-embed.panel-open .app-main,
@@ -3790,7 +3799,10 @@
       }
 
       function boot() {
-        var tool = new URLSearchParams(window.location.search).get("tool") || "flex";
+        var params = new URLSearchParams(window.location.search);
+        var tool = params.get("tool") || "flex";
+        var mode = String(params.get("mode") || "").toLowerCase();
+        if (!["v1", "v2", "v3", "v4"].includes(mode)) mode = "v1";
         var workspace = tool === "capture" ? "capture" : "selector";
         try {
           currentUser = {
@@ -3809,7 +3821,7 @@
         if (app) app.classList.remove("hidden");
         var userInfo = document.getElementById("user-info");
         if (userInfo) userInfo.innerText = currentUser.name;
-        if (typeof openWorkspace === "function") openWorkspace(workspace);
+        if (typeof openWorkspace === "function") openWorkspace(tool === "capture" ? workspace : mode);
 
         window.getMylittlesysFlexJson = readFlexJson;
         window.loadMylittlesysFlexJson = loadFlexJson;
