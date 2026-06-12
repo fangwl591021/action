@@ -1176,72 +1176,26 @@
                                 <button v-if="editingFlexRule.payload" @click="editingFlexRule.payload = ''; editingFlexRule.previewImageUrl = ''" class="btn-outline text-red-500">移除圖片</button>
                             </div>
                         </div>
-                        <div v-else-if="editingFlexRule.replyType === 'FLEX'" class="space-y-5">
-                            <div class="text-center py-4">
-                                <div class="text-2xl font-black text-slate-900">選擇 FLEX 版型</div>
-                                <div class="text-sm font-bold text-slate-400 mt-1">請點擊下方區塊開始編輯</div>
+                        <div v-else-if="editingFlexRule.replyType === 'FLEX'" class="space-y-4">
+                            <div class="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                <div>
+                                    <div class="font-black text-slate-800 flex items-center gap-2"><i class="fas fa-cubes text-[#06C755]"></i>mylittlesys 原始 Flex 編輯器</div>
+                                    <div class="text-xs font-bold text-slate-500 mt-1">V1 / V2 / V3 / V4 會使用原始編輯器產生 JSON，再存成此模組。</div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" @click="openMylittlesysTemplate('v1')" class="btn-outline bg-white">V1</button>
+                                    <button type="button" @click="openMylittlesysTemplate('v2')" class="btn-outline bg-white">V2</button>
+                                    <button type="button" @click="openMylittlesysTemplate('v3')" class="btn-outline bg-white">V3</button>
+                                    <button type="button" @click="openMylittlesysTemplate('v4')" class="btn-outline bg-white">V4</button>
+                                    <button type="button" @click="captureMylittlesysFlexJson" class="btn-green-main !py-2">抓取 JSON</button>
+                                </div>
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <button type="button" @click="editingFlexRule.flexTemplate = 'v1'; editingFlexRule.flexJson = ''" :class="['rounded-2xl border bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5', editingFlexRule.flexTemplate === 'v1' ? 'border-[#06C755] ring-2 ring-[#06C755]/20' : 'border-slate-200']">
-                                    <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4 text-[#06C755]"><i class="fas fa-video"></i></div>
-                                    <div class="font-black text-slate-900">影片導購 (V1)</div>
-                                    <div class="text-xs font-bold text-slate-400 mt-2 leading-relaxed">適合放置 YOUTUBE 或影片內容引導按鈕</div>
-                                </button>
-                                <button type="button" @click="editingFlexRule.flexTemplate = 'v2'; editingFlexRule.flexJson = ''" :class="['rounded-2xl border bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5', editingFlexRule.flexTemplate === 'v2' ? 'border-[#06C755] ring-2 ring-[#06C755]/20' : 'border-slate-200']">
-                                    <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4 text-[#06C755]"><i class="fas fa-user"></i></div>
-                                    <div class="font-black text-slate-900">個人名片 (V2)</div>
-                                    <div class="text-xs font-bold text-slate-400 mt-2 leading-relaxed">標準數位名片結構含社群圖示與聯絡按鈕</div>
-                                </button>
-                                <button type="button" @click="editingFlexRule.flexTemplate = 'v3'; editingFlexRule.flexJson = ''" :class="['rounded-2xl border bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5', editingFlexRule.flexTemplate === 'v3' ? 'border-[#06C755] ring-2 ring-[#06C755]/20' : 'border-slate-200']">
-                                    <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4 text-[#06C755]"><i class="fas fa-sliders-h"></i></div>
-                                    <div class="font-black text-slate-900">商品目錄 (V3)</div>
-                                    <div class="text-xs font-bold text-slate-400 mt-2 leading-relaxed">列表式商品陳列規格支援多項購買連結與價格</div>
-                                </button>
-                                <button type="button" @click="editingFlexRule.flexTemplate = 'v4'; editingFlexRule.flexJson = ''" :class="['rounded-2xl border bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5', editingFlexRule.flexTemplate === 'v4' ? 'border-[#06C755] ring-2 ring-[#06C755]/20' : 'border-slate-200']">
-                                    <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4 text-[#06C755]"><i class="fas fa-th-large"></i></div>
-                                    <div class="font-black text-slate-900">影音圖文選單 (V4)</div>
-                                    <div class="text-xs font-bold text-slate-400 mt-2 leading-relaxed">上方影片，下方圖片用座標自由放置透明按鈕</div>
-                                </button>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="input-label">LINE 通知列顯示文字</label>
-                                    <input v-model.trim="editingFlexRule.altText" class="input-field font-bold" placeholder="例如：完整階段會員續約提醒">
-                                </div>
-                                <div>
-                                    <label class="input-label">主按鈕文字</label>
-                                    <input v-model.trim="editingFlexRule.buttonText" class="input-field font-bold" placeholder="立即查看">
-                                </div>
-                                <div>
-                                    <label class="input-label">圖片 / 預覽圖</label>
-                                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-                                        <img v-if="editingFlexRule.imageUrl" :src="editingFlexRule.imageUrl" class="w-full h-36 object-cover bg-white">
-                                        <div v-else class="h-36 flex items-center justify-center text-slate-300 text-4xl"><i class="fas fa-image"></i></div>
-                                        <div class="p-3 flex items-center gap-2 bg-white border-t border-slate-100">
-                                            <label class="btn-outline text-blue-600 cursor-pointer flex items-center gap-2">
-                                                <i class="fas fa-cloud-upload-alt"></i>上傳圖片
-                                                <input type="file" class="hidden" accept="image/*" @change="handleFlexRuleBuilderImageUpload">
-                                            </label>
-                                            <button v-if="editingFlexRule.imageUrl" @click="editingFlexRule.imageUrl = ''; editingFlexRule.previewImageUrl = ''" class="btn-outline text-red-500">移除</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="input-label">主連結 URL</label>
-                                    <input v-model.trim="editingFlexRule.actionUrl" class="input-field font-mono text-xs" placeholder="https://...">
-                                </div>
-                                <div v-if="editingFlexRule.flexTemplate === 'v1' || editingFlexRule.flexTemplate === 'v4'" class="md:col-span-2">
-                                    <label class="input-label">影片 URL（V1/V4 可用）</label>
-                                    <input v-model.trim="editingFlexRule.videoUrl" class="input-field font-mono text-xs" placeholder="https://...mp4">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="input-label">訊息文字 / 條列內容</label>
-                                    <textarea v-model="editingFlexRule.bodyText" rows="5" class="input-field bg-slate-50 leading-relaxed resize-y" placeholder="V3 可每行一個項目；其他版型作為主要說明文字。"></textarea>
-                                </div>
+                            <div class="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-inner">
+                                <iframe ref="mylittlesysFlexFrame" :src="mylittlesysFlexUrl" @load="syncMylittlesysFlexFrame" class="w-full h-[680px] bg-white" title="mylittlesys Flex editor"></iframe>
                             </div>
                             <details class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                <summary class="cursor-pointer font-black text-slate-600">進階：貼上 Flex JSON</summary>
-                                <textarea v-model="editingFlexRule.flexJson" rows="10" class="input-field bg-white mt-3 font-mono text-[12px] leading-relaxed resize-y" placeholder='{"type":"bubble",...} 或 {"type":"flex","altText":"...","contents":{...}}'></textarea>
+                                <summary class="cursor-pointer font-black text-slate-600">目前模組 JSON</summary>
+                                <textarea v-model="editingFlexRule.flexJson" rows="10" class="input-field bg-white mt-3 font-mono text-[12px] leading-relaxed resize-y" placeholder="可由上方原始編輯器抓取，或手動貼上 Flex JSON"></textarea>
                             </details>
                         </div>
                         <textarea v-else v-model="editingFlexRule.payload" rows="12" class="input-field bg-slate-50 font-mono text-[12px] leading-relaxed resize-y" placeholder="請輸入要回覆或推播的純文字訊息..."></textarea>
@@ -1658,6 +1612,8 @@
                     const transferConfirmed = ref(false);
                     const editingSysConfig = ref(null);
                     const editingFlexRule = ref(null);
+                    const mylittlesysFlexFrame = ref(null);
+                    const mylittlesysFlexUrl = 'https://fangwl591021.github.io/mylittlesys/';
 
                     const showOrdersModal = ref(false);
                     const selectedCourseForOrders = ref(null);
@@ -3540,15 +3496,6 @@
                         }, '模組圖片', e.target);
                     };
 
-                    const handleFlexRuleBuilderImageUpload = (e) => {
-                        const file = e.target.files[0];
-                        if (!file || !editingFlexRule.value) return;
-                        uploadImageFile(file, (url) => {
-                            editingFlexRule.value.imageUrl = url;
-                            editingFlexRule.value.previewImageUrl = url;
-                        }, 'Flex 模組圖片', e.target);
-                    };
-
                     const importWpProducts = async () => {
                         if (!wpImportForm.value.username || !wpImportForm.value.appPassword || !wpImportForm.value.postIds) {
                             alert('請填寫 WordPress 帳號、Application Password 與商品 Post ID');
@@ -3807,6 +3754,56 @@
                         return next;
                     };
 
+                    const getMylittlesysFrameWindow = () => {
+                        const iframe = mylittlesysFlexFrame.value;
+                        if (!iframe || !iframe.contentWindow) return null;
+                        try {
+                            void iframe.contentWindow.document;
+                            return iframe.contentWindow;
+                        } catch (e) {
+                            return null;
+                        }
+                    };
+
+                    const openMylittlesysTemplate = (template) => {
+                        if (!editingFlexRule.value) return;
+                        editingFlexRule.value.flexTemplate = template || 'v1';
+                        const win = getMylittlesysFrameWindow();
+                        if (!win || typeof win.createNewFlex !== 'function') return;
+                        try {
+                            win.createNewFlex(editingFlexRule.value.flexTemplate);
+                            const nameInput = win.document.getElementById('save-filename');
+                            if (nameInput) nameInput.value = editingFlexRule.value.moduleName || nameInput.value || 'ACTION';
+                        } catch (e) {
+                            console.warn('mylittlesys template open failed', e);
+                        }
+                    };
+
+                    const syncMylittlesysFlexFrame = () => {
+                        if (!editingFlexRule.value || editingFlexRule.value.replyType !== 'FLEX') return;
+                        setTimeout(() => openMylittlesysTemplate(editingFlexRule.value.flexTemplate || 'v1'), 300);
+                    };
+
+                    const captureMylittlesysFlexJson = () => {
+                        if (!editingFlexRule.value) return false;
+                        const win = getMylittlesysFrameWindow();
+                        if (!win) return false;
+                        try {
+                            const output = win.document.getElementById('json-output');
+                            const raw = String(output?.value || '').trim();
+                            if (!raw) return false;
+                            JSON.parse(raw);
+                            editingFlexRule.value.flexJson = raw;
+                            editingFlexRule.value.payload = raw;
+                            const nameInput = win.document.getElementById('save-filename');
+                            if (nameInput?.value && !editingFlexRule.value.moduleName) editingFlexRule.value.moduleName = nameInput.value;
+                            return true;
+                        } catch (e) {
+                            alert('mylittlesys JSON 讀取失敗：' + e.message);
+                            return false;
+                        }
+                    };
+
                     const openEditFlexRule = (rule) => {
                         if (rule) {
                             editingFlexRule.value = normalizeFlexRuleForm(rule);
@@ -3826,6 +3823,7 @@
                     const saveFlexRule = async () => {
                         if (!editingFlexRule.value.moduleName) return alert('模組名稱為必填');
                         if (editingFlexRule.value.replyType === 'FLEX') {
+                            captureMylittlesysFlexJson();
                             try {
                                 editingFlexRule.value.payload = JSON.stringify(buildFlexMessageFromForm(editingFlexRule.value), null, 2);
                                 editingFlexRule.value.previewImageUrl = editingFlexRule.value.imageUrl || editingFlexRule.value.previewImageUrl || '';
@@ -4173,6 +4171,7 @@
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, courseStageOptions, productStatusOptions,
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, auditLogs, broadcastTags, broadcastCampaigns, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
+                        mylittlesysFlexFrame, mylittlesysFlexUrl,
                         currentAccess, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile, activeReferrerName,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText, adminOrderPaymentText, orderCourseName,
                         currentViewName, totalRevenue, courseStatsFiltered, courseThumbUrl, courseEnrollmentCount,
@@ -4189,11 +4188,11 @@
                         lineLogin, handleLogin, toggleGroup, switchView, logout, fetchData, manualRefreshData,
                         triggerBackup, runHealthCheck, openMemberDetail, displayMemberName, memberAvatarUrl, memberInitial, ledgerMemberName, copyText, openLedgerMember, memberRoleTags, toggleMemberSystem, toggleMemberOperator, toggleMemberTeacher, saveMemberDetail, deleteMember, restoreMember, openPointActionModal, submitPointAction,
                         openNewCourseModal, openEditModal, saveCourse, deleteCourse, copyCourse, openNewProductModal, openEditProductModal, saveProduct, deleteProduct, importWpProducts, syncToCalendar,
-                        handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, handleFlexRuleImageUpload, handleFlexRuleBuilderImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
+                        handleBannerUpload, handleProductImageUpload, handleCourseImageUpload, handleFlexRuleImageUpload, saveSettings, addCourseLocation, openEnrollments, openCourseOrdersModal,
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadMemberReport, downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, syncWPPointsFromCRM
+                        downloadMemberReport, downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, openMylittlesysTemplate, syncMylittlesysFlexFrame, captureMylittlesysFlexJson, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
