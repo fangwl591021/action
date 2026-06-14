@@ -1027,7 +1027,7 @@
     const checkbox = document.getElementById('v1-f-' + prefix + idx + '-visible');
     if (checkbox) checkbox.checked = !!visible;
     const row = document.getElementById(kind === 'social' ? 'v1-social-row-' + idx : 'v1-footer-row-' + idx);
-    if (row) row.style.display = visible ? '' : 'none';
+    if (row) row.style.display = '';
     generateFlexJson_v1();
   }
 
@@ -1132,7 +1132,7 @@
     const checkbox = document.getElementById(`v1-f-b${idx}-visible`);
     if (checkbox) checkbox.checked = !!visible;
     const row = document.getElementById('v1-footer-row-' + idx);
-    if (row) row.style.display = visible ? '' : 'none';
+    if (row) row.style.display = '';
   }
 
   function resetV1Visibility(kind, total, visible) {
@@ -1156,16 +1156,6 @@
 
   function resetFreeFlexPaneScroll() {
     if (!window.MYLITTLESYS_FREE_EMBED) return;
-    const reset = () => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-      document.querySelectorAll('.app-main, .flex-editor-workspace, .flex-editor-preview-pane, .flex-editor-form-pane').forEach(pane => {
-        pane.scrollTop = 0;
-      });
-    };
-    requestAnimationFrame(reset);
-    [40, 160, 420, 900].forEach(delay => setTimeout(reset, delay));
   }
 
   function normalizeFlexAspectRatio(value, fallback = "1040:748") {
@@ -1310,18 +1300,24 @@
     for(let i=1; i<=4; i++) {
       const type = document.getElementById(`v1-f-s${i}-type`).value;
       const url = document.getElementById(`v1-f-s${i}-url`).value;
-      const visible = document.getElementById(`v1-f-s${i}-visible`)?.checked !== false;
+      const visibleInput = document.getElementById(`v1-f-s${i}-visible`);
+      const visible = visibleInput ? visibleInput.checked : true;
       const mockIcon = document.getElementById(`v1-mock-icon-${i}`);
       if (mockIcon && mockIcon.parentElement) mockIcon.parentElement.style.display = visible ? 'flex' : 'none';
       if (!visible) continue;
       sD.push({ iconUrl: V1_ICONS[type], url, type });
-      mockIcon.src = V1_ICONS[type];
-      mockIcon.style.opacity = '1';
+      if (mockIcon) {
+        mockIcon.src = V1_ICONS[type];
+        mockIcon.style.opacity = '1';
+      }
     }
+    const socialContainer = document.getElementById('v1-mock-social-container');
+    if (socialContainer) socialContainer.style.display = sD.length ? 'flex' : 'none';
 
     const bD = [];
     for (let i = 1; i <= 3; i++) {
-      const visible = document.getElementById(`v1-f-b${i}-visible`)?.checked !== false;
+      const visibleInput = document.getElementById(`v1-f-b${i}-visible`);
+      const visible = visibleInput ? visibleInput.checked : true;
       const t = document.getElementById(`v1-f-b${i}-text`)?.value || '';
       const u = document.getElementById(`v1-f-b${i}-url`)?.value || '';
       const c = document.getElementById(`v1-f-b${i}-color`)?.value || '#111111';
@@ -1335,6 +1331,8 @@
       }
       if (visible) bD.push({ t, u, c, tc });
     }
+    const footerContainer = document.getElementById('v1-mock-footer-container');
+    if (footerContainer) footerContainer.style.display = bD.length ? 'flex' : 'none';
 
     const flex = {
       "type": "bubble", "size": size,
