@@ -713,11 +713,7 @@
         </div>
 
 
-        <div id="v1-mock-footer-container" style="padding:12px; display:flex; flex-direction:column; gap:8px; border-top:1px solid rgba(0,0,0,0.05); transition:background 0.3s; background:#F9FAFB;">
-          <div id="v1-mock-btn-1" style="height:36px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05);">Button 1</div>
-          <div id="v1-mock-btn-2" style="height:36px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05);">Button 2</div>
-          <div id="v1-mock-btn-3" style="height:36px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05);">Button 3</div>
-        </div>
+        <div id="v1-mock-footer-container" style="padding:12px; display:flex; flex-direction:column; gap:8px; border-top:1px solid rgba(0,0,0,0.05); transition:background 0.3s; background:#F9FAFB;"></div>
       </div>
       <p style="margin-top:16px; font-size:10px; color:#94a3b8; text-align:center; font-style:italic;">Simulator v1.6.1<br>All Social Icons Animated</p>
     </div>
@@ -899,9 +895,9 @@
                 <div style="font-size:11px; font-weight:900; color:#64748b; text-transform:uppercase;">Footer action buttons</div>
                 <button type="button" onclick="addV1FooterButton()" style="border:1px solid #bbf7d0; background:#ecfdf5; color:#059669; border-radius:8px; padding:7px 12px; font-size:12px; font-weight:900; cursor:pointer;">+ Add</button>
               </div>
-              <div style="display:flex; flex-direction:column; gap:20px;">
+              <div id="v1-footer-buttons-list" style="display:flex; flex-direction:column; gap:20px;">
 
-              <div id="v1-footer-row-1" style="background:#fff; padding:20px; border-radius:16px; border:2px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+              <div id="v1-footer-row-1" data-v1-footer-row data-index="1" style="background:#fff; padding:20px; border-radius:16px; border:2px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
                   <span style="font-size:10px; font-weight:900; color:#94a3b8;">Button 01</span>
                   <div style="display:flex; align-items:center; gap:8px; margin-left:auto; margin-right:12px;">
@@ -919,7 +915,7 @@
                 </div>
               </div>
 
-              <div id="v1-footer-row-2" style="background:#fff; padding:20px; border-radius:16px; border:2px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+              <div id="v1-footer-row-2" data-v1-footer-row data-index="2" style="background:#fff; padding:20px; border-radius:16px; border:2px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
                   <span style="font-size:10px; font-weight:900; color:#94a3b8;">Button 02</span>
                   <div style="display:flex; align-items:center; gap:8px; margin-left:auto; margin-right:12px;">
@@ -937,7 +933,7 @@
                 </div>
               </div>
 
-              <div id="v1-footer-row-3" style="background:#fff; padding:20px; border-radius:16px; border:2px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+              <div id="v1-footer-row-3" data-v1-footer-row data-index="3" style="background:#fff; padding:20px; border-radius:16px; border:2px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
                   <span style="font-size:10px; font-weight:900; color:#94a3b8;">Button 03</span>
                   <div style="display:flex; align-items:center; gap:8px; margin-left:auto; margin-right:12px;">
@@ -1034,14 +1030,71 @@
   function deleteV1SocialButton(idx) { setV1RowVisible('social', idx, false); }
 
   function addV1FooterButton() {
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 99; i++) {
       const checkbox = document.getElementById('v1-f-b' + i + '-visible');
       if (checkbox && !checkbox.checked) { setV1RowVisible('footer', i, true); return; }
     }
-    alert('Footer buttons are already at the limit.');
+    const next = getNextV1FooterIndex();
+    addV1FooterButtonData({ t: 'Button ' + String(next).padStart(2, '0'), u: 'https://line.me', c: '#111111', tc: '#FFFFFF', visible: true }, next);
+    generateFlexJson_v1();
   }
 
-  function deleteV1FooterButton(idx) { setV1RowVisible('footer', idx, false); }
+  function deleteV1FooterButton(idx) {
+    const row = document.getElementById('v1-footer-row-' + idx);
+    if (row) row.remove();
+    generateFlexJson_v1();
+  }
+
+  function getV1FooterRows() {
+    return Array.from(document.querySelectorAll('[data-v1-footer-row]'));
+  }
+
+  function getNextV1FooterIndex() {
+    return getV1FooterRows().reduce((max, row) => Math.max(max, Number(row.dataset.index || 0)), 0) + 1;
+  }
+
+  function v1FooterButtonRowHtml(idx, data = {}) {
+    const label = data.t || ('Button ' + String(idx).padStart(2, '0'));
+    const url = data.u || 'https://line.me';
+    const color = data.c || '#111111';
+    const textColor = data.tc || '#FFFFFF';
+    const checked = data.visible === false ? '' : 'checked';
+    return `
+      <div id="v1-footer-row-${idx}" data-v1-footer-row data-index="${idx}" style="background:#fff; padding:20px; border-radius:16px; border:2px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <span style="font-size:10px; font-weight:900; color:#94a3b8;">Button ${String(idx).padStart(2, '0')}</span>
+          <div style="display:flex; align-items:center; gap:8px; margin-left:auto; margin-right:12px;">
+            <label style="display:flex; align-items:center; gap:4px; font-size:11px; font-weight:900; color:#059669;"><input type="checkbox" id="v1-f-b${idx}-visible" ${checked} onchange="generateFlexJson_v1()"> Show</label>
+            <button type="button" onclick="deleteV1FooterButton(${idx})" style="border:0; background:#fee2e2; color:#dc2626; border-radius:7px; padding:5px 8px; font-size:11px; font-weight:900; cursor:pointer;">Delete</button>
+          </div>
+          <div style="display:flex; gap:12px;">
+            <div style="display:flex; align-items:center; gap:6px;"><label style="font-size:9px;">底</label><input type="color" id="v1-f-b${idx}-color" value="${color}" style="width:32px; height:20px; border:none; padding:0; cursor:pointer;" oninput="generateFlexJson_v1()"></div>
+            <div style="display:flex; align-items:center; gap:6px;"><label style="font-size:9px;">字</label><input type="color" id="v1-f-b${idx}-txt-color" value="${textColor}" style="width:32px; height:20px; border:none; padding:0; cursor:pointer;" oninput="generateFlexJson_v1()"></div>
+          </div>
+        </div>
+        <div style="display:flex; gap:12px;">
+          <input type="text" id="v1-f-b${idx}-text" class="input-field w-1/3 font-bold" placeholder="文字" value="${escapeHtmlAttr(label)}" oninput="generateFlexJson_v1()">
+          <input type="text" id="v1-f-b${idx}-url" class="input-field flex-1" placeholder="URL" value="${escapeHtmlAttr(url)}" oninput="generateFlexJson_v1()">
+        </div>
+      </div>
+    `;
+  }
+
+  function escapeHtmlAttr(value) {
+    return String(value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function resetV1FooterButtons() {
+    const list = document.getElementById('v1-footer-buttons-list');
+    if (list) list.innerHTML = '';
+  }
+
+  function addV1FooterButtonData(data, forcedIndex) {
+    const list = document.getElementById('v1-footer-buttons-list');
+    if (!list) return;
+    const idx = forcedIndex || getNextV1FooterIndex();
+    list.insertAdjacentHTML('beforeend', v1FooterButtonRowHtml(idx, data));
+  }
 
   function resetV1Visibility(kind, total, visible) {
     for (let i = 1; i <= total; i++) {
@@ -1068,7 +1121,7 @@
     setBubbleSize(bSize);
 
     resetV1Visibility('social', 4, false);
-    resetV1Visibility('footer', 3, false);
+    resetV1FooterButtons();
 
     const body = json.body;
     if (body) {
@@ -1099,15 +1152,14 @@
     }
     if (json.footer && json.footer.contents) {
       json.footer.contents.forEach((box, idx) => {
-        if (idx < 3) {
-          const btnTxt = box.contents?.[0];
-          document.getElementById(`v1-f-b${idx+1}-text`).value = btnTxt?.text || "";
-          document.getElementById(`v1-f-b${idx+1}-url`).value = box.action?.uri || "";
-          document.getElementById(`v1-f-b${idx+1}-color`).value = box.backgroundColor || "#111111";
-          document.getElementById(`v1-f-b${idx+1}-txt-color`).value = btnTxt?.color || "#FFFFFF";
-          const visibleInput = document.getElementById(`v1-f-b${idx+1}-visible`);
-          if (visibleInput) visibleInput.checked = true;
-        }
+        const btnTxt = box.contents?.[0];
+        addV1FooterButtonData({
+          t: btnTxt?.text || "",
+          u: box.action?.uri || "",
+          c: box.backgroundColor || "#111111",
+          tc: btnTxt?.color || "#FFFFFF",
+          visible: true
+        }, idx + 1);
       });
     }
     generateFlexJson_v1();
@@ -1133,14 +1185,8 @@
         if (visibleInput) visibleInput.checked = true;
         onIconTypeChange(i);
       }
-      for(let i=1; i<=3; i++) {
-        document.getElementById(`v1-f-b${i}-text`).value = d.b[i-1].t;
-        document.getElementById(`v1-f-b${i}-url`).value = d.b[i-1].u;
-        document.getElementById(`v1-f-b${i}-color`).value = d.b[i-1].c;
-        document.getElementById(`v1-f-b${i}-txt-color`).value = d.b[i-1].tc;
-        const visibleInput = document.getElementById(`v1-f-b${i}-visible`);
-        if (visibleInput) visibleInput.checked = true;
-      }
+      resetV1FooterButtons();
+      d.b.forEach((button, idx) => addV1FooterButtonData({ ...button, visible: true }, idx + 1));
     }
     initSizePills();
     generateFlexJson_v1();
@@ -1193,17 +1239,27 @@
     }
 
     const bD = [];
-    for(let i=1; i<=3; i++) {
-      const t = document.getElementById(`v1-f-b${i}-text`).value;
-      const u = document.getElementById(`v1-f-b${i}-url`).value;
-      const c = document.getElementById(`v1-f-b${i}-color`).value;
-      const tc = document.getElementById(`v1-f-b${i}-txt-color`).value;
+    getV1FooterRows().forEach(row => {
+      const i = row.dataset.index;
+      const t = document.getElementById(`v1-f-b${i}-text`)?.value || '';
+      const u = document.getElementById(`v1-f-b${i}-url`)?.value || '';
+      const c = document.getElementById(`v1-f-b${i}-color`)?.value || '#111111';
+      const tc = document.getElementById(`v1-f-b${i}-txt-color`)?.value || '#FFFFFF';
       const visible = document.getElementById(`v1-f-b${i}-visible`)?.checked !== false;
-      const mBtn = document.getElementById(`v1-mock-btn-${i}`);
-      if (mBtn) mBtn.style.display = visible ? 'flex' : 'none';
-      if (!visible) continue;
+      if (!visible) return;
       bD.push({ t, u, c, tc });
-      mBtn.innerText = t || "-"; mBtn.style.backgroundColor = c; mBtn.style.color = tc;
+    });
+    const footerPreview = document.getElementById('v1-mock-footer-container');
+    if (footerPreview) {
+      footerPreview.innerHTML = '';
+      bD.forEach(b => {
+        const btn = document.createElement('div');
+        btn.style.cssText = 'height:36px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05);';
+        btn.innerText = b.t || '-';
+        btn.style.backgroundColor = b.c;
+        btn.style.color = b.tc;
+        footerPreview.appendChild(btn);
+      });
     }
 
     const flex = {
