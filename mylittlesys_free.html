@@ -713,7 +713,11 @@
         </div>
 
 
-        <div id="v1-mock-footer-container" style="padding:12px; display:flex; flex-direction:column; gap:8px; border-top:1px solid rgba(0,0,0,0.05); transition:background 0.3s; background:#F9FAFB;"></div>
+        <div id="v1-mock-footer-container" style="padding:12px; display:flex; flex-direction:column; gap:8px; border-top:1px solid rgba(0,0,0,0.05); transition:background 0.3s; background:#F9FAFB;">
+          <div id="v1-mock-btn-1" style="height:36px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05);"></div>
+          <div id="v1-mock-btn-2" style="height:36px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05);"></div>
+          <div id="v1-mock-btn-3" style="height:36px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05);"></div>
+        </div>
       </div>
       <p style="margin-top:16px; font-size:10px; color:#94a3b8; text-align:center; font-style:italic;">Simulator v1.6.1<br>All Social Icons Animated</p>
     </div>
@@ -1014,8 +1018,11 @@
   function addrToMapUrl(addr) { return addr ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr) : ''; }
 
   function setV1RowVisible(kind, idx, visible) {
-    const checkbox = document.getElementById('v1-f-' + (kind === 'social' ? 's' : 'b') + idx + '-visible');
+    const prefix = kind === 'social' ? 's' : 'b';
+    const checkbox = document.getElementById('v1-f-' + prefix + idx + '-visible');
     if (checkbox) checkbox.checked = !!visible;
+    const row = document.getElementById(kind === 'social' ? 'v1-social-row-' + idx : 'v1-footer-row-' + idx);
+    if (row) row.style.display = visible ? '' : 'none';
     generateFlexJson_v1();
   }
 
@@ -1042,28 +1049,27 @@
   function deleteV1SocialButton(idx) { setV1RowVisible('social', idx, false); }
 
   function addV1FooterButton() {
-    for (let i = 1; i <= 99; i++) {
+    for (let i = 1; i <= 3; i++) {
       const checkbox = document.getElementById('v1-f-b' + i + '-visible');
       if (checkbox && !checkbox.checked) { setV1RowVisible('footer', i, true); scrollV1PreviewToFooter(); return; }
     }
-    const next = getNextV1FooterIndex();
-    addV1FooterButtonData({ t: 'Button ' + String(next).padStart(2, '0'), u: 'https://line.me', c: '#111111', tc: '#FFFFFF', visible: true }, next);
-    generateFlexJson_v1();
-    scrollV1PreviewToFooter();
+    alert('原版 V1 底部按鈕最多 3 顆。');
   }
 
   function deleteV1FooterButton(idx) {
-    const row = document.getElementById('v1-footer-row-' + idx);
-    if (row) row.remove();
-    generateFlexJson_v1();
+    setV1RowVisible('footer', idx, false);
   }
 
   function getV1FooterRows() {
-    return Array.from(document.querySelectorAll('[data-v1-footer-row]'));
+    return [1, 2, 3].map(i => document.getElementById('v1-footer-row-' + i)).filter(Boolean);
   }
 
   function getNextV1FooterIndex() {
-    return getV1FooterRows().reduce((max, row) => Math.max(max, Number(row.dataset.index || 0)), 0) + 1;
+    for (let i = 1; i <= 3; i++) {
+      const checkbox = document.getElementById('v1-f-b' + i + '-visible');
+      if (checkbox && !checkbox.checked) return i;
+    }
+    return 4;
   }
 
   function v1FooterButtonRowHtml(idx, data = {}) {
@@ -1098,21 +1104,38 @@
   }
 
   function resetV1FooterButtons() {
-    const list = document.getElementById('v1-footer-buttons-list');
-    if (list) list.innerHTML = '';
+    for (let i = 1; i <= 3; i++) {
+      setV1FooterButtonData(i, { t: '', u: 'https://line.me', c: '#111111', tc: '#FFFFFF' }, false);
+    }
   }
 
   function addV1FooterButtonData(data, forcedIndex) {
-    const list = document.getElementById('v1-footer-buttons-list');
-    if (!list) return;
     const idx = forcedIndex || getNextV1FooterIndex();
-    list.insertAdjacentHTML('beforeend', v1FooterButtonRowHtml(idx, data));
+    if (idx < 1 || idx > 3) return;
+    setV1FooterButtonData(idx, data, data?.visible !== false);
+  }
+
+  function setV1FooterButtonData(idx, data = {}, visible = true) {
+    const text = document.getElementById(`v1-f-b${idx}-text`);
+    const url = document.getElementById(`v1-f-b${idx}-url`);
+    const color = document.getElementById(`v1-f-b${idx}-color`);
+    const textColor = document.getElementById(`v1-f-b${idx}-txt-color`);
+    if (text) text.value = data.t || ('Button ' + String(idx).padStart(2, '0'));
+    if (url) url.value = data.u || 'https://line.me';
+    if (color) color.value = data.c || '#111111';
+    if (textColor) textColor.value = data.tc || '#FFFFFF';
+    const checkbox = document.getElementById(`v1-f-b${idx}-visible`);
+    if (checkbox) checkbox.checked = !!visible;
+    const row = document.getElementById('v1-footer-row-' + idx);
+    if (row) row.style.display = visible ? '' : 'none';
   }
 
   function resetV1Visibility(kind, total, visible) {
     for (let i = 1; i <= total; i++) {
       const checkbox = document.getElementById('v1-f-' + (kind === 'social' ? 's' : 'b') + i + '-visible');
       if (checkbox) checkbox.checked = !!visible;
+      const row = document.getElementById(kind === 'social' ? 'v1-social-row-' + i : 'v1-footer-row-' + i);
+      if (row) row.style.display = visible ? '' : 'none';
     }
   }
 
@@ -1252,27 +1275,21 @@
     }
 
     const bD = [];
-    getV1FooterRows().forEach(row => {
-      const i = row.dataset.index;
+    for (let i = 1; i <= 3; i++) {
       const t = document.getElementById(`v1-f-b${i}-text`)?.value || '';
       const u = document.getElementById(`v1-f-b${i}-url`)?.value || '';
       const c = document.getElementById(`v1-f-b${i}-color`)?.value || '#111111';
       const tc = document.getElementById(`v1-f-b${i}-txt-color`)?.value || '#FFFFFF';
       const visible = document.getElementById(`v1-f-b${i}-visible`)?.checked !== false;
-      if (!visible) return;
+      const mBtn = document.getElementById(`v1-mock-btn-${i}`);
+      if (mBtn) {
+        mBtn.style.display = visible ? 'flex' : 'none';
+        mBtn.innerText = t || '-';
+        mBtn.style.backgroundColor = c;
+        mBtn.style.color = tc;
+      }
+      if (!visible) continue;
       bD.push({ t, u, c, tc });
-    });
-    const footerPreview = document.getElementById('v1-mock-footer-container');
-    if (footerPreview) {
-      footerPreview.innerHTML = '';
-      bD.forEach(b => {
-        const btn = document.createElement('div');
-        btn.style.cssText = 'height:36px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05);';
-        btn.innerText = b.t || '-';
-        btn.style.backgroundColor = b.c;
-        btn.style.color = b.tc;
-        footerPreview.appendChild(btn);
-      });
     }
 
     const flex = {
