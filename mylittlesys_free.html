@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    window.MYLITTLESYS_FREE_EMBED = true;
+    document.documentElement.classList.add('free-flex-embed-root');
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -18,6 +22,7 @@
       --panel-width: 380px;
     }
     body { font-family: 'PingFang TC', sans-serif; background-color: var(--line-bg); margin: 0; color: #333; overflow: hidden; }
+    html.free-flex-embed-root #auth-layer { display: none !important; }
     .workspace-hidden { display: none !important; }
     .flex-editor-workspace { display: flex; height: 100%; width: 100%; overflow: hidden; background: #fff; }
     .workspace-hidden.flex-editor-workspace { display: none !important; }
@@ -141,7 +146,7 @@
     <p class="font-bold text-slate-800 text-xs tracking-widest uppercase">Syncing Database...</p>
   </div>
 
-  <div id="auth-layer" class="fixed inset-0 z-[600] bg-white flex items-center justify-center">
+  <div id="auth-layer" class="fixed inset-0 z-[600] bg-white flex items-center justify-center workspace-hidden">
     <section class="w-[400px] flex flex-col items-center p-8">
       <h2 class="text-3xl font-bold text-slate-800 mb-6">小系統</h2>
       <div id="auth-form" class="w-full space-y-4">
@@ -1324,10 +1329,12 @@
     if (globalOutput) globalOutput.value = JSON.stringify(flex, null, 2);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadFlexTemplate_v1);
-  } else {
-    loadFlexTemplate_v1();
+  if (!window.MYLITTLESYS_FREE_EMBED) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', loadFlexTemplate_v1);
+    } else {
+      loadFlexTemplate_v1();
+    }
   }
 </script>       <div id="flex-workspace-v2" class="workspace-hidden flex-editor-workspace flex-1 overflow-hidden w-full h-full bg-white">
   <div class="flex h-full w-full">
@@ -3690,6 +3697,7 @@
     }
 
     async function tryLineAdminLogin() {
+      if (window.MYLITTLESYS_FREE_EMBED) return;
       if (currentUser || getIncomingShareId() || !window.liff) return;
       try {
         await ensureMyLittleSysLiffReady();
