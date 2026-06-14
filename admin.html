@@ -1173,45 +1173,40 @@
 
         <div v-if="editingFlexRule" class="modal-mask" @click.self="editingFlexRule = null" style="z-index: 1000;">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !w-[calc(100vw-32px)] !max-w-[calc(100vw-32px)] !h-[calc(100vh-32px)] !rounded-xl bg-white shadow-2xl flex flex-col">
-                <div class="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-100 shadow-sm z-10 relative">
-                    <h3 class="text-[19px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-robot text-[#06C755]"></i> {{ editingFlexRule?.createdAt ? '編輯模組' : '新增模組' }}</h3>
-                    <button @click="editingFlexRule = null" class="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><i class="fas fa-times text-xl"></i></button>
+                <div class="px-5 py-3 flex justify-between items-center bg-white border-b border-slate-100 shadow-sm z-10 relative">
+                    <h3 class="text-[18px] font-black text-slate-800 flex items-center gap-2"><i class="fas fa-robot text-[#06C755]"></i> {{ editingFlexRule?.createdAt ? '編輯模組' : '新增模組' }}</h3>
+                    <button @click="editingFlexRule = null" class="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"><i class="fas fa-times text-xl"></i></button>
                 </div>
-                <div class="p-4 overflow-y-auto flex-1 min-h-0 bg-slate-50 custom-scrollbar space-y-3">
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div class="p-2 overflow-y-auto flex-1 min-h-0 bg-slate-50 custom-scrollbar space-y-2">
+                    <div class="bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm">
+                        <div class="grid grid-cols-1 lg:grid-cols-4 gap-2">
                             <div>
-                                <label class="block text-[13px] font-bold text-slate-700 mb-1.5">模組名稱 <span class="text-red-500">*</span></label>
-                                <input type="text" v-model="editingFlexRule.moduleName" class="input-field bg-slate-50 font-bold" placeholder="例如：完整會員續約圖文">
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">模組名稱 <span class="text-red-500">*</span></label>
+                                <input type="text" v-model="editingFlexRule.moduleName" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]" placeholder="例如：完整會員續約圖文">
                             </div>
                             <div>
-                                <label class="block text-[13px] font-bold text-slate-700 mb-1.5">觸發關鍵字 / Postback Data（選填）</label>
-                                <input type="text" v-model="editingFlexRule.keyword" class="input-field bg-slate-50 font-bold" placeholder="例如：ACTION會員專區">
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">觸發關鍵字 / Postback</label>
+                                <input type="text" v-model="editingFlexRule.keyword" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]" placeholder="例如：ACTION會員專區">
                             </div>
                             <div>
-                                <label class="block text-[13px] font-bold text-slate-700 mb-1.5">回覆類型</label>
-                                <select v-model="editingFlexRule.replyType" class="input-field bg-slate-50 font-bold text-indigo-700">
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">回覆類型</label>
+                                <select v-model="editingFlexRule.replyType" class="input-field bg-slate-50 font-bold text-indigo-700 !py-2 !text-[13px]">
                                     <option value="FLEX">FLEX 卡片 (JSON)</option>
                                     <option value="IMAGE">圖片訊息</option>
                                     <option value="TEXT">純文字訊息</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[13px] font-bold text-slate-700 mb-1.5">規則狀態</label>
-                                <select v-model="editingFlexRule.active" class="input-field bg-slate-50 font-bold">
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">規則狀態</label>
+                                <select v-model="editingFlexRule.active" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]">
                                     <option :value="true">啟用中</option>
                                     <option :value="false">停用</option>
                                 </select>
                             </div>
                         </div>
-                        <p class="text-[12px] text-slate-500 font-bold mt-2"><i class="fas fa-info-circle text-[#06C755] mr-1"></i> 若只作推播模組，可留空；若要讓圖文選單觸發，才填回傳 Data。</p>
                     </div>
 
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                        <div class="flex justify-between items-center mb-2">
-                            <label class="block text-[14px] font-bold text-slate-700">回覆內容 (Payload) <span class="text-red-500">*</span></label>
-                            <a v-if="editingFlexRule.replyType === 'FLEX'" href="https://developers.line.biz/flex-simulator/" target="_blank" class="text-[12px] text-blue-500 hover:text-blue-700 font-bold transition flex items-center gap-1"><i class="fas fa-external-link-alt"></i> 開啟 LINE Flex Simulator</a>
-                        </div>
+                    <div class="bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
                         <div v-if="editingFlexRule.replyType === 'IMAGE'" class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
                             <img v-if="editingFlexRule.payload" :src="editingFlexRule.payload" class="w-full max-h-[360px] object-contain bg-white">
                             <div v-else class="h-56 flex flex-col items-center justify-center text-slate-300 gap-3">
@@ -1226,22 +1221,20 @@
                                 <button v-if="editingFlexRule.payload" @click="editingFlexRule.payload = ''; editingFlexRule.previewImageUrl = ''" class="btn-outline text-red-500">移除圖片</button>
                             </div>
                         </div>
-                        <div v-else-if="editingFlexRule.replyType === 'FLEX'" class="space-y-3">
-                            <div class="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                                <div>
-                                    <div class="font-black text-slate-800 flex items-center gap-2"><i class="fas fa-cubes text-[#06C755]"></i>mylittlesys 自由版 Flex 編輯器</div>
-                                    <div class="text-xs font-bold text-slate-500 mt-1">只載入自由版編輯器產生 JSON，不進入小系統後台。</div>
-                                </div>
+                        <div v-else-if="editingFlexRule.replyType === 'FLEX'" class="space-y-2">
+                            <div class="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                <div class="font-black text-slate-800 flex items-center gap-2 text-[14px]"><i class="fas fa-cubes text-[#06C755]"></i>mylittlesys 自由版 Flex 編輯器</div>
                                 <div class="flex flex-wrap gap-2">
-                                    <button type="button" @click="openMylittlesysTemplate('v1')" class="btn-outline bg-white">V1</button>
-                                    <button type="button" @click="openMylittlesysTemplate('v2')" class="btn-outline bg-white">V2</button>
-                                    <button type="button" @click="openMylittlesysTemplate('v3')" class="btn-outline bg-white">V3</button>
-                                    <button type="button" @click="openMylittlesysTemplate('v4')" class="btn-outline bg-white">V4</button>
-                                    <button type="button" @click="captureMylittlesysFlexJson" class="btn-green-main !py-2">抓取 JSON</button>
+                                    <a href="https://developers.line.biz/flex-simulator/" target="_blank" class="btn-outline bg-white !py-2 text-[12px]"><i class="fas fa-external-link-alt mr-1"></i>Simulator</a>
+                                    <button type="button" @click="openMylittlesysTemplate('v1')" class="btn-outline bg-white !py-2 text-[12px]">V1</button>
+                                    <button type="button" @click="openMylittlesysTemplate('v2')" class="btn-outline bg-white !py-2 text-[12px]">V2</button>
+                                    <button type="button" @click="openMylittlesysTemplate('v3')" class="btn-outline bg-white !py-2 text-[12px]">V3</button>
+                                    <button type="button" @click="openMylittlesysTemplate('v4')" class="btn-outline bg-white !py-2 text-[12px]">V4</button>
+                                    <button type="button" @click="captureMylittlesysFlexJson" class="btn-green-main !py-2 text-[12px]">抓取 JSON</button>
                                 </div>
                             </div>
-                            <div class="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-inner">
-                                <iframe ref="mylittlesysFlexFrame" :src="mylittlesysFlexUrl" @load="syncMylittlesysFlexFrame" class="w-full h-[calc(100vh-390px)] min-h-[520px] bg-white" title="mylittlesys Flex editor"></iframe>
+                            <div class="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-inner">
+                                <iframe ref="mylittlesysFlexFrame" :src="mylittlesysFlexUrl" @load="syncMylittlesysFlexFrame" class="w-full h-[calc(100vh-250px)] min-h-[620px] bg-white" title="mylittlesys Flex editor"></iframe>
                             </div>
                             <details class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                                 <summary class="cursor-pointer font-black text-slate-600">目前模組 JSON</summary>
