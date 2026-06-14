@@ -1140,29 +1140,17 @@
       const checkbox = document.getElementById('v1-f-' + (kind === 'social' ? 's' : 'b') + i + '-visible');
       if (checkbox) checkbox.checked = !!visible;
       const row = document.getElementById(kind === 'social' ? 'v1-social-row-' + i : 'v1-footer-row-' + i);
-      if (row) row.style.display = visible ? '' : 'none';
+      if (row) row.style.display = '';
     }
   }
 
   function restoreOriginalV1FooterMode() {
-    for (let i = 1; i <= 4; i++) {
-      const checkbox = document.getElementById(`v1-f-s${i}-visible`);
-      if (checkbox) checkbox.checked = true;
-      const row = document.getElementById('v1-social-row-' + i);
-      if (row) row.style.display = '';
-    }
-    for (let i = 1; i <= 3; i++) {
-      const checkbox = document.getElementById(`v1-f-b${i}-visible`);
-      if (checkbox) checkbox.checked = true;
-      const row = document.getElementById('v1-footer-row-' + i);
-      if (row) row.style.display = '';
-    }
     document.querySelectorAll('button[onclick^="addV1FooterButton"], button[onclick^="deleteV1FooterButton"], button[onclick^="addV1SocialButton"], button[onclick^="deleteV1SocialButton"]').forEach(el => {
       el.style.display = 'none';
     });
     document.querySelectorAll('input[id^="v1-f-b"][id$="-visible"], input[id^="v1-f-s"][id$="-visible"]').forEach(input => {
       const label = input.closest('label');
-      if (label) label.style.display = 'none';
+      if (label) label.style.display = 'flex';
     });
   }
 
@@ -1183,8 +1171,7 @@
   function normalizeFlexAspectRatio(value, fallback = "1040:748") {
     const normalized = String(value || fallback)
       .trim()
-      .replace(/[：]/g, ':')
-      .replace(/\s*[xX×]\s*/g, ':')
+      .replace(/\s*[xX]\s*/g, ':')
       .replace(/\s+/g, '');
     return /^\d+:\d+$/.test(normalized) ? normalized : fallback;
   }
@@ -1208,6 +1195,7 @@
 
     resetV1Visibility('social', 4, false);
     resetV1FooterButtons();
+    resetV1Visibility('footer', 3, false);
 
     const body = json.body;
     if (body) {
@@ -1333,18 +1321,19 @@
 
     const bD = [];
     for (let i = 1; i <= 3; i++) {
+      const visible = document.getElementById(`v1-f-b${i}-visible`)?.checked !== false;
       const t = document.getElementById(`v1-f-b${i}-text`)?.value || '';
       const u = document.getElementById(`v1-f-b${i}-url`)?.value || '';
       const c = document.getElementById(`v1-f-b${i}-color`)?.value || '#111111';
       const tc = document.getElementById(`v1-f-b${i}-txt-color`)?.value || '#FFFFFF';
       const mBtn = document.getElementById(`v1-mock-btn-${i}`);
       if (mBtn) {
-        mBtn.style.display = 'flex';
+        mBtn.style.display = visible ? 'flex' : 'none';
         mBtn.innerText = t || '-';
         mBtn.style.backgroundColor = c;
         mBtn.style.color = tc;
       }
-      bD.push({ t, u, c, tc });
+      if (visible) bD.push({ t, u, c, tc });
     }
 
     const flex = {
@@ -1366,13 +1355,13 @@
           })) }
         ]
       },
-      "footer": {
+      "footer": bD.length ? {
         "type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "sm", "backgroundColor": globalBg,
         "contents": bD.map(b => ({
           "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": b.t || " ", "color": b.tc, "align": "center", "size": "sm", "weight": "bold" }],
           "paddingAll": "md", "cornerRadius": "md", "backgroundColor": b.c, "action": { "type": "uri", "label": "action", "uri": b.u || "https://line.me" }
         }))
-      }
+      } : undefined
     };
 
     const globalOutput = document.getElementById('json-output');
