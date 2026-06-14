@@ -1019,6 +1019,16 @@
     generateFlexJson_v1();
   }
 
+  function scrollV1PreviewToFooter() {
+    const footer = document.getElementById('v1-mock-footer-container');
+    const pane = footer?.closest('.flex-editor-preview-pane');
+    if (!footer || !pane) return;
+    requestAnimationFrame(() => {
+      const target = Math.max(0, footer.offsetTop + footer.offsetHeight - pane.clientHeight + 32);
+      pane.scrollTo({ top: target, behavior: 'smooth' });
+    });
+  }
+
   function addV1SocialButton() {
     for (let i = 1; i <= 4; i++) {
       const checkbox = document.getElementById('v1-f-s' + i + '-visible');
@@ -1032,11 +1042,12 @@
   function addV1FooterButton() {
     for (let i = 1; i <= 99; i++) {
       const checkbox = document.getElementById('v1-f-b' + i + '-visible');
-      if (checkbox && !checkbox.checked) { setV1RowVisible('footer', i, true); return; }
+      if (checkbox && !checkbox.checked) { setV1RowVisible('footer', i, true); scrollV1PreviewToFooter(); return; }
     }
     const next = getNextV1FooterIndex();
     addV1FooterButtonData({ t: 'Button ' + String(next).padStart(2, '0'), u: 'https://line.me', c: '#111111', tc: '#FFFFFF', visible: true }, next);
     generateFlexJson_v1();
+    scrollV1PreviewToFooter();
   }
 
   function deleteV1FooterButton(idx) {
