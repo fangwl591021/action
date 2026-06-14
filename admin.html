@@ -752,6 +752,7 @@
                                         <td class="p-4">
                                             <div class="flex justify-end gap-2">
                                                 <button @click="openEditFlexRule(rule)" class="btn-outline bg-blue-50 text-blue-600 border-blue-100"><i class="fas fa-edit mr-1"></i>編輯</button>
+                                                <button @click="duplicateFlexRule(rule)" class="btn-outline bg-emerald-50 text-emerald-600 border-emerald-100"><i class="fas fa-copy mr-1"></i>複製</button>
                                                 <button @click="deleteFlexRule(rule.id)" class="btn-outline bg-red-50 text-red-600 border-red-100"><i class="fas fa-trash-alt"></i></button>
                                             </div>
                                         </td>
@@ -3921,6 +3922,23 @@
                         }
                     };
 
+                    const duplicateFlexRule = (rule) => {
+                        const suffix = String(Date.now()).slice(-6);
+                        const copied = normalizeFlexRuleForm(rule || {});
+                        delete copied.createdAt;
+                        delete copied.updatedAt;
+                        copied.id = 'FR_' + Date.now();
+                        copied.moduleName = `${copied.moduleName || copied.keyword || '模組'} (複製)`;
+                        if (copied.keyword) copied.keyword = `${copied.keyword}_copy_${suffix}`;
+                        if (copied.altText && copied.altText === (rule?.moduleName || rule?.keyword)) {
+                            copied.altText = copied.moduleName;
+                        }
+                        editingFlexRule.value = copied;
+                        if (copied.replyType === 'FLEX') {
+                            activeMylittlesysFlexMode.value = copied.flexTemplate || 'v1';
+                        }
+                    };
+
                     const openNewFlexRule = (replyType = 'FLEX', template = 'v1') => {
                         const type = String(replyType || 'FLEX').toUpperCase();
                         const flexTemplate = String(template || 'v1').toLowerCase();
@@ -4358,7 +4376,7 @@
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadMemberReport, downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, openNewFlexRule, openEditFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, openMylittlesysTemplate, syncMylittlesysFlexFrame, captureMylittlesysFlexJson, formatFlexRuleDate, syncWPPointsFromCRM
+                        downloadMemberReport, downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, openNewFlexRule, openEditFlexRule, duplicateFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, openMylittlesysTemplate, syncMylittlesysFlexFrame, captureMylittlesysFlexJson, formatFlexRuleDate, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
