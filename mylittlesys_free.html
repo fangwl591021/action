@@ -1332,7 +1332,12 @@
       if (visible) bD.push({ t, u, c, tc });
     }
     const footerContainer = document.getElementById('v1-mock-footer-container');
-    if (footerContainer) footerContainer.style.display = bD.length ? 'flex' : 'none';
+    if (footerContainer) {
+      footerContainer.style.display = bD.length ? 'flex' : 'none';
+      footerContainer.innerHTML = bD.map((b, idx) => `
+        <div id="v1-mock-btn-${idx + 1}" style="height:36px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05); background:${b.c}; color:${b.tc};">${escapeHtmlAttr(b.t || '-')}</div>
+      `).join('');
+    }
 
     const flex = {
       "type": "bubble", "size": size,
