@@ -1110,7 +1110,7 @@
 
   function resetV1FooterButtons() {
     for (let i = 1; i <= 3; i++) {
-      setV1FooterButtonData(i, { t: '', u: 'https://line.me', c: '#111111', tc: '#FFFFFF' }, false);
+      setV1FooterButtonData(i, { t: '', u: 'https://line.me', c: '#111111', tc: '#FFFFFF' }, true);
     }
   }
 
@@ -1142,6 +1142,22 @@
       const row = document.getElementById(kind === 'social' ? 'v1-social-row-' + i : 'v1-footer-row-' + i);
       if (row) row.style.display = visible ? '' : 'none';
     }
+  }
+
+  function restoreOriginalV1FooterMode() {
+    for (let i = 1; i <= 3; i++) {
+      const checkbox = document.getElementById(`v1-f-b${i}-visible`);
+      if (checkbox) checkbox.checked = true;
+      const row = document.getElementById('v1-footer-row-' + i);
+      if (row) row.style.display = '';
+    }
+    document.querySelectorAll('button[onclick^="addV1FooterButton"], button[onclick^="deleteV1FooterButton"]').forEach(el => {
+      el.style.display = 'none';
+    });
+    document.querySelectorAll('input[id^="v1-f-b"][id$="-visible"]').forEach(input => {
+      const label = input.closest('label');
+      if (label) label.style.display = 'none';
+    });
   }
 
   const V1_DEF_DATA = {
@@ -1203,6 +1219,7 @@
         }, idx + 1);
       });
     }
+    restoreOriginalV1FooterMode();
     generateFlexJson_v1();
   };
 
@@ -1229,6 +1246,7 @@
       resetV1FooterButtons();
       d.b.forEach((button, idx) => addV1FooterButtonData({ ...button, visible: true }, idx + 1));
     }
+    restoreOriginalV1FooterMode();
     initSizePills();
     generateFlexJson_v1();
   };
@@ -1285,15 +1303,13 @@
       const u = document.getElementById(`v1-f-b${i}-url`)?.value || '';
       const c = document.getElementById(`v1-f-b${i}-color`)?.value || '#111111';
       const tc = document.getElementById(`v1-f-b${i}-txt-color`)?.value || '#FFFFFF';
-      const visible = document.getElementById(`v1-f-b${i}-visible`)?.checked !== false;
       const mBtn = document.getElementById(`v1-mock-btn-${i}`);
       if (mBtn) {
-        mBtn.style.display = visible ? 'flex' : 'none';
+        mBtn.style.display = 'flex';
         mBtn.innerText = t || '-';
         mBtn.style.backgroundColor = c;
         mBtn.style.color = tc;
       }
-      if (!visible) continue;
       bD.push({ t, u, c, tc });
     }
 
@@ -3846,12 +3862,14 @@
     body.free-flex-embed .flex-editor-workspace {
       height: 100dvh;
       min-height: 0;
+      overflow: hidden !important;
     }
 
     body.free-flex-embed .flex-editor-workspace > .flex {
       height: 100dvh;
       min-height: 0;
       align-items: stretch;
+      overflow: hidden !important;
     }
 
     body.free-flex-embed .flex-editor-preview-pane,
@@ -3861,7 +3879,12 @@
       min-height: 0;
       overflow-y: auto !important;
       -webkit-overflow-scrolling: touch;
-      padding-bottom: 96px !important;
+      padding-bottom: 180px !important;
+      box-sizing: border-box;
+    }
+
+    body.free-flex-embed #v1-mock-bubble {
+      margin-bottom: 140px;
     }
 
     body.free-flex-embed.panel-open .app-main,
