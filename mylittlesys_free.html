@@ -27,8 +27,8 @@
     .flex-editor-workspace { display: flex; min-height: 100%; width: 100%; overflow: visible; background: #fff; }
     .workspace-hidden.flex-editor-workspace { display: none !important; }
     .flex-editor-workspace > .flex { min-height: 100%; width: 100%; overflow: visible; }
-    .flex-editor-preview-pane { min-height: 100%; overflow-y: auto !important; overscroll-behavior: contain; }
-    .flex-editor-form-pane { flex: 1 1 auto; min-height: 100%; min-width: 0; overflow-y: visible !important; overscroll-behavior: contain; }
+    .flex-editor-preview-pane { min-height: 0; overflow-y: auto !important; overscroll-behavior: contain; }
+    .flex-editor-form-pane { flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto !important; overscroll-behavior: contain; }
 
 
     .app-header { position: fixed; top: 0; left: 0; right: 0; height: var(--header-height); background: #FFFFFF; border-bottom: 1px solid var(--line-border); display: flex; align-items: center; padding: 0 24px; z-index: 120; }
@@ -1065,7 +1065,7 @@
   function addV1FooterButton() {
     for (let i = 1; i <= 3; i++) {
       const checkbox = document.getElementById('v1-f-b' + i + '-visible');
-      if (checkbox && !checkbox.checked) { setV1RowVisible('footer', i, true); scrollV1PreviewToFooter(); return; }
+      if (checkbox && !checkbox.checked) { setV1RowVisible('footer', i, true); return; }
     }
     alert('V1 footer buttons are already at the limit.');
   }
@@ -1196,9 +1196,28 @@
   function normalizeFlexAspectRatio(value, fallback = "1040:748") {
     const normalized = String(value || fallback)
       .trim()
-      .replace(/\s*[xX]\s*/g, ':')
+      .replace(/\s*[xX×]\s*/g, ':')
       .replace(/\s+/g, '');
     return /^\d+:\d+$/.test(normalized) ? normalized : fallback;
+  }
+
+  function applyV1PreviewAspect(aspect) {
+    const hero = document.getElementById('v1-mock-hero');
+    if (!hero) return;
+    const normalized = normalizeFlexAspectRatio(aspect || "1040:748");
+    const [rawWidth, rawHeight] = normalized.split(':').map(Number);
+    const width = rawWidth || 1040;
+    const height = rawHeight || 748;
+    hero.style.aspectRatio = `${width} / ${height}`;
+    hero.style.minHeight = '0';
+    hero.style.height = 'auto';
+    const applyHeight = () => {
+      const renderedWidth = hero.clientWidth || hero.getBoundingClientRect().width;
+      if (!renderedWidth) return;
+      hero.style.height = `${Math.round(renderedWidth * height / width)}px`;
+    };
+    applyHeight();
+    requestAnimationFrame(applyHeight);
   }
 
   function safeFlexUri(value) {
@@ -1317,7 +1336,7 @@
     const descCol = document.getElementById('v1-f-desc-color').value;
 
     document.getElementById('v1-mock-bubble').style.width = V1_SIZE_MAP[size];
-    document.getElementById('v1-mock-hero').style.aspectRatio = aspect.replace(':', '/');
+    applyV1PreviewAspect(aspect);
     const vp = document.getElementById('v1-mock-video-player');
     const pi = document.getElementById('v1-mock-preview-img');
     const em = document.getElementById('v1-mock-empty');
@@ -3964,9 +3983,10 @@
     html,
     html:has(body.free-flex-embed),
     body.free-flex-embed {
+      width: 100%;
+      height: 100%;
       min-height: 100%;
-      height: auto;
-      overflow: auto;
+      overflow: hidden;
       background: #f4f5f7;
     }
 
@@ -3979,49 +3999,49 @@
     }
 
     body.free-flex-embed .app-main {
-      position: relative;
+      position: fixed;
       inset: 0 !important;
       min-height: 100dvh;
-      height: auto;
+      height: 100dvh;
       left: 0 !important;
       right: 0 !important;
       top: 0 !important;
       bottom: 0 !important;
-      overflow: visible;
+      overflow: hidden;
       display: block;
     }
 
     body.free-flex-embed #main-app {
-      height: auto;
+      height: 100dvh;
       min-height: 100dvh;
-      overflow: visible;
+      overflow: hidden;
     }
 
     body.free-flex-embed .flex-editor-workspace {
-      height: auto !important;
-      min-height: 100dvh !important;
-      overflow: visible !important;
+      height: calc(100dvh - 64px) !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
       background: #fff;
     }
 
     body.free-flex-embed .flex-editor-workspace > .flex {
       display: flex !important;
       width: 100% !important;
-      height: auto !important;
-      min-height: 100dvh !important;
-      align-items: flex-start !important;
-      overflow: visible !important;
+      height: 100% !important;
+      min-height: 0 !important;
+      align-items: stretch !important;
+      overflow: hidden !important;
     }
 
     body.free-flex-embed .flex-editor-preview-pane {
-      position: sticky !important;
-      top: 0 !important;
+      position: relative !important;
+      top: auto !important;
       flex: 0 0 420px !important;
       width: 420px !important;
       min-width: 420px !important;
       max-width: 420px !important;
-      height: auto !important;
-      max-height: 100dvh !important;
+      height: 100% !important;
+      max-height: none !important;
       min-height: 0 !important;
       overflow-y: auto !important;
       overflow-x: hidden !important;
@@ -4036,9 +4056,9 @@
       width: auto !important;
       min-width: 0 !important;
       max-width: none !important;
-      height: auto !important;
+      height: 100% !important;
       min-height: 0 !important;
-      overflow-y: visible !important;
+      overflow-y: auto !important;
       overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch;
       padding: 28px 40px 96px !important;
