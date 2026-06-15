@@ -1622,11 +1622,21 @@ function normalizeLineMessageUnit(message) {
 
 function sanitizeLineFlexContents(contents) {
   const cloned = JSON.parse(JSON.stringify(contents));
+  const normalizeAspectRatio = (value) => {
+    const raw = String(value || "").trim().replace(/\s*[xX]\s*/g, ":").replace(/\s+/g, "");
+    const match = raw.match(/^(\d{1,5}(?:\.\d{1,4})?):(\d{1,5}(?:\.\d{1,4})?)$/);
+    if (!match) return "";
+    const width = Number(match[1]);
+    const height = Number(match[2]);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return "";
+    return `${match[1]}:${match[2]}`;
+  };
   const visit = (node) => {
     if (!node || typeof node !== "object") return;
-    if (String(node.type || "") === "video" && node.altContent && typeof node.altContent === "object") {
-      delete node.aspectRatio;
-      delete node.altContent.aspectRatio;
+    if (Object.prototype.hasOwnProperty.call(node, "aspectRatio")) {
+      const normalized = normalizeAspectRatio(node.aspectRatio);
+      if (normalized) node.aspectRatio = normalized;
+      else delete node.aspectRatio;
     }
     Object.values(node).forEach(value => {
       if (Array.isArray(value)) value.forEach(visit);
