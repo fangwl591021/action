@@ -762,7 +762,7 @@
                 </div>
                 <div>
                   <label style="font-size:11px; font-weight:bold; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">影片顯示比例 (Aspect)</label>
-                  <input type="text" id="v1-f-aspect-ratio" class="input-field" placeholder="1040:748" oninput="generateFlexJson_v1()">
+                  <input type="text" id="v1-f-aspect-ratio" class="input-field" placeholder="1040:748" oninput="generateFlexJson_v1()" onchange="normalizeV1AspectInput()">
                 </div>
               </div>
 
@@ -1193,12 +1193,49 @@
     }
   }
 
-  function normalizeFlexAspectRatio(value, fallback = "1040:748") {
-    const normalized = String(value || fallback)
+  function parseFlexAspectRatio(value) {
+    const normalized = String(value || '')
       .trim()
       .replace(/\s*[xX×]\s*/g, ':')
       .replace(/\s+/g, '');
-    return /^\d+:\d+$/.test(normalized) ? normalized : fallback;
+    return /^\d+:\d+$/.test(normalized) ? normalized : null;
+  }
+
+  function normalizeFlexAspectRatio(value, fallback = "1040:748") {
+    return parseFlexAspectRatio(value) || fallback;
+  }
+
+  function getV1AspectRatioForGenerate() {
+    const input = document.getElementById('v1-f-aspect-ratio');
+    const parsed = parseFlexAspectRatio(input?.value);
+    if (parsed) {
+      if (input) {
+        input.dataset.validAspect = parsed;
+        input.style.borderColor = '';
+      }
+      return parsed;
+    }
+    if (input) input.style.borderColor = input.value ? '#fca5a5' : '';
+    return input?.dataset.validAspect || "1040:748";
+  }
+
+  function setV1AspectInput(value) {
+    const input = document.getElementById('v1-f-aspect-ratio');
+    if (!input) return;
+    const aspect = normalizeFlexAspectRatio(value);
+    input.value = aspect;
+    input.dataset.validAspect = aspect;
+    input.style.borderColor = '';
+  }
+
+  function normalizeV1AspectInput() {
+    const input = document.getElementById('v1-f-aspect-ratio');
+    if (!input) return;
+    const aspect = parseFlexAspectRatio(input.value) || input.dataset.validAspect || "1040:748";
+    input.value = aspect;
+    input.dataset.validAspect = aspect;
+    input.style.borderColor = '';
+    generateFlexJson_v1();
   }
 
   function applyV1PreviewAspect(aspect) {
@@ -1238,7 +1275,7 @@
     document.getElementById('save-filename').value = name;
     document.getElementById('v1-f-video-url').value = json.hero?.url || "";
     document.getElementById('v1-f-preview-url').value = json.hero?.previewUrl || "";
-    document.getElementById('v1-f-aspect-ratio').value = normalizeFlexAspectRatio(json.hero?.aspectRatio || "1040:748");
+    setV1AspectInput(json.hero?.aspectRatio || "1040:748");
     const bSize = json.size || "giga";
     setBubbleSize(bSize);
 
@@ -1295,7 +1332,7 @@
     if(!document.getElementById('v1-f-video-url').value) {
       document.getElementById('v1-f-video-url').value = d.v;
       document.getElementById('v1-f-preview-url').value = d.p;
-      document.getElementById('v1-f-aspect-ratio').value = d.aspect;
+      setV1AspectInput(d.aspect);
       setBubbleSize(d.size);
       document.getElementById('v1-f-global-bg').value = d.globalBg;
       document.getElementById('v1-f-title').value = d.title;
@@ -1324,9 +1361,7 @@
     ensureV1MockFooterButtons();
     const vUrl = document.getElementById('v1-f-video-url').value;
     const pUrl = document.getElementById('v1-f-preview-url').value;
-    const aspectInput = document.getElementById('v1-f-aspect-ratio');
-    const aspect = normalizeFlexAspectRatio(aspectInput?.value || "1040:748");
-    if (aspectInput && aspectInput.value !== aspect) aspectInput.value = aspect;
+    const aspect = getV1AspectRatioForGenerate();
     const size = document.getElementById('v1-f-bubble-size').value || "giga";
     const globalBg = document.getElementById('v1-f-global-bg').value;
     const titleVal = document.getElementById('v1-f-title').value;
