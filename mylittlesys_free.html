@@ -718,7 +718,16 @@
                 <section>
                   <div class="flex items-center gap-3 text-[#54C061] font-black mb-4"><span class="w-8 h-8 rounded-full bg-[#54C061] text-white flex items-center justify-center">1</span>圖片與版型</div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <label class="block md:col-span-2"><span class="text-xs font-black text-slate-500">圖片 URL</span><input id="v0_imageUrl" oninput="updateV0Preview()" class="w-full mt-2 p-3 border-2 border-slate-300 rounded-lg font-bold" placeholder="https://..."></label>
+                    <div class="block md:col-span-2">
+                      <span class="text-xs font-black text-slate-500">圖片上傳</span>
+                      <input id="v0_imageUrl" type="hidden" oninput="updateV0Preview()">
+                      <input id="v0_imageFile" type="file" accept="image/*" class="hidden" onchange="uploadV0Image(this)">
+                      <div class="mt-2 flex flex-wrap items-center gap-3 rounded-lg border-2 border-slate-300 bg-white p-3">
+                        <button type="button" onclick="document.getElementById('v0_imageFile').click()" class="px-5 py-3 rounded-lg bg-emerald-500 text-white font-black shadow-sm">上傳圖片</button>
+                        <button type="button" onclick="clearV0Image()" class="px-4 py-3 rounded-lg bg-slate-100 text-slate-600 font-black">移除圖片</button>
+                        <span id="v0_imageUrlDisplay" class="min-w-0 flex-1 truncate text-sm font-bold text-slate-500">尚未上傳圖片</span>
+                      </div>
+                    </div>
                     <label class="block"><span class="text-xs font-black text-slate-500">圖片比例</span><input id="v0_aspect" oninput="updateV0Preview()" class="w-full mt-2 p-3 border-2 border-slate-300 rounded-lg font-bold" value="1:1" placeholder="1:1"></label>
                     <label class="block"><span class="text-xs font-black text-slate-500">Bubble 尺寸</span><select id="v0_size" onchange="updateV0Preview()" class="w-full mt-2 p-3 border-2 border-slate-300 rounded-lg font-bold"><option>mega</option><option>giga</option><option>kilo</option><option>hecto</option><option>deca</option><option>micro</option><option>nano</option></select></label>
                   </div>
@@ -776,6 +785,59 @@
         };
       });
     }
+    function setV0ImageDisplay(url) {
+      var value = String(url || '').trim();
+      if ($('v0_imageUrl')) $('v0_imageUrl').value = value;
+      if ($('v0_imageUrlDisplay')) $('v0_imageUrlDisplay').textContent = value || '尚未上傳圖片';
+    }
+    function uploadV0ImageBase64(imageBase64) {
+      if (window.parent && window.parent !== window && typeof window.parent.ACT_ADMIN_API_CALL === 'function') {
+        return window.parent.ACT_ADMIN_API_CALL('UPLOAD_IMAGE', { imageBase64: imageBase64 });
+      }
+      if (typeof window.ACT_ADMIN_API_CALL === 'function') {
+        return window.ACT_ADMIN_API_CALL('UPLOAD_IMAGE', { imageBase64: imageBase64 });
+      }
+      return fetch('https://action.fangwl591021.workers.dev/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'UPLOAD_IMAGE', payload: { imageBase64: imageBase64 } })
+      }).then(function(res){
+        return res.json().then(function(json){
+          if (!res.ok || json.status !== 'success') throw new Error(json.message || json.error || '圖片上傳失敗');
+          return json.data || {};
+        });
+      });
+    }
+    window.uploadV0Image = function(input) {
+      var file = input && input.files && input.files[0];
+      if (!file) return;
+      if (!file.type || !/^image\//.test(file.type)) {
+        alert('請選擇圖片檔案。');
+        input.value = '';
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        uploadV0ImageBase64(e.target.result).then(function(res){
+          if (!res || !res.url) throw new Error('圖片上傳後沒有取得網址');
+          setV0ImageDisplay(res.url);
+          updateV0Preview();
+        }).catch(function(err){
+          alert('圖片上傳失敗：' + (err && err.message ? err.message : err));
+        }).finally(function(){
+          input.value = '';
+        });
+      };
+      reader.onerror = function() {
+        alert('圖片讀取失敗。');
+        input.value = '';
+      };
+      reader.readAsDataURL(file);
+    };
+    window.clearV0Image = function() {
+      setV0ImageDisplay('');
+      updateV0Preview();
+    };
     window.updateV0Preview = function() {
       var img = $('v0_imageUrl') && $('v0_imageUrl').value.trim();
       var aspect = $('v0_aspect') && $('v0_aspect').value;
@@ -824,7 +886,7 @@
     };
     window.loadFlexTemplate_v0 = function() {
       if ($('save-filename')) $('save-filename').value = 'Flex V0 模組';
-      if ($('v0_imageUrl')) $('v0_imageUrl').value = fallbackImage;
+      setV0ImageDisplay('');
       if ($('v0_aspect')) $('v0_aspect').value = '1:1';
       if ($('v0_size')) $('v0_size').value = 'mega';
       if ($('v0_bgColor')) $('v0_bgColor').value = '#ffffff';
@@ -860,7 +922,7 @@
       var footer = bubble.footer || {};
       var title = (body.contents || []).find(function(c){ return c.type === 'text' && c.weight === 'bold'; }) || {};
       var desc = (body.contents || []).find(function(c){ return c.type === 'text' && c !== title; }) || {};
-      if ($('v0_imageUrl')) $('v0_imageUrl').value = hero.url || '';
+      setV0ImageDisplay(hero.url || '');
       if ($('v0_aspect')) $('v0_aspect').value = hero.aspectRatio || '1:1';
       if ($('v0_size')) $('v0_size').value = bubble.size || 'mega';
       if ($('v0_bgColor')) $('v0_bgColor').value = body.backgroundColor || '#ffffff';
