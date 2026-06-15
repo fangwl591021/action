@@ -1652,6 +1652,95 @@ function normalizeBroadcastMessages(payload, title) {
   return [normalizeLineMessageUnit({ type: "text", text })];
 }
 
+function splitReplyRuleTriggers(rule) {
+  const raw = [
+    rule?.keyword,
+    rule?.trigger,
+    rule?.postback,
+    rule?.postbackData,
+    Array.isArray(rule?.keywords) ? rule.keywords.join("\n") : "",
+  ].map(value => String(value || "")).join("\n");
+  return raw
+    .split(/[\n,，、]/)
+    .map(value => value.trim())
+    .filter(Boolean);
+}
+
+function replyRuleMatchesEvent(rule, eventText, eventPostback) {
+  if (!rule || rule.active === false) return false;
+  const triggers = splitReplyRuleTriggers(rule);
+  if (!triggers.length) return false;
+  const text = String(eventText || "").trim();
+  const postback = String(eventPostback || "").trim();
+  return triggers.some(trigger => trigger === text || trigger === postback);
+}
+
+function buildLineMessageFromReplyRule(rule) {
+  const type = String(rule?.replyType || "FLEX").trim().toUpperCase();
+  const payload = String(rule?.payload || "").trim();
+  if (type === "TEXT") return normalizeLineMessageUnit({ type: "text", text: payload });
+  if (type === "IMAGE") {
+    const url = payload;
+    const previewUrl = String(rule?.previewImageUrl || payload).trim();
+    return normalizeLineMessageUnit({ type: "image", originalContentUrl: url, previewImageUrl });
+  }
+  if (type === "FLEX") {
+    const raw = JSON.parse(payload || "{}");
+    const flexMessage = raw.type === "flex" && raw.contents
+      ? raw
+      : {
+          type: "flex",
+          altText: String(rule?.moduleName || rule?.keyword || "Flex 卡片").slice(0, 400),
+          contents: raw,
+        };
+    return normalizeLineMessageUnit(flexMessage);
+  }
+  throw new Error(`Unsupported reply rule type: ${type}`);
+}
+
+async function replyLineMessages(env, replyToken, messages) {
+  const token = String(env.LINE_CHANNEL_ACCESS_TOKEN || "").trim();
+  const safeReplyToken = String(replyToken || "").trim();
+  if (!token || !safeReplyToken || !Array.isArray(messages) || !messages.length) return false;
+  const res = await fetch("https://api.line.me/v2/bot/message/reply", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ replyToken: safeReplyToken, messages: messages.slice(0, 5) }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("[LINE Reply Rule] reply failed", res.status, text.slice(0, 500));
+    return false;
+  }
+  return true;
+}
+
+async function handleReplyRulesForLineWebhook(env, payload) {
+  const events = Array.isArray(payload?.events) ? payload.events : [];
+  if (!events.length) return false;
+  const currentRules = await safeGetKV(env, "FLEX_RULES", []);
+  const rules = (Array.isArray(currentRules) ? currentRules : []).filter(rule => rule && rule.active !== false);
+  if (!rules.length) return false;
+
+  let handled = false;
+  for (const event of events) {
+    const replyToken = String(event?.replyToken || "").trim();
+    if (!replyToken) continue;
+    const eventText = event?.type === "message" && event?.message?.type === "text" ? String(event.message.text || "").trim() : "";
+    const eventPostback = event?.type === "postback" ? String(event?.postback?.data || "").trim() : "";
+    if (!eventText && !eventPostback) continue;
+    const rule = rules.find(item => replyRuleMatchesEvent(item, eventText, eventPostback));
+    if (!rule) continue;
+    try {
+      const message = buildLineMessageFromReplyRule(rule);
+      if (await replyLineMessages(env, replyToken, [message])) handled = true;
+    } catch (e) {
+      console.error("[LINE Reply Rule] build/reply failed", rule?.id || rule?.moduleName || rule?.keyword, e);
+    }
+  }
+  return handled;
+}
+
 function markBroadcastMessagesAsTest(messages, title) {
   const nextMessages = JSON.parse(JSON.stringify(messages));
   const prefix = "【測試訊息】";
@@ -3850,6 +3939,9 @@ export default {
         if (rawText) parsedPayload = JSON.parse(rawText);
 
         const promises = [];
+
+        const handledByReplyRule = await handleReplyRulesForLineWebhook(env, parsedPayload);
+        if (handledByReplyRule) return;
 
         if (env.GAS_URL) {
           promises.push(
