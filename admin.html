@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -786,7 +786,7 @@
                             <button @click="exportHighRiskWasabiSnapshot" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-white text-rose-600 border-rose-200 hover:bg-rose-50 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-shield-alt mr-2"></i>匯出高風險快照</button>
                             <button @click="verifyHighRiskWasabiSnapshot" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-white text-orange-600 border-orange-200 hover:bg-orange-50 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-balance-scale mr-2"></i>驗證高風險一致</button>
                             <button @click="runWasabiDailyCheck" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-slate-900 text-white border-slate-900 hover:bg-slate-700 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-clipboard-check mr-2"></i>每日總檢查</button>
-                            <button @click="syncVideosToWasabi" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-white text-sky-600 border-sky-200 hover:bg-sky-50 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-video mr-2"></i>同步影音資料</button>
+                            <button @click="syncVideosToWasabi" :disabled="isLoading || !wasabiCheck?.config?.configured" class="btn-outline bg-white text-sky-600 border-sky-200 hover:bg-sky-50 !py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fab fa-google-drive mr-2"></i>從 Drive 同步影音</button>
                         </div>
                     </div>
 
@@ -2783,13 +2783,16 @@
                     };
 
                     const syncVideosToWasabi = async () => {
-                        if (!isAdminRole.value) return alert('影音資料同步僅限 Admin 使用');
-                        if (!confirm('確定要用目前 KV 影音資料覆蓋 Wasabi 影音快照？\n\n用途：業主更新影片後，若前台仍讀到舊 Wasabi 快照，可用此按鈕重建影音讀取來源。')) return;
+                        if (!isAdminRole.value) return alert('Drive 影音同步僅限 Admin 使用');
+                        const defaultFolder = 'https://drive.google.com/drive/folders/1BxDaPdEaxk56Lyd7caTeIjyDbW9tcsrs';
+                        const folderUrl = prompt('請貼上 Google Drive 影音資料夾網址', defaultFolder);
+                        if (!folderUrl) return;
+                        if (!confirm('確定要從 Google Drive 讀取影片清單並更新系統影音資料？\n\n系統會新增/更新 Drive 內影片，並把不在資料夾內的舊 Drive 影片自動隱藏。')) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_SYNC_VIDEOS_TO_WASABI', {});
+                            const res = await callApi('ADMIN_SYNC_DRIVE_VIDEOS', { folderUrl });
                             wasabiCheck.value = await callApi('ADMIN_WASABI_CHECK', {});
-                            alert(`影音資料已同步至 Wasabi：${res.count || 0} 筆`);
+                            alert(`Drive 影音已同步：新增/更新 ${res.synced || 0} 筆，隱藏 ${res.hidden || 0} 筆，總計 ${res.total || 0} 筆（來源：${res.source || 'unknown'}）`);
                         } finally {
                             isLoading.value = false;
                         }

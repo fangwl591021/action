@@ -338,6 +338,121 @@ async function safePutVideos(env, videos) {
   });
   return { storage: "KV", wasabi };
 }
+function extractDriveFolderId(input) {
+  const text = String(input || "").trim();
+  if (!text) return "";
+  const folderMatch = text.match(/\/folders\/([A-Za-z0-9_-]+)/);
+  if (folderMatch) return folderMatch[1];
+  const idMatch = text.match(/[?&]id=([A-Za-z0-9_-]+)/);
+  if (idMatch) return idMatch[1];
+  return /^[A-Za-z0-9_-]{20,}$/.test(text) ? text : "";
+}
+
+function decodeHtmlText(value) {
+  return String(value || "")
+    .replace(/\\u003d/g, "=")
+    .replace(/\\u0026/g, "&")
+    .replace(/\\u003c/g, "<")
+    .replace(/\\u003e/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function isVideoDriveFile(file = {}) {
+  const mime = String(file.mimeType || "").toLowerCase();
+  const name = String(file.name || "").toLowerCase();
+  return mime.startsWith("video/") || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(name);
+}
+
+function stripVideoExtension(name) {
+  return String(name || "").replace(/\.(mp4|mov|m4v|webm|avi|mkv)$/i, "").trim();
+}
+
+function parseDriveVideoMeta(name) {
+  const clean = stripVideoExtension(name);
+  const teacherMatch = clean.match(/^(.+?)(?:老師)?[-_ ]*(\d+)$/);
+  if (teacherMatch) {
+    const teacher = `${teacherMatch[1].replace(/老師$/, "").trim()}老師`;
+    return { title: clean, teacher, episode: Number(teacherMatch[2]) || 0 };
+  }
+  return { title: clean || "未命名影片", teacher: "未分類", episode: 0 };
+}
+
+function parsePublicDriveFolderHtml(html) {
+  const decoded = decodeHtmlText(html);
+  const files = [];
+  const seen = new Set();
+  const re = /\["([A-Za-z0-9_-]{20,})","([^"]+\.(?:mp4|mov|m4v|webm|avi|mkv))"/gi;
+  let match;
+  while ((match = re.exec(decoded))) {
+    const id = match[1];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    files.push({ id, name: decodeHtmlText(match[2]), mimeType: "video/*", modifiedTime: null, thumbnailLink: "" });
+  }
+  return files;
+}
+
+async function fetchDriveFolderVideoFiles(env, folderInput) {
+  const folderId = extractDriveFolderId(folderInput) || DEFAULT_VIDEO_DRIVE_FOLDER_ID;
+  if (!folderId) throw new Error("Drive folder id missing");
+  const apiKey = env.GOOGLE_DRIVE_API_KEY || env.DRIVE_API_KEY || env.GOOGLE_API_KEY;
+  if (apiKey) {
+    const params = new URLSearchParams({
+      key: apiKey,
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: "files(id,name,mimeType,modifiedTime,thumbnailLink)",
+      pageSize: "1000",
+      supportsAllDrives: "true",
+      includeItemsFromAllDrives: "true",
+      orderBy: "name",
+    });
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`);
+    const bodyText = await res.text();
+    if (!res.ok) throw new Error(`Google Drive API ${res.status}: ${bodyText.slice(0, 300)}`);
+    const json = JSON.parse(bodyText);
+    return { folderId, source: "drive_api", files: (json.files || []).filter(isVideoDriveFile) };
+  }
+  const publicUrl = `https://drive.google.com/drive/folders/${folderId}`;
+  const res = await fetch(publicUrl, { headers: { "User-Agent": "Mozilla/5.0 ActionDriveSync/1.0" } });
+  const html = await res.text();
+  if (!res.ok) throw new Error(`Drive public folder ${res.status}: ${html.slice(0, 200)}`);
+  const files = parsePublicDriveFolderHtml(html);
+  if (!files.length) throw new Error("Drive 資料夾無法公開解析影片清單；請確認資料夾已公開，或在 Worker 設定 GOOGLE_DRIVE_API_KEY。");
+  return { folderId, source: "public_folder", files };
+}
+
+async function syncDriveFolderVideos(env, folderInput) {
+  const { folderId, source, files } = await fetchDriveFolderVideoFiles(env, folderInput);
+  const current = await safeGetVideos(env, { preferWasabi: false });
+  const byDriveId = new Map(current.filter(v => v.driveFileId).map(v => [v.driveFileId, v]));
+  const activeDriveIds = new Set(files.map(f => f.id));
+  const synced = files.map((file, index) => {
+    const existing = byDriveId.get(file.id) || {};
+    const meta = parseDriveVideoMeta(file.name);
+    return {
+      ...existing,
+      id: existing.id || `VOD_DRIVE_${file.id.slice(0, 10)}`,
+      title: meta.title,
+      teacher: meta.teacher,
+      episode: meta.episode || index + 1,
+      driveFileId: file.id,
+      sourceFolderId: folderId,
+      thumbnailUrl: file.thumbnailLink || existing.thumbnailUrl || "",
+      isPublished: true,
+      updatedAt: new Date().toISOString(),
+      createdAt: existing.createdAt || (file.modifiedTime ? file.modifiedTime.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+    };
+  });
+  const manual = current.filter(v => !v.driveFileId);
+  const hidden = current.filter(v => v.driveFileId && !activeDriveIds.has(v.driveFileId)).map(v => ({ ...v, isPublished: false, hiddenAt: new Date().toISOString() }));
+  const next = [...synced, ...manual, ...hidden];
+  await safePutVideos(env, next);
+  return { folderId, source, synced: synced.length, hidden: hidden.length, total: next.length, visible: next.filter(v => v.isPublished !== false).length };
+}
 async function safePutCourses(env, courses) {
   const normalized = Array.isArray(courses) ? courses : [];
   const text = JSON.stringify(normalized);
@@ -1009,6 +1124,7 @@ const HQ_ALLOWED_ACTIONS = new Set([
   "ADMIN_UPDATE_VIDEO",
   "ADMIN_DELETE_VIDEO",
   "ADMIN_SYNC_VIDEOS_TO_WASABI",
+  "ADMIN_SYNC_DRIVE_VIDEOS",
   "ADMIN_UPDATE_ORDER",
   "ADMIN_TRANSFER_ORDER_COURSE",
   "ADMIN_GET_RICH_MENU_SAVES",
@@ -1032,6 +1148,9 @@ const CRM_SYSTEM_ALLOWED_ACTIONS = new Set([
   "ADMIN_SAVE_REPLY_RULE",
   "ADMIN_DELETE_REPLY_RULE",
 ]);
+
+const DEFAULT_VIDEO_DRIVE_FOLDER_ID = "1BxDaPdEaxk56Lyd7caTeIjyDbW9tcsrs";
+const DEFAULT_VIDEO_DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/" + DEFAULT_VIDEO_DRIVE_FOLDER_ID;
 
 const DEFAULT_VIDEOS = [
   { id: "VOD_YOUCI_06", title: "有慈老師-6", teacher: "有慈老師", episode: 6, driveFileId: "1Bqdq32X0w6LUoND1KSQfQmSNvwEdjvth", isPublished: true, createdAt: "2026-05-16" },
@@ -1571,6 +1690,7 @@ function summarizeAuditPayload(action, payload = {}) {
   if (action === "ADMIN_UPDATE_VIDEO") return `儲存影片 ${p.title || p.name || p.id || p.driveFileId || ""}`.trim();
   if (action === "ADMIN_DELETE_VIDEO") return `隱藏影片 ${p.videoId || p.id || ""}`.trim();
   if (action === "ADMIN_SYNC_VIDEOS_TO_WASABI") return "同步影音資料至 Wasabi";
+  if (action === "ADMIN_SYNC_DRIVE_VIDEOS") return "從 Google Drive 同步影音資料";
   if (action === "ADMIN_SAVE_RICH_MENU") return `儲存圖文選單 ${p.name || p.id || ""}`.trim();
   if (action === "ADMIN_DELETE_RICH_MENU_SAVE") return `刪除圖文選單 ${p.id || ""}`.trim();
   if (action === "ADMIN_UPDATE_ORDER") return `更新訂單 ${p.orderId || ""}`.trim();
@@ -3369,6 +3489,13 @@ export default {
           const videoSyncStorage = await safePutVideos(env, sourceVideos);
           touchLastUpdate(env, ctx, "Videos");
           result.data = { success: true, count: sourceVideos.length, storage: videoSyncStorage.storage, wasabi: videoSyncStorage.wasabi };
+          break;
+        }
+
+        case "ADMIN_SYNC_DRIVE_VIDEOS": {
+          const driveSync = await syncDriveFolderVideos(env, payload.folderUrl || payload.folderId || DEFAULT_VIDEO_DRIVE_FOLDER_URL);
+          touchLastUpdate(env, ctx, "Videos");
+          result.data = { success: true, ...driveSync };
           break;
         }
         case "ADMIN_UPDATE_ORDER":
