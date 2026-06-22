@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Project: 人生進化 ACTION - Backend Engine (Full Integration)
  * Version: 2026.04.26.V17_Bulletproof_KV_Rescue
  * Developer: 勝利團隊 - 小李 (Backend)
@@ -325,7 +325,19 @@ async function safeGetVideos(env, options = {}) {
   const videos = await safeGetKV(env, "VIDEOS", DEFAULT_VIDEOS);
   return Array.isArray(videos) ? videos : DEFAULT_VIDEOS;
 }
-
+async function safePutVideos(env, videos) {
+  const normalized = Array.isArray(videos) ? videos : [];
+  await env.ACTION_DATA.put("VIDEOS", JSON.stringify(normalized));
+  const wasabi = await safePutWasabiJson(env, "data/videos.json", normalized);
+  await recordWasabiDualWrite(env, {
+    id: "videos",
+    label: "影音資料",
+    key: "data/videos.json",
+    count: normalized.length,
+    result: wasabi,
+  });
+  return { storage: "KV", wasabi };
+}
 async function safePutCourses(env, courses) {
   const normalized = Array.isArray(courses) ? courses : [];
   const text = JSON.stringify(normalized);
@@ -832,8 +844,24 @@ async function putOrdersKV(env, ctx, orders) {
   else await observeHighRiskDualWrite(env, null, "orders");
 }
 
+async function upsertWasabiUserSnapshot(env, uid, user) {
+  const cfg = getWasabiConfig(env);
+  if (!cfg.configured || !uid) return;
+  try {
+    const key = `USER_${uid}`;
+    const rows = await safeGetWasabiJson(env, "high-risk/users.json", []);
+    const list = Array.isArray(rows) ? rows.filter(row => row && row.key !== key) : [];
+    list.unshift({ key, data: user || {} });
+    await safePutWasabiJson(env, "high-risk/users.json", list);
+  } catch (e) {
+    console.error("[Wasabi:UserSnapshotUpsert] failed", e);
+  }
+}
+
 async function putUserKV(env, ctx, uid, user) {
-  await safePutKV(env, `USER_${uid}`, user || {});
+  const normalizedUser = normalizeUserMemberTier({ ...(user || {}), userId: uid }, user || {});
+  await safePutKV(env, `USER_${uid}`, normalizedUser);
+  await upsertWasabiUserSnapshot(env, uid, normalizedUser);
   if (ctx) observeHighRiskDualWrite(env, ctx, "users");
   else await observeHighRiskDualWrite(env, null, "users");
 }
@@ -978,6 +1006,9 @@ const HQ_ALLOWED_ACTIONS = new Set([
   "ADMIN_DELETE_COURSE",
   "ADMIN_UPDATE_PRODUCT",
   "ADMIN_DELETE_PRODUCT",
+  "ADMIN_UPDATE_VIDEO",
+  "ADMIN_DELETE_VIDEO",
+  "ADMIN_SYNC_VIDEOS_TO_WASABI",
   "ADMIN_UPDATE_ORDER",
   "ADMIN_TRANSFER_ORDER_COURSE",
   "ADMIN_GET_RICH_MENU_SAVES",
@@ -1340,6 +1371,32 @@ function userScore(user) {
     .reduce((score, key) => score + (user?.[key] ? 1 : 0), 0);
 }
 
+function normalizeMemberTierValue(value, fallback = "一般會員") {
+  const raw = String(value || fallback || "").trim();
+  if (!raw) return "一般會員";
+  if (raw === "Admin" || raw === "admin" || raw === "總部管理" || raw === "總部管理員") return "Admin";
+  if (raw.includes("專業導師") || raw === "導師") return "專業導師";
+  if (raw.includes("專業講師") || raw === "講師") return "專業講師";
+  if (raw.includes("喚醒")) return "喚醒階段會員";
+  if (raw.includes("蛻變") || raw.includes("蜕變")) return "蛻變階段會員";
+  if (raw.includes("完整")) return "完整階段會員";
+  if (raw.includes("一般") || raw === "會員") return "一般會員";
+  return raw;
+}
+
+function normalizeUserMemberTier(user, fallbackUser = {}) {
+  if (!user || typeof user !== "object") return user;
+  const tier = normalizeMemberTierValue(
+    user.memberTier || user.level || user.membershipLevel || user.currentLevel,
+    fallbackUser.memberTier || fallbackUser.level || fallbackUser.membershipLevel || fallbackUser.currentLevel || "一般會員"
+  );
+  user.memberTier = tier;
+  user.level = tier;
+  user.membershipLevel = tier;
+  user.currentLevel = tier;
+  return user;
+}
+
 function recordUpdatedTs(record) {
   const raw = record?.updatedAt || record?.savedAt || record?.createdAt || "";
   const ts = Date.parse(String(raw).replace(/-/g, "/"));
@@ -1350,18 +1407,19 @@ function uniqueUsersById(users) {
   const byId = new Map();
   for (const user of Array.isArray(users) ? users : []) {
     if (!user || !user.userId || user.userId === "GUEST") continue;
-    const current = byId.get(user.userId);
+    const normalizedUser = normalizeUserMemberTier({ ...user }, user);
+    const current = byId.get(normalizedUser.userId);
     if (!current) {
-      byId.set(user.userId, user);
+      byId.set(normalizedUser.userId, normalizedUser);
       continue;
     }
-    const userTs = recordUpdatedTs(user);
+    const userTs = recordUpdatedTs(normalizedUser);
     const currentTs = recordUpdatedTs(current);
     if (userTs !== currentTs) {
-      if (userTs > currentTs) byId.set(user.userId, user);
+      if (userTs > currentTs) byId.set(normalizedUser.userId, normalizedUser);
       continue;
     }
-    if (userScore(user) >= userScore(current)) byId.set(user.userId, user);
+    if (userScore(normalizedUser) >= userScore(current)) byId.set(normalizedUser.userId, normalizedUser);
   }
   return Array.from(byId.values());
 }
@@ -1510,6 +1568,9 @@ function summarizeAuditPayload(action, payload = {}) {
   if (action === "ADMIN_DELETE_COURSE") return `隱藏課程 ${p.courseId || ""}`.trim();
   if (action === "ADMIN_UPDATE_PRODUCT") return `儲存商品 ${p.name || p.code || p.id || ""}`.trim();
   if (action === "ADMIN_DELETE_PRODUCT") return `隱藏商品 ${p.productId || ""}`.trim();
+  if (action === "ADMIN_UPDATE_VIDEO") return `儲存影片 ${p.title || p.name || p.id || p.driveFileId || ""}`.trim();
+  if (action === "ADMIN_DELETE_VIDEO") return `隱藏影片 ${p.videoId || p.id || ""}`.trim();
+  if (action === "ADMIN_SYNC_VIDEOS_TO_WASABI") return "同步影音資料至 Wasabi";
   if (action === "ADMIN_SAVE_RICH_MENU") return `儲存圖文選單 ${p.name || p.id || ""}`.trim();
   if (action === "ADMIN_DELETE_RICH_MENU_SAVE") return `刪除圖文選單 ${p.id || ""}`.trim();
   if (action === "ADMIN_UPDATE_ORDER") return `更新訂單 ${p.orderId || ""}`.trim();
@@ -2917,7 +2978,7 @@ export default {
                   repairedLineNames = true;
                   await safePutKV(env, `USER_${filledUser.userId}`, filledUser);
               }
-              return filledUser;
+              return normalizeUserMemberTier(filledUser, user);
           }));
           if (repairedLineNames) ctx.waitUntil(observeHighRiskDualWrite(env, null, "users"));
           let adminCourses = await safeGetCourses(env);
@@ -3252,6 +3313,64 @@ export default {
           result.data = { success: true, product: productDeleteList[productDeleteIndex] };
           break;
           
+        case "ADMIN_UPDATE_VIDEO": {
+          const videoInput = payload?.video && typeof payload.video === "object" ? payload.video : payload;
+          const videoId = String(payload?.videoId || videoInput?.id || videoInput?.driveFileId || "").trim();
+          if (!videoId) throw new Error("缺少影片 ID");
+          const videosForSave = await safeGetVideos(env);
+          const videoIndex = videosForSave.findIndex(v => v && (
+            String(v.id || "") === videoId ||
+            String(v.driveFileId || "") === videoId ||
+            String(v.videoUrl || "") === videoId
+          ));
+          const now = new Date().toISOString();
+          const savedVideo = {
+            ...(videoIndex >= 0 ? videosForSave[videoIndex] : {}),
+            ...videoInput,
+            id: videoInput?.id || (videoIndex >= 0 ? videosForSave[videoIndex]?.id : videoId),
+            updatedAt: now,
+            isPublished: videoInput?.isPublished === false ? false : true,
+          };
+          if (videoIndex >= 0) videosForSave[videoIndex] = savedVideo;
+          else videosForSave.unshift({ ...savedVideo, createdAt: videoInput?.createdAt || now });
+          const videoSaveStorage = await safePutVideos(env, videosForSave);
+          touchLastUpdate(env, ctx, "Videos");
+          result.data = { success: true, video: savedVideo, videos: videosForSave, storage: videoSaveStorage.storage, wasabi: videoSaveStorage.wasabi };
+          break;
+        }
+
+        case "ADMIN_DELETE_VIDEO": {
+          const videoId = String(payload?.videoId || payload?.id || "").trim();
+          if (!videoId) throw new Error("缺少影片 ID");
+          const videosForDelete = await safeGetVideos(env);
+          const videoIndex = videosForDelete.findIndex(v => v && (
+            String(v.id || "") === videoId ||
+            String(v.driveFileId || "") === videoId
+          ));
+          if (videoIndex < 0) throw new Error("找不到要隱藏的影片");
+          videosForDelete[videoIndex] = {
+            ...videosForDelete[videoIndex],
+            isPublished: false,
+            isDeleted: true,
+            deletedAt: new Date().toISOString(),
+            deletedBy: userId,
+            deleteReason: String(payload?.reason || "後台名義刪除").trim(),
+          };
+          const videoDeleteStorage = await safePutVideos(env, videosForDelete);
+          touchLastUpdate(env, ctx, "Videos");
+          result.data = { success: true, video: videosForDelete[videoIndex], storage: videoDeleteStorage.storage, wasabi: videoDeleteStorage.wasabi };
+          break;
+        }
+
+        case "ADMIN_SYNC_VIDEOS_TO_WASABI": {
+          const sourceVideosRaw = await safeGetKV(env, "VIDEOS", []);
+          const sourceVideos = Array.isArray(sourceVideosRaw) ? sourceVideosRaw : [];
+          if (!sourceVideos.length) throw new Error("KV 影音資料為空，取消同步避免覆蓋 Wasabi");
+          const videoSyncStorage = await safePutVideos(env, sourceVideos);
+          touchLastUpdate(env, ctx, "Videos");
+          result.data = { success: true, count: sourceVideos.length, storage: videoSyncStorage.storage, wasabi: videoSyncStorage.wasabi };
+          break;
+        }
         case "ADMIN_UPDATE_ORDER":
           let editOrders = await safeGetKV(env, "ORDERS", []);
           const oIdx = editOrders.findIndex(o => o.orderId === payload.orderId);
@@ -3428,6 +3547,7 @@ export default {
               if (savedMember.isTeacher === true) {
                 if (!String(savedMember.memberTier || "").includes("導師")) savedMember.memberTier = "專業導師";
               }
+              normalizeUserMemberTier(savedMember, currentMember);
               await putUserKV(env, ctx, memberUid, savedMember);
               result.data = { success: true, memberData: savedMember };
           } else {
@@ -4160,4 +4280,3 @@ export default {
     return new Response("OK", { status: 200 });
   }
 };
-
