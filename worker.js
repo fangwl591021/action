@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Project: 人生進化 ACTION - Backend Engine (Full Integration)
  * Version: 2026.04.26.V17_Bulletproof_KV_Rescue
  * Developer: 勝利團隊 - 小李 (Backend)
@@ -337,6 +337,36 @@ async function safePutVideos(env, videos) {
     result: wasabi,
   });
   return { storage: "KV", wasabi };
+}
+
+function getVideoSourceUrl(v = {}) {
+  const manualUrl = String(v.videoUrl || v.url || v.viewUrl || v.previewUrl || "").trim();
+  if (manualUrl) return manualUrl;
+  const driveFileId = String(v.driveFileId || "").trim();
+  return driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view` : "";
+}
+
+function getVideoPreviewUrl(v = {}) {
+  const manualUrl = String(v.previewUrl || v.videoUrl || v.url || v.viewUrl || "").trim();
+  if (manualUrl) return manualUrl;
+  const driveFileId = String(v.driveFileId || "").trim();
+  return driveFileId ? `https://drive.google.com/file/d/${driveFileId}/preview` : "";
+}
+
+function getVideoThumbUrl(v = {}) {
+  return String(v.thumbnailUrl || v.coverUrl || v.imageUrl || v.previewImageUrl || "").trim();
+}
+
+function normalizePublicVideo(v = {}) {
+  const sourceUrl = getVideoSourceUrl(v);
+  const previewUrl = getVideoPreviewUrl(v);
+  return { ...v, videoUrl: sourceUrl, previewUrl, viewUrl: sourceUrl, thumbnailUrl: getVideoThumbUrl(v) };
+}
+
+function videoMatchesId(v = {}, id = "") {
+  const target = String(id || "").trim();
+  if (!target) return false;
+  return [v.id, v.driveFileId, v.videoUrl, v.url, v.viewUrl, v.previewUrl].some(value => String(value || "").trim() === target);
 }
 function extractDriveFolderId(input) {
   const text = String(input || "").trim();
@@ -1121,6 +1151,7 @@ const HQ_ALLOWED_ACTIONS = new Set([
   "ADMIN_DELETE_COURSE",
   "ADMIN_UPDATE_PRODUCT",
   "ADMIN_DELETE_PRODUCT",
+  "ADMIN_LIST_VIDEOS",
   "ADMIN_UPDATE_VIDEO",
   "ADMIN_DELETE_VIDEO",
   "ADMIN_SYNC_VIDEOS_TO_WASABI",
@@ -1687,7 +1718,11 @@ function summarizeAuditPayload(action, payload = {}) {
   if (action === "ADMIN_DELETE_COURSE") return `隱藏課程 ${p.courseId || ""}`.trim();
   if (action === "ADMIN_UPDATE_PRODUCT") return `儲存商品 ${p.name || p.code || p.id || ""}`.trim();
   if (action === "ADMIN_DELETE_PRODUCT") return `隱藏商品 ${p.productId || ""}`.trim();
-  if (action === "ADMIN_UPDATE_VIDEO") return `儲存影片 ${p.title || p.name || p.id || p.driveFileId || ""}`.trim();
+  if (action === "ADMIN_LIST_VIDEOS") return "讀取影音清單";
+  if (action === "ADMIN_UPDATE_VIDEO") {
+    const video = p.video && typeof p.video === "object" ? p.video : p;
+    return `儲存影片 ${video.title || video.name || video.id || video.driveFileId || ""}`.trim();
+  }
   if (action === "ADMIN_DELETE_VIDEO") return `隱藏影片 ${p.videoId || p.id || ""}`.trim();
   if (action === "ADMIN_SYNC_VIDEOS_TO_WASABI") return "同步影音資料至 Wasabi";
   if (action === "ADMIN_SYNC_DRIVE_VIDEOS") return "從 Google Drive 同步影音資料";
@@ -2498,15 +2533,10 @@ export default {
         case "GET_VIDEOS": {
           const videos = await safeGetVideos(env);
           result.data = videos
-            .filter(v => v && v.isPublished !== false && v.driveFileId)
-            .map(v => ({
-              ...v,
-              previewUrl: `https://drive.google.com/file/d/${v.driveFileId}/preview`,
-              viewUrl: `https://drive.google.com/file/d/${v.driveFileId}/view`,
-            }));
+            .filter(v => v && v.isPublished !== false && v.isDeleted !== true && getVideoSourceUrl(v))
+            .map(normalizePublicVideo);
           break;
         }
-
         case "GET_BOOKING_DATA":
           const bookingUsers = await listUserRecords(env);
           const bookingCourses = await safeGetCourses(env);
@@ -3433,16 +3463,19 @@ export default {
           result.data = { success: true, product: productDeleteList[productDeleteIndex] };
           break;
           
+        case "ADMIN_LIST_VIDEOS": {
+          requireAdminOrHeadquarterAccess(access);
+          const videos = await safeGetVideos(env);
+          result.data = { success: true, videos };
+          break;
+        }
+
         case "ADMIN_UPDATE_VIDEO": {
           const videoInput = payload?.video && typeof payload.video === "object" ? payload.video : payload;
-          const videoId = String(payload?.videoId || videoInput?.id || videoInput?.driveFileId || "").trim();
+          const videoId = String(payload?.videoId || videoInput?.id || videoInput?.driveFileId || videoInput?.videoUrl || videoInput?.url || videoInput?.viewUrl || videoInput?.previewUrl || "").trim();
           if (!videoId) throw new Error("缺少影片 ID");
           const videosForSave = await safeGetVideos(env);
-          const videoIndex = videosForSave.findIndex(v => v && (
-            String(v.id || "") === videoId ||
-            String(v.driveFileId || "") === videoId ||
-            String(v.videoUrl || "") === videoId
-          ));
+          const videoIndex = videosForSave.findIndex(v => videoMatchesId(v, videoId));
           const now = new Date().toISOString();
           const savedVideo = {
             ...(videoIndex >= 0 ? videosForSave[videoIndex] : {}),
@@ -3450,6 +3483,7 @@ export default {
             id: videoInput?.id || (videoIndex >= 0 ? videosForSave[videoIndex]?.id : videoId),
             updatedAt: now,
             isPublished: videoInput?.isPublished === false ? false : true,
+            isDeleted: false,
           };
           if (videoIndex >= 0) videosForSave[videoIndex] = savedVideo;
           else videosForSave.unshift({ ...savedVideo, createdAt: videoInput?.createdAt || now });
@@ -3463,10 +3497,7 @@ export default {
           const videoId = String(payload?.videoId || payload?.id || "").trim();
           if (!videoId) throw new Error("缺少影片 ID");
           const videosForDelete = await safeGetVideos(env);
-          const videoIndex = videosForDelete.findIndex(v => v && (
-            String(v.id || "") === videoId ||
-            String(v.driveFileId || "") === videoId
-          ));
+          const videoIndex = videosForDelete.findIndex(v => videoMatchesId(v, videoId));
           if (videoIndex < 0) throw new Error("找不到要隱藏的影片");
           videosForDelete[videoIndex] = {
             ...videosForDelete[videoIndex],
@@ -3478,7 +3509,7 @@ export default {
           };
           const videoDeleteStorage = await safePutVideos(env, videosForDelete);
           touchLastUpdate(env, ctx, "Videos");
-          result.data = { success: true, video: videosForDelete[videoIndex], storage: videoDeleteStorage.storage, wasabi: videoDeleteStorage.wasabi };
+          result.data = { success: true, video: videosForDelete[videoIndex], videos: videosForDelete, storage: videoDeleteStorage.storage, wasabi: videoDeleteStorage.wasabi };
           break;
         }
 
