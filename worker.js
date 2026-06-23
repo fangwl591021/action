@@ -367,8 +367,12 @@ function isVideoDriveFile(file = {}) {
   return mime.startsWith("video/") || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(name);
 }
 
+function normalizeDigits(value) {
+  return String(value || "").replace(/[０-９]/g, ch => String(ch.charCodeAt(0) - 0xff10));
+}
+
 function stripVideoExtension(name) {
-  return String(name || "").replace(/\.(mp4|mov|m4v|webm|avi|mkv)$/i, "").trim();
+  return normalizeDigits(name).replace(/\.(mp4|mov|m4v|webm|avi|mkv)$/i, "").trim();
 }
 
 function parseDriveVideoMeta(name) {
@@ -392,6 +396,13 @@ function parsePublicDriveFolderHtml(html) {
     if (seen.has(id)) continue;
     seen.add(id);
     files.push({ id, name: decodeHtmlText(match[2]), mimeType: "video/*", modifiedTime: null, thumbnailLink: "" });
+  }
+  const cardRe = /<div[^>]+class="JxSEve"[^>]+aria-label="([^"]+\.(?:mp4|mov|m4v|webm|avi|mkv))[^"<>]*"[\s\S]*?data-id="([A-Za-z0-9_-]{20,})"/gi;
+  while ((match = cardRe.exec(decoded))) {
+    const id = match[2];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    files.push({ id, name: decodeHtmlText(match[1]), mimeType: "video/*", modifiedTime: null, thumbnailLink: "" });
   }
   return files;
 }

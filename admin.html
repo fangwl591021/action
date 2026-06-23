@@ -2784,15 +2784,15 @@
 
                     const syncVideosToWasabi = async () => {
                         if (!isAdminRole.value) return alert('影音同步僅限 Admin 使用');
-                        if (!confirm('確定要將目前後台影音清單同步到前台影音館？')) return;
+                        if (!confirm('確定要從 Google Drive 同步影音到前台影音館？')) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_SYNC_VIDEOS_TO_WASABI', {});
+                            const res = await callApi('ADMIN_SYNC_DRIVE_VIDEOS', {});
                             wasabiCheck.value = await callApi('ADMIN_WASABI_CHECK', {});
                             try {
                                 Object.keys(localStorage).filter(k => k.startsWith('videos_')).forEach(k => localStorage.removeItem(k));
                             } catch(e) {}
-                            alert(`影音已同步：${res.count || 0} 筆，來源：後台影音清單`);
+                            alert(`Drive 影音已同步：同步 ${res.synced || 0} 筆，隱藏 ${res.hidden || 0} 筆，前台顯示 ${res.visible || 0} 筆，來源：${res.source || 'drive'}`);
                         } finally {
                             isLoading.value = false;
                         }
