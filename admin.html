@@ -99,7 +99,6 @@
                             <a href="./consult_admin.html" class="nav-item text-indigo-600"><i class="fas fa-calendar-check w-6 text-center"></i>講師排班</a>
                             <div v-if="canManageRichMenu" @click="switchView('richmenu')" class="nav-item" :class="{'nav-active': view === 'richmenu'}"><i class="fas fa-layer-group w-6 text-center"></i>圖文選單</div>
                             <div v-if="isAdminRole" @click="switchView('paid_broadcast')" class="nav-item" :class="{'nav-active': view === 'paid_broadcast'}"><i class="fas fa-bullhorn w-6 text-center"></i>付費推播</div>
-                            <div v-if="isAdminRole" @click="switchView('videos_admin')" class="nav-item" :class="{'nav-active': view === 'videos_admin'}"><i class="fas fa-video w-6 text-center"></i>影音清單</div>
                             <div v-if="isAdminRole" @click="switchView('flex_rules')" class="nav-item" :class="{'nav-active': view === 'flex_rules'}"><i class="fas fa-robot w-6 text-center"></i>機器人與專區卡片</div>
                             <div v-if="isAdminRole" @click="switchView('url_capture')" class="nav-item" :class="{'nav-active': view === 'url_capture'}"><i class="fas fa-link w-6 text-center"></i>網址擷取器</div>
                             <div v-if="isAdminRole" @click="switchView('wasabi_migration')" class="nav-item" :class="{'nav-active': view === 'wasabi_migration'}"><i class="fas fa-database w-6 text-center"></i>Wasabi 遷移檢查</div>
@@ -124,6 +123,7 @@
                         <button v-if="canViewFinance" @click="downloadCourseReport" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i class="fas fa-list-alt mr-2"></i>課程報表下載</button>
                         <button v-if="canViewFinance && view === 'booking_report'" @click="downloadBookingReport" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-calendar-check mr-2"></i>預約報表下載</button>
                         <button @click="manualRefreshData" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
+                        <button v-if="isAdminRole" @click="syncVideosToWasabi" :disabled="isLoading" class="btn-outline text-sky-600 border-sky-200 bg-sky-50 hover:bg-sky-100 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fab fa-google-drive mr-2"></i>Drive影音同步</button>
                         <button v-if="isAdminRole" @click="triggerBackup" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-hdd mr-2"></i>資料備份</button>
                         <button v-if="isAdminRole" @click="runHealthCheck" class="btn-outline text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100"><i class="fas fa-stethoscope mr-2"></i>系統健檢</button>
                     </div>
@@ -678,61 +678,8 @@
                         </aside>
                     </div>
                 </div>
-
+                
                 <div v-if="canManageRichMenu && view === 'richmenu'" class="h-[calc(100vh-73px)]"><iframe src="./menu.html?v=20260528-cloud-auth" class="w-full h-full border-0"></iframe></div>
-                <div v-if="isAdminRole && view === 'videos_admin'" class="p-8 animate-fade-in space-y-6">
-                    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                        <div class="flex flex-col md:flex-row md:items-center gap-4 justify-between">
-                            <div>
-                                <h2 class="text-2xl font-black text-slate-900">影音資料維護</h2>
-                                <p class="text-slate-500 mt-1">直接維護前台影音館清單，不再依賴 Google Drive API 同步。</p>
-                            </div>
-                            <button @click="openNewVideoModal" class="btn-primary"><i class="fas fa-plus mr-2"></i>新增影片</button>
-                        </div>
-                        <div class="mt-6 flex flex-col md:flex-row gap-3">
-                            <input v-model="videoSearchQuery" class="input-field flex-1" placeholder="搜尋標題、老師、集數、網址...">
-                            <label class="inline-flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 font-bold text-slate-600">
-                                <input type="checkbox" v-model="showDeletedVideos"> 顯示隱藏影片
-                            </label>
-                            <button @click="loadVideosAdmin" class="btn-outline"><i class="fas fa-sync-alt mr-2"></i>重新整理</button>
-                        </div>
-                    </div>
-                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                        <table class="w-full text-left">
-                            <thead class="bg-slate-50 text-slate-500 text-sm font-bold">
-                                <tr><th class="p-4">影片</th><th class="p-4">分類/集數</th><th class="p-4">日期</th><th class="p-4">狀態</th><th class="p-4 text-right">操作</th></tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                <tr v-for="video in filteredVideos" :key="video.id || video.driveFileId || videoSourceUrl(video)" :class="video.isDeleted ? 'opacity-50 bg-slate-50' : ''">
-                                    <td class="p-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-20 h-14 rounded-lg bg-slate-100 overflow-hidden flex items-center justify-center">
-                                                <img v-if="videoThumbUrl(video)" :src="videoThumbUrl(video)" class="w-full h-full object-cover">
-                                                <i v-else class="fas fa-play text-slate-300 text-xl"></i>
-                                            </div>
-                                            <div>
-                                                <div class="font-black text-slate-900">{{ videoDisplayTitle(video) }}</div>
-                                                <div class="text-xs text-slate-400 truncate max-w-md">{{ videoSourceUrl(video) }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="p-4 text-slate-600 font-bold">{{ video.teacher || '-' }}<div class="text-xs text-slate-400">{{ video.episode || '' }}</div></td>
-                                    <td class="p-4 text-slate-500">{{ video.date || '-' }}</td>
-                                    <td class="p-4">
-                                        <span v-if="video.isDeleted" class="badge bg-slate-100 text-slate-500">已隱藏</span>
-                                        <span v-else-if="video.isPublished === false" class="badge bg-amber-100 text-amber-700">未上架</span>
-                                        <span v-else class="badge bg-green-100 text-green-700">上架</span>
-                                    </td>
-                                    <td class="p-4 text-right space-x-2">
-                                        <button @click="openEditVideoModal(video)" class="btn-secondary">編輯</button>
-                                        <button v-if="!video.isDeleted" @click="hideVideo(video)" class="px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold hover:bg-red-100">隱藏</button>
-                                    </td>
-                                </tr>
-                                <tr v-if="!filteredVideos.length"><td colspan="5" class="p-10 text-center text-slate-400 font-bold">目前沒有影音資料</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
                 <div v-if="isAdminRole && view === 'url_capture'" class="h-[calc(100vh-73px)]"><iframe src="./mylittlesys_free.html?tool=capture" class="w-full h-full border-0 bg-slate-50"></iframe></div>
 
                 <div v-if="isAdminRole && view === 'flex_rules'" class="p-8 animate-fade-in">
@@ -751,7 +698,7 @@
                             <button @click="openNewFlexRule('TEXT')" class="btn-outline bg-white"><i class="fas fa-font mr-1"></i>文字</button>
                         </div>
                     </div>
-
+                    
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div class="p-5 border-b border-slate-100">
                             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -826,7 +773,7 @@
                         </div>
                     </div>
                 </div>
-
+                
                 <div v-if="isAdminRole && view === 'wasabi_migration'" class="p-8 animate-fade-in space-y-6">
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div>
@@ -1043,7 +990,7 @@
                         </div>
                     </template>
                 </div>
-
+                
                 <div v-if="isAdminRole && view === 'settings'" class="p-8 animate-fade-in max-w-4xl mx-auto space-y-8">
                     <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
                         <div class="section-title !mb-6">首頁頂部橫幅 (Banner) 高效上傳 (Cloudflare R2)</div>
@@ -1056,7 +1003,7 @@
                         <button @click="$refs.bannerInput.click()" :disabled="isImageUploading" class="w-full py-3 border border-slate-200 rounded font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 transition shadow-sm disabled:opacity-50"><i class="fas fa-cloud-upload-alt mr-2"></i>上傳圖片至 R2 儲存桶</button>
                         <input type="file" ref="bannerInput" class="hidden" accept="image/*" @change="handleBannerUpload">
                     </div>
-
+                    
                     <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
                         <div class="section-title !mb-4 text-red-700 border-red-500">紅包獎勵、LIFF 與社群連結</div>
@@ -1109,10 +1056,10 @@
                             <div><label class="input-label">Instagram 網址</label><input type="text" v-model="sysSettings.link_ig" class="input-field text-sm"></div>
                             <div><label class="input-label">TikTok 網址</label><input type="text" v-model="sysSettings.link_tiktok" class="input-field text-sm"></div>
                         </div>
-
+                        
                         <div class="section-title !mb-4 text-orange-700 border-orange-500 mt-8">官方匯款帳號設定</div>
                         <div class="mb-8"><label class="input-label">匯款資訊 (將顯示於前台結帳頁面)</label><textarea v-model="sysSettings.remittance_info" class="input-field h-32 resize-none leading-relaxed"></textarea></div>
-
+                        
                         <div class="section-title !mb-4 text-purple-700 border-purple-500 mt-8">前台體驗開關</div>
                         <div class="mb-8 flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <div><div class="font-bold text-slate-700 text-sm">開放學員自行取消報名</div><div class="text-xs text-slate-400 mt-1">啟用後，學員可在「待付款」訂單下方看見取消按鈕</div></div>
@@ -1142,7 +1089,7 @@
                         </div>
 
                         <div class="section-title !mb-4 text-blue-800 border-blue-500">藍新金流 API 設定</div>
-
+                        
                         <!-- 🚀 新增：電子發票 (ezPay) 整合開關 -->
                         <div class="mb-8 flex items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
                             <div>
@@ -1596,30 +1543,7 @@
 
     </div>
 
-
-                <div v-if="showVideoModal" class="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
-                    <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl overflow-hidden">
-                        <div class="p-5 border-b flex items-center justify-between">
-                            <h3 class="text-xl font-black">{{ editingVideo ? '編輯影片' : '新增影片' }}</h3>
-                            <button @click="showVideoModal=false" class="text-slate-400 text-2xl">&times;</button>
-                        </div>
-                        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="form-label">影片標題</label><input v-model="videoForm.title" class="input-field"></div>
-                            <div><label class="form-label">老師/分類</label><input v-model="videoForm.teacher" class="input-field"></div>
-                            <div><label class="form-label">集數/標籤</label><input v-model="videoForm.episode" class="input-field" placeholder="例如：第 1 集"></div>
-                            <div><label class="form-label">日期</label><input v-model="videoForm.date" type="date" class="input-field"></div>
-                            <div class="md:col-span-2"><label class="form-label">影片網址</label><input v-model="videoForm.videoUrl" class="input-field" placeholder="https://..."></div>
-                            <div class="md:col-span-2"><label class="form-label">縮圖網址</label><input v-model="videoForm.thumbnailUrl" class="input-field" placeholder="https://..."></div>
-                            <div class="md:col-span-2"><label class="form-label">描述</label><textarea v-model="videoForm.description" class="input-field h-28"></textarea></div>
-                            <label class="inline-flex items-center gap-2 font-bold text-slate-700"><input type="checkbox" v-model="videoForm.isPublished"> 前台顯示</label>
-                        </div>
-                        <div class="p-5 border-t flex justify-end gap-3">
-                            <button @click="showVideoModal=false" class="btn-secondary">取消</button>
-                            <button @click="saveVideo" class="btn-primary">儲存影片</button>
-                        </div>
-                    </div>
-                </div>
-<script>
+    <script>
         const initVueApp = () => {
             if (typeof Vue === 'undefined') {
                 setTimeout(initVueApp, 100);
@@ -1640,18 +1564,12 @@
                     const isLoading = ref(false);
                     const liffProfile = ref({});
                     const currentAccess = ref({ isAdmin: false, canCrmLogin: false, isTeacher: false, canSystemTools: false });
-
+                    
                     const memberTiers = ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師'];
                     const courseStageOptions = ['一般', '喚醒', '蛻變', '完整'];
                     const productStatusOptions = ['販賣中', '暫停販售', '已售完'];
-
+                    
                     const users = ref([]);
-                    const videos = ref([]);
-                    const videoSearchQuery = ref('');
-                    const showDeletedVideos = ref(false);
-                    const showVideoModal = ref(false);
-                    const editingVideo = ref(null);
-                    const videoForm = ref({ id: '', title: '', teacher: '', episode: '', date: '', videoUrl: '', thumbnailUrl: '', description: '', isPublished: true });
                     const teachers = ref([]);
                     const courses = ref([]);
                     const products = ref([]);
@@ -1686,7 +1604,7 @@
                         low_risk_wasabi_read_enabled: String(settings.low_risk_wasabi_read_enabled || 'false'),
                         high_risk_wasabi_read_enabled: String(settings.high_risk_wasabi_read_enabled || 'false')
                     });
-
+                    
                     const memberSearch = ref('');
                     const memberPage = ref(1);
                     const memberPageSize = 15;
@@ -1720,7 +1638,7 @@
                         message: '',
                         audience: { tag: '', memberTier: '', gender: '', keyword: '' }
                     });
-
+                    
                     const isImageUploading = ref(false);
                     const editingCourse = ref(null);
                     const editingProduct = ref(null);
@@ -1746,7 +1664,7 @@
                     const activeMemberPermissionSnapshot = ref(null);
                     const activeMemberPoints = ref({ balance: 0, logs: [] });
                     const editingPointAction = ref(null);
-
+                    
                     const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, '')).toLocaleString();
                     const defaultCourseThumb = () => sysSettings.value.banner_image || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80';
                     const courseThumbUrl = (course) => String(
@@ -1842,7 +1760,7 @@
                         if (!user || user.isDeleted === true || !user.userId) return false;
                         return user.isTeacher === true || user.role === 'teacher' || user.crmRole === 'teacher' || String(user.memberTier || '').includes('導師');
                     }));
-                    const adminOnlyViews = new Set(['dashboard', 'orders', 'booking_report', 'points_ledger', 'payment_logs', 'audit_logs', 'paid_broadcast', 'richmenu', 'settings', 'flex_rules', 'videos_admin', 'url_capture']);
+                    const adminOnlyViews = new Set(['dashboard', 'orders', 'booking_report', 'points_ledger', 'payment_logs', 'audit_logs', 'paid_broadcast', 'richmenu', 'settings', 'flex_rules', 'url_capture']);
                     const systemAllowedViews = new Set(['richmenu']);
                     const systemAllowedActions = new Set(['ADMIN_GET_DATA', 'ADMIN_GET_SLOTS', 'ADMIN_MANAGE_POINTS', 'GET_USER_POINTS', 'UPLOAD_IMAGE', 'DEPLOY_RICH_MENU', 'LOG_ADMIN_EVENT']);
                     const operatorDefaultView = 'members';
@@ -1958,7 +1876,7 @@
                                 flexRules.value = data.flexRules || [];
                                 broadcastTags.value = data.broadcastTags || broadcastTags.value;
                                 broadcastCampaigns.value = data.broadcastCampaigns || broadcastCampaigns.value;
-
+                                
                                 const slotData = await callApi('ADMIN_GET_SLOTS', {}, true);
                                 if (slotData) {
                                     slots.value = Array.isArray(slotData) ? slotData : (slotData.slots || []);
@@ -2165,7 +2083,6 @@
                             return;
                         }
                         view.value = viewName;
-                        if (viewName === 'videos_admin' && !videos.value.length) loadVideosAdmin();
                         if (viewName === 'points_ledger' && !pointsLedger.value.length) loadPointsLedger();
                         if (viewName === 'audit_logs' && !auditLogs.value.length) loadAuditLogs();
                         if (viewName === 'paid_broadcast' && !broadcastTags.value.length && !broadcastCampaigns.value.length) loadBroadcastData();
@@ -2179,7 +2096,7 @@
                         if (view.value === 'paid_broadcast') return '付費推播';
                         const map = {
                             dashboard: '營運統計中心', calendar: '日曆檢視', members: '學員 CRM', courses: '課程 / 預約服務', products: '商城商品',
-                            consultation: '預約設定', orders: '訂單維護', booking_report: '預約報表', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片', videos_admin: '影音清單', url_capture: '網址擷取器', wasabi_migration: 'Wasabi 遷移檢查'
+                            consultation: '預約設定', orders: '訂單維護', booking_report: '預約報表', points_ledger: '點數進出總表', payment_logs: '刷卡紀錄', richmenu: '圖文選單管理', settings: '系統參數設定', flex_rules: '機器人與專區卡片', url_capture: '網址擷取器', wasabi_migration: 'Wasabi 遷移檢查'
                         };
                         return map[view.value] || '管理站';
                     });
@@ -2417,7 +2334,7 @@
                         } else if (orderTypeFilter.value === 'COURSE') {
                             result = result.filter(o => o && o.type !== 'PRODUCT');
                         }
-
+                        
                         result.sort((a, b) => {
                             const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
                             const tB = new Date(String(b.createdAt).replace(/-/g, '/')).getTime() || 0;
@@ -2864,86 +2781,1181 @@
                             isLoading.value = false;
                         }
                     };
-                    const emptyVideoForm = () => ({ id: '', title: '', teacher: '', episode: '', date: '', videoUrl: '', thumbnailUrl: '', description: '', isPublished: true });
 
-                    const normalizeVideoListResponse = (res) => {
-                        if (Array.isArray(res?.videos)) return res.videos;
-                        if (Array.isArray(res?.data?.videos)) return res.data.videos;
-                        if (Array.isArray(res)) return res;
-                        return [];
-                    };
-
-                    const extractDriveVideoId = (raw) => {
-                        const text = String(raw || '').trim();
-                        if (!text) return '';
-                        const fileMatch = text.match(/\/file\/d\/([^/]+)/);
-                        if (fileMatch) return fileMatch[1];
-                        const idMatch = text.match(/[?&]id=([^&]+)/);
-                        return idMatch ? idMatch[1] : '';
-                    };
-
-                    const videoThumbUrl = (video) => String(video?.thumbnailUrl || video?.coverUrl || video?.imageUrl || video?.previewImageUrl || '').trim();
-
-                    const videoSourceUrl = (video) => {
-                        const manualUrl = String(video?.videoUrl || video?.url || video?.viewUrl || video?.previewUrl || '').trim();
-                        if (manualUrl) return manualUrl;
-                        const driveFileId = String(video?.driveFileId || '').trim();
-                        return driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view` : '';
-                    };
-
-                    const videoDisplayTitle = (video) => String(video?.title || video?.name || video?.id || video?.driveFileId || '未命名影片').trim();
-
-                    const filteredVideos = computed(() => {
-                        const q = videoSearchQuery.value.trim().toLowerCase();
-                        return videos.value.filter(v => {
-                            if (!showDeletedVideos.value && v?.isDeleted) return false;
-                            if (!q) return true;
-                            return [videoDisplayTitle(v), v?.teacher, v?.episode, v?.date, videoSourceUrl(v)].some(x => String(x || '').toLowerCase().includes(q));
-                        });
-                    });
-
-                    const loadVideosAdmin = async () => {
-                        if (!isAdminRole.value) return;
+                    const syncVideosToWasabi = async () => {
+                        if (!isAdminRole.value) return alert('Drive 影音同步僅限 Admin 使用');
+                        const defaultFolder = 'https://drive.google.com/drive/folders/1BxDaPdEaxk56Lyd7caTeIjyDbW9tcsrs';
+                        const folderUrl = prompt('請貼上 Google Drive 影音資料夾網址', defaultFolder);
+                        if (!folderUrl) return;
+                        if (!confirm('確定要從 Google Drive 讀取影片清單並更新系統影音資料？\n\n系統會新增/更新 Drive 內影片，並把不在資料夾內的舊 Drive 影片自動隱藏。')) return;
+                        isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_LIST_VIDEOS', {});
-                            videos.value = normalizeVideoListResponse(res);
-                        } catch (e) {
-                            alert(`讀取影音資料失敗：${e.message || e}`);
+                            const res = await callApi('ADMIN_SYNC_DRIVE_VIDEOS', { folderUrl });
+                            wasabiCheck.value = await callApi('ADMIN_WASABI_CHECK', {});
+                            alert(`Drive 影音已同步：新增/更新 ${res.synced || 0} 筆，隱藏 ${res.hidden || 0} 筆，總計 ${res.total || 0} 筆（來源：${res.source || 'unknown'}）`);
+                        } finally {
+                            isLoading.value = false;
                         }
                     };
 
-                    const openNewVideoModal = () => {
-                        editingVideo.value = null;
-                        videoForm.value = emptyVideoForm();
-                        showVideoModal.value = true;
+                    const filteredPointsLedger = computed(() => {
+                        let result = pointsLedger.value.filter(log => log);
+                        const q = pointsLedgerSearch.value.trim().toLowerCase();
+                        if (q) {
+                            result = result.filter(log => (
+                                String(log.userName || '').toLowerCase().includes(q) ||
+                                String(log.uid || '').toLowerCase().includes(q) ||
+                                String(log.phone || '').toLowerCase().includes(q) ||
+                                String(log.operatorName || '').toLowerCase().includes(q) ||
+                                String(log.operatorUid || '').toLowerCase().includes(q) ||
+                                String(log.reason || '').toLowerCase().includes(q)
+                            ));
+                        }
+                        return result;
+                    });
+
+                    const pointsLedgerTotalPages = computed(() => Math.max(1, Math.ceil(filteredPointsLedger.value.length / pointsLedgerPageSize)));
+                    const pagedPointsLedger = computed(() => {
+                        const page = Math.min(pointsLedgerPage.value, pointsLedgerTotalPages.value);
+                        const start = (page - 1) * pointsLedgerPageSize;
+                        return filteredPointsLedger.value.slice(start, start + pointsLedgerPageSize);
+                    });
+
+                    const filteredAuditLogs = computed(() => {
+                        const q = auditLogSearch.value.trim().toLowerCase();
+                        const result = auditLogs.value.filter(log => log);
+                        if (!q) return result;
+                        return result.filter(log => [
+                            log.uid, log.name, log.role, log.action, log.summary, log.targetUid, log.targetId, log.view
+                        ].some(value => String(value || '').toLowerCase().includes(q)));
+                    });
+
+                    const memberBroadcastTags = (member) => {
+                        const raw = member?.broadcastTags || member?.tags || member?.audienceTags || [];
+                        if (Array.isArray(raw)) return raw.map(v => String(v || '').trim()).filter(Boolean);
+                        return String(raw || '').split(/[\n,，、]/).map(v => v.trim()).filter(Boolean);
+                    };
+                    const memberHasBroadcastTag = (member, tagName) => !!tagName && memberBroadcastTags(member).includes(tagName);
+                    const memberTierOptions = computed(() => [
+                        ...new Set([
+                            'Admin',
+                            ...memberTiers,
+                            ...users.value.map(u => String(u?.memberTier || '').trim()).filter(Boolean)
+                        ])
+                    ]);
+                    const adminBroadcastUidSet = computed(() => new Set([
+                        ...splitUidList(sysSettings.value.admin_uids),
+                        ...splitUidList(sysSettings.value.crm_login_uids)
+                    ]));
+                    const adminBroadcastMembers = computed(() => {
+                        const userMap = new Map(users.value
+                            .filter(u => u && u.userId)
+                            .map(u => [String(u.userId || '').trim(), u]));
+                        adminBroadcastUidSet.value.forEach(uid => {
+                            if (!userMap.has(uid)) {
+                                userMap.set(uid, {
+                                    userId: uid,
+                                    name: `總部管理 ${uid.slice(-6)}`,
+                                    memberTier: 'Admin',
+                                    isAdmin: true,
+                                    isSyntheticAdmin: true
+                                });
+                            }
+                        });
+                        return [...userMap.values()].filter(member => adminBroadcastUidSet.value.has(String(member.userId || '').trim()));
+                    });
+                    const broadcastTagCount = (tagName) => users.value.filter(u => memberHasBroadcastTag(u, tagName)).length;
+                    const broadcastAudienceMatches = (member) => {
+                        if (!member || member.isDeleted === true || !member.userId) return false;
+                        const audience = broadcastForm.value.audience || {};
+                        if (audience.tag && !memberHasBroadcastTag(member, audience.tag)) return false;
+                        if (audience.memberTier === 'Admin') {
+                            const isAdminMember = member.isAdmin === true || member.role === 'admin' || member.crmRole === 'admin' || adminBroadcastUidSet.value.has(String(member.userId || '').trim());
+                            if (!isAdminMember) return false;
+                        } else if (audience.memberTier && String(member.memberTier || '') !== audience.memberTier) return false;
+                        if (audience.gender && String(member.gender || '') !== audience.gender) return false;
+                        const keyword = String(audience.keyword || '').trim().toLowerCase();
+                        if (keyword) {
+                            const haystack = [member.name, member.phone, member.industry, member.address, member.userId].map(v => String(v || '').toLowerCase()).join(' ');
+                            if (!haystack.includes(keyword)) return false;
+                        }
+                        return true;
+                    };
+                    const broadcastAudiencePreview = computed(() => {
+                        const audience = broadcastForm.value.audience || {};
+                        const source = audience.memberTier === 'Admin' ? adminBroadcastMembers.value : users.value;
+                        return source.filter(broadcastAudienceMatches);
+                    });
+                    const broadcastPreviewUids = computed(() => broadcastAudiencePreview.value.map(member => String(member.userId || '').trim()).filter(Boolean));
+                    const selectedBroadcastAudience = computed(() => {
+                        const selected = new Set(broadcastSelectedUids.value.map(uid => String(uid || '').trim()).filter(Boolean));
+                        return broadcastAudiencePreview.value.filter(member => selected.has(String(member.userId || '').trim()));
+                    });
+                    const isBroadcastAudienceAllSelected = computed(() => {
+                        const uids = broadcastPreviewUids.value;
+                        if (!uids.length) return false;
+                        const selected = new Set(broadcastSelectedUids.value.map(uid => String(uid || '').trim()).filter(Boolean));
+                        return uids.every(uid => selected.has(uid));
+                    });
+                    const toggleBroadcastAudienceAll = (enabled = true) => {
+                        broadcastSelectedUids.value = enabled ? [...broadcastPreviewUids.value] : [];
+                    };
+                    watch(broadcastPreviewUids, (uids) => {
+                        broadcastSelectedUids.value = [...uids];
+                    }, { immediate: true });
+                    const filteredBroadcastMembers = computed(() => {
+                        const q = broadcastMemberSearch.value.trim().toLowerCase();
+                        let result = users.value.filter(u => u && u.isDeleted !== true && u.userId);
+                        if (q) {
+                            result = result.filter(u => [u.name, u.phone, u.userId, u.memberTier].some(v => String(v || '').toLowerCase().includes(q)));
+                        }
+                        return result.slice(0, 160);
+                    });
+
+                    const pointsLedgerSummary = computed(() => {
+                        return filteredPointsLedger.value.reduce((summary, log) => {
+                            const amount = Number(log.amount || 0);
+                            summary.count += 1;
+                            if (amount >= 0) summary.earn += amount;
+                            else summary.spend += Math.abs(amount);
+                            summary.net += amount;
+                            return summary;
+                        }, { count: 0, earn: 0, spend: 0, net: 0 });
+                    });
+
+                    const csvCell = (value) => `"${String(value ?? '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+                    const adminOrderStatusText = (order) => {
+                        if (order?.type === 'BOOKING') {
+                            if (order.status === 'CANCELLED') return '已取消';
+                            if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return '已完成';
+                            return '已預約';
+                        }
+                        if (order?.status === 'TRANSFERRED') return '已轉課';
+                        return isPaidOrder(order) ? '已完款' : (order?.status === 'CANCELLED' ? '已取消' : '待付');
+                    };
+                    const adminOrderStatusClass = (order) => {
+                        if (order?.type === 'BOOKING') {
+                            if (order.status === 'CANCELLED') return 'bg-slate-100 text-slate-600';
+                            if (order.attendance === 'ATTENDED' || order.status === 'COMPLETED') return 'status-pill-paid';
+                            return 'bg-indigo-100 text-indigo-700';
+                        }
+                        if (order?.status === 'TRANSFERRED') return 'bg-indigo-100 text-indigo-700';
+                        return isPaidOrder(order) ? 'status-pill-paid' : 'status-pill-waiting';
+                    };
+                    const adminOrderAmountText = (order) => {
+                        if (order?.type === 'BOOKING') {
+                            return `$ ${formatPrice(order.teacherCollectAmount || 0)} 給講師${order.pointsUsed ? ` / 折 ${formatPrice(order.pointsUsed)}P` : ''}`;
+                        }
+                        return `$${formatPrice(order?.amount || 0)}`;
+                    };
+                    const adminOrderPaymentText = (order) => {
+                        if (!order) return '-';
+                        if (order.type === 'BOOKING' || order.paymentMethod === 'TEACHER_DIRECT') return '講師自行收款';
+                        if (order.remittance) return `匯款回報：末五碼 ${order.remittance}`;
+                        if (order.newebpayTradeNo || order.paymentMethod === 'NEWEBPAY') return '線上刷卡';
+                        if (order.paymentMethod === 'REMITTANCE') return '銀行匯款：尚未回報';
+                        if (order.paymentMethod === 'POINTS' || (Number(order.amount || 0) <= 0 && Number(order.pointsUsed || 0) > 0)) return '點數折抵';
+                        return '未指定';
+                    };
+                    const statusText = (status, order = null) => order ? adminOrderStatusText(order) : ({ PAID: '已完款', PENDING: '待付款', BOOKED: '已預約', COMPLETED: '已完成', CANCELLED: '已取消', TRANSFERRED: '已轉課' }[status] || status || '');
+                    const orderCourseName = (order) => order?.type === 'PRODUCT' ? (order.productName || '商城商品') : getCourseName(order.courseId);
+                    const orderMatchesReportCourses = (order) => {
+                        if (selectedReportCourseId.value === 'ALL') return true;
+                        const course = courses.value.find(c => c && (c.id === order.courseId || c.name === order.courseId));
+                        return selectedReportCourseId.value === order.courseId || (course && selectedReportCourseId.value === course.id);
+                    };
+                    const formatDateObjectForReport = (date) => {
+                        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+                        const parts = new Intl.DateTimeFormat('zh-TW', {
+                            timeZone: 'Asia/Taipei',
+                            hour12: false,
+                            hourCycle: 'h23',
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        }).formatToParts(date).reduce((acc, part) => {
+                            if (part.type !== 'literal') acc[part.type] = part.value;
+                            return acc;
+                        }, {});
+                        return `${parts.year}/${parts.month}/${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+                    };
+                    const formatReportDateTime = (value) => {
+                        const raw = String(value || '').trim();
+                        if (!raw) return '';
+                        const wall = raw.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})[ T,]+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+                        if (wall) {
+                            const [, y, m, d, h, min, sec = '00'] = wall;
+                            return `${y}/${m.padStart(2, '0')}/${d.padStart(2, '0')} ${h.padStart(2, '0')}:${min}:${sec.padStart(2, '0')}`;
+                        }
+                        const usUtc = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+                        if (usUtc) {
+                            const [, m, d, y, hRaw, min, sec = '00', ampm] = usUtc;
+                            let h = Number(hRaw);
+                            if (/PM/i.test(ampm) && h < 12) h += 12;
+                            if (/AM/i.test(ampm) && h === 12) h = 0;
+                            return formatDateObjectForReport(new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), h, Number(min), Number(sec))));
+                        }
+                        const parsed = new Date(raw);
+                        if (!Number.isNaN(parsed.getTime())) return formatDateObjectForReport(parsed);
+                        return raw;
+                    };
+                    const reportDate = () => new Date().toLocaleString('zh-TW', {timeZone: 'Asia/Taipei', hour12: false}).split(' ')[0].replace(/\//g, '-');
+                    const downloadCsv = (filename, rows) => {
+                        const blob = new Blob(["\uFEFF" + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", filename);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    };
+                    const excelCell = (value) => String(value ?? '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/\n/g, '<br>');
+                    const excelXmlCell = (value) => String(value ?? '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/\n/g, '&#10;');
+                    const downloadExcel = (filename, rows, options = {}) => {
+                        const widths = options.widths || [];
+                        const textColumns = new Set(options.textColumns || []);
+                        const numericColumns = new Set(options.numericColumns || []);
+                        const tableRows = buildExcelTableRows(rows, widths, textColumns, numericColumns);
+                        const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+                            table{border-collapse:collapse;font-family:"Microsoft JhengHei",Arial,sans-serif;font-size:12pt;}
+                            th{background:#f1f5f9;font-weight:700;}
+                            th,td{border:1px solid #cbd5e1;padding:6px 10px;white-space:nowrap;vertical-align:top;}
+                        </style></head><body><table>${tableRows}</table></body></html>`;
+                        const blob = new Blob(["\uFEFF" + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", filename);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    };
+                    const buildExcelTableRows = (rows, widths = [], textColumns = new Set(), numericColumns = new Set()) => {
+                        return rows.map((row, rowIndex) => {
+                            const tag = rowIndex === 0 ? 'th' : 'td';
+                            return `<tr>${row.map((value, colIndex) => {
+                                const width = widths[colIndex] ? `width:${widths[colIndex]}px;` : '';
+                                const textFormat = textColumns.has(colIndex) ? "mso-number-format:'\\@';" : '';
+                                const align = numericColumns.has(colIndex) && rowIndex > 0 ? 'text-align:right;' : '';
+                                return `<${tag} style="${width}${textFormat}${align}">${excelCell(value)}</${tag}>`;
+                            }).join('')}</tr>`;
+                        }).join('');
+                    };
+                    const downloadExcelWorkbook = (filename, sheets) => {
+                        const worksheetNames = sheets.map(sheet => String(sheet.name || '').replace(/[\\/?*\[\]:]/g, '').slice(0, 31) || 'Sheet');
+                        const worksheets = sheets.map((sheet, index) => {
+                            const widths = sheet.options?.widths || [];
+                            const textColumns = new Set(sheet.options?.textColumns || []);
+                            const numericColumns = new Set(sheet.options?.numericColumns || []);
+                            const columns = widths.map(width => `<Column ss:Width="${Number(width) || 120}"/>`).join('');
+                            const rowsXml = (sheet.rows || []).map((row, rowIndex) => {
+                                const cells = row.map((value, colIndex) => {
+                                    const numeric = numericColumns.has(colIndex) && rowIndex > 0 && value !== '' && value !== null && value !== undefined && !Number.isNaN(Number(value));
+                                    const style = rowIndex === 0 ? ' ss:StyleID="header"' : (textColumns.has(colIndex) ? ' ss:StyleID="text"' : '');
+                                    const type = numeric ? 'Number' : 'String';
+                                    const cellValue = numeric ? Number(value) : value;
+                                    return `<Cell${style}><Data ss:Type="${type}">${excelXmlCell(cellValue)}</Data></Cell>`;
+                                }).join('');
+                                return `<Row>${cells}</Row>`;
+                            }).join('');
+                            return `<Worksheet ss:Name="${excelXmlCell(worksheetNames[index])}"><Table>${columns}${rowsXml}</Table></Worksheet>`;
+                        }).join('');
+                        const workbook = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="header"><Font ss:Bold="1"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="text"><NumberFormat ss:Format="@"/></Style>
+ </Styles>
+ ${worksheets}
+</Workbook>`;
+                        const blob = new Blob(["\uFEFF" + workbook], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", filename);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    };
+                    const buildOrderReportRows = (sourceOrders) => {
+                        const paymentSourceText = (order) => {
+                            if (order?.type === 'BOOKING' || order?.paymentMethod === 'TEACHER_DIRECT') return '講師自收';
+                            if (order?.remittance) return `銀行匯款${order.remittance ? ' 末五碼 ' + order.remittance : ''}`;
+                            if (order?.newebpayTradeNo || order?.paymentMethod === 'NEWEBPAY') return '線上刷卡';
+                            if (order?.paymentMethod === 'REMITTANCE') return '銀行匯款';
+                            if (order?.paymentMethod === 'POINTS' || (Number(order?.amount || 0) <= 0 && Number(order?.pointsUsed || 0) > 0)) return '點數全額折抵';
+                            if (order?.status === 'PENDING') return '待付款';
+                            return '';
+                        };
+                        const rows = [["訂單編號", "建立時間", "學員姓名", "聯絡電話", "課程與服務名稱", "系統代收", "講師應收", "點數折抵", "狀態", "學員備註", "付款來源"]];
+                        sourceOrders.forEach(o => {
+                            const amount = Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0;
+                            const teacherAmount = o.type === 'BOOKING' ? Number(o.teacherCollectAmount || 0) : 0;
+                            rows.push([
+                                o.orderId,
+                                formatReportDateTime(o.createdAt),
+                                o.name,
+                                o.phone,
+                                orderCourseName(o),
+                                amount,
+                                teacherAmount,
+                                Number(o.pointsUsed || 0),
+                                statusText(o.status, o),
+                                o.note,
+                                paymentSourceText(o)
+                            ]);
+                        });
+                        return rows;
                     };
 
-                    const openEditVideoModal = (video) => {
-                        editingVideo.value = video;
-                        videoForm.value = { ...emptyVideoForm(), ...video, videoUrl: videoSourceUrl(video), thumbnailUrl: videoThumbUrl(video), isPublished: video?.isPublished !== false };
-                        showVideoModal.value = true;
+                    const buildBookingReportRows = (rowsSource) => {
+                        const rows = [["預約單號", "建立時間", "預約日期", "預約時段", "講師", "講師UID", "學員", "學員UID", "電話", "服務", "服務標價", "點數折抵", "講師應收", "系統代收", "開通扣點", "完成抽成", "狀態", "備註"]];
+                        rowsSource.forEach(row => {
+                            rows.push([
+                                row.orderId,
+                                formatReportDateTime(row.createdAt),
+                                row.bookingDate,
+                                row.bookingTime,
+                                row.teacherName,
+                                row.teacherUid,
+                                row.studentName,
+                                row.userId,
+                                row.phone,
+                                row.serviceName,
+                                row.servicePrice,
+                                row.pointsUsed,
+                                row.teacherCollectAmount,
+                                row.platformCollectedAmount,
+                                row.openCost,
+                                row.commissionPoints,
+                                adminOrderStatusText(row.raw),
+                                row.note
+                            ]);
+                        });
+                        return rows;
                     };
 
-                    const saveVideo = async () => {
-                        const form = { ...videoForm.value };
-                        const title = String(form.title || '').trim();
-                        const url = String(form.videoUrl || '').trim();
-                        if (!title || !url) return alert('請填寫影片標題與影片網址');
-                        const id = String(form.id || editingVideo.value?.id || editingVideo.value?.driveFileId || extractDriveVideoId(url) || `VID_${Date.now()}`).trim();
-                        const payload = { ...form, id, title, videoUrl: url, thumbnailUrl: String(form.thumbnailUrl || '').trim(), isPublished: form.isPublished !== false, isDeleted: false };
-                        const res = await callApi('ADMIN_UPDATE_VIDEO', { videoId: id, video: payload });
-                        videos.value = normalizeVideoListResponse(res);
-                        if (!videos.value.length) await loadVideosAdmin();
-                        showVideoModal.value = false;
+                    const buildMemberReportRows = (sourceMembers) => {
+                        const memberNameByUid = new Map((users.value || []).map(user => [String(user?.userId || '').trim(), displayMemberName(user)]));
+                        const rows = [["姓名", "手機", "等級", "業種", "性別", "生日", "聯絡地址", "推薦人 UID / 姓名", "註冊時間"]];
+                        sourceMembers.forEach(member => {
+                            const referrerUid = String(member.referrerUid || member.referrerUID || "").trim();
+                            const referrerName = referrerUid ? (memberNameByUid.get(referrerUid) || "") : "";
+                            rows.push([
+                                displayMemberName(member),
+                                member.phone || "",
+                                member.memberTier || "",
+                                member.industry || "",
+                                member.gender || "",
+                                member.birthday || "",
+                                member.address || "",
+                                referrerUid ? `${referrerUid}${referrerName ? ` / ${referrerName}` : ""}` : "",
+                                member.createdAt || ""
+                            ]);
+                        });
+                        return rows;
                     };
 
-                    const hideVideo = async (video) => {
-                        const id = String(video?.id || video?.driveFileId || videoSourceUrl(video)).trim();
-                        if (!id) return alert('找不到影音識別碼');
-                        if (!confirm(`確定隱藏「${videoDisplayTitle(video)}」？`)) return;
-                        const res = await callApi('ADMIN_DELETE_VIDEO', { videoId: id });
-                        videos.value = normalizeVideoListResponse(res);
-                        if (!videos.value.length) await loadVideosAdmin();
+                    const downloadMemberReport = () => {
+                        const rows = filteredMembers.value;
+                        if (!rows.length) return alert('目前沒有符合條件的會員資料可以匯出。');
+                        const suffix = showDeletedMembers.value ? '隱藏名單' : '一般名單';
+                        downloadExcel(`宏學_會員CRM_${suffix}_${reportDate()}.xls`, buildMemberReportRows(rows), {
+                            widths: [150, 150, 140, 160, 90, 130, 260, 360, 180],
+                            textColumns: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+                        });
+                        alert(`會員 Excel 下載成功。\n共匯出 ${rows.length} 筆會員資料。`);
+                    };
+
+                    const downloadSalesReport = () => {
+                        if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
+                        const validOrders = orders.value.filter(o => o && ((o.type === 'BOOKING' && o.status !== 'CANCELLED') || isPaidOrder(o)) && orderMatchesReportCourses(o));
+                        if(validOrders.length === 0) {
+                            alert("目前沒有符合條件的業績資料可以匯出。");
+                            return;
+                        }
+                        const reportOptions = {
+                            widths: [150, 170, 140, 150, 280, 110, 110, 110, 110, 220, 160],
+                            textColumns: [0, 1, 2, 3, 4, 8, 9, 10],
+                            numericColumns: [5, 6, 7]
+                        };
+                        const courseOrders = validOrders.filter(o => o.type !== 'PRODUCT');
+                        const productOrders = validOrders.filter(o => o.type === 'PRODUCT');
+                        const totalRev = validOrders.reduce((sum, o) => sum + (Number(String(o.amount).replace(/[^0-9.]/g, '')) || 0), 0);
+                        downloadExcelWorkbook(`HongXue_Sales_Report_${reportDate()}.xls`, [
+                            { name: '課程', rows: buildOrderReportRows(courseOrders), options: reportOptions },
+                            { name: '商品', rows: buildOrderReportRows(productOrders), options: reportOptions }
+                        ]);
+                        alert(`業績報表下載成功。\n課程 ${courseOrders.length} 筆；商品 ${productOrders.length} 筆。\n系統代收總額 $${totalRev.toLocaleString()}。`);
+                    };
+
+                    const downloadCourseReport = () => {
+                        if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
+                        const courseOrders = orders.value.filter(o => o && o.type !== 'PRODUCT' && orderMatchesReportCourses(o));
+                        if(courseOrders.length === 0) {
+                            alert("目前沒有符合條件的課程訂單可以匯出。");
+                            return;
+                        }
+                        downloadExcel(`宏學_課程報表_${reportDate()}.xls`, buildOrderReportRows(courseOrders), {
+                            widths: [150, 170, 140, 150, 280, 110, 110, 110, 110, 220, 160],
+                            textColumns: [0, 1, 2, 3, 4, 8, 9, 10],
+                            numericColumns: [5, 6, 7]
+                        });
+                        alert(`課程報表下載成功。\n共匯出 ${courseOrders.length} 筆課程訂單。`);
+                    };
+
+                    const downloadBookingReport = () => {
+                        if (!canViewFinance.value) return alert('此報表僅限 Admin 下載');
+                        const rows = filteredBookingReportRows.value;
+                        if (!rows.length) {
+                            alert('目前沒有符合條件的預約資料可以匯出。');
+                            return;
+                        }
+                        downloadExcel(`宏學_預約報表_${reportDate()}.xls`, buildBookingReportRows(rows), {
+                            widths: [150, 170, 120, 120, 130, 260, 130, 260, 150, 240, 110, 110, 110, 110, 110, 110, 110, 220],
+                            textColumns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17],
+                            numericColumns: [10, 11, 12, 13, 14, 15]
+                        });
+                        alert(`預約報表下載成功。\n共匯出 ${rows.length} 筆預約資料。`);
+                    };
+
+                    const triggerBackup = async () => {
+                        if (!isAdminRole.value) return alert('資料備份僅限 Admin 使用');
+                        if(!confirm('確定要觸發資料庫備份嗎？')) return;
+                        isLoading.value = true;
+                        try { await callApi('ADMIN_TRIGGER_BACKUP', {}); alert('備份完成'); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const runHealthCheck = async () => {
+                        if (!isAdminRole.value) return alert('系統健檢僅限 Admin 使用');
+                        isLoading.value = true;
+                        try { const res = await callApi('SYSTEM_HEALTH_CHECK', {}); if(res && res.log) alert(res.log.join('\n')); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    // 🚀 打開 CRM 時，自動觸發一次 GET_USER_POINTS (這會連帶觸發自動遷徙)
+                    const openMemberDetail = async (u) => {
+                        activeMember.value = JSON.parse(JSON.stringify(u));
+                        activeMember.value.isAdmin = activeMember.value.isAdmin === true || activeMember.value.role === 'admin' || activeMember.value.crmRole === 'admin';
+                        activeMember.value.crmSystem = !activeMember.value.isAdmin && (activeMember.value.crmSystem === true || activeMember.value.role === 'system' || activeMember.value.crmRole === 'system');
+                        activeMember.value.crmOperator = !activeMember.value.isAdmin && !activeMember.value.crmSystem && (activeMember.value.crmOperator === true || activeMember.value.role === 'operator' || activeMember.value.crmRole === 'operator');
+                        activeMember.value.isTeacher = activeMember.value.isTeacher === true || activeMember.value.role === 'teacher' || activeMember.value.crmRole === 'teacher';
+                        activeMemberPermissionSnapshot.value = {
+                            isAdmin: !!activeMember.value.isAdmin,
+                            crmSystem: !!activeMember.value.crmSystem,
+                            crmOperator: !!activeMember.value.crmOperator,
+                            isTeacher: !!activeMember.value.isTeacher,
+                            teacherTier: String(activeMember.value.memberTier || '').includes('導師'),
+                            role: activeMember.value.role || '',
+                            crmRole: activeMember.value.crmRole || ''
+                        };
+                        isLoading.value = true;
+                        try {
+                            if (canManagePoints.value) {
+                                const points = await callApi('GET_USER_POINTS', { targetUid: u.userId });
+                                if(points) activeMemberPoints.value = points;
+                            } else {
+                                activeMemberPoints.value = { balance: 0, logs: [] };
+                            }
+                        } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const toggleMemberSystem = () => {
+                        if (!activeMember.value) return;
+                        if (activeMember.value.crmSystem) {
+                            activeMember.value.isAdmin = false;
+                            activeMember.value.crmOperator = false;
+                            activeMember.value.role = 'system';
+                            activeMember.value.crmRole = 'system';
+                        } else if (activeMember.value.role === 'system' || activeMember.value.crmRole === 'system') {
+                            activeMember.value.role = '';
+                            activeMember.value.crmRole = '';
+                        }
+                    };
+
+                    const toggleMemberOperator = () => {
+                        if (!activeMember.value) return;
+                        if (activeMember.value.crmOperator) {
+                            activeMember.value.isAdmin = false;
+                            activeMember.value.crmSystem = false;
+                            activeMember.value.role = 'operator';
+                            activeMember.value.crmRole = 'operator';
+                        } else if (activeMember.value.role === 'operator' || activeMember.value.crmRole === 'operator') {
+                            activeMember.value.role = '';
+                            activeMember.value.crmRole = '';
+                        }
+                    };
+
+                    const toggleMemberTeacher = () => {
+                        if (!activeMember.value) return;
+                        if (activeMember.value.isTeacher) {
+                            activeMember.value.memberTier = '專業導師';
+                        }
+                    };
+
+                    const saveMemberDetail = async () => {
+                        if (!activeMember.value || !activeMember.value.userId) return;
+                        isLoading.value = true;
+                        try {
+                            const payload = { memberData: activeMember.value };
+                            const res = await callApi('ADMIN_UPDATE_MEMBER', payload);
+                            if(res) {
+                                const savedMember = res.memberData || activeMember.value;
+                                const idx = users.value.findIndex(u => u && u.userId === savedMember.userId);
+                                if (idx > -1) users.value[idx] = JSON.parse(JSON.stringify(savedMember));
+                                else users.value.unshift(JSON.parse(JSON.stringify(savedMember)));
+                                alert('✅ 學員檔案更新成功！');
+                                activeMember.value = null;
+                                try {
+                                    const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+                                    const cachedUsers = Array.isArray(cached.users) ? cached.users : users.value;
+                                    const cachedIdx = cachedUsers.findIndex(u => u && u.userId === savedMember.userId);
+                                    if (cachedIdx > -1) cachedUsers[cachedIdx] = JSON.parse(JSON.stringify(savedMember));
+                                    else cachedUsers.unshift(JSON.parse(JSON.stringify(savedMember)));
+                                    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...cached, users: cachedUsers }));
+                                } catch(cacheError) {
+                                    console.warn('Member cache update skipped:', cacheError);
+                                }
+                            }
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const deleteMember = async (m) => {
+                        if (!m || !m.userId) return;
+                        if (!confirm(`即將隱藏「${displayMemberName(m)}」。\n\n資料不會真正刪除，之後可從「隱藏名單」找回。`)) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_DELETE_MEMBER', { targetUid: m.userId, reason: 'CRM 名義隱藏' });
+                            if(res) {
+                                alert('學員已隱藏，可從「隱藏名單」找回。');
+                                const hiddenMember = res.memberData || { ...m, isDeleted: true, deletedAt: new Date().toISOString() };
+                                const idx = users.value.findIndex(u => u && u.userId === m.userId);
+                                if (idx > -1) users.value[idx] = hiddenMember;
+                                activeMember.value = null;
+                            }
+                        } catch(e) { console.error(e); alert('隱藏失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const restoreMember = async (m) => {
+                        if (!m || !m.userId || !isAdminRole.value) return;
+                        if (!confirm(`確定要恢復「${displayMemberName(m)}」到一般名單嗎？`)) return;
+                        isLoading.value = true;
+                        try {
+                            const nextMember = { ...m };
+                            nextMember.isDeleted = false;
+                            delete nextMember.deletedAt;
+                            delete nextMember.deletedBy;
+                            delete nextMember.deleteReason;
+                            const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: nextMember });
+                            if (res) {
+                                const restoredMember = res.memberData || nextMember;
+                                const idx = users.value.findIndex(u => u && u.userId === restoredMember.userId);
+                                if (idx > -1) users.value[idx] = restoredMember;
+                                activeMember.value = null;
+                                showDeletedMembers.value = false;
+                                alert('學員已恢復到一般名單。');
+                            }
+                        } catch(e) { console.error(e); alert('恢復失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const openPointActionModal = (type) => { editingPointAction.value = { type: type, amount: '', reason: '' }; };
+
+                    const submitPointAction = async () => {
+                        const amt = Number(editingPointAction.value.amount);
+                        if (!activeMember.value || !activeMember.value.userId) return;
+                        if (!amt || amt <= 0) return alert('請輸入大於 0 的金額');
+                        if (!editingPointAction.value.reason) return alert('請填寫異動原因');
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_MANAGE_POINTS', { uid: activeMember.value.userId, amount: amt, type: editingPointAction.value.type, reason: editingPointAction.value.reason, operator: 'Admin' });
+                            if (res) {
+                                alert('✅ 點數調整成功！已記錄於流水帳。');
+                                editingPointAction.value = null;
+                                const points = await callApi('GET_USER_POINTS', { targetUid: activeMember.value.userId });
+                                if(points) activeMemberPoints.value = points;
+                            }
+                        } catch(e) { console.error(e); alert('調整失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const syncWPPointsFromCRM = async () => {
+                        if (!activeMember.value || !activeMember.value.userId) return;
+                        if (!confirm(`確定要強制從 WordPress 舊系統撈取 ${activeMember.value.name} 的餘額並補登嗎？\n\n(系統目前會在學員查閱餘額時「全自動」補登，您不需頻繁手動點擊。)`)) return;
+
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_SYNC_WP_POINTS', { targetUid: activeMember.value.userId });
+                            if (res && res.success) {
+                                alert(`✅ 成功從舊系統補登 ${res.imported} 點！`);
+                                const points = await callApi('GET_USER_POINTS', { targetUid: activeMember.value.userId });
+                                if (points) activeMemberPoints.value = points;
+                            }
+                        } catch (e) {
+                            console.error(e);
+                            alert(`⚠️ 補登失敗：\n${e.message}`);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const requireDeleteConfirmation = (label) => {
+                        const input = prompt(`⚠️ 即將刪除「${label}」。\n系統會從一般畫面隱藏，但保留後台資料紀錄。\n\n請輸入「刪除」兩字確認：`);
+                        if (input === null) return false;
+                        if (String(input).trim() !== '刪除') {
+                            alert('未輸入正確確認文字，已取消刪除。');
+                            return false;
+                        }
+                        return true;
+                    };
+
+                    const openNewCourseModal = () => {
+                        const isReservation = courseTypeFilter.value === 'reservation';
+                        editingCourse.value = { id: 'NEW_' + Date.now(), name: '', priceText: '', type: isReservation ? '預約服務' : '一般報名', price: 0, maxPoints: 0, capacity: 0, enrolled: 0, startDate: '', endDate: '', timeSlotType: '', publishStartDate: '', publishEndDate: '', instructor: '', location: '', description: '', image: '', isPublished: true, isRegistrationOpen: true, discountRule: 'NONE', paymentMethod: 'ALL', targetTiers: [], stageTags: isReservation ? [] : ['一般'] };
+                    };
+
+                    const openEditModal = (c) => {
+                        const copy = JSON.parse(JSON.stringify(c));
+                        copy.type = ['一般報名', '喚醒階段', '蛻變階段', '完整階段', '預約服務'].includes(String(copy.type || '')) ? copy.type : courseDisplayCategory(copy);
+                        copy.stageTags = Array.isArray(copy.stageTags) ? copy.stageTags : [];
+                        editingCourse.value = copy;
+                    };
+
+                    const saveCourse = async () => {
+                        isLoading.value = true;
+                        try {
+                            editingCourse.value.stageTags = Array.isArray(editingCourse.value.stageTags) ? editingCourse.value.stageTags.filter(Boolean) : [];
+                            if (String(editingCourse.value.type || '').includes('預約')) {
+                                editingCourse.value.capacity = 0;
+                                editingCourse.value.startDate = '';
+                                editingCourse.value.endDate = '';
+                                editingCourse.value.maxPoints = Math.max(0, Number(editingCourse.value.maxPoints || 0));
+                                if (editingCourse.value.maxPoints > 0) editingCourse.value.discountRule = 'CUSTOM';
+                            } else {
+                                editingCourse.value.maxPoints = 0;
+                                if (!editingCourse.value.stageTags.length) editingCourse.value.stageTags = ['一般'];
+                            }
+                            const res = await callApi('ADMIN_UPDATE_COURSE', editingCourse.value);
+                            if(res) {
+                                alert('✅ 課程儲存成功');
+                                const savedCourse = res.course || editingCourse.value;
+                                const idx = courses.value.findIndex(c => c && c.id === savedCourse.id);
+                                if (idx > -1) courses.value[idx] = JSON.parse(JSON.stringify(savedCourse));
+                                else courses.value.unshift(JSON.parse(JSON.stringify(savedCourse)));
+                                editingCourse.value = null;
+                            }
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const deleteCourse = async () => {
+                        if (!editingCourse.value || !editingCourse.value.id) return;
+                        const courseName = String(editingCourse.value.name || '').split('\n')[0].trim() || editingCourse.value.id;
+                        if (!requireDeleteConfirmation(`課程 ${courseName}`)) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_DELETE_COURSE', { courseId: editingCourse.value.id, reason: '課程名義刪除' });
+                            if (res) {
+                                courses.value = courses.value.filter(c => c && c.id !== editingCourse.value.id);
+                                editingCourse.value = null;
+                                alert('課程已隱藏，資料仍保留於系統紀錄');
+                            }
+                        } catch(e) { console.error(e); alert('課程刪除失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const copyCourse = (c) => {
+                        const copy = JSON.parse(JSON.stringify(c));
+                        copy.id = 'NEW_' + Date.now();
+                        copy.name = copy.name + ' (複製)';
+                        openEditModal(copy);
+                    };
+
+                    const openNewProductModal = () => {
+                        editingProduct.value = { id: 'PROD_NEW_' + Date.now(), name: '', code: '', storeName: '人生進化ACTION', status: '販賣中', price: 0, pointsPrice: 0, stock: null, image: '', description: '', isPublished: true };
+                    };
+
+                    const openEditProductModal = (p) => { editingProduct.value = JSON.parse(JSON.stringify(p)); };
+
+                    const saveProduct = async () => {
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_UPDATE_PRODUCT', editingProduct.value);
+                            if (res && res.product) {
+                                const idx = products.value.findIndex(p => p && p.id === res.product.id);
+                                if (idx > -1) products.value[idx] = JSON.parse(JSON.stringify(res.product));
+                                else products.value.unshift(JSON.parse(JSON.stringify(res.product)));
+                                editingProduct.value = null;
+                                alert('商品已儲存');
+                            }
+                        } catch(e) { console.error(e); alert('商品儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const deleteProduct = async () => {
+                        if (!editingProduct.value) return;
+                        const productName = String(editingProduct.value.name || '').trim() || editingProduct.value.id;
+                        if (!requireDeleteConfirmation(`商品 ${productName}`)) return;
+                        isLoading.value = true;
+                        try {
+                            await callApi('ADMIN_DELETE_PRODUCT', { productId: editingProduct.value.id, reason: '商品名義刪除' });
+                            products.value = products.value.filter(p => p && p.id !== editingProduct.value.id);
+                            editingProduct.value = null;
+                            alert('商品已隱藏，資料仍保留於系統紀錄');
+                        } catch(e) { console.error(e); alert('商品刪除失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const handleProductImageUpload = (e) => {
+                        const file = e.target.files[0];
+                        if (!file || !editingProduct.value) return;
+                        isImageUploading.value = true;
+                        const reader = new FileReader();
+                        reader.onload = async (f) => {
+                            try {
+                                const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result });
+                                if (res && res.url) editingProduct.value.image = res.url;
+                            } catch(e) {
+                                console.error(e);
+                                alert('商品圖片上傳失敗：' + e.message);
+                            } finally {
+                                isImageUploading.value = false;
+                                e.target.value = '';
+                            }
+                        };
+                        reader.onerror = () => {
+                            isImageUploading.value = false;
+                            alert('圖片讀取失敗，請換一張圖片再試');
+                        };
+                        reader.readAsDataURL(file);
+                    };
+
+                    const handleCourseImageUpload = (e) => {
+                        const file = e.target.files[0];
+                        if (!file || !editingCourse.value) return;
+                        isImageUploading.value = true;
+                        const reader = new FileReader();
+                        reader.onload = async (f) => {
+                            try {
+                                const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result });
+                                if (res && res.url) editingCourse.value.image = res.url;
+                            } catch(e) {
+                                console.error(e);
+                                alert('課程圖片上傳失敗：' + e.message);
+                            } finally {
+                                isImageUploading.value = false;
+                                e.target.value = '';
+                            }
+                        };
+                        reader.onerror = () => {
+                            isImageUploading.value = false;
+                            alert('圖片讀取失敗，請換一張圖片再試');
+                        };
+                        reader.readAsDataURL(file);
+                    };
+
+                    const uploadImageFile = (file, assignUrl, errorLabel, inputEl) => {
+                        if (!file) return;
+                        isImageUploading.value = true;
+                        const reader = new FileReader();
+                        reader.onload = async (f) => {
+                            try {
+                                const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result });
+                                if (res && res.url) assignUrl(res.url);
+                            } catch(e) {
+                                console.error(e);
+                                alert(`${errorLabel}上傳失敗：${e.message}`);
+                            } finally {
+                                isImageUploading.value = false;
+                                if (inputEl) inputEl.value = '';
+                            }
+                        };
+                        reader.onerror = () => {
+                            isImageUploading.value = false;
+                            alert('圖片讀取失敗，請換一張圖片再試');
+                            if (inputEl) inputEl.value = '';
+                        };
+                        reader.readAsDataURL(file);
+                    };
+
+                    const handleFlexRuleImageUpload = (e) => {
+                        const file = e.target.files[0];
+                        if (!file || !editingFlexRule.value) return;
+                        uploadImageFile(file, (url) => {
+                            editingFlexRule.value.payload = url;
+                            editingFlexRule.value.previewImageUrl = url;
+                        }, '模組圖片', e.target);
+                    };
+
+                    const importWpProducts = async () => {
+                        if (!wpImportForm.value.username || !wpImportForm.value.appPassword || !wpImportForm.value.postIds) {
+                            alert('請填寫 WordPress 帳號、Application Password 與商品 Post ID');
+                            return;
+                        }
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_IMPORT_WP_PRODUCTS', {
+                                siteUrl: wpImportForm.value.siteUrl,
+                                username: wpImportForm.value.username,
+                                appPassword: wpImportForm.value.appPassword,
+                                postIds: wpImportForm.value.postIds,
+                                mode: wpImportForm.value.mode
+                            });
+                            if (res && res.imported) {
+                                products.value = res.count ? (await callApi('ADMIN_GET_DATA', {}, true)).products || products.value : products.value;
+                                const errorText = res.errors && res.errors.length ? `\n\n未匯入：\n${res.errors.map(e => `${e.postId}: ${e.message}`).join('\n')}` : '';
+                                alert(`已匯入 ${res.imported.length} 筆 WP 商品${errorText}`);
+                            }
+                        } catch(e) {
+                            console.error(e);
+                            alert('WP 商品匯入失敗：' + e.message);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const syncToCalendar = async (c) => {
+                        isLoading.value = true;
+                        try { await callApi('ADMIN_SYNC_CALENDAR', { courseId: c.id }); alert('日曆同步成功'); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const handleBannerUpload = (e) => {
+                        const file = e.target.files[0];
+                        if(!file) return;
+                        isImageUploading.value = true;
+                        const reader = new FileReader();
+                        reader.onload = async (f) => {
+                            try {
+                                const res = await callApi('UPLOAD_IMAGE', { imageBase64: f.target.result });
+                                if(res && res.url) sysSettings.value.banner_image = res.url;
+                            } catch(e) { console.error(e); } finally { isImageUploading.value = false; }
+                        };
+                        reader.readAsDataURL(file);
+                    };
+
+                    const saveSettings = async () => {
+                        isLoading.value = true;
+                        try {
+                            sysSettings.value = normalizeSystemSettings(sysSettings.value);
+                            const res = await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value);
+                            if(res) alert('✅ 設定儲存成功！');
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const addCourseLocation = async () => {
+                        const current = String(editingCourse.value?.location || '').trim();
+                        const input = window.prompt('請輸入要新增的上課地點', current);
+                        const location = String(input || '').trim();
+                        if (!location) return;
+                        const next = Array.from(new Set([...courseLocationOptions.value, location]));
+                        sysSettings.value.course_locations = next;
+                        if (editingCourse.value) editingCourse.value.location = location;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_UPDATE_SETTINGS', sysSettings.value);
+                            if (res) alert('地點已新增');
+                        } catch(e) {
+                            console.error(e);
+                            alert('新增地點失敗：' + e.message);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const openEnrollments = (c) => {
+                        activeEnrollmentCourse.value = JSON.parse(JSON.stringify(c));
+                        courseOrders.value = activeCourseOrders(c);
+                    };
+                    
+                    const openCourseOrdersModal = (course) => {
+                        selectedCourseForOrders.value = course;
+                        selectedCourseOrders.value = orders.value.filter(o => o && (o.courseId === course.id || o.courseId === course.name) && !['CANCELLED', 'TRANSFERRED'].includes(String(o.status || ''))).sort((a, b) => {
+                            const tA = new Date(String(a.createdAt).replace(/-/g, '/')).getTime() || 0;
+                            const tB = new Date(String(b.createdAt).replace(/-/g, '/')).getTime() || 0;
+                            return tB - tA;
+                        });
+                        showOrdersModal.value = true;
+                    };
+
+                    const openTeacherReservationCourses = (teacher) => {
+                        selectedTeacherForReservation.value = teacher;
+                        showReservationCourseModal.value = true;
+                    };
+
+                    const editReservationCourseFromTeacher = (course) => {
+                        showReservationCourseModal.value = false;
+                        openEditModal(course);
+                    };
+
+                    const generateCheckinLink = async (c) => {
+                        if(!c.checkinPwd) return alert('請先填寫密碼');
+                        isLoading.value = true;
+                        try { await callApi('ADMIN_SET_CHECKIN_PWD', { courseId: c.id, checkinPwd: c.checkinPwd }); alert('簽到密碼更新成功'); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const updateOrderAttendance = async (o) => {
+                        isLoading.value = true;
+                        try { await callApi('ADMIN_UPDATE_ORDER', { orderId: o.orderId, attendance: o.attendance }); } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const openOrderEditModal = (o) => {
+                        editingOrder.value = JSON.parse(JSON.stringify(o));
+                        if (isPaidOrder(editingOrder.value)) editingOrder.value.status = 'PAID';
+                        transferTargetCourseId.value = '';
+                        transferReason.value = '';
+                        transferConfirmed.value = false;
+                    };
+
+                    const saveOrderUpdate = async () => {
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_UPDATE_ORDER', { orderId: editingOrder.value.orderId, status: editingOrder.value.status, amount: editingOrder.value.amount, note: editingOrder.value.note });
+                            if(res) {
+                                alert('✅ 訂單更新成功');
+                                const savedOrder = res.order || editingOrder.value;
+                                const idx = orders.value.findIndex(o => o && o.orderId === savedOrder.orderId);
+                                if (idx > -1) {
+                                    orders.value[idx] = { ...orders.value[idx], ...savedOrder };
+                                }
+                                editingOrder.value = null;
+                            }
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const transferOrderCourse = async () => {
+                        if (!canTransferEditingOrder.value) return alert('只有 Admin 可以執行轉課');
+                        if (!transferTargetCourseId.value) return alert('請選擇要轉入的課程');
+                        if (!transferReason.value.trim()) return alert('請填寫轉課原因');
+                        if (!transferConfirmed.value) return alert('請先勾選確認轉課影響');
+                        const target = courses.value.find(c => c && c.id === transferTargetCourseId.value);
+                        const targetName = target ? String(target.name || '').split('\n')[0] : transferTargetCourseId.value;
+                        if (!confirm(`確認將訂單 ${editingOrder.value.orderId} 轉到「${targetName}」？\n\n原訂單會標記為已轉課，系統會建立一筆新訂單承接付款與點數紀錄。`)) return;
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_TRANSFER_ORDER_COURSE', {
+                                orderId: editingOrder.value.orderId,
+                                targetCourseId: transferTargetCourseId.value,
+                                reason: transferReason.value.trim()
+                            });
+                            if (res?.orders) orders.value = res.orders;
+                            else if (res?.sourceOrder || res?.newOrder) {
+                                if (res.sourceOrder) {
+                                    const sourceIdx = orders.value.findIndex(o => o && o.orderId === res.sourceOrder.orderId);
+                                    if (sourceIdx > -1) orders.value[sourceIdx] = res.sourceOrder;
+                                }
+                                if (res.newOrder && !orders.value.some(o => o && o.orderId === res.newOrder.orderId)) orders.value.unshift(res.newOrder);
+                            }
+                            if (res?.courses) courses.value = res.courses;
+                            alert('✅ 轉課完成，已建立新訂單並保留原訂單紀錄');
+                            editingOrder.value = null;
+                            transferTargetCourseId.value = '';
+                            transferReason.value = '';
+                            transferConfirmed.value = false;
+                        } catch(e) {
+                            console.error(e);
+                            alert('轉課失敗：' + e.message);
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    };
+
+                    const openSysConfigModal = (t) => {
+                        editingSysConfig.value = { userId: t.userId, name: t.name, rent: t.config?.rent || 0, comm: t.config?.comm || 0, price: t.config?.price || 0, acceptPoints: t.config?.acceptPoints || false, maxPoints: t.config?.maxPoints || 0 };
+                    };
+
+                    const saveSysConfig = async () => {
+                        isLoading.value = true;
+                        try {
+                            const teacherObj = users.value.find(u => u && u.userId === editingSysConfig.value.userId);
+                            if (teacherObj) {
+                                teacherObj.config = { rent: editingSysConfig.value.rent, comm: editingSysConfig.value.comm, price: editingSysConfig.value.price, acceptPoints: editingSysConfig.value.acceptPoints, maxPoints: editingSysConfig.value.maxPoints };
+                                const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData: teacherObj });
+                                alert('✅ 抽成設定更新成功');
+                                const savedTeacher = res?.memberData || teacherObj;
+                                const savedCopy = JSON.parse(JSON.stringify(savedTeacher));
+                                const teacherIdx = teachers.value.findIndex(t => t && t.userId === savedCopy.userId);
+                                if (teacherIdx > -1) teachers.value[teacherIdx] = savedCopy;
+                                const userIdx = users.value.findIndex(u => u && u.userId === savedCopy.userId);
+                                if (userIdx > -1) users.value[userIdx] = savedCopy;
+                                editingSysConfig.value = null;
+                            }
+                        } catch(e) { console.error(e); alert('儲存失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const handleApproveTeacher = async () => {
+                        isLoading.value = true;
+                        try {
+                            const res = await callApi('ADMIN_APPROVE_TEACHER', { teacherUid: approveForm.value.uid, rentPrice: approveForm.value.rent, commissionRate: approveForm.value.comm });
+                            if(res) {
+                                const savedTeacher = res.memberData;
+                                if (savedTeacher?.userId) {
+                                    const savedCopy = JSON.parse(JSON.stringify(savedTeacher));
+                                    const userIdx = users.value.findIndex(u => u && u.userId === savedCopy.userId);
+                                    if (userIdx > -1) users.value[userIdx] = savedCopy;
+                                    else users.value.unshift(savedCopy);
+                                    const teacherIdx = teachers.value.findIndex(t => t && t.userId === savedCopy.userId);
+                                    if (teacherIdx > -1) teachers.value[teacherIdx] = savedCopy;
+                                    else teachers.value.unshift(savedCopy);
+                                }
+                                alert('導師核准成功');
+                                approveForm.value = { uid: '', rent: 0, comm: 0 };
+                            }
+                        } catch(e) { console.error(e); } finally { isLoading.value = false; }
+                    };
+
+                    const removeTeacher = async (teacher) => {
+                        if (!teacher?.userId) return;
+                        if (!confirm(`確定要將「${teacher.name || teacher.userId}」移出活躍導師嗎？\n\n此操作會保留學員資料，但移除導師身份與導師收費設定。`)) return;
+                        isLoading.value = true;
+                        try {
+                            const memberData = JSON.parse(JSON.stringify(users.value.find(u => u && u.userId === teacher.userId) || teacher));
+                            delete memberData.config;
+                            memberData.isTeacher = false;
+                            if (memberData.role === 'teacher') memberData.role = 'member';
+                            memberData.memberTier = '一般會員';
+                            const res = await callApi('ADMIN_UPDATE_MEMBER', { memberData });
+                            if (res) {
+                                teachers.value = teachers.value.filter(t => t && t.userId !== teacher.userId);
+                                const user = users.value.find(u => u && u.userId === teacher.userId);
+                                if (user) {
+                                    delete user.config;
+                                    user.isTeacher = false;
+                                    if (user.role === 'teacher') user.role = 'member';
+                                    user.memberTier = '一般會員';
+                                }
+                                alert('已移除導師資格');
+                            }
+                        } catch(e) { console.error(e); alert('移除失敗：' + e.message); } finally { isLoading.value = false; }
+                    };
+
+                    const normalizeFlexRuleForm = (rule = {}) => {
+                        const next = JSON.parse(JSON.stringify(rule || {}));
+                        next.replyType = next.replyType || 'FLEX';
+                        next.flexTemplate = next.flexTemplate || 'v1';
+                        next.altText = next.altText || next.moduleName || next.keyword || '';
+                        next.bodyText = next.bodyText || '';
+                        next.buttonText = next.buttonText || '立即查看';
+                        next.imageUrl = next.imageUrl || next.previewImageUrl || '';
+                        next.videoUrl = next.videoUrl || '';
+                        next.actionUrl = next.actionUrl || '';
+                        next.flexJson = next.flexJson || '';
+                        if (next.replyType === 'FLEX' && next.payload && !next.flexJson && !next.bodyText && !next.imageUrl) {
+                            next.flexJson = next.payload;
+                        }
+                        return next;
+                    };
+
+                    const getMylittlesysFrameWindow = () => {
+                        const iframe = mylittlesysFlexFrame.value;
+                        if (!iframe || !iframe.contentWindow) return null;
+                        try {
+                            void iframe.contentWindow.document;
+                            return iframe.contentWindow;
+                        } catch (e) {
+                            return null;
+                        }
+                    };
+
+                    const openMylittlesysTemplate = (template) => {
+                        if (!editingFlexRule.value) return;
+                        editingFlexRule.value.flexTemplate = template || 'v1';
+                        activeMylittlesysFlexMode.value = editingFlexRule.value.flexTemplate;
+                        const win = getMylittlesysFrameWindow();
+                        if (!win || typeof win.createNewFlex !== 'function') return;
+                        try {
+                            win.createNewFlex(editingFlexRule.value.flexTemplate);
+                            const nameInput = win.document.getElementById('save-filename');
+                            if (nameInput) nameInput.value = editingFlexRule.value.moduleName || nameInput.value || 'ACTION';
+                        } catch (e) {
+                            console.warn('mylittlesys template open failed', e);
+                        }
+                    };
+
+                    const syncMylittlesysFlexFrame = () => {
+                        if (!editingFlexRule.value || editingFlexRule.value.replyType !== 'FLEX') return;
+                        setTimeout(() => {
+                            const form = editingFlexRule.value;
+                            if (!form || form.replyType !== 'FLEX') return;
+                            activeMylittlesysFlexMode.value = form.flexTemplate || activeMylittlesysFlexMode.value || 'v1';
+                            const win = getMylittlesysFrameWindow();
+                            const raw = String(form.flexJson || form.payload || '').trim();
+                            if (win && raw && typeof win.loadMylittlesysFlexJson === 'function') {
+                                const loaded = win.loadMylittlesysFlexJson(raw, form.moduleName || form.keyword || 'ACTION', form.flexTemplate || 'v1');
+                                if (loaded) return;
+                            }
+                            openMylittlesysTemplate(form.flexTemplate || 'v1');
+                        }, 300);
+                    };
+
+                    const captureMylittlesysFlexJson = () => {
+                        if (!editingFlexRule.value) return false;
+                        const win = getMylittlesysFrameWindow();
+                        if (!win) return false;
+                        try {
+                            const raw = typeof win.getMylittlesysFlexJson === 'function'
+                                ? String(win.getMylittlesysFlexJson() || '').trim()
+                                : String(win.document.getElementById('json-output')?.value || '').trim();
+                            if (!raw) return false;
+                            JSON.parse(raw);
+                            editingFlexRule.value.flexJson = raw;
+                            editingFlexRule.value.payload = raw;
+                            const nameInput = win.document.getElementById('save-filename');
+                            if (nameInput?.value && !editingFlexRule.value.moduleName) editingFlexRule.value.moduleName = nameInput.value;
+                            return true;
+                        } catch (e) {
+                            alert('mylittlesys JSON 讀取失敗：' + e.message);
+                            return false;
+                        }
+                    };
+
+                    const openEditFlexRule = (rule) => {
+                        if (rule) {
+                            editingFlexRule.value = normalizeFlexRuleForm(rule);
+                        } else {
+                            editingFlexRule.value = normalizeFlexRuleForm({
+                                id: 'FR_' + Date.now(),
+                                moduleName: '',
+                                keyword: '',
+                                replyType: 'FLEX',
+                                payload: '',
+                                previewImageUrl: '',
+                                active: true
+                            });
+                        }
+                        if (editingFlexRule.value?.replyType === 'FLEX') {
+                            activeMylittlesysFlexMode.value = editingFlexRule.value.flexTemplate || 'v1';
+                        }
+                    };
+
+                    const duplicateFlexRule = (rule) => {
+                        const suffix = String(Date.now()).slice(-6);
+                        const copied = normalizeFlexRuleForm(rule || {});
+                        delete copied.createdAt;
+                        delete copied.updatedAt;
+                        copied.id = 'FR_' + Date.now();
+                        copied.moduleName = `${copied.moduleName || copied.keyword || '模組'} (複製)`;
+                        if (copied.keyword) copied.keyword = `${copied.keyword}_copy_${suffix}`;
+                        if (copied.altText && copied.altText === (rule?.moduleName || rule?.keyword)) {
+                            copied.altText = copied.moduleName;
+                        }
+                        editingFlexRule.value = copied;
+                        if (copied.replyType === 'FLEX') {
+                            activeMylittlesysFlexMode.value = copied.flexTemplate || 'v1';
+                        }
                     };
 
                     const openNewFlexRule = (replyType = 'FLEX', template = 'v1') => {
@@ -3055,9 +4067,9 @@
                             alert("⚠️ 請先在「系統設定」綁定您的系統主 LIFF ID，系統才能為您產生專屬連結喔！");
                             return;
                         }
-
+                        
                         const baseLiff = `https://liff.line.me/${cleanLiffId}`;
-
+                        
                         const template = {
                           "type": "bubble",
                           "size": "giga",
@@ -3336,7 +4348,7 @@
                             "paddingAll": "20px"
                           }
                         };
-
+                        
                         editingFlexRule.value.moduleName = editingFlexRule.value.moduleName || "ACTION會員專區卡片";
                         editingFlexRule.value.keyword = "ACTION會員專區";
                         editingFlexRule.value.replyType = "FLEX";
@@ -3344,7 +4356,7 @@
                         editingFlexRule.value.altText = "會員專區";
                         editingFlexRule.value.flexJson = JSON.stringify(template, null, 2);
                         editingFlexRule.value.payload = JSON.stringify(template, null, 2);
-
+                        
                         alert("✅ 範本已成功載入！\n所有的按鈕連結已經自動換成了您的專屬 LIFF 網址。\n\n請確認內容無誤後，點擊右下角「儲存觸發規則」即可生效。");
                     };
 
@@ -3365,7 +4377,7 @@
 
                     return {
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, courseStageOptions, productStatusOptions,
-                        users, videos, videoSearchQuery, showDeletedVideos, showVideoModal, editingVideo, videoForm, filteredVideos, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, auditLogs, broadcastTags, broadcastCampaigns, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
+                        users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, auditLogs, broadcastTags, broadcastCampaigns, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
                         mylittlesysFlexFrame, mylittlesysFlexUrl,
                         currentAccess, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile, activeReferrerName,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText, adminOrderPaymentText, orderCourseName,
@@ -3388,7 +4400,7 @@
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadMemberReport, downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, loadVideosAdmin, openNewVideoModal, openEditVideoModal, saveVideo, hideVideo, videoThumbUrl, videoSourceUrl, videoDisplayTitle, openNewFlexRule, openEditFlexRule, duplicateFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, openMylittlesysTemplate, syncMylittlesysFlexFrame, captureMylittlesysFlexJson, formatFlexRuleDate, syncWPPointsFromCRM
+                        downloadMemberReport, downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, syncVideosToWasabi, openNewFlexRule, openEditFlexRule, duplicateFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, openMylittlesysTemplate, syncMylittlesysFlexFrame, captureMylittlesysFlexJson, formatFlexRuleDate, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
