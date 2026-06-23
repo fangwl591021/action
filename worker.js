@@ -364,11 +364,11 @@ function decodeHtmlText(value) {
 function isVideoDriveFile(file = {}) {
   const mime = String(file.mimeType || "").toLowerCase();
   const name = String(file.name || "").toLowerCase();
-  return mime === "video/mp4" || /\.mp4$/i.test(name);
+  return mime.startsWith("video/") || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(name);
 }
 
 function stripVideoExtension(name) {
-  return String(name || "").replace(/\.mp4$/i, "").trim();
+  return String(name || "").replace(/\.(mp4|mov|m4v|webm|avi|mkv)$/i, "").trim();
 }
 
 function parseDriveVideoMeta(name) {
@@ -381,45 +381,17 @@ function parseDriveVideoMeta(name) {
   return { title: clean || "未命名影片", teacher: "未分類", episode: 0 };
 }
 
-function drivePreviewUrl(fileId) {
-  return `https://drive.google.com/file/d/${fileId}/preview`;
-}
-
-function driveFileSortNumber(file = {}) {
-  const clean = stripVideoExtension(file.name || "");
-  const matches = Array.from(clean.matchAll(/(\d+)/g));
-  if (!matches.length) return Number.POSITIVE_INFINITY;
-  return Number(matches[matches.length - 1][1]);
-}
-
-function sortDriveVideoFiles(files = []) {
-  return [...files].sort((a, b) => {
-    const sortA = driveFileSortNumber(a);
-    const sortB = driveFileSortNumber(b);
-    if (sortA !== sortB) return sortA - sortB;
-    return String(a.name || "").localeCompare(String(b.name || ""), "zh-Hant", { numeric: true });
-  });
-}
-
 function parsePublicDriveFolderHtml(html) {
   const decoded = decodeHtmlText(html);
   const files = [];
   const seen = new Set();
-  const re = /\["([A-Za-z0-9_-]{20,})","([^"]+\.mp4)"/gi;
+  const re = /\["([A-Za-z0-9_-]{20,})","([^"]+\.(?:mp4|mov|m4v|webm|avi|mkv))"/gi;
   let match;
   while ((match = re.exec(decoded))) {
     const id = match[1];
     if (seen.has(id)) continue;
     seen.add(id);
-        files.push({
-      id,
-      name: decodeHtmlText(match[2]),
-      mimeType: "video/mp4",
-      size: "",
-      createdTime: null,
-      modifiedTime: null,
-      thumbnailLink: "",
-    });
+    files.push({ id, name: decodeHtmlText(match[2]), mimeType: "video/*", modifiedTime: null, thumbnailLink: "" });
   }
   return files;
 }
@@ -432,7 +404,7 @@ async function fetchDriveFolderVideoFiles(env, folderInput) {
     const params = new URLSearchParams({
       key: apiKey,
       q: `'${folderId}' in parents and trashed = false`,
-      fields: "files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink)",
+      fields: "files(id,name,mimeType,modifiedTime,thumbnailLink)",
       pageSize: "1000",
       supportsAllDrives: "true",
       includeItemsFromAllDrives: "true",
@@ -455,42 +427,31 @@ async function fetchDriveFolderVideoFiles(env, folderInput) {
 
 async function syncDriveFolderVideos(env, folderInput) {
   const { folderId, source, files } = await fetchDriveFolderVideoFiles(env, folderInput);
-  const sortedFiles = sortDriveVideoFiles(files);
   const current = await safeGetVideos(env, { preferWasabi: false });
   const byDriveId = new Map(current.filter(v => v.driveFileId).map(v => [v.driveFileId, v]));
-  const activeDriveIds = new Set(sortedFiles.map(f => f.id));
-  const synced = sortedFiles.map((file, index) => {
+  const activeDriveIds = new Set(files.map(f => f.id));
+  const synced = files.map((file, index) => {
     const existing = byDriveId.get(file.id) || {};
     const meta = parseDriveVideoMeta(file.name);
-    const previewUrl = drivePreviewUrl(file.id);
     return {
       ...existing,
       id: existing.id || `VOD_DRIVE_${file.id.slice(0, 10)}`,
       title: meta.title,
       teacher: meta.teacher,
       episode: meta.episode || index + 1,
-      file_id: file.id,
-      mime_type: file.mimeType || "video/mp4",
-      size: file.size || existing.size || "",
-      created_time: file.createdTime || existing.created_time || existing.createdTime || "",
-      modified_time: file.modifiedTime || existing.modified_time || existing.modifiedTime || "",
-      preview_url: previewUrl,
-      previewUrl,
-      videoUrl: previewUrl,
-      viewUrl: previewUrl,
       driveFileId: file.id,
       sourceFolderId: folderId,
       thumbnailUrl: file.thumbnailLink || existing.thumbnailUrl || "",
       isPublished: true,
       updatedAt: new Date().toISOString(),
-      createdAt: existing.createdAt || (file.createdTime ? file.createdTime.slice(0, 10) : file.modifiedTime ? file.modifiedTime.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+      createdAt: existing.createdAt || (file.modifiedTime ? file.modifiedTime.slice(0, 10) : new Date().toISOString().slice(0, 10)),
     };
   });
   const manual = current.filter(v => !v.driveFileId);
   const hidden = current.filter(v => v.driveFileId && !activeDriveIds.has(v.driveFileId)).map(v => ({ ...v, isPublished: false, hiddenAt: new Date().toISOString() }));
   const next = [...synced, ...manual, ...hidden];
   await safePutVideos(env, next);
-  return { folderId, source, synced: synced.length, hidden: hidden.length, total: next.length, visible: next.filter(v => v.isPublished !== false).length, lessons: synced };
+  return { folderId, source, synced: synced.length, hidden: hidden.length, total: next.length, visible: next.filter(v => v.isPublished !== false).length };
 }
 async function safePutCourses(env, courses) {
   const normalized = Array.isArray(courses) ? courses : [];
@@ -4446,4 +4407,3 @@ export default {
     return new Response("OK", { status: 200 });
   }
 };
-
