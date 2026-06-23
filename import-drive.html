@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Google Drive 影片導入模組</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --line: #d9e2ef;
+      --text: #10213a;
+      --muted: #66758d;
+      --green: #06c755;
+      --green-dark: #009944;
+      --blue: #2563eb;
+      --red: #dc2626;
+      --amber: #b45309;
+      --shadow: 0 10px 25px rgba(16, 33, 58, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 22px 28px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(380px, 520px) minmax(0, 1fr);
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-body {
+      padding: 22px;
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    label {
+      display: block;
+      margin: 16px 0 8px;
+      color: #52637c;
+      font-weight: 900;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid #c7d3e3;
+      border-radius: 8px;
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      padding: 12px 14px;
+      background: #fff;
+      outline: none;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.12);
+    }
+
+    textarea {
+      min-height: 280px;
+      resize: vertical;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .hint {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .hint code {
+      color: var(--blue);
+      font-weight: 900;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 900;
+      padding: 11px 16px;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(16, 33, 58, 0.12);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .primary {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .secondary {
+      background: #eef5ff;
+      border-color: #bdd4ff;
+      color: var(--blue);
+    }
+
+    .dark {
+      background: #1d2939;
+      color: #fff;
+    }
+
+    .status {
+      margin-top: 16px;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-weight: 900;
+      min-height: 48px;
+    }
+
+    .status.info {
+      background: #eef5ff;
+      color: var(--blue);
+    }
+
+    .status.success {
+      background: #e9fbf0;
+      color: var(--green-dark);
+    }
+
+    .status.error {
+      background: #fff1f2;
+      color: var(--red);
+    }
+
+    .summary {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--line);
+      padding: 16px 18px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .summary strong {
+      color: var(--text);
+    }
+
+    .player {
+      display: grid;
+      grid-template-rows: auto minmax(260px, 58vh);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .player-title {
+      padding: 14px 18px;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #111827;
+    }
+
+    .lesson-layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .lesson-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 560px;
+      overflow: auto;
+    }
+
+    .lesson-item {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      text-align: left;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 12px;
+    }
+
+    .lesson-item.is-active {
+      background: #e9fbf0;
+      border-color: #8ee8b3;
+    }
+
+    .lesson-index {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: var(--green);
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .lesson-main {
+      min-width: 0;
+    }
+
+    .lesson-main strong,
+    .lesson-main small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .lesson-main small {
+      color: var(--muted);
+      margin-top: 2px;
+      font-weight: 700;
+    }
+
+    .empty {
+      border: 1px dashed #b9c7d9;
+      border-radius: 10px;
+      color: var(--muted);
+      padding: 22px;
+      text-align: center;
+      font-weight: 900;
+    }
+
+    @media (max-width: 1100px) {
+      main,
+      .lesson-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .player {
+        grid-template-rows: auto minmax(240px, 50vh);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Google Drive 影片導入模組</h1>
+    <div class="subtitle">讀取公開或 API Key 可存取的 Google Drive 資料夾，產生課程播放器使用的 lessons.json。</div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-body">
+        <h2 class="section-title">Drive 匯入設定</h2>
+
+        <label for="apiKey">Google Drive API Key</label>
+        <input id="apiKey" type="password" autocomplete="off" placeholder="貼上 Google Drive API Key">
+        <div class="hint">金鑰只在本頁瀏覽器使用，不會寫進 <code>lessons.json</code>。</div>
+
+        <label for="folderUrl">Google Drive 資料夾網址</label>
+        <input id="folderUrl" type="url" placeholder="https://drive.google.com/drive/folders/...">
+        <div class="hint">解析 folder_id：<code id="folderIdPreview">尚未輸入</code></div>
+
+        <div class="actions">
+          <button id="importBtn" class="primary" type="button">讀取 Drive 影片</button>
+          <button id="loadLocalBtn" class="secondary" type="button">載入現有 lessons.json</button>
+        </div>
+
+        <div id="status" class="status info">等待輸入資料夾網址。</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-body">
+        <h2 class="section-title">產生 lessons.json</h2>
+        <textarea id="jsonOutput" spellcheck="false" placeholder="匯入後會在這裡產生 JSON。"></textarea>
+        <div class="actions">
+          <button id="copyBtn" class="secondary" type="button">複製 JSON</button>
+          <button id="downloadBtn" class="dark" type="button">下載 lessons.json</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="grid-column: 1 / -1;">
+      <div id="summary" class="summary">
+        <strong>播放器預覽</strong>
+        <span>尚未載入影片</span>
+      </div>
+      <div class="player">
+        <div id="playerTitle" class="player-title">尚未選擇影片</div>
+        <iframe id="playerFrame" title="Google Drive 影片播放器" allow="autoplay; fullscreen" allowfullscreen></iframe>
+      </div>
+      <div class="lesson-layout">
+        <div>
+          <h2 class="section-title">影片清單</h2>
+          <div id="lessonList" class="lesson-list">
+            <div class="empty">目前沒有影片資料。</div>
+          </div>
+        </div>
+        <div>
+          <h2 class="section-title">使用方式</h2>
+          <p>匯入完成後，下載 <strong>lessons.json</strong> 並放到 <strong>data/lessons.json</strong>。課程播放器即可讀取這份檔案，點擊清單後用 Google Drive preview iframe 播放。</p>
+          <p>排序邏輯會抓檔名最後一組數字，例如 <strong>依潔老師-1.mp4</strong>、<strong>依潔老師-2.mp4</strong>、<strong>依潔老師-10.mp4</strong> 會依 1、2、10 排列。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/drive-importer.js"></script>
+</body>
+</html>

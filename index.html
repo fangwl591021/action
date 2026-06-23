@@ -167,21 +167,23 @@
                     <div class="p-4 space-y-4">
                         <div v-if="selectedVideo" class="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
                             <div class="w-full aspect-video bg-slate-900 flex items-center justify-center text-white">
-                                <div class="text-center">
+                                <iframe v-if="videoPlayerUrl(selectedVideo)" :src="videoPlayerUrl(selectedVideo)" class="w-full h-full border-0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+                                <div v-else class="text-center">
                                     <i class="fas fa-play-circle text-5xl text-[#06C755] mb-3"></i>
-                                    <div class="text-[14px] font-black">使用 Google Drive 官方播放器觀看</div>
-                                    <div class="text-[11px] font-bold text-slate-400 mt-1">避免頁內播放黑畫面</div>
+                                    <div class="text-[14px] font-black">尚未設定影片網址</div>
+                                    <div class="text-[11px] font-bold text-slate-400 mt-1">請回後台更新影片清單</div>
                                 </div>
                             </div>
                             <div class="p-4">
                                 <div class="text-[12px] font-black text-[#06C755] mb-1">{{ selectedVideo.teacher }} ・ 第 {{ selectedVideo.episode }} 集</div>
                                 <div class="text-[17px] font-black text-slate-900 leading-snug">{{ selectedVideo.title }}</div>
-                                <a :href="selectedVideo.viewUrl" target="_blank" rel="noopener" class="inline-flex mt-3 text-[13px] font-black text-white bg-[#06C755] px-4 py-2 rounded-full"><i class="fas fa-up-right-from-square mr-1.5"></i>開啟播放</a>
+                                <a v-if="videoPlayerUrl(selectedVideo)" :href="videoPlayerUrl(selectedVideo)" target="_blank" rel="noopener" class="inline-flex mt-3 text-[13px] font-black text-white bg-[#06C755] px-4 py-2 rounded-full"><i class="fas fa-up-right-from-square mr-1.5"></i>另開播放</a>
                             </div>
                         </div>
                         <div v-for="v in filteredVideos" :key="v.id" @click="openVideo(v)" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex gap-4 active:scale-[0.98] transition cursor-pointer" :class="selectedVideo?.id === v.id ? 'ring-2 ring-[#06C755]' : ''">
-                            <div class="w-24 aspect-video rounded-xl bg-slate-100 flex items-center justify-center text-[#06C755] shrink-0">
-                                <i class="fas fa-play-circle text-3xl"></i>
+                            <div class="w-24 aspect-video rounded-xl bg-slate-100 flex items-center justify-center text-[#06C755] shrink-0 overflow-hidden">
+                                <img v-if="v.thumbnailUrl" :src="v.thumbnailUrl" class="w-full h-full object-cover" alt="">
+                                <i v-else class="fas fa-play-circle text-3xl"></i>
                             </div>
                             <div class="min-w-0 flex-1">
                                 <div class="text-[13px] font-black text-slate-400 mb-1">{{ v.teacher }} ・ 第 {{ v.episode }} 集</div>
@@ -1245,9 +1247,12 @@
                         });
                     });
 
+                    const videoPlayerUrl = (video) => {
+                        return video?.preview_url || video?.previewUrl || video?.viewUrl || video?.videoUrl || '';
+                    };
+
                     const openVideo = (video) => {
                         selectedVideo.value = video;
-                        if (video?.viewUrl) window.open(video.viewUrl, '_blank', 'noopener');
                         window.scrollTo(0, 0);
                     };
 
@@ -1918,3 +1923,5 @@
     </script>
 </body>
 </html>
+
+
