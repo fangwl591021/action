@@ -123,7 +123,7 @@
                         <button v-if="canViewFinance" @click="downloadCourseReport" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i class="fas fa-list-alt mr-2"></i>課程報表下載</button>
                         <button v-if="canViewFinance && view === 'booking_report'" @click="downloadBookingReport" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-calendar-check mr-2"></i>預約報表下載</button>
                         <button @click="manualRefreshData" class="btn-outline"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新同步</button>
-                        <button v-if="isAdminRole" @click="syncVideosToWasabi" :disabled="isLoading" class="btn-outline text-sky-600 border-sky-200 bg-sky-50 hover:bg-sky-100 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fab fa-google-drive mr-2"></i>Drive影音同步</button>
+                        <button v-if="isAdminRole" @click="syncVideosToWasabi" :disabled="isLoading" class="btn-outline text-sky-600 border-sky-200 bg-sky-50 hover:bg-sky-100 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-video mr-2"></i>同步影音</button>
                         <button v-if="isAdminRole" @click="triggerBackup" class="btn-outline text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"><i class="fas fa-hdd mr-2"></i>資料備份</button>
                         <button v-if="isAdminRole" @click="runHealthCheck" class="btn-outline text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100"><i class="fas fa-stethoscope mr-2"></i>系統健檢</button>
                     </div>
@@ -2783,16 +2783,16 @@
                     };
 
                     const syncVideosToWasabi = async () => {
-                        if (!isAdminRole.value) return alert('Drive 影音同步僅限 Admin 使用');
-                        const defaultFolder = 'https://drive.google.com/drive/folders/1BxDaPdEaxk56Lyd7caTeIjyDbW9tcsrs';
-                        const folderUrl = prompt('請貼上 Google Drive 影音資料夾網址', defaultFolder);
-                        if (!folderUrl) return;
-                        if (!confirm('確定要從 Google Drive 讀取影片清單並更新系統影音資料？\n\n系統會新增/更新 Drive 內影片，並把不在資料夾內的舊 Drive 影片自動隱藏。')) return;
+                        if (!isAdminRole.value) return alert('影音同步僅限 Admin 使用');
+                        if (!confirm('確定要將目前後台影音清單同步到前台影音館？')) return;
                         isLoading.value = true;
                         try {
-                            const res = await callApi('ADMIN_SYNC_DRIVE_VIDEOS', { folderUrl });
+                            const res = await callApi('ADMIN_SYNC_VIDEOS_TO_WASABI', {});
                             wasabiCheck.value = await callApi('ADMIN_WASABI_CHECK', {});
-                            alert(`Drive 影音已同步：新增/更新 ${res.synced || 0} 筆，隱藏 ${res.hidden || 0} 筆，總計 ${res.total || 0} 筆（來源：${res.source || 'unknown'}）`);
+                            try {
+                                Object.keys(localStorage).filter(k => k.startsWith('videos_')).forEach(k => localStorage.removeItem(k));
+                            } catch(e) {}
+                            alert(`影音已同步：${res.count || 0} 筆，來源：後台影音清單`);
                         } finally {
                             isLoading.value = false;
                         }

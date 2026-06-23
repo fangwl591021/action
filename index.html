@@ -1068,7 +1068,7 @@
                             const cSets = localStorage.getItem(`sets_${CACHE_VERSION}`); if (cSets) sysSettings.value = JSON.parse(cSets);
                             const cCs = localStorage.getItem(`courses_${CACHE_VERSION}`); if (cCs) courses.value = JSON.parse(cCs);
                             const cPs = localStorage.getItem(`products_${CACHE_VERSION}`); if (cPs) products.value = JSON.parse(cPs);
-                            const cVs = localStorage.getItem(`videos_${CACHE_VERSION}`); if (cVs) { videos.value = JSON.parse(cVs); if (!selectedVideo.value && videos.value.length) selectedVideo.value = videos.value[0]; }
+                            // 影音清單以後台同步資料為準，避免舊快取讓前台影音館顯示過期內容。
                             if (uid) {
                                 const cU = localStorage.getItem(`u_${uid}_${CACHE_VERSION}`); if (cU) userStatus.value = JSON.parse(cU);
                                 const cP = localStorage.getItem(`p_${uid}_${CACHE_VERSION}`); if (cP) userPoints.value = JSON.parse(cP);
@@ -1150,8 +1150,12 @@
                             if (pData) userPoints.value = pData;
                             if (productData) products.value = productData;
                             if (videoData) {
+                                const currentVideoKey = selectedVideo.value ? String(selectedVideo.value.id || selectedVideo.value.driveFileId || selectedVideo.value.videoUrl || '') : '';
                                 videos.value = videoData;
-                                if (!selectedVideo.value && videos.value.length) selectedVideo.value = videos.value[0];
+                                selectedVideo.value = videos.value.find(v => String(v.id || v.driveFileId || v.videoUrl || '') === currentVideoKey) || videos.value[0] || null;
+                                try {
+                                    Object.keys(localStorage).filter(k => k.startsWith('videos_')).forEach(k => localStorage.removeItem(k));
+                                } catch(e) {}
                             }
 
                             if (uid) {
@@ -1160,7 +1164,7 @@
                                     localStorage.setItem(`p_${uid}_${CACHE_VERSION}`, JSON.stringify(pData));
                                     localStorage.setItem(`courses_${CACHE_VERSION}`, JSON.stringify(cData));
                                     localStorage.setItem(`products_${CACHE_VERSION}`, JSON.stringify(productData));
-                                    localStorage.setItem(`videos_${CACHE_VERSION}`, JSON.stringify(videoData));
+                                    // 不保存影音清單快取，確保後台同步後前台立即讀取最新資料。
                                 } catch(e) { console.warn('LocalStorage limit reached in initApp'); }
                             }
                             
