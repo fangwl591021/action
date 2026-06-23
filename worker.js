@@ -2498,12 +2498,24 @@ export default {
         case "GET_VIDEOS": {
           const videos = await safeGetVideos(env);
           result.data = videos
-            .filter(v => v && v.isPublished !== false && v.driveFileId)
-            .map(v => ({
-              ...v,
-              previewUrl: `https://drive.google.com/file/d/${v.driveFileId}/preview`,
-              viewUrl: `https://drive.google.com/file/d/${v.driveFileId}/view`,
-            }));
+            .filter(v => {
+              if (!v || v.isPublished === false) return false;
+              return !!String(v.driveFileId || v.videoUrl || v.previewUrl || v.viewUrl || "").trim();
+            })
+            .map(v => {
+              const driveFileId = String(v.driveFileId || "").trim();
+              const manualVideoUrl = String(v.videoUrl || v.previewUrl || v.viewUrl || "").trim();
+              const drivePreviewUrl = driveFileId ? `https://drive.google.com/file/d/${driveFileId}/preview` : "";
+              const driveViewUrl = driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view` : "";
+              const previewUrl = String(v.previewUrl || "").trim() || drivePreviewUrl || manualVideoUrl;
+              const viewUrl = String(v.viewUrl || "").trim() || driveViewUrl || manualVideoUrl || previewUrl;
+              return {
+                ...v,
+                previewUrl,
+                viewUrl,
+                videoUrl: String(v.videoUrl || "").trim() || manualVideoUrl || viewUrl,
+              };
+            });
           break;
         }
 
