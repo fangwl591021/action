@@ -773,7 +773,7 @@
 
     <script>
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/'; 
-        const CACHE_VERSION = 'v257';
+        const CACHE_VERSION = 'v258';
 
         const initVueApp = () => {
             if (typeof Vue === 'undefined') {
@@ -1135,13 +1135,17 @@
 
                             syncLocal(uid);
 
+                            const safeApi = (action, payload = {}) => callApi(action, payload, true).catch(e => {
+                                console.warn(`${action} failed during init`, e);
+                                return null;
+                            });
                             const [checkRes, cData, oData, pData, productData, videoData] = await Promise.all([
-                                callApi('CHECK_USER', {}, true), 
-                                callApi('GET_COURSES', {}, true), 
-                                callApi('GET_USER_ORDERS', {}, true), 
-                                callApi('GET_USER_POINTS', {}, true),
-                                callApi('GET_PRODUCTS', {}, true),
-                                callApi('GET_VIDEOS', {}, true)
+                                safeApi('CHECK_USER'),
+                                safeApi('GET_COURSES'),
+                                safeApi('GET_USER_ORDERS'),
+                                safeApi('GET_USER_POINTS'),
+                                safeApi('GET_PRODUCTS'),
+                                safeApi('GET_VIDEOS')
                             ]);
 
                             if (checkRes) userStatus.value = checkRes;
