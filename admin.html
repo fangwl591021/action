@@ -3920,13 +3920,19 @@
                         const win = getMylittlesysFrameWindow();
                         if (!win) return false;
                         try {
+                            const selectedFlexTemplate = applyFlexTemplateFields(
+                                editingFlexRule.value,
+                                editingFlexRule.value.flexTemplate || activeMylittlesysFlexMode.value || 'v1'
+                            );
+                            activeMylittlesysFlexMode.value = selectedFlexTemplate;
                             const raw = typeof win.getMylittlesysFlexJson === 'function'
-                                ? String(win.getMylittlesysFlexJson() || '').trim()
+                                ? String(win.getMylittlesysFlexJson(selectedFlexTemplate) || '').trim()
                                 : String(win.document.getElementById('json-output')?.value || '').trim();
                             if (!raw) return false;
                             JSON.parse(raw);
                             editingFlexRule.value.flexJson = raw;
                             editingFlexRule.value.payload = raw;
+                            applyFlexTemplateFields(editingFlexRule.value, selectedFlexTemplate);
                             const nameInput = win.document.getElementById('save-filename');
                             if (nameInput?.value && !editingFlexRule.value.moduleName) editingFlexRule.value.moduleName = nameInput.value;
                             return true;
@@ -4007,7 +4013,13 @@
                     };
 
                     const saveFlexRule = async () => {
+                        let selectedFlexTemplate = null;
                         if (editingFlexRule.value.replyType === 'FLEX') {
+                            selectedFlexTemplate = applyFlexTemplateFields(
+                                editingFlexRule.value,
+                                editingFlexRule.value.flexTemplate || activeMylittlesysFlexMode.value || 'v1'
+                            );
+                            activeMylittlesysFlexMode.value = selectedFlexTemplate;
                             const hasCapturedFlex = captureMylittlesysFlexJson();
                             if (!hasCapturedFlex && !String(editingFlexRule.value.flexJson || editingFlexRule.value.payload || '').trim()) {
                                 return alert('尚未取得自由版 Flex JSON，請先確認編輯器已載入完成，或按「抓取 JSON」。');
@@ -4039,6 +4051,7 @@
                             createdAt: editingFlexRule.value.createdAt || nowIso,
                             updatedAt: nowIso
                         });
+                        if (selectedFlexTemplate) applyFlexTemplateFields(ruleToSave, selectedFlexTemplate);
                         let saved = false;
                         isLoading.value = true;
                         try {

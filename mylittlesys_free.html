@@ -4375,9 +4375,22 @@
   </style>
   <script>
     (function bootActionFreeFlexEditor() {
-      function readFlexJson() {
+      function readFlexJson(modeOverride) {
+        var requestedMode = String(modeOverride || currentWorkspace || "").toLowerCase();
+        if (!["v0","v1","v2","v3","v4"].includes(requestedMode)) requestedMode = "v1";
         var output = document.getElementById("json-output");
+        if (requestedMode === "v0" && typeof window.updateV0Preview === "function") {
+          window.updateV0Preview();
+        }
         var raw = output && output.value ? String(output.value).trim() : "";
+        if (!raw && requestedMode === "v0" && typeof window.generateFlexJson_v0 === "function") {
+          raw = JSON.stringify(window.generateFlexJson_v0(), null, 2);
+          if (output) output.value = raw;
+        }
+        if (!raw && typeof window["loadFlexTemplate_" + requestedMode] === "function") {
+          window["loadFlexTemplate_" + requestedMode]();
+          raw = output && output.value ? String(output.value).trim() : "";
+        }
         if (!raw && typeof window.loadFlexTemplate_v1 === "function") {
           window.loadFlexTemplate_v1();
           raw = output && output.value ? String(output.value).trim() : "";
@@ -4440,7 +4453,7 @@
         window.loadMylittlesysFlexJson = loadFlexJson;
         window.saveFile = function saveFreeFlexOnly() {
           try {
-            readFlexJson();
+            readFlexJson(currentWorkspace);
             if (typeof showToast === "function") showToast("JSON 已更新，可回到外層儲存模組");
           } catch (error) {
             alert(error && error.message ? error.message : String(error));
