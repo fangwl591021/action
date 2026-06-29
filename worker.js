@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Project: 人生進化 ACTION - Backend Engine (Full Integration)
  * Version: 2026.04.26.V17_Bulletproof_KV_Rescue
  * Developer: 勝利團隊 - 小李 (Backend)
@@ -3334,7 +3334,7 @@ export default {
           const payloadText = String(payload?.payload || "").trim();
           if (!payloadText) throw new Error("請輸入模組內容");
           const rawFlexTemplate = String(payload?.flexTemplate || payload?.templateVersion || payload?.moduleVersion || payload?.flexVersion || payload?.editorVersion || "v1").trim().toLowerCase();
-          const flexTemplate = /^v[0-5]$/.test(rawFlexTemplate) ? rawFlexTemplate : "v1";
+          const flexTemplate = /^v[0-4]$/.test(rawFlexTemplate) ? rawFlexTemplate : "v1";
           const nowIso = new Date().toISOString();
           const rule = {
             id: String(payload?.id || `FR_${Date.now()}`).trim(),
