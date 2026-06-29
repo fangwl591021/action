@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -2740,26 +2740,39 @@
                     const sendPaidBroadcast = async (testMode = false) => {
                         if (!broadcastForm.value.title.trim()) return alert('請輸入推播名稱');
                         let messages = [];
-                        try { messages = buildBroadcastMessages(); }
-                        catch (e) { return alert('推播內容錯誤：' + e.message); }
-                        const count = selectedBroadcastAudience.value.length;
-                        if (!testMode && !count) return alert('目前受眾為 0，無法推播');
+                        try {
+                            messages = buildBroadcastMessages();
+                        } catch (e) {
+                            return alert('推播內容錯誤：' + e.message);
+                        }
+
+                        const selected = selectedBroadcastAudience.value || [];
+                        const count = selected.length;
+                        if (!count) return alert(testMode ? '請先勾選至少 1 位測試收件人' : '目前受眾為 0，無法推播');
+                        if (testMode && count > 20) return alert('測試訊息一次最多發送 20 位，請縮小勾選名單。');
+
                         if (testMode) {
-                            if (!confirm('測試訊息會使用 LINE 官方格式驗證，不會實際發送給任何人，也不會消耗推播額度。\n\n確定要驗證目前訊息內容？')) return;
-                        } else if (!confirm(`確定要推播給 ${count} 位會員？\n\n送出後會直接透過 LINE OA 發送，請確認文字與受眾條件。`)) return;
+                            if (!confirm(`測試訊息會實際發送給目前勾選的 ${count} 位名單，不會建立正式推播紀錄。\n\n確定要發送測試訊息？`)) return;
+                        } else if (!confirm(`確定要推播給 ${count} 位會員？\n\n送出後會直接透過 LINE OA 發送，請確認文字與受眾條件。`)) {
+                            return;
+                        }
+
                         isLoading.value = true;
                         try {
-                            const action = testMode ? 'ADMIN_VALIDATE_PAID_BROADCAST' : 'ADMIN_SEND_PAID_BROADCAST';
+                            const action = testMode ? 'ADMIN_SEND_PAID_BROADCAST_TEST' : 'ADMIN_SEND_PAID_BROADCAST';
                             const data = await callApi(action, {
                                 title: broadcastForm.value.title,
                                 message: broadcastForm.value.message,
                                 messages,
                                 audience: broadcastForm.value.audience,
-                                selectedUids: testMode ? [] : selectedBroadcastAudience.value.map(member => member.userId),
+                                selectedUids: selected.map(member => member.userId || member.uid || member.id).filter(Boolean),
                                 testMode,
                             });
                             if (testMode) {
-                                alert(data?.message || 'LINE 官方格式驗證通過；未實際發送。');
+                                const sent = Number(data?.sent || 0);
+                                const failed = Number(data?.failed || 0);
+                                const errors = Array.isArray(data?.errors) ? data.errors : [];
+                                alert(`測試發送完成：成功 ${sent}，失敗 ${failed}${errors.length ? '\n\n失敗原因：\n' + errors.join('\n') : ''}`);
                                 return;
                             }
                             if (data?.campaign) broadcastCampaigns.value.unshift(data.campaign);
@@ -2767,7 +2780,7 @@
                             alert(`推播完成：成功 ${data?.campaign?.sent || 0}，失敗 ${data?.campaign?.failed || 0}${errorText ? '\n\n失敗原因：\n' + errorText : ''}`);
                         } catch (e) {
                             console.error(e);
-                            alert((testMode ? '測試訊息驗證失敗：' : '推播失敗：') + e.message);
+                            alert((testMode ? '測試訊息發送失敗：' : '推播失敗：') + e.message);
                         } finally {
                             isLoading.value = false;
                         }

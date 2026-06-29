@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Project: 人生進化 ACTION - Backend Engine (Full Integration)
  * Version: 2026.04.26.V17_Bulletproof_KV_Rescue
  * Developer: 勝利團隊 - 小李 (Backend)
@@ -1739,6 +1739,7 @@ function summarizeAuditPayload(action, payload = {}) {
   if (action === "ADMIN_MANAGE_POINTS") return `調整點數 ${p.uid || ""} ${p.type || ""} ${p.amount || ""}`.trim();
   if (action === "ADMIN_TAG_MEMBER") return `會員標籤 ${p.tagName || ""} ${p.userId || ""}`.trim();
   if (action === "ADMIN_VALIDATE_PAID_BROADCAST") return `測試推播格式 ${p.title || ""}`.trim();
+  if (action === "ADMIN_SEND_PAID_BROADCAST_TEST") return `測試推播 ${p.title || ""}`.trim();
   if (action === "ADMIN_SEND_PAID_BROADCAST") return `付費推播 ${p.title || ""}`.trim();
   if (action === "TEACHER_DEDUCT_POINTS") return `講師扣點 ${p.targetUid || p.studentName || ""} ${p.amount || ""}`.trim();
   return action.replace(/_/g, " ");
@@ -3386,6 +3387,47 @@ export default {
             validateOnly: true,
             delivered: false,
             message: "LINE 官方格式驗證通過；未實際發送，也不會消耗推播額度。",
+          };
+          break;
+        }
+        case "ADMIN_SEND_PAID_BROADCAST_TEST": {
+          if (!access.isAdmin) throw new Error("Admin authorization required");
+          const title = String(payload?.title || "").trim();
+          if (!title) throw new Error("請輸入推播名稱");
+          const normalizedMessages = normalizeBroadcastMessages(payload, title);
+          await validateLinePushMessages(env, normalizedMessages);
+
+          const selectedUids = (Array.isArray(payload?.selectedUids) ? payload.selectedUids : [])
+            .map(uid => String(uid || "").trim())
+            .filter(Boolean);
+          const selectedUidSet = new Set(selectedUids);
+          if (!selectedUidSet.size) throw new Error("請先勾選測試收件人");
+          if (selectedUidSet.size > 20) throw new Error("測試訊息一次最多發送 20 位，請縮小勾選名單");
+
+          const allUsers = uniqueUsersById(await listUserRecords(env));
+          const userMap = new Map(allUsers
+            .map(user => [String(user.userId || user.uid || user.id || "").trim(), user])
+            .filter(([uid]) => uid));
+          const recipients = Array.from(selectedUidSet).map(uid => {
+            const user = userMap.get(uid) || {};
+            return {
+              userId: uid,
+              name: String(user.name || user.displayName || `測試收件人 ${uid.slice(-6)}`).trim(),
+            };
+          });
+
+          const testMessages = markBroadcastMessagesAsTest(normalizedMessages, title);
+          const sendResult = await sendLineMulticast(env, recipients, testMessages);
+          result.data = {
+            success: sendResult.failed === 0,
+            testMode: true,
+            delivered: sendResult.sent > 0,
+            sent: sendResult.sent,
+            failed: sendResult.failed,
+            total: sendResult.total,
+            errors: sendResult.errors || [],
+            errorDetails: sendResult.errorDetails || [],
+            message: `測試發送完成：成功 ${sendResult.sent}，失敗 ${sendResult.failed}`,
           };
           break;
         }
