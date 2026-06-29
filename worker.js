@@ -1527,37 +1527,6 @@ function normalizeUserMemberTier(user, fallbackUser = {}) {
   return user;
 }
 
-function mergeSelfProfileUser(existingUser = {}, payload = {}, userId = "") {
-  const existing = existingUser && typeof existingUser === "object" ? existingUser : {};
-  const incoming = payload && typeof payload === "object" ? payload : {};
-  const merged = { ...existing };
-  const profileFields = [
-    "name",
-    "displayName",
-    "pictureUrl",
-    "avatar",
-    "gender",
-    "birthday",
-    "phone",
-    "industry",
-    "address",
-    "intro",
-  ];
-
-  for (const field of profileFields) {
-    if (Object.prototype.hasOwnProperty.call(incoming, field)) merged[field] = incoming[field];
-  }
-
-  merged.userId = userId;
-  if (!merged.lineUserId) merged.lineUserId = incoming.lineUserId || userId;
-  if (!merged.referrerUid && incoming.referrerUid) merged.referrerUid = incoming.referrerUid;
-  merged.createdAt = existing.createdAt || incoming.createdAt || formatTaipeiDateTime();
-  merged.updatedAt = formatTaipeiDateTime();
-
-  const preservedTier = existing.memberTier || existing.level || existing.membershipLevel || existing.currentLevel;
-  merged.memberTier = preservedTier || "一般會員";
-  return normalizeUserMemberTier(merged, existing);
-}
 function recordUpdatedTs(record) {
   const raw = record?.updatedAt || record?.savedAt || record?.createdAt || "";
   const ts = Date.parse(String(raw).replace(/-/g, "/"));
@@ -2521,7 +2490,7 @@ export default {
             result.data = sanitizedSettings;
           }
           break;
-
+          
         case "GET_COURSES":
           const courses = await safeGetCourses(env);
           result.data = courses.filter(c => courseIsPublicNow(c));
@@ -2582,7 +2551,7 @@ export default {
             occupiedLocations: occupiedBookingLocations,
           };
           break;
-
+          
         case "CHECK_USER":
           result.data = {
             registered: !!access.userData,
@@ -2598,11 +2567,11 @@ export default {
             crmLineLoginEnabled: access.crmLineLoginEnabled,
           };
           break;
-
+          
         case "GET_USER_POINTS":
           result.data = await safeGetKV(env, `POINTS_${payload?.targetUid || userId}`, { balance: 0, logs: [] });
           break;
-
+          
         case "GET_USER_ORDERS":
           const allOrd = await safeGetKV(env, "ORDERS", []);
           const userOrderCourses = await safeGetCourses(env);
@@ -2750,32 +2719,28 @@ export default {
           break;
         }
 
-        case "REGISTER_USER": {
-          const existingUser = await safeGetKV(env, `USER_${userId}`, null);
-          const hasExistingUser = existingUser && typeof existingUser === "object" && Object.keys(existingUser).length > 0;
-          const isNewUser = !hasExistingUser;
-          const mergedUser = mergeSelfProfileUser(existingUser, payload, userId);
-          await putUserKV(env, ctx, userId, mergedUser);
-
-          if (isNewUser) {
-            const setsReg = await safeGetKV(env, "SYSTEM_SETTINGS", {});
-            await this.updatePoints(env, ctx, userId, setsReg.reward_register || 100, "註冊獎勵");
-
-            if (env.GAS_URL) {
-                ctx.waitUntil(fetch(env.GAS_URL, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "REGISTER_USER", payload: mergedUser }),
-                    redirect: "follow"
-                }).catch(e => console.error("GAS Sync Error:", e)));
-            }
-
-            ctx.waitUntil(this.sendTgMessage(env, `🆕 <b>新學員註冊</b>\n姓名：${mergedUser.name}\n電話：${mergedUser.phone}\n業種：${mergedUser.industry || '未填寫'}`));
+        case "REGISTER_USER":
+          payload.createdAt = formatTaipeiDateTime(); 
+          payload.memberTier = payload.memberTier || "一般會員"; 
+          await putUserKV(env, ctx, userId, payload);
+          
+          const setsReg = await safeGetKV(env, "SYSTEM_SETTINGS", {});
+          await this.updatePoints(env, ctx, userId, setsReg.reward_register || 100, "註冊獎勵");
+          
+          if (env.GAS_URL) {
+              ctx.waitUntil(fetch(env.GAS_URL, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "REGISTER_USER", payload: payload }),
+                  redirect: "follow"
+              }).catch(e => console.error("GAS Sync Error:", e)));
           }
+
+          ctx.waitUntil(this.sendTgMessage(env, `🆕 <b>新學員註冊</b>\n姓名：${payload.name}\n電話：${payload.phone}\n業種：${payload.industry || '未填寫'}`));
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString())); 
 
-          result.data = { success: true, user: mergedUser, isNewUser };
+          result.data = { success: true };
           break;
-        }
+          
         case "DAILY_CHECKIN":
           const today = taipeiDateKey();
           const checkKey = `CHECKIN_${userId}_${today}`;
@@ -2783,7 +2748,7 @@ export default {
           const setsDaily = await safeGetKV(env, "SYSTEM_SETTINGS", {});
           const pts = setsDaily.reward_daily || 10;
           await safePutKV(env, checkKey, true, { expirationTtl: secondsUntilNextTaipeiMidnight() });
-
+          
           await this.updatePoints(env, ctx, userId, pts, "每日登入紅包");
           result.data = { earned: pts };
           break;
@@ -2948,7 +2913,7 @@ export default {
           };
           currentOrders.unshift(newOrder); 
           await putOrdersKV(env, ctx, currentOrders);
-
+          
           if (env.GAS_URL) {
               ctx.waitUntil(fetch(env.GAS_URL, {
                   method: "POST", headers: { "Content-Type": "application/json" },
@@ -2967,7 +2932,7 @@ export default {
                : "待付款";
              await this.sendTgMessage(env, `💰 <b>新課程報名單</b>\n學員：${newOrder.name}\n電話：${newOrder.phone}\n課程：${courseName}\n金額：$${newOrder.amount}\n狀態：${statusLabel}`);
           })());
-
+          
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString())); 
 
           result.data = { success: true, orderId: newOrder.orderId };
@@ -3125,14 +3090,14 @@ export default {
           try {
               let listComplete = false;
               let cursor = null;
-
+              
               // 1. 嚴謹分頁讀取 (修正之前 undefined 造成的當機)
               while (!listComplete) {
                   const options = { prefix: "USER_" };
                   if (cursor) options.cursor = cursor;
-
+                  
                   const list = await env.ACTION_DATA.list(options);
-
+                  
                   const chunkSize = 20; 
                   for (let i = 0; i < list.keys.length; i += chunkSize) {
                       const chunk = list.keys.slice(i, i + chunkSize);
@@ -3142,12 +3107,12 @@ export default {
                       }));
                       localUsers.push(...chunkUsers.filter(u => u !== null));
                   }
-
+                  
                   listComplete = list.list_complete;
                   cursor = list.cursor;
               }
           } catch(e) { console.error("[KV Sync Error] 使用者讀取異常:", e); }
-
+          
           localUsers = uniqueUsersById(await listUserRecords(env));
           let repairedLineNames = false;
           localUsers = await Promise.all(localUsers.map(async user => {
@@ -3180,7 +3145,7 @@ export default {
                       body: JSON.stringify({ action: "ADMIN_GET_DATA" })
                   });
                   const gasJson = await gasRes.json();
-
+                  
                   if (gasJson.status === 'success' && gasJson.data) {
                       if(gasJson.data.courses && gasJson.data.courses.length > 0) { 
                           adminCourses = gasJson.data.courses; 
@@ -3304,8 +3269,6 @@ export default {
           if (!["TEXT", "IMAGE", "FLEX"].includes(replyType)) throw new Error("Unsupported module type");
           const payloadText = String(payload?.payload || "").trim();
           if (!payloadText) throw new Error("請輸入模組內容");
-          const rawFlexTemplate = String(payload?.flexTemplate || payload?.templateVersion || payload?.moduleVersion || payload?.flexVersion || payload?.editorVersion || "v1").trim().toLowerCase();
-          const flexTemplate = /^v[0-4]$/.test(rawFlexTemplate) ? rawFlexTemplate : "v1";
           const nowIso = new Date().toISOString();
           const rule = {
             id: String(payload?.id || `FR_${Date.now()}`).trim(),
@@ -3314,11 +3277,6 @@ export default {
             replyType,
             payload: payloadText,
             previewImageUrl: String(payload?.previewImageUrl || "").trim(),
-            ...(replyType === "FLEX" ? {
-              flexTemplate,
-              templateVersion: flexTemplate,
-              moduleVersion: flexTemplate,
-            } : {}),
             active: payload?.active !== false,
             updatedAt: nowIso,
             updatedBy: userId,
@@ -3497,7 +3455,7 @@ export default {
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()).catch(e => console.error("[Products] SYS_LAST_UPDATE 寫入失敗", e)));
           result.data = { success: true, product: productDeleteList[productDeleteIndex] };
           break;
-
+          
         case "ADMIN_UPDATE_VIDEO": {
           const videoInput = payload?.video && typeof payload.video === "object" ? payload.video : payload;
           const videoId = String(payload?.videoId || videoInput?.id || videoInput?.driveFileId || "").trim();
@@ -3844,7 +3802,7 @@ export default {
           ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
           result.data = { success: true, slots: currentSlots };
           break;
-
+          
         case "ADMIN_MANAGE_POINTS":
           const val = payload.type === 'MANUAL_DEDUCT' ? -Math.abs(payload.amount) : Math.abs(payload.amount);
           await this.updatePoints(env, ctx, payload.uid, val, payload.reason || "管理員手動調整");
@@ -4034,7 +3992,7 @@ export default {
           if (!richMenuConfig?.size || !Array.isArray(richMenuConfig?.areas)) {
             throw new Error("圖文選單 JSON 格式有誤：缺少 size 或 areas。");
           }
-
+          
           const createRes = await fetch("https://api.line.me/v2/bot/richmenu", {
               method: "POST",
               headers: { "Authorization": `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`, "Content-Type": "application/json" },
@@ -4052,7 +4010,7 @@ export default {
               const binaryStr = atob(base64DataImg);
               const bytesImg = new Uint8Array(binaryStr.length);
               for (let i = 0; i < binaryStr.length; i++) bytesImg[i] = binaryStr.charCodeAt(i);
-
+              
               const imgRes = await fetch(`https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`, {
                   method: "POST",
                   headers: { "Authorization": `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`, "Content-Type": lineImageContentType },
@@ -4113,7 +4071,7 @@ export default {
   async sendTgMessage(env, text) {
     const token = env.TG_BOT_TOKEN;
     const chatId = env.TG_CHAT_ID || "-5283526670"; 
-
+    
     if (!token) return; 
 
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -4191,7 +4149,7 @@ export default {
       tradeNo: "",
       source: "PREPARE_PAYMENT",
     });
-
+    
     return {
       GatewayUrl: payConfig.gatewayUrl,
       MerchantID: mId, TradeInfo: encrypted, TradeSha: sha, Version: '2.0'
@@ -4247,7 +4205,7 @@ export default {
         if (!wpRes.ok && !wpRes.skipped) console.error("WordPress Points Sync Error", wpRes);
       })());
     }
-
+    
     if (ctx) ctx.waitUntil(env.ACTION_DATA.put("SYS_LAST_UPDATE", Date.now().toString()));
   },
 
@@ -4278,7 +4236,7 @@ export default {
 
         const sets = await safeGetKV(env, "SYSTEM_SETTINGS", {});
         const forwardWebhook = env.FORWARD_WEBHOOK_URL || env.SECOND_WEBHOOK_URL || sets.second_webhook_url || "https://aiwe.cc/index.php/line_login/7364/";
-
+        
         if (forwardWebhook) {
           promises.push(
             fetch(forwardWebhook, {
