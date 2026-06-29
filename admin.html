@@ -2679,14 +2679,15 @@
                         let messages = [];
                         try { messages = buildBroadcastMessages(); }
                         catch (e) { return alert('推播內容錯誤：' + e.message); }
-                        const count = testMode ? 1 : selectedBroadcastAudience.value.length;
+                        const count = selectedBroadcastAudience.value.length;
                         if (!testMode && !count) return alert('目前受眾為 0，無法推播');
                         if (testMode) {
-                            if (!confirm('確定要送出測試訊息給目前登入的管理員？\n\n測試訊息不會發送給受眾名單。')) return;
+                            if (!confirm('測試訊息會使用 LINE 官方格式驗證，不會實際發送給任何人，也不會消耗推播額度。\n\n確定要驗證目前訊息內容？')) return;
                         } else if (!confirm(`確定要推播給 ${count} 位會員？\n\n送出後會直接透過 LINE OA 發送，請確認文字與受眾條件。`)) return;
                         isLoading.value = true;
                         try {
-                            const data = await callApi('ADMIN_SEND_PAID_BROADCAST', {
+                            const action = testMode ? 'ADMIN_VALIDATE_PAID_BROADCAST' : 'ADMIN_SEND_PAID_BROADCAST';
+                            const data = await callApi(action, {
                                 title: broadcastForm.value.title,
                                 message: broadcastForm.value.message,
                                 messages,
@@ -2694,18 +2695,20 @@
                                 selectedUids: testMode ? [] : selectedBroadcastAudience.value.map(member => member.userId),
                                 testMode,
                             });
-                            if (data?.campaign && !data.campaign.testMode) broadcastCampaigns.value.unshift(data.campaign);
-                            const label = testMode ? '測試訊息' : '推播';
+                            if (testMode) {
+                                alert(data?.message || 'LINE 官方格式驗證通過；未實際發送。');
+                                return;
+                            }
+                            if (data?.campaign) broadcastCampaigns.value.unshift(data.campaign);
                             const errorText = broadcastCampaignErrorText(data?.campaign);
-                            alert(`${label}完成：成功 ${data?.campaign?.sent || 0}，失敗 ${data?.campaign?.failed || 0}${errorText ? '\n\n失敗原因：\n' + errorText : ''}`);
+                            alert(`推播完成：成功 ${data?.campaign?.sent || 0}，失敗 ${data?.campaign?.failed || 0}${errorText ? '\n\n失敗原因：\n' + errorText : ''}`);
                         } catch (e) {
                             console.error(e);
-                            alert('推播失敗：' + e.message);
+                            alert((testMode ? '測試訊息驗證失敗：' : '推播失敗：') + e.message);
                         } finally {
                             isLoading.value = false;
                         }
                     };
-
                     const runWasabiCheck = async () => {
                         if (!isAdminRole.value) return alert('Wasabi 遷移檢查僅限 Admin 使用');
                         isLoading.value = true;
