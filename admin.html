@@ -746,7 +746,7 @@
                                                 <span class="status-badge" :class="rule.replyType === 'FLEX' ? 'bg-indigo-100 text-indigo-700' : (rule.replyType === 'IMAGE' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600')">
                                                     {{ rule.replyType === 'FLEX' ? 'FLEX 卡片' : (rule.replyType === 'IMAGE' ? '圖片訊息' : '純文字') }}
                                                 </span>
-                                                <span v-if="rule.replyType === 'FLEX'" class="status-badge bg-emerald-50 text-emerald-700">{{ String(rule.flexTemplate || rule.templateVersion || rule.moduleVersion || 'v1').toUpperCase() }}</span>
+                                                <span v-if="rule.replyType === 'FLEX'" class="status-badge bg-emerald-50 text-emerald-700">{{ String(rule.flexTemplate || 'v1').toUpperCase() }}</span>
                                             </div>
                                         </td>
                                         <td class="p-4"><span class="status-badge" :class="rule.active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">{{ rule.active !== false ? '啟用' : '停用' }}</span></td>
@@ -1854,7 +1854,7 @@
                                 slots.value = c.slots || [];
                                 occupiedLocations.value = c.occupiedLocations || [];
                                 paymentLogs.value = c.paymentLogs || [];
-                                flexRules.value = (c.flexRules || []).map(normalizeFlexRuleForm);
+                                flexRules.value = c.flexRules || [];
                                 broadcastTags.value = c.broadcastTags || [];
                                 broadcastCampaigns.value = c.broadcastCampaigns || [];
                             }
@@ -1873,7 +1873,7 @@
                                 orders.value = data.orders || [];
                                 sysSettings.value = normalizeSystemSettings(data.settings || {});
                                 paymentLogs.value = data.paymentLogs || [];
-                                flexRules.value = (data.flexRules || []).map(normalizeFlexRuleForm);
+                                flexRules.value = data.flexRules || [];
                                 broadcastTags.value = data.broadcastTags || broadcastTags.value;
                                 broadcastCampaigns.value = data.broadcastCampaigns || broadcastCampaigns.value;
                                 
@@ -3841,24 +3841,11 @@
                             }
                         } catch(e) { console.error(e); alert('移除失敗：' + e.message); } finally { isLoading.value = false; }
                     };
-                    const normalizeFlexTemplate = (value) => {
-                        const raw = String(value || '').trim().toLowerCase();
-                        return /^v[0-4]$/.test(raw) ? raw : 'v1';
-                    };
-
-                    const applyFlexTemplateFields = (target, value) => {
-                        if (!target) return 'v1';
-                        const flexTemplate = normalizeFlexTemplate(value ?? target.flexTemplate ?? target.templateVersion ?? target.moduleVersion ?? target.flexVersion ?? target.editorVersion);
-                        target.flexTemplate = flexTemplate;
-                        target.templateVersion = flexTemplate;
-                        target.moduleVersion = flexTemplate;
-                        return flexTemplate;
-                    };
 
                     const normalizeFlexRuleForm = (rule = {}) => {
                         const next = JSON.parse(JSON.stringify(rule || {}));
                         next.replyType = next.replyType || 'FLEX';
-                        applyFlexTemplateFields(next);
+                        next.flexTemplate = next.flexTemplate || 'v1';
                         next.altText = next.altText || next.moduleName || next.keyword || '';
                         next.bodyText = next.bodyText || '';
                         next.buttonText = next.buttonText || '立即查看';
@@ -3885,12 +3872,12 @@
 
                     const openMylittlesysTemplate = (template) => {
                         if (!editingFlexRule.value) return;
-                        const flexTemplate = applyFlexTemplateFields(editingFlexRule.value, template || 'v1');
-                        activeMylittlesysFlexMode.value = flexTemplate;
+                        editingFlexRule.value.flexTemplate = template || 'v1';
+                        activeMylittlesysFlexMode.value = editingFlexRule.value.flexTemplate;
                         const win = getMylittlesysFrameWindow();
                         if (!win || typeof win.createNewFlex !== 'function') return;
                         try {
-                            win.createNewFlex(flexTemplate);
+                            win.createNewFlex(editingFlexRule.value.flexTemplate);
                             const nameInput = win.document.getElementById('save-filename');
                             if (nameInput) nameInput.value = editingFlexRule.value.moduleName || nameInput.value || 'ACTION';
                         } catch (e) {
@@ -3903,15 +3890,14 @@
                         setTimeout(() => {
                             const form = editingFlexRule.value;
                             if (!form || form.replyType !== 'FLEX') return;
-                            const flexTemplate = applyFlexTemplateFields(form, form.flexTemplate || activeMylittlesysFlexMode.value || 'v1');
-                            activeMylittlesysFlexMode.value = flexTemplate;
+                            activeMylittlesysFlexMode.value = form.flexTemplate || activeMylittlesysFlexMode.value || 'v1';
                             const win = getMylittlesysFrameWindow();
                             const raw = String(form.flexJson || form.payload || '').trim();
                             if (win && raw && typeof win.loadMylittlesysFlexJson === 'function') {
-                                const loaded = win.loadMylittlesysFlexJson(raw, form.moduleName || form.keyword || 'ACTION', flexTemplate);
+                                const loaded = win.loadMylittlesysFlexJson(raw, form.moduleName || form.keyword || 'ACTION', form.flexTemplate || 'v1');
                                 if (loaded) return;
                             }
-                            openMylittlesysTemplate(flexTemplate);
+                            openMylittlesysTemplate(form.flexTemplate || 'v1');
                         }, 300);
                     };
 
@@ -3951,7 +3937,7 @@
                             });
                         }
                         if (editingFlexRule.value?.replyType === 'FLEX') {
-                            activeMylittlesysFlexMode.value = applyFlexTemplateFields(editingFlexRule.value);
+                            activeMylittlesysFlexMode.value = editingFlexRule.value.flexTemplate || 'v1';
                         }
                     };
 
@@ -3968,21 +3954,19 @@
                         }
                         editingFlexRule.value = copied;
                         if (copied.replyType === 'FLEX') {
-                            activeMylittlesysFlexMode.value = applyFlexTemplateFields(copied);
+                            activeMylittlesysFlexMode.value = copied.flexTemplate || 'v1';
                         }
                     };
 
                     const openNewFlexRule = (replyType = 'FLEX', template = 'v1') => {
                         const type = String(replyType || 'FLEX').toUpperCase();
-                        const flexTemplate = normalizeFlexTemplate(template || 'v1');
+                        const flexTemplate = String(template || 'v1').toLowerCase();
                         editingFlexRule.value = normalizeFlexRuleForm({
                             id: 'FR_' + Date.now(),
                             moduleName: type === 'FLEX' ? `Flex ${flexTemplate.toUpperCase()} 模組` : (type === 'IMAGE' ? '圖片模組' : '文字模組'),
                             keyword: '',
                             replyType: type,
                             flexTemplate,
-                            templateVersion: flexTemplate,
-                            moduleVersion: flexTemplate,
                             altText: '',
                             bodyText: '',
                             buttonText: '立即查看',
@@ -4034,18 +4018,18 @@
                         if (!editingFlexRule.value.moduleName) return alert('模組名稱為必填');
                         if (!editingFlexRule.value.payload) return alert('模組內容為必填');
                         const nowIso = new Date().toISOString();
-                        const ruleToSave = normalizeFlexRuleForm({
+                        const ruleToSave = {
                             ...editingFlexRule.value,
                             createdAt: editingFlexRule.value.createdAt || nowIso,
                             updatedAt: nowIso
-                        });
+                        };
                         let saved = false;
                         isLoading.value = true;
                         try {
                             const res = await callApi('ADMIN_SAVE_REPLY_RULE', ruleToSave);
                             if (res && res.success) {
                                 if (Array.isArray(res.flexRules)) {
-                                    flexRules.value = res.flexRules.map(normalizeFlexRuleForm);
+                                    flexRules.value = res.flexRules;
                                 } else {
                                     const idx = flexRules.value.findIndex(rule => rule.id === ruleToSave.id);
                                     if (idx >= 0) flexRules.value.splice(idx, 1, ruleToSave);
