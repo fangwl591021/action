@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -694,6 +694,7 @@
                             <button @click="openNewFlexRule('FLEX', 'v2')" class="btn-outline bg-white border-emerald-200 text-emerald-700"><i class="fas fa-id-card mr-1"></i>新增 V2</button>
                             <button @click="openNewFlexRule('FLEX', 'v3')" class="btn-outline bg-white border-emerald-200 text-emerald-700"><i class="fas fa-list mr-1"></i>新增 V3</button>
                             <button @click="openNewFlexRule('FLEX', 'v4')" class="btn-outline bg-white border-emerald-200 text-emerald-700"><i class="fas fa-object-group mr-1"></i>新增 V4</button>
+                            <button @click="openNewFlexRule('FLEX', 'v5')" class="btn-outline bg-white border-emerald-200 text-emerald-700"><i class="fas fa-layer-group mr-1"></i>新增 V5</button>
                             <button @click="openNewFlexRule('IMAGE')" class="btn-outline bg-white"><i class="fas fa-image mr-1"></i>圖片</button>
                             <button @click="openNewFlexRule('TEXT')" class="btn-outline bg-white"><i class="fas fa-font mr-1"></i>文字</button>
                         </div>
@@ -1220,6 +1221,7 @@
                                     <button type="button" @click="openMylittlesysTemplate('v2')" class="btn-outline bg-white !py-2 text-[12px]">V2</button>
                                     <button type="button" @click="openMylittlesysTemplate('v3')" class="btn-outline bg-white !py-2 text-[12px]">V3</button>
                                     <button type="button" @click="openMylittlesysTemplate('v4')" class="btn-outline bg-white !py-2 text-[12px]">V4</button>
+                                    <button type="button" @click="openMylittlesysTemplate('v5')" class="btn-outline bg-white !py-2 text-[12px]">V5</button>
                                     <button type="button" @click="captureMylittlesysFlexJson" class="btn-green-main !py-2 text-[12px]">抓取 JSON</button>
                                 </div>
                             </div>
@@ -2524,12 +2526,73 @@
                         const imageUrl = broadcastUri(form.imageUrl || form.previewImageUrl, defaultFlexImage);
                         const actionUrl = broadcastUri(form.actionUrl);
                         const buttonText = String(form.buttonText || '').trim() || '立即查看';
-                        const template = String(form.flexTemplate || 'v1');
+                        const template = String(form.flexTemplate || 'v1').trim().toLowerCase();
                         if (String(form.flexJson || '').trim()) {
                             const raw = JSON.parse(form.flexJson || '{}');
                             if (raw.type === 'flex' && raw.contents) return raw.contents;
                             if (raw.type === 'bubble' || raw.type === 'carousel') return raw;
                             throw new Error('Flex JSON 必須是 LINE flex message、bubble 或 carousel');
+                        }
+                        if (template === 'v5') {
+                            const lines = bodyText.split('\n').map((value) => value.trim()).filter(Boolean);
+                            const pages = [
+                                {
+                                    title: title || '每日簽到領紅包',
+                                    body: lines[0] || '完成今日簽到並領取紅包點數。',
+                                    label: buttonText || '立即簽到'
+                                },
+                                {
+                                    title: lines[0] || '紅包點數紀錄',
+                                    body: lines[1] || '查看紅包點數與進出紀錄。',
+                                    label: '查看紀錄'
+                                },
+                                {
+                                    title: lines[1] || '邀請好友拿獎勵',
+                                    body: lines[2] || '分享專屬連結並累積邀請獎勵。',
+                                    label: '邀請好友'
+                                }
+                            ];
+                            const pageActionUrl = actionUrl || 'https://line.me/R/';
+                            return {
+                                type: 'carousel',
+                                contents: pages.map((page, index) => ({
+                                    type: 'bubble',
+                                    size: 'mega',
+                                    hero: {
+                                        type: 'image',
+                                        url: imageUrl,
+                                        size: 'full',
+                                        aspectRatio: '20:13',
+                                        aspectMode: 'cover'
+                                    },
+                                    body: {
+                                        type: 'box',
+                                        layout: 'vertical',
+                                        spacing: 'md',
+                                        contents: [
+                                            { type: 'text', text: page.title, weight: 'bold', size: 'xl', wrap: true, color: '#111827' },
+                                            { type: 'text', text: page.body, size: 'sm', color: '#64748b', wrap: true },
+                                            {
+                                                type: 'box',
+                                                layout: 'horizontal',
+                                                spacing: 'sm',
+                                                contents: [
+                                                    { type: 'text', text: `${index + 1}/3`, size: 'xs', color: '#06C755', weight: 'bold' },
+                                                    { type: 'text', text: '簽到贈點', size: 'xs', color: '#94a3b8', align: 'end' }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    footer: {
+                                        type: 'box',
+                                        layout: 'vertical',
+                                        spacing: 'sm',
+                                        contents: [
+                                            { type: 'button', style: 'primary', color: '#06C755', action: { type: 'uri', label: page.label, uri: pageActionUrl } }
+                                        ]
+                                    }
+                                }))
+                            };
                         }
                         if (template === 'v2') {
                             return {
@@ -3846,7 +3909,7 @@
                     };
                     const normalizeFlexTemplate = (value) => {
                         const raw = String(value || '').trim().toLowerCase();
-                        return /^v[0-4]$/.test(raw) ? raw : 'v1';
+                        return /^v[0-5]$/.test(raw) ? raw : 'v1';
                     };
 
                     const applyFlexTemplateFields = (target, value) => {
