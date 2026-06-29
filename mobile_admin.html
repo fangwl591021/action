@@ -964,26 +964,16 @@
                     if (!broadcastForm.value.title.trim()) return alert('請輸入推播名稱');
                     let messages = [];
                     try { messages = buildMobileBroadcastMessages(); } catch (e) { return alert(e.message); }
-                    const selectedUids = selectedMobileAudience.value.map(member => member.userId).filter(Boolean);
-                    if (!selectedUids.length) return alert(testMode ? '請先勾選要測試接收的名單' : '請選擇推播受眾');
-                    if (testMode && selectedUids.length > 20) return alert('測試訊息一次最多 20 人，請縮小勾選名單');
-                    const confirmText = testMode
-                        ? `測試訊息會實際發送給目前勾選的 ${selectedUids.length} 人，不建立正式推播紀錄。確定送出？`
-                        : `確定推播給 ${selectedUids.length} 人？`;
-                    if (!confirm(confirmText)) return;
-                    const action = testMode ? 'ADMIN_SEND_PAID_BROADCAST_TEST' : 'ADMIN_SEND_PAID_BROADCAST';
-                    const res = await callApi(action, {
+                    if (!testMode && !selectedMobileAudience.value.length) return alert('請選擇推播受眾');
+                    if (!confirm(testMode ? '確定送出測試訊息給目前登入者？' : `確定推播給 ${selectedMobileAudience.value.length} 人？`)) return;
+                    const res = await callApi('ADMIN_SEND_PAID_BROADCAST', {
                         title: broadcastForm.value.title,
                         message: broadcastForm.value.message,
                         messages,
                         audience: broadcastForm.value.audience,
-                        selectedUids,
+                        selectedUids: testMode ? [] : selectedMobileAudience.value.map(member => member.userId),
                         testMode
                     });
-                    if (testMode) {
-                        alert(`測試完成：成功 ${res?.sent || res?.delivered || 0}，失敗 ${res?.failed || 0}`);
-                        return;
-                    }
                     if (res?.campaign) alert(`推播完成：成功 ${res.campaign.sent || 0}，失敗 ${res.campaign.failed || 0}`);
                 };
                 // ==========================================
