@@ -1738,7 +1738,6 @@ function summarizeAuditPayload(action, payload = {}) {
   if (action === "ADMIN_UPDATE_ORDER") return `更新訂單 ${p.orderId || ""}`.trim();
   if (action === "ADMIN_MANAGE_POINTS") return `調整點數 ${p.uid || ""} ${p.type || ""} ${p.amount || ""}`.trim();
   if (action === "ADMIN_TAG_MEMBER") return `會員標籤 ${p.tagName || ""} ${p.userId || ""}`.trim();
-  if (action === "ADMIN_VALIDATE_PAID_BROADCAST") return `測試推播格式 ${p.title || ""}`.trim();
   if (action === "ADMIN_SEND_PAID_BROADCAST") return `付費推播 ${p.title || ""}`.trim();
   if (action === "TEACHER_DEDUCT_POINTS") return `講師扣點 ${p.targetUid || p.studentName || ""} ${p.amount || ""}`.trim();
   return action.replace(/_/g, " ");
@@ -1999,34 +1998,6 @@ function summarizeBroadcastMessages(messages, title) {
   return title;
 }
 
-async function validateLinePushMessages(env, messages) {
-  const token = String(env.LINE_CHANNEL_ACCESS_TOKEN || "").trim();
-  if (!token) throw new Error("Cloudflare 尚未綁定 LINE_CHANNEL_ACCESS_TOKEN 金鑰！");
-  const messageList = Array.isArray(messages) ? messages.filter(Boolean).slice(0, 5) : [];
-  if (!messageList.length) throw new Error("沒有可驗證的訊息內容");
-
-  const res = await fetch("https://api.line.me/v2/bot/message/validate/push", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      to: "U00000000000000000000000000000000",
-      messages: messageList,
-    }),
-  });
-  const text = await res.text();
-  let data = {};
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-  if (!res.ok) {
-    const details = Array.isArray(data?.details)
-      ? data.details.map(d => `${d.property || ""} ${d.message || ""}`.trim()).filter(Boolean).join("；")
-      : "";
-    throw new Error(`LINE 格式驗證失敗：${data?.message || text || `HTTP ${res.status}`}${details ? "；" + details : ""}`);
-  }
-  return data;
-}
 async function sendLineMulticast(env, recipients, messages) {
   const token = String(env.LINE_CHANNEL_ACCESS_TOKEN || "").trim();
   if (!token) throw new Error("Cloudflare 尚未綁定 LINE_CHANNEL_ACCESS_TOKEN 金鑰！");
@@ -3375,20 +3346,6 @@ export default {
           break;
         }
 
-        case "ADMIN_VALIDATE_PAID_BROADCAST": {
-          if (!access.isAdmin) throw new Error("Admin authorization required");
-          const title = String(payload?.title || "").trim();
-          if (!title) throw new Error("請輸入推播名稱");
-          const normalizedMessages = normalizeBroadcastMessages(payload, title);
-          await validateLinePushMessages(env, normalizedMessages);
-          result.data = {
-            success: true,
-            validateOnly: true,
-            delivered: false,
-            message: "LINE 官方格式驗證通過；未實際發送，也不會消耗推播額度。",
-          };
-          break;
-        }
         case "ADMIN_SEND_PAID_BROADCAST": {
           if (!access.isAdmin) throw new Error("Admin authorization required");
           const title = String(payload?.title || "").trim();
