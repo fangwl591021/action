@@ -3889,10 +3889,20 @@
                         } catch(e) { console.error(e); alert('移除失敗：' + e.message); } finally { isLoading.value = false; }
                     };
 
+                    const detectFlexTemplateFromPayload = (raw) => {
+                        try {
+                            const parsed = typeof raw === 'string' ? JSON.parse(raw || '{}') : raw;
+                            const contents = parsed && parsed.type === 'flex' && parsed.contents ? parsed.contents : parsed;
+                            return contents && contents.type === 'carousel' ? 'v5' : '';
+                        } catch (_e) {
+                            return '';
+                        }
+                    };
+
                     const normalizeFlexRuleForm = (rule = {}) => {
                         const next = JSON.parse(JSON.stringify(rule || {}));
                         next.replyType = next.replyType || 'FLEX';
-                        next.flexTemplate = next.flexTemplate || 'v1';
+                        next.flexTemplate = next.flexTemplate || detectFlexTemplateFromPayload(next.payload || next.flexJson) || 'v1';
                         next.altText = next.altText || DEFAULT_LINE_DISPLAY_TEXT;
                         next.bodyText = next.bodyText || '';
                         next.buttonText = next.buttonText || '立即查看';
@@ -4049,6 +4059,9 @@
                             try {
                                 const rawFlex = String(editingFlexRule.value.flexJson || editingFlexRule.value.payload || '').trim();
                                 const parsedFlex = rawFlex ? JSON.parse(rawFlex) : buildFlexMessageFromForm(editingFlexRule.value);
+                                const parsedContents = parsedFlex && parsedFlex.type === 'flex' && parsedFlex.contents ? parsedFlex.contents : parsedFlex;
+                                const iframeMode = String(activeMylittlesysFlexMode.value || editingFlexRule.value.flexTemplate || '').toLowerCase();
+                                editingFlexRule.value.flexTemplate = parsedContents && parsedContents.type === 'carousel' ? 'v5' : (iframeMode || 'v1');
                                 const message = parsedFlex.type === 'flex' && parsedFlex.contents
                                     ? parsedFlex
                                     : {

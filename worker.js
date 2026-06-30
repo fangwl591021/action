@@ -3314,6 +3314,7 @@ export default {
             replyType,
             payload: payloadText,
             previewImageUrl: String(payload?.previewImageUrl || "").trim(),
+            flexTemplate: String(payload?.flexTemplate || "").trim().toLowerCase(),
             altText: String(payload?.altText || payload?.displayText || DEFAULT_LINE_DISPLAY_TEXT).trim(),
             displayText: String(payload?.displayText || payload?.altText || DEFAULT_LINE_DISPLAY_TEXT).trim(),
             active: payload?.active !== false,
