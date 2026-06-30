@@ -1877,22 +1877,57 @@ function replyRuleMatchesEvent(rule, eventText, eventPostback) {
   return triggers.some(trigger => trigger === text || trigger === postback);
 }
 
+function replyRuleDisplayText(rule) {
+  return String(rule?.altText || rule?.displayText || '').trim();
+}
+
+function buildDisplayTextFlexMessage(text, altText) {
+  return normalizeLineMessageUnit({
+    type: "flex",
+    altText: String(altText || text || "文字訊息").slice(0, 400),
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "18px",
+        contents: [{ type: "text", text: String(text || ""), wrap: true, size: "md", color: "#111827" }],
+      },
+    },
+  });
+}
+
+function buildDisplayImageFlexMessage(url, altText) {
+  return normalizeLineMessageUnit({
+    type: "flex",
+    altText: String(altText || "圖片訊息").slice(0, 400),
+    contents: {
+      type: "bubble",
+      hero: { type: "image", url, size: "full", aspectRatio: "1:1", aspectMode: "cover" },
+    },
+  });
+}
+
 function buildLineMessageFromReplyRule(rule) {
   const type = String(rule?.replyType || "FLEX").trim().toUpperCase();
   const payload = String(rule?.payload || "").trim();
-  if (type === "TEXT") return normalizeLineMessageUnit({ type: "text", text: payload });
+  if (type === "TEXT") {
+    const displayText = replyRuleDisplayText(rule);
+    return displayText ? buildDisplayTextFlexMessage(payload, displayText) : normalizeLineMessageUnit({ type: "text", text: payload });
+  }
   if (type === "IMAGE") {
     const url = payload;
     const previewUrl = String(rule?.previewImageUrl || payload).trim();
-    return normalizeLineMessageUnit({ type: "image", originalContentUrl: url, previewImageUrl });
+    const displayText = replyRuleDisplayText(rule);
+    return displayText ? buildDisplayImageFlexMessage(url, displayText) : normalizeLineMessageUnit({ type: "image", originalContentUrl: url, previewImageUrl });
   }
   if (type === "FLEX") {
     const raw = JSON.parse(payload || "{}");
     const flexMessage = raw.type === "flex" && raw.contents
-      ? raw
+      ? { ...raw, altText: String(replyRuleDisplayText(rule) || raw.altText || rule?.moduleName || rule?.keyword || "Flex 卡片").slice(0, 400) }
       : {
           type: "flex",
-          altText: String(rule?.moduleName || rule?.keyword || "Flex 卡片").slice(0, 400),
+          altText: String(replyRuleDisplayText(rule) || rule?.moduleName || rule?.keyword || "Flex 卡片").slice(0, 400),
           contents: raw,
         };
     return normalizeLineMessageUnit(flexMessage);
@@ -3277,6 +3312,8 @@ export default {
             replyType,
             payload: payloadText,
             previewImageUrl: String(payload?.previewImageUrl || "").trim(),
+            altText: String(payload?.altText || payload?.displayText || "").trim(),
+            displayText: String(payload?.displayText || payload?.altText || "").trim(),
             active: payload?.active !== false,
             updatedAt: nowIso,
             updatedBy: userId,

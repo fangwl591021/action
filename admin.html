@@ -1179,8 +1179,9 @@
             <div class="modal-body modal-body-lg p-0 animate-fade-in !w-[calc(100vw-32px)] !max-w-[calc(100vw-32px)] !h-[calc(100vh-32px)] !rounded-xl bg-white shadow-2xl flex flex-col">
                 <div class="px-4 py-2 flex items-center gap-3 bg-white border-b border-slate-100 shadow-sm z-10 relative">
                     <h3 class="text-[18px] font-black text-slate-800 flex items-center gap-2 shrink-0"><i class="fas fa-robot text-[#06C755]"></i> {{ editingFlexRule?.createdAt ? '編輯模組' : '新增模組' }}</h3>
-                    <div class="ml-auto grid grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_150px_110px] gap-2 items-center max-w-[980px] flex-1">
+                    <div class="ml-auto grid grid-cols-[minmax(140px,1fr)_minmax(150px,1fr)_minmax(140px,1fr)_150px_110px] gap-2 items-center max-w-[1180px] flex-1">
                         <input type="text" v-model="editingFlexRule.moduleName" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]" placeholder="模組名稱">
+                        <input type="text" v-model="editingFlexRule.altText" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]" placeholder="&#32842;&#22825;&#23460;&#39023;&#31034;&#25991;&#23383;">
                         <input type="text" v-model="editingFlexRule.keyword" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]" placeholder="Postback / 關鍵字">
                         <select v-model="editingFlexRule.replyType" class="input-field bg-slate-50 font-bold text-indigo-700 !py-2 !text-[13px]">
                             <option value="FLEX">FLEX 卡片</option>
@@ -2623,13 +2624,34 @@
                         return broadcastModuleOptions.value.filter(rule => ids.has(String(rule.id)));
                     });
 
+                    const moduleDisplayText = (rule) => String(rule?.altText || rule?.displayText || '').trim();
+
+                    const buildDisplayTextFlexMessage = (text, altText) => ({
+                        type: 'flex',
+                        altText: String(altText || text || '文字訊息').slice(0, 400),
+                        contents: {
+                            type: 'bubble',
+                            body: { type: 'box', layout: 'vertical', paddingAll: '18px', contents: [{ type: 'text', text: String(text || ''), wrap: true, size: 'md', color: '#111827' }] }
+                        }
+                    });
+
+                    const buildDisplayImageFlexMessage = (url, altText) => ({
+                        type: 'flex',
+                        altText: String(altText || '圖片訊息').slice(0, 400),
+                        contents: {
+                            type: 'bubble',
+                            hero: { type: 'image', url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }
+                        }
+                    });
+
                     const parseBroadcastFlexPayload = (rule) => {
                         const raw = JSON.parse(rule.payload || '{}');
-                        if (raw.type === 'flex' && raw.contents) return raw;
+                        const altText = String(moduleDisplayText(rule) || raw.altText || rule.moduleName || rule.keyword || 'Flex 推播').slice(0, 400);
+                        if (raw.type === 'flex' && raw.contents) return { ...raw, altText };
                         if (raw.type === 'bubble' || raw.type === 'carousel') {
                             return {
                                 type: 'flex',
-                                altText: String(rule.moduleName || rule.keyword || 'Flex 推播').slice(0, 400),
+                                altText,
                                 contents: raw
                             };
                         }
@@ -2638,12 +2660,17 @@
 
                     const buildMessageFromBroadcastModule = (rule) => {
                         const type = String(rule.replyType || '').toUpperCase();
-                        if (type === 'TEXT') return { type: 'text', text: String(rule.payload || '').trim() };
+                        if (type === 'TEXT') {
+                            const text = String(rule.payload || '').trim();
+                            const displayText = moduleDisplayText(rule);
+                            return displayText ? buildDisplayTextFlexMessage(text, displayText) : { type: 'text', text };
+                        }
                         if (type === 'IMAGE') {
                             const url = broadcastUri(rule.payload, '');
                             const previewUrl = broadcastUri(rule.previewImageUrl || rule.payload, url);
                             if (!url) throw new Error(`模組「${rule.moduleName || rule.keyword || rule.id}」缺少圖片 URL`);
-                            return { type: 'image', originalContentUrl: url, previewImageUrl: previewUrl };
+                            const displayText = moduleDisplayText(rule);
+                            return displayText ? buildDisplayImageFlexMessage(url, displayText) : { type: 'image', originalContentUrl: url, previewImageUrl: previewUrl };
                         }
                         if (type === 'FLEX') return parseBroadcastFlexPayload(rule);
                         throw new Error(`不支援的模組類型：${type}`);
@@ -3848,7 +3875,7 @@
                         const next = JSON.parse(JSON.stringify(rule || {}));
                         next.replyType = next.replyType || 'FLEX';
                         next.flexTemplate = next.flexTemplate || 'v1';
-                        next.altText = next.altText || next.moduleName || next.keyword || '';
+                        next.altText = next.altText || (next.replyType === 'FLEX' ? (next.moduleName || next.keyword || '') : '');
                         next.bodyText = next.bodyText || '';
                         next.buttonText = next.buttonText || '立即查看';
                         next.imageUrl = next.imageUrl || next.previewImageUrl || '';
@@ -3969,7 +3996,7 @@
                             keyword: '',
                             replyType: type,
                             flexTemplate,
-                            altText: '',
+                            altText: type === 'FLEX' ? `Flex ${flexTemplate.toUpperCase()} 模組` : '',
                             bodyText: '',
                             buttonText: '立即查看',
                             imageUrl: '',
@@ -4011,6 +4038,9 @@
                                         altText: String(editingFlexRule.value.altText || editingFlexRule.value.moduleName || editingFlexRule.value.keyword || 'LINE Flex 推播').slice(0, 400),
                                         contents: parsedFlex
                                     };
+                                const customAltText = String(editingFlexRule.value.altText || '').trim();
+                                message.altText = String(customAltText || message.altText || editingFlexRule.value.moduleName || editingFlexRule.value.keyword || 'LINE Flex 推播').slice(0, 400);
+                                editingFlexRule.value.altText = message.altText;
                                 editingFlexRule.value.payload = JSON.stringify(message, null, 2);
                                 editingFlexRule.value.previewImageUrl = editingFlexRule.value.imageUrl || editingFlexRule.value.previewImageUrl || '';
                             } catch (e) {
