@@ -5,6 +5,8 @@
  * 功能：修復游標報錯、全面替換防彈 JSON 解析、加入 GAS 自動降落傘救援機制
  */
 
+const DEFAULT_LINE_DISPLAY_TEXT = '您有一則優惠訊息，請即閱讀';
+
 const utils = {
   hexToBytes: (hex) => {
     const bytes = new Uint8Array(hex.length / 2);
@@ -1878,13 +1880,13 @@ function replyRuleMatchesEvent(rule, eventText, eventPostback) {
 }
 
 function replyRuleDisplayText(rule) {
-  return String(rule?.altText || rule?.displayText || '').trim();
+  return String(rule?.altText || rule?.displayText || DEFAULT_LINE_DISPLAY_TEXT).trim();
 }
 
 function buildDisplayTextFlexMessage(text, altText) {
   return normalizeLineMessageUnit({
     type: "flex",
-    altText: String(altText || text || "文字訊息").slice(0, 400),
+    altText: String(altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
     contents: {
       type: "bubble",
       body: {
@@ -1900,7 +1902,7 @@ function buildDisplayTextFlexMessage(text, altText) {
 function buildDisplayImageFlexMessage(url, altText) {
   return normalizeLineMessageUnit({
     type: "flex",
-    altText: String(altText || "圖片訊息").slice(0, 400),
+    altText: String(altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
     contents: {
       type: "bubble",
       hero: { type: "image", url, size: "full", aspectRatio: "1:1", aspectMode: "cover" },
@@ -1924,10 +1926,10 @@ function buildLineMessageFromReplyRule(rule) {
   if (type === "FLEX") {
     const raw = JSON.parse(payload || "{}");
     const flexMessage = raw.type === "flex" && raw.contents
-      ? { ...raw, altText: String(replyRuleDisplayText(rule) || raw.altText || rule?.moduleName || rule?.keyword || "Flex 卡片").slice(0, 400) }
+      ? { ...raw, altText: String(replyRuleDisplayText(rule) || raw.altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400) }
       : {
           type: "flex",
-          altText: String(replyRuleDisplayText(rule) || rule?.moduleName || rule?.keyword || "Flex 卡片").slice(0, 400),
+          altText: String(replyRuleDisplayText(rule) || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
           contents: raw,
         };
     return normalizeLineMessageUnit(flexMessage);
@@ -3312,8 +3314,8 @@ export default {
             replyType,
             payload: payloadText,
             previewImageUrl: String(payload?.previewImageUrl || "").trim(),
-            altText: String(payload?.altText || payload?.displayText || "").trim(),
-            displayText: String(payload?.displayText || payload?.altText || "").trim(),
+            altText: String(payload?.altText || payload?.displayText || DEFAULT_LINE_DISPLAY_TEXT).trim(),
+            displayText: String(payload?.displayText || payload?.altText || DEFAULT_LINE_DISPLAY_TEXT).trim(),
             active: payload?.active !== false,
             updatedAt: nowIso,
             updatedBy: userId,

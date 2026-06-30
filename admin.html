@@ -1186,8 +1186,8 @@
                         </label>
                         <label class="block min-w-0">
                             <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#32842;&#22825;&#23460;&#39023;&#31034;&#25991;&#23383;</span>
-                            <input type="text" v-model="editingFlexRule.altText" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]" placeholder="&#39023;&#31034;&#22312; LINE &#32842;&#22825;&#21015;&#34920;&#65292;&#21487;&#33258;&#35330;">
-                            <span class="block mt-1 text-[10px] font-bold text-slate-400 leading-tight">&#25512;&#25773;&#24460;&#65292;&#29992;&#25142;&#32842;&#22825;&#21015;&#34920;&#30475;&#21040;&#30340;&#38928;&#35261;&#25991;&#23383;&#12290;&#19981;&#22635;&#21063;&#20351;&#29992;&#27169;&#32068;&#21517;&#31281;&#12290;</span>
+                            <input type="text" v-model="editingFlexRule.altText" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]" placeholder="&#24744;&#26377;&#19968;&#21063;&#20778;&#24800;&#35338;&#24687;&#65292;&#35531;&#21363;&#38321;&#35712;">
+                            <span class="block mt-1 text-[10px] font-bold text-slate-400 leading-tight">&#25512;&#25773;&#24460;&#65292;&#29992;&#25142;&#32842;&#22825;&#21015;&#34920;&#30475;&#21040;&#30340;&#38928;&#35261;&#25991;&#23383;&#12290;&#38928;&#35373;&#65306;&#24744;&#26377;&#19968;&#21063;&#20778;&#24800;&#35338;&#24687;&#65292;&#35531;&#21363;&#38321;&#35712;&#12290;</span>
                         </label>
                         <label class="block min-w-0">
                             <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">Postback / &#38364;&#37749;&#23383;</span>
@@ -2535,6 +2535,8 @@
                         return /^https?:\/\//i.test(uri) ? uri : fallback;
                     };
 
+                    const DEFAULT_LINE_DISPLAY_TEXT = '您有一則優惠訊息，請即閱讀';
+
                     const defaultFlexImage = 'https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_cafe.png';
 
                     const buildFlexContentsFromForm = (form) => {
@@ -2626,7 +2628,7 @@
 
                     const buildFlexMessageFromForm = (form) => ({
                         type: 'flex',
-                        altText: String(form.altText || form.moduleName || form.keyword || 'LINE Flex 推播').slice(0, 400),
+                        altText: String(form.altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
                         contents: buildFlexContentsFromForm(form)
                     });
 
@@ -2640,11 +2642,11 @@
                         return broadcastModuleOptions.value.filter(rule => ids.has(String(rule.id)));
                     });
 
-                    const moduleDisplayText = (rule) => String(rule?.altText || rule?.displayText || '').trim();
+                    const moduleDisplayText = (rule) => String(rule?.altText || rule?.displayText || DEFAULT_LINE_DISPLAY_TEXT).trim();
 
                     const buildDisplayTextFlexMessage = (text, altText) => ({
                         type: 'flex',
-                        altText: String(altText || text || '文字訊息').slice(0, 400),
+                        altText: String(altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
                         contents: {
                             type: 'bubble',
                             body: { type: 'box', layout: 'vertical', paddingAll: '18px', contents: [{ type: 'text', text: String(text || ''), wrap: true, size: 'md', color: '#111827' }] }
@@ -2653,7 +2655,7 @@
 
                     const buildDisplayImageFlexMessage = (url, altText) => ({
                         type: 'flex',
-                        altText: String(altText || '圖片訊息').slice(0, 400),
+                        altText: String(altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
                         contents: {
                             type: 'bubble',
                             hero: { type: 'image', url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }
@@ -2662,7 +2664,7 @@
 
                     const parseBroadcastFlexPayload = (rule) => {
                         const raw = JSON.parse(rule.payload || '{}');
-                        const altText = String(moduleDisplayText(rule) || raw.altText || rule.moduleName || rule.keyword || 'Flex 推播').slice(0, 400);
+                        const altText = String(moduleDisplayText(rule) || raw.altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400);
                         if (raw.type === 'flex' && raw.contents) return { ...raw, altText };
                         if (raw.type === 'bubble' || raw.type === 'carousel') {
                             return {
@@ -3891,7 +3893,7 @@
                         const next = JSON.parse(JSON.stringify(rule || {}));
                         next.replyType = next.replyType || 'FLEX';
                         next.flexTemplate = next.flexTemplate || 'v1';
-                        next.altText = next.altText || (next.replyType === 'FLEX' ? (next.moduleName || next.keyword || '') : '');
+                        next.altText = next.altText || DEFAULT_LINE_DISPLAY_TEXT;
                         next.bodyText = next.bodyText || '';
                         next.buttonText = next.buttonText || '立即查看';
                         next.imageUrl = next.imageUrl || next.previewImageUrl || '';
@@ -4012,7 +4014,7 @@
                             keyword: '',
                             replyType: type,
                             flexTemplate,
-                            altText: type === 'FLEX' ? `Flex ${flexTemplate.toUpperCase()} 模組` : '',
+                            altText: DEFAULT_LINE_DISPLAY_TEXT,
                             bodyText: '',
                             buttonText: '立即查看',
                             imageUrl: '',
@@ -4051,11 +4053,11 @@
                                     ? parsedFlex
                                     : {
                                         type: 'flex',
-                                        altText: String(editingFlexRule.value.altText || editingFlexRule.value.moduleName || editingFlexRule.value.keyword || 'LINE Flex 推播').slice(0, 400),
+                                        altText: String(editingFlexRule.value.altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
                                         contents: parsedFlex
                                     };
                                 const customAltText = String(editingFlexRule.value.altText || '').trim();
-                                message.altText = String(customAltText || message.altText || editingFlexRule.value.moduleName || editingFlexRule.value.keyword || 'LINE Flex 推播').slice(0, 400);
+                                message.altText = String(customAltText || message.altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400);
                                 editingFlexRule.value.altText = message.altText;
                                 editingFlexRule.value.payload = JSON.stringify(message, null, 2);
                                 editingFlexRule.value.previewImageUrl = editingFlexRule.value.imageUrl || editingFlexRule.value.previewImageUrl || '';
