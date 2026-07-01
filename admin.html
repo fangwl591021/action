@@ -584,12 +584,17 @@
                                     </div>
                                     <div class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                         <div>
-                                            <div class="text-sm font-black text-indigo-800"><i class="fas fa-vial mr-2"></i>LINE OA 測試管理員</div>
-                                            <div class="text-xs font-bold text-indigo-500 mt-1">測試訊息不使用受眾名單；本人必須存在於 LINE OA 測試管理員 UID 名單。</div>
+                                            <div class="text-sm font-black text-indigo-800"><i class="fas fa-vial mr-2"></i>LINE OA &#x6E2C;&#x8A66;&#x7BA1;&#x7406;&#x54E1;</div>
+                                            <div class="text-xs font-bold text-indigo-500 mt-1">&#x6E2C;&#x8A66;&#x8A0A;&#x606F;&#x4E0D;&#x4F7F;&#x7528;&#x53D7;&#x773E;&#x540D;&#x55AE;&#xFF1B;&#x672C;&#x4EBA;&#x5FC5;&#x9808;&#x5B58;&#x5728;&#x65BC; LINE OA &#x6E2C;&#x8A66;&#x7BA1;&#x7406;&#x54E1; UID &#x540D;&#x55AE;&#x3002;</div>
+                                            <div v-if="currentLineUid" class="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-indigo-700">
+                                                <span class="font-mono bg-white border border-indigo-100 rounded px-2 py-1">&#x76EE;&#x524D;&#x767B;&#x5165; UID&#xFF1A;{{ currentLineUid }}</span>
+                                                <button @click="copyText(currentLineUid)" class="text-indigo-600 hover:text-indigo-900">&#x8907;&#x88FD; UID</button>
+                                                <button @click="switchView('settings')" class="text-indigo-600 hover:text-indigo-900">&#x524D;&#x5F80;&#x8A2D;&#x5B9A;</button>
+                                            </div>
                                         </div>
                                         <select v-model="broadcastForm.testRecipientMode" class="input-field !w-full md:!w-56 !py-2 !text-sm font-bold bg-white">
-                                            <option value="self">操作管理員本人</option>
-                                            <option value="all">所有管理員</option>
+                                            <option value="self">&#x64CD;&#x4F5C;&#x7BA1;&#x7406;&#x54E1;&#x672C;&#x4EBA;</option>
+                                            <option value="all">&#x6240;&#x6709;&#x7BA1;&#x7406;&#x54E1;</option>
                                         </select>
                                     </div>
                                     <div class="flex justify-end gap-3 border-t border-slate-100 pt-5">
@@ -1598,6 +1603,7 @@
                     const isLoading = ref(false);
                     const liffProfile = ref({});
                     const currentAccess = ref({ isAdmin: false, canCrmLogin: false, isTeacher: false, canSystemTools: false });
+                    const currentLineUid = computed(() => String(currentAccess.value?.userId || '').trim());
                     
                     const memberTiers = ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師'];
                     const courseStageOptions = ['一般', '喚醒', '蛻變', '完整'];
@@ -2767,7 +2773,12 @@
                             alert(`${label}完成：成功 ${data?.campaign?.sent || 0}，失敗 ${data?.campaign?.failed || 0}${errorText ? '\n\n失敗原因：\n' + errorText : ''}`);
                         } catch (e) {
                             console.error(e);
-                            alert('推播失敗：' + e.message);
+                            const message = String(e?.message || '');
+                            if (testMode && /LINE OA \u6e2c\u8a66\u7ba1\u7406\u54e1 UID|LINE OA \u6e2c\u8a66\u7ba1\u7406\u54e1\u540d\u55ae/.test(message)) {
+                                if (confirm('\u63a8\u64ad\u5931\u6557\uff1a' + message + '\n\n\u8981\u524d\u5f80\u7cfb\u7d71\u8a2d\u5b9a\u65b0\u589e LINE OA \u6e2c\u8a66\u7ba1\u7406\u54e1 UID \u55ce\uff1f')) switchView('settings');
+                            } else {
+                                alert('\u63a8\u64ad\u5931\u6557\uff1a' + message);
+                            }
                         } finally {
                             isLoading.value = false;
                         }
@@ -4462,7 +4473,7 @@
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, courseStageOptions, productStatusOptions,
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, auditLogs, broadcastTags, broadcastCampaigns, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
                         mylittlesysFlexFrame, mylittlesysFlexUrl,
-                        currentAccess, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile, activeReferrerName,
+                        currentAccess, currentLineUid, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile, activeReferrerName,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText, adminOrderPaymentText, orderCourseName,
                         currentViewName, totalRevenue, courseStatsFiltered, courseThumbUrl, courseEnrollmentCount,
                         isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions, courseDisplayCategory, applyCourseCategoryType,
