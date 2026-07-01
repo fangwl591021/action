@@ -582,6 +582,16 @@
                                             <div class="text-3xl font-black text-indigo-700">{{ broadcastCampaigns.length }}</div>
                                         </div>
                                     </div>
+                                    <div class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                        <div>
+                                            <div class="text-sm font-black text-indigo-800"><i class="fas fa-vial mr-2"></i>LINE OA 測試管理員</div>
+                                            <div class="text-xs font-bold text-indigo-500 mt-1">測試訊息不使用受眾名單；本人必須存在於 LINE OA 測試管理員 UID 名單。</div>
+                                        </div>
+                                        <select v-model="broadcastForm.testRecipientMode" class="input-field !w-full md:!w-56 !py-2 !text-sm font-bold bg-white">
+                                            <option value="self">操作管理員本人</option>
+                                            <option value="all">所有管理員</option>
+                                        </select>
+                                    </div>
                                     <div class="flex justify-end gap-3 border-t border-slate-100 pt-5">
                                         <button @click="loadBroadcastData" :disabled="isLoading" class="btn-outline bg-white"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新整理</button>
                                         <button @click="sendPaidBroadcast(true)" :disabled="isLoading" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-vial mr-2"></i>測試訊息</button>
@@ -1023,6 +1033,11 @@
                             <label class="input-label">總部管理（輸入 UID）</label>
                             <textarea v-model="sysSettings.crm_login_uids" class="input-field h-24 resize-none font-mono text-sm" placeholder="每行或逗號分隔 LINE UID。此名單可登入總部管理後台，並取得完整管理權限。"></textarea>
                             <div class="text-xs text-slate-400 mt-2 font-bold">總部管理白名單等同完整後台管理權限；所有操作會以實際 LINE UID 記錄。</div>
+                        </div>
+                        <div class="mb-8">
+                            <label class="input-label">LINE OA 測試管理員 UID</label>
+                            <textarea v-model="sysSettings.line_oa_test_admin_uids" class="input-field h-24 resize-none font-mono text-sm" placeholder="每行或逗號分隔 LINE UID。測試訊息只會送給這份名單中的 LINE OA 管理員。"></textarea>
+                            <div class="text-xs text-slate-400 mt-2 font-bold">僅用於 LINE OA 測試訊息，不授權後台登入；可選發給操作管理員本人或所有管理員。</div>
                         </div>
                         <div class="mb-8 flex items-center justify-between bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                             <div>
@@ -1620,6 +1635,7 @@
                         newebpay_test_merchant_id: settings.newebpay_test_merchant_id || '',
                         newebpay_test_hash_key: settings.newebpay_test_hash_key || '',
                         newebpay_test_hash_iv: settings.newebpay_test_hash_iv || '',
+                        line_oa_test_admin_uids: settings.line_oa_test_admin_uids || '',
                         low_risk_wasabi_read_enabled: String(settings.low_risk_wasabi_read_enabled || 'false'),
                         high_risk_wasabi_read_enabled: String(settings.high_risk_wasabi_read_enabled || 'false')
                     });
@@ -1655,6 +1671,7 @@
                     const broadcastForm = ref({
                         title: '',
                         message: '',
+                        testRecipientMode: 'self',
                         audience: { tag: '', memberTier: '', gender: '', keyword: '' }
                     });
                     
@@ -2726,10 +2743,12 @@
                         let messages = [];
                         try { messages = buildBroadcastMessages(); }
                         catch (e) { return alert('推播內容錯誤：' + e.message); }
-                        const count = testMode ? 1 : selectedBroadcastAudience.value.length;
+                        const testRecipientMode = broadcastForm.value.testRecipientMode === 'all' ? 'all' : 'self';
+                        const count = testMode ? (testRecipientMode === 'all' ? '所有' : '本人') : selectedBroadcastAudience.value.length;
                         if (!testMode && !count) return alert('目前受眾為 0，無法推播');
                         if (testMode) {
-                            if (!confirm('確定要送出測試訊息給目前登入的管理員？\n\n測試訊息不會發送給受眾名單。')) return;
+                            const targetLabel = testRecipientMode === 'all' ? '所有 LINE OA 測試管理員' : '操作管理員本人';
+                            if (!confirm(`確定要送出測試訊息給${targetLabel}？\n\n測試訊息不會發送給受眾名單，且只使用 LINE OA 測試管理員規則。`)) return;
                         } else if (!confirm(`確定要推播給 ${count} 位會員？\n\n送出後會直接透過 LINE OA 發送，請確認文字與受眾條件。`)) return;
                         isLoading.value = true;
                         try {
@@ -2740,6 +2759,7 @@
                                 audience: broadcastForm.value.audience,
                                 selectedUids: testMode ? [] : selectedBroadcastAudience.value.map(member => member.userId),
                                 testMode,
+                                testRecipientMode,
                             });
                             if (data?.campaign && !data.campaign.testMode) broadcastCampaigns.value.unshift(data.campaign);
                             const label = testMode ? '測試訊息' : '推播';
