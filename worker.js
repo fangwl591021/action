@@ -1206,16 +1206,6 @@ function splitCsv(value) {
     .filter(Boolean);
 }
 
-function getLineOATestAdminUids(env, settings = {}) {
-  const uids = [
-    ...splitCsv(env.LINE_OA_TEST_ADMIN_UIDS),
-    ...splitCsv(env.LINE_OA_TEST_UIDS),
-    ...splitCsv(settings.line_oa_test_admin_uids),
-    ...splitCsv(settings.line_oa_test_uids),
-  ];
-  return [...new Set(uids.map(uid => String(uid || "").trim()).filter(uid => uid && uid !== "GUEST"))];
-}
-
 function isTeacherRecord(userData) {
   if (!userData || typeof userData !== "object") return false;
   if (userData.isTeacher === true || userData.role === "teacher") return true;
@@ -1990,21 +1980,6 @@ async function handleReplyRulesForLineWebhook(env, payload) {
   return handled;
 }
 
-function markBroadcastMessagesAsTest(messages, title) {
-  const nextMessages = JSON.parse(JSON.stringify(messages));
-  const prefix = "【測試訊息】";
-  if (nextMessages[0]?.type === "text") {
-    nextMessages[0].text = `${prefix}\n${nextMessages[0].text}`.slice(0, 5000);
-    return nextMessages;
-  }
-  if (nextMessages[0]?.type === "flex") {
-    nextMessages[0].altText = `${prefix}${String(nextMessages[0].altText || title).slice(0, 380)}`;
-    return nextMessages;
-  }
-  if (nextMessages.length < 5) return [{ type: "text", text: `${prefix} ${title}` }, ...nextMessages];
-  return nextMessages;
-}
-
 function summarizeBroadcastMessages(messages, title) {
   const firstText = messages.find(message => message.type === "text")?.text;
   if (firstText) return firstText.slice(0, 500);
@@ -2534,8 +2509,6 @@ export default {
             }
             delete sanitizedSettings.admin_uids;
             delete sanitizedSettings.crm_login_uids;
-            delete sanitizedSettings.line_oa_test_admin_uids;
-            delete sanitizedSettings.line_oa_test_uids;
             result.data = sanitizedSettings;
           }
           break;
@@ -3362,7 +3335,7 @@ export default {
           const messageType = String(payload?.messageType || "text").trim();
           if (!title) throw new Error("請輸入推播名稱");
           const normalizedMessages = normalizeBroadcastMessages(payload, title);
-          const testMode = payload?.testMode === true;
+          if (payload?.testMode === true) throw new Error("\u6e2c\u8a66\u8a0a\u606f\u529f\u80fd\u5df2\u79fb\u9664");
           const allUsers = uniqueUsersById(await listUserRecords(env));
           const adminUidSet = new Set([
             ...splitCsv(env.ADMIN_UIDS),
@@ -3390,48 +3363,13 @@ export default {
                 return uniqueUsersById([...userMap.values()]);
               })()
             : allUsers;
-          const testRecipientMode = payload?.testRecipientMode === "all" ? "all" : "self";
-          const lineOATestAdminUids = getLineOATestAdminUids(env, access.settings);
-          const lineOATestAdminUidSet = new Set(lineOATestAdminUids);
-          const userMapForTestAdmins = new Map(allUsers
-            .filter(user => user?.userId)
-            .map(user => [String(user.userId || "").trim(), user]));
-          const makeTestAdminRecipient = uid => {
-            const savedUser = userMapForTestAdmins.get(uid);
-            if (savedUser) return savedUser;
-            if (uid === userId) {
-              return {
-                userId: uid,
-                name: access.userData?.name || access.lineProfile?.name || "LINE OA 測試管理員",
-                isLineOATestAdmin: true,
-              };
-            }
-            return {
-              userId: uid,
-              name: `LINE OA 測試管理員 ${uid.slice(-6)}`,
-              isLineOATestAdmin: true,
-              isSyntheticLineOATestAdmin: true,
-            };
-          };
-          let recipients = [];
-          if (testMode) {
-            if (!lineOATestAdminUids.length) throw new Error("尚未設定 LINE OA 測試管理員 UID，請先到系統設定新增 LINE OA 測試管理員");
-            if (testRecipientMode === "self") {
-              if (!userId || userId === "GUEST") throw new Error("操作管理員本人測試需要使用 LINE 登入後台");
-              if (!lineOATestAdminUidSet.has(userId)) throw new Error("目前登入者不在 LINE OA 測試管理員名單，不能用本人測試發送");
-              recipients = [makeTestAdminRecipient(userId)];
-            } else {
-              recipients = lineOATestAdminUids.map(makeTestAdminRecipient);
-            }
-          } else {
-            recipients = selectBroadcastAudience(audienceUsers, audience, { adminUidSet });
-          }
-          if (!testMode && Array.isArray(payload?.selectedUids)) {
+          const recipients = selectBroadcastAudience(audienceUsers, audience, { adminUidSet });
+          if (Array.isArray(payload?.selectedUids)) {
             const selectedUidSet = new Set(payload.selectedUids.map(uid => String(uid || "").trim()).filter(Boolean));
             recipients.splice(0, recipients.length, ...recipients.filter(user => selectedUidSet.has(String(user.userId || "").trim())));
           }
           if (!recipients.length) throw new Error("目前受眾為 0，沒有可推播會員");
-          const messages = testMode ? markBroadcastMessagesAsTest(normalizedMessages, title) : normalizedMessages;
+          const messages = normalizedMessages;
           const messageText = summarizeBroadcastMessages(messages, title);
           const sendResult = await sendLineMulticast(env, recipients, messages);
           const campaign = {
@@ -3442,7 +3380,6 @@ export default {
             flexTemplate: payload?.flexTemplate || "",
             messageCount: messages.length,
             audience: payload?.audience || {},
-            testMode,
             targetCount: recipients.length,
             sent: sendResult.sent,
             failed: sendResult.failed,
@@ -3453,11 +3390,9 @@ export default {
             createdAt: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }),
             createdTs: Date.now(),
           };
-          if (!testMode) {
-            const campaigns = await safeGetKV(env, "PAID_BROADCASTS", []);
-            const nextCampaigns = [campaign, ...(Array.isArray(campaigns) ? campaigns : [])].slice(0, 200);
-            await safePutKV(env, "PAID_BROADCASTS", nextCampaigns);
-          }
+          const campaigns = await safeGetKV(env, "PAID_BROADCASTS", []);
+          const nextCampaigns = [campaign, ...(Array.isArray(campaigns) ? campaigns : [])].slice(0, 200);
+          await safePutKV(env, "PAID_BROADCASTS", nextCampaigns);
           result.data = { success: sendResult.failed === 0, campaign };
           break;
         }

@@ -582,25 +582,9 @@
                                             <div class="text-3xl font-black text-indigo-700">{{ broadcastCampaigns.length }}</div>
                                         </div>
                                     </div>
-                                    <div class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                        <div>
-                                            <div class="text-sm font-black text-indigo-800"><i class="fas fa-vial mr-2"></i>LINE OA &#x6E2C;&#x8A66;&#x7BA1;&#x7406;&#x54E1;</div>
-                                            <div class="text-xs font-bold text-indigo-500 mt-1">&#x6E2C;&#x8A66;&#x8A0A;&#x606F;&#x4E0D;&#x4F7F;&#x7528;&#x53D7;&#x773E;&#x540D;&#x55AE;&#xFF1B;&#x672C;&#x4EBA;&#x5FC5;&#x9808;&#x5B58;&#x5728;&#x65BC; LINE OA &#x6E2C;&#x8A66;&#x7BA1;&#x7406;&#x54E1; UID &#x540D;&#x55AE;&#x3002;</div>
-                                            <div v-if="currentLineUid" class="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-indigo-700">
-                                                <span class="font-mono bg-white border border-indigo-100 rounded px-2 py-1">&#x76EE;&#x524D;&#x767B;&#x5165; UID&#xFF1A;{{ currentLineUid }}</span>
-                                                <button @click="copyText(currentLineUid)" class="text-indigo-600 hover:text-indigo-900">&#x8907;&#x88FD; UID</button>
-                                                <button @click="switchView('settings')" class="text-indigo-600 hover:text-indigo-900">&#x524D;&#x5F80;&#x8A2D;&#x5B9A;</button>
-                                            </div>
-                                        </div>
-                                        <select v-model="broadcastForm.testRecipientMode" class="input-field !w-full md:!w-56 !py-2 !text-sm font-bold bg-white">
-                                            <option value="self">&#x64CD;&#x4F5C;&#x7BA1;&#x7406;&#x54E1;&#x672C;&#x4EBA;</option>
-                                            <option value="all">&#x6240;&#x6709;&#x7BA1;&#x7406;&#x54E1;</option>
-                                        </select>
-                                    </div>
                                     <div class="flex justify-end gap-3 border-t border-slate-100 pt-5">
                                         <button @click="loadBroadcastData" :disabled="isLoading" class="btn-outline bg-white"><i class="fas fa-sync-alt mr-2" :class="{'fa-spin': isLoading}"></i>重新整理</button>
-                                        <button @click="sendPaidBroadcast(true)" :disabled="isLoading" class="btn-outline text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-vial mr-2"></i>測試訊息</button>
-                                        <button @click="sendPaidBroadcast(false)" :disabled="isLoading || !selectedBroadcastAudience.length" class="btn-green-main px-8"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-paper-plane mr-2"></i>確認推播</button>
+                                        <button @click="sendPaidBroadcast" :disabled="isLoading || !selectedBroadcastAudience.length" class="btn-green-main px-8"><i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i><i v-else class="fas fa-paper-plane mr-2"></i>確認推播</button>
                                     </div>
                                 </div>
                             </div>
@@ -1038,11 +1022,6 @@
                             <label class="input-label">總部管理（輸入 UID）</label>
                             <textarea v-model="sysSettings.crm_login_uids" class="input-field h-24 resize-none font-mono text-sm" placeholder="每行或逗號分隔 LINE UID。此名單可登入總部管理後台，並取得完整管理權限。"></textarea>
                             <div class="text-xs text-slate-400 mt-2 font-bold">總部管理白名單等同完整後台管理權限；所有操作會以實際 LINE UID 記錄。</div>
-                        </div>
-                        <div class="mb-8">
-                            <label class="input-label">LINE OA 測試管理員 UID</label>
-                            <textarea v-model="sysSettings.line_oa_test_admin_uids" class="input-field h-24 resize-none font-mono text-sm" placeholder="每行或逗號分隔 LINE UID。測試訊息只會送給這份名單中的 LINE OA 管理員。"></textarea>
-                            <div class="text-xs text-slate-400 mt-2 font-bold">僅用於 LINE OA 測試訊息，不授權後台登入；可選發給操作管理員本人或所有管理員。</div>
                         </div>
                         <div class="mb-8 flex items-center justify-between bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                             <div>
@@ -1603,7 +1582,6 @@
                     const isLoading = ref(false);
                     const liffProfile = ref({});
                     const currentAccess = ref({ isAdmin: false, canCrmLogin: false, isTeacher: false, canSystemTools: false });
-                    const currentLineUid = computed(() => String(currentAccess.value?.userId || '').trim());
                     
                     const memberTiers = ['一般會員','喚醒階段會員','蛻變階段會員','完整階段會員','專業導師'];
                     const courseStageOptions = ['一般', '喚醒', '蛻變', '完整'];
@@ -1641,7 +1619,6 @@
                         newebpay_test_merchant_id: settings.newebpay_test_merchant_id || '',
                         newebpay_test_hash_key: settings.newebpay_test_hash_key || '',
                         newebpay_test_hash_iv: settings.newebpay_test_hash_iv || '',
-                        line_oa_test_admin_uids: settings.line_oa_test_admin_uids || '',
                         low_risk_wasabi_read_enabled: String(settings.low_risk_wasabi_read_enabled || 'false'),
                         high_risk_wasabi_read_enabled: String(settings.high_risk_wasabi_read_enabled || 'false')
                     });
@@ -1677,7 +1654,6 @@
                     const broadcastForm = ref({
                         title: '',
                         message: '',
-                        testRecipientMode: 'self',
                         audience: { tag: '', memberTier: '', gender: '', keyword: '' }
                     });
                     
@@ -2744,18 +2720,14 @@
                         return errors.slice(0, 3).join('\n');
                     };
 
-                    const sendPaidBroadcast = async (testMode = false) => {
-                        if (!broadcastForm.value.title.trim()) return alert('請輸入推播名稱');
+                    const sendPaidBroadcast = async () => {
+                        if (!broadcastForm.value.title.trim()) return alert('\u8acb\u8f38\u5165\u63a8\u64ad\u540d\u7a31');
                         let messages = [];
                         try { messages = buildBroadcastMessages(); }
-                        catch (e) { return alert('推播內容錯誤：' + e.message); }
-                        const testRecipientMode = broadcastForm.value.testRecipientMode === 'all' ? 'all' : 'self';
-                        const count = testMode ? (testRecipientMode === 'all' ? '所有' : '本人') : selectedBroadcastAudience.value.length;
-                        if (!testMode && !count) return alert('目前受眾為 0，無法推播');
-                        if (testMode) {
-                            const targetLabel = testRecipientMode === 'all' ? '所有 LINE OA 測試管理員' : '操作管理員本人';
-                            if (!confirm(`確定要送出測試訊息給${targetLabel}？\n\n測試訊息不會發送給受眾名單，且只使用 LINE OA 測試管理員規則。`)) return;
-                        } else if (!confirm(`確定要推播給 ${count} 位會員？\n\n送出後會直接透過 LINE OA 發送，請確認文字與受眾條件。`)) return;
+                        catch (e) { return alert('\u63a8\u64ad\u5167\u5bb9\u932f\u8aa4\uff1a' + e.message); }
+                        const count = selectedBroadcastAudience.value.length;
+                        if (!count) return alert('\u76ee\u524d\u53d7\u773e\u70ba 0\uff0c\u7121\u6cd5\u63a8\u64ad');
+                        if (!confirm(`\u78ba\u5b9a\u8981\u63a8\u64ad\u7d66 ${count} \u4f4d\u6703\u54e1\uff1f\n\n\u9001\u51fa\u5f8c\u6703\u76f4\u63a5\u900f\u904e LINE OA \u767c\u9001\uff0c\u8acb\u78ba\u8a8d\u6587\u5b57\u8207\u53d7\u773e\u689d\u4ef6\u3002`)) return;
                         isLoading.value = true;
                         try {
                             const data = await callApi('ADMIN_SEND_PAID_BROADCAST', {
@@ -2763,22 +2735,14 @@
                                 message: broadcastForm.value.message,
                                 messages,
                                 audience: broadcastForm.value.audience,
-                                selectedUids: testMode ? [] : selectedBroadcastAudience.value.map(member => member.userId),
-                                testMode,
-                                testRecipientMode,
+                                selectedUids: selectedBroadcastAudience.value.map(member => member.userId),
                             });
-                            if (data?.campaign && !data.campaign.testMode) broadcastCampaigns.value.unshift(data.campaign);
-                            const label = testMode ? '測試訊息' : '推播';
+                            if (data?.campaign) broadcastCampaigns.value.unshift(data.campaign);
                             const errorText = broadcastCampaignErrorText(data?.campaign);
-                            alert(`${label}完成：成功 ${data?.campaign?.sent || 0}，失敗 ${data?.campaign?.failed || 0}${errorText ? '\n\n失敗原因：\n' + errorText : ''}`);
+                            alert(`\u63a8\u64ad\u5b8c\u6210\uff1a\u6210\u529f ${data?.campaign?.sent || 0}\uff0c\u5931\u6557 ${data?.campaign?.failed || 0}${errorText ? '\n\n\u5931\u6557\u539f\u56e0\uff1a\n' + errorText : ''}`);
                         } catch (e) {
                             console.error(e);
-                            const message = String(e?.message || '');
-                            if (testMode && /LINE OA \u6e2c\u8a66\u7ba1\u7406\u54e1 UID|LINE OA \u6e2c\u8a66\u7ba1\u7406\u54e1\u540d\u55ae/.test(message)) {
-                                if (confirm('\u63a8\u64ad\u5931\u6557\uff1a' + message + '\n\n\u8981\u524d\u5f80\u7cfb\u7d71\u8a2d\u5b9a\u65b0\u589e LINE OA \u6e2c\u8a66\u7ba1\u7406\u54e1 UID \u55ce\uff1f')) switchView('settings');
-                            } else {
-                                alert('\u63a8\u64ad\u5931\u6557\uff1a' + message);
-                            }
+                            alert('\u63a8\u64ad\u5931\u6557\uff1a' + (e?.message || e));
                         } finally {
                             isLoading.value = false;
                         }
@@ -4473,7 +4437,7 @@
                         isAuthenticated, loginForm, view, groups, isLoading, liffProfile, memberTiers, courseStageOptions, productStatusOptions,
                         users, teachers, courses, products, orders, sysSettings, paymentLogs, flexRules, pointsLedger, auditLogs, broadcastTags, broadcastCampaigns, wasabiCheck, wasabiExportResult, wasabiVerifyResult, wasabiHighRiskExportResult, wasabiHighRiskVerifyResult, wasabiDailyCheckResult,
                         mylittlesysFlexFrame, mylittlesysFlexUrl,
-                        currentAccess, currentLineUid, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile, activeReferrerName,
+                        currentAccess, isAdminRole, isSystemRole, isOperatorRole, canViewFinance, canManagePoints, canManageRichMenu, canEditMemberProfile, activeReferrerName,
                         adminOrderStatusText, adminOrderStatusClass, adminOrderAmountText, adminOrderPaymentText, orderCourseName,
                         currentViewName, totalRevenue, courseStatsFiltered, courseThumbUrl, courseEnrollmentCount,
                         isEditingReservationCourse, isExistingEditingCourse, isExistingEditingProduct, courseLocationOptions, courseDisplayCategory, applyCourseCategoryType,
