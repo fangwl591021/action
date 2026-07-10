@@ -1183,7 +1183,7 @@
             <div class="modal-body modal-body-lg p-0 animate-fade-in !w-[calc(100vw-32px)] !max-w-[calc(100vw-32px)] !h-[calc(100vh-32px)] !rounded-xl bg-white shadow-2xl flex flex-col">
                 <div class="px-5 py-4 flex flex-wrap items-start gap-3 bg-white border-b border-slate-100 shadow-sm z-10 relative">
                     <h3 class="text-[18px] font-black text-slate-800 flex items-center gap-2 shrink-0 min-h-[44px]"><i class="fas fa-robot text-[#06C755]"></i> {{ editingFlexRule?.createdAt ? '編輯模組' : '新增模組' }}</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(260px,1.25fr)_minmax(180px,1fr)_190px_130px] gap-3 items-start flex-1 min-w-[640px]">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(320px,1.35fr)_minmax(220px,1fr)_190px] gap-3 items-start flex-1 min-w-[640px]">
                         <label class="block min-w-0">
                             <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#27169;&#32068;&#21517;&#31281;</span>
                             <input type="text" v-model="editingFlexRule.moduleName" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]" placeholder="&#20363;&#65306;Flex V1 &#27169;&#32068;">
@@ -1206,7 +1206,7 @@
                             </select>
                             <div v-else class="input-field bg-slate-100 border-slate-200 font-black text-slate-600 !py-2 !text-[13px] cursor-not-allowed select-none">{{ flexRuleTypeLabel(editingFlexRule) }}</div>
                         </label>
-                        <label class="block min-w-0">
+                        <label v-if="editingFlexRule.replyType !== 'IMAGE'" class="block min-w-0">
                             <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#29376;&#24907;</span>
                             <select v-model="editingFlexRule.active" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]">
                                 <option :value="true">&#21855;&#29992;</option>
@@ -1214,7 +1214,7 @@
                             </select>
                         </label>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-[360px] xl:w-[540px]">
+                    <div v-if="editingFlexRule.replyType !== 'IMAGE'" class="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-[360px] xl:w-[540px]">
                         <label class="block min-w-0">
                             <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#38283;&#22987;&#26178;&#38291;</span>
                             <input type="datetime-local" :value="dateTimeLocalValue(editingFlexRule.startAt)" @input="editingFlexRule.startAt = dateTimeLocalToIso($event.target.value)" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]">
@@ -1241,6 +1241,26 @@
                             </div>
                             <div class="p-6 bg-white min-h-0 overflow-y-auto">
                                 <div class="max-w-2xl space-y-5">
+                                    <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                        <div class="text-[11px] font-black text-slate-500 uppercase mb-3">&#35320;&#30332;&#35373;&#23450;</div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <label class="block min-w-0">
+                                                <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#29376;&#24907;</span>
+                                                <select v-model="editingFlexRule.active" class="input-field bg-slate-50 font-bold">
+                                                    <option :value="true">&#21855;&#29992;</option>
+                                                    <option :value="false">&#20572;&#29992;</option>
+                                                </select>
+                                            </label>
+                                            <label class="block min-w-0">
+                                                <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#38283;&#22987;&#26178;&#38291;</span>
+                                                <input type="datetime-local" :value="dateTimeLocalValue(editingFlexRule.startAt)" @input="editingFlexRule.startAt = dateTimeLocalToIso($event.target.value)" class="input-field bg-slate-50 font-bold">
+                                            </label>
+                                            <label class="block min-w-0 sm:col-span-2">
+                                                <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#32080;&#26463;&#26178;&#38291;</span>
+                                                <input type="datetime-local" :value="dateTimeLocalValue(editingFlexRule.endAt)" @input="editingFlexRule.endAt = dateTimeLocalToIso($event.target.value)" class="input-field bg-slate-50 font-bold">
+                                            </label>
+                                        </div>
+                                    </div>
                                     <div>
                                         <div class="text-[11px] font-black text-slate-500 uppercase mb-2">&#22294;&#29255;&#35373;&#23450;</div>
                                         <label class="block">
