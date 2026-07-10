@@ -767,11 +767,15 @@
   (function(){
     var fallbackImage = 'https://dummyimage.com/800x800/e2e8f0/64748b&text=Image';
     function $(id){ return document.getElementById(id); }
-    function ratioCss(value) {
+    function parseV0Aspect(value) {
       var raw = String(value || '1:1').replace('x', ':').replace('/', ':');
       var parts = raw.split(':').map(function(v){ return parseFloat(v.trim()); });
-      if (parts.length !== 2 || !parts[0] || !parts[1]) return '1 / 1';
-      return parts[0] + ' / ' + parts[1];
+      if (parts.length !== 2 || !parts[0] || !parts[1]) return { width: 1, height: 1 };
+      return { width: parts[0], height: parts[1] };
+    }
+    function ratioCss(value) {
+      var ratio = parseV0Aspect(value);
+      return ratio.width + ' / ' + ratio.height;
     }
     function flexUri(value) {
       var raw = String(value || '').trim();
@@ -860,7 +864,14 @@
         mockBubble.style.maxWidth = '100%';
       }
       if ($('v0-mock-image')) $('v0-mock-image').src = img || fallbackImage;
-      if ($('v0-mock-hero')) $('v0-mock-hero').style.aspectRatio = ratioCss(aspect);
+      var mockHero = $('v0-mock-hero');
+      if (mockHero) {
+        var parsedAspect = parseV0Aspect(aspect);
+        var heroWidth = mockHero.clientWidth || (mockBubble && mockBubble.clientWidth) || (V0_PREVIEW_WIDTHS[bubbleSize] || V0_PREVIEW_WIDTHS.mega);
+        mockHero.style.aspectRatio = ratioCss(aspect);
+        mockHero.style.height = Math.max(1, Math.round(heroWidth * parsedAspect.height / parsedAspect.width)) + 'px';
+        mockHero.style.flexShrink = '0';
+      }
       if ($('v0-mock-body')) $('v0-mock-body').style.backgroundColor = bg;
       if ($('v0-mock-footer')) $('v0-mock-footer').style.backgroundColor = bg;
       if ($('v0-mock-title')) { $('v0-mock-title').textContent = title; $('v0-mock-title').style.color = titleColor; }
