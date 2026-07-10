@@ -1883,6 +1883,16 @@ function replyRuleDisplayText(rule) {
   return String(rule?.altText || rule?.displayText || DEFAULT_LINE_DISPLAY_TEXT).trim();
 }
 
+function normalizeReplyImageAspectRatio(value, fallback = "1:1") {
+  const raw = String(value || "").trim().replace(/\s*[xX]\s*/g, ":").replace(/\s+/g, "");
+  const match = raw.match(/^(\d{1,5}(?:\.\d{1,4})?):(\d{1,5}(?:\.\d{1,4})?)$/);
+  if (!match) return fallback;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return fallback;
+  return match[1] + ":" + match[2];
+}
+
 function buildDisplayTextFlexMessage(text, altText) {
   return normalizeLineMessageUnit({
     type: "flex",
@@ -1899,13 +1909,13 @@ function buildDisplayTextFlexMessage(text, altText) {
   });
 }
 
-function buildDisplayImageFlexMessage(url, altText) {
+function buildDisplayImageFlexMessage(url, altText, imageAspectRatio = "1:1") {
   return normalizeLineMessageUnit({
     type: "flex",
     altText: String(altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
     contents: {
       type: "bubble",
-      hero: { type: "image", url, size: "full", aspectRatio: "1:1", aspectMode: "cover" },
+      hero: { type: "image", url, size: "full", aspectRatio: normalizeReplyImageAspectRatio(imageAspectRatio), aspectMode: "cover" },
     },
   });
 }
@@ -1921,7 +1931,7 @@ function buildLineMessageFromReplyRule(rule) {
     const url = payload;
     const previewUrl = String(rule?.previewImageUrl || payload).trim();
     const displayText = replyRuleDisplayText(rule);
-    return displayText ? buildDisplayImageFlexMessage(url, displayText) : normalizeLineMessageUnit({ type: "image", originalContentUrl: url, previewImageUrl });
+    return displayText ? buildDisplayImageFlexMessage(url, displayText, rule?.imageAspectRatio) : normalizeLineMessageUnit({ type: "image", originalContentUrl: url, previewImageUrl });
   }
   if (type === "FLEX") {
     const raw = JSON.parse(payload || "{}");
@@ -3301,6 +3311,7 @@ export default {
             replyType,
             payload: payloadText,
             previewImageUrl: String(payload?.previewImageUrl || "").trim(),
+            imageAspectRatio: normalizeReplyImageAspectRatio(payload?.imageAspectRatio, "1:1"),
             flexTemplate: String(payload?.flexTemplate || "").trim().toLowerCase(),
             altText: String(payload?.altText || payload?.displayText || DEFAULT_LINE_DISPLAY_TEXT).trim(),
             displayText: String(payload?.displayText || payload?.altText || DEFAULT_LINE_DISPLAY_TEXT).trim(),

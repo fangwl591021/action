@@ -1214,17 +1214,23 @@
                 <div class="p-1 overflow-hidden flex-1 min-h-0 bg-slate-50 custom-scrollbar">
                     <div class="bg-white p-0 rounded-lg border border-slate-200 shadow-sm h-full min-h-0 flex flex-col">
                         <div v-if="editingFlexRule.replyType === 'IMAGE'" class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-                            <img v-if="editingFlexRule.payload" :src="editingFlexRule.payload" class="w-full max-h-[360px] object-contain bg-white">
+                            <div v-if="editingFlexRule.payload" class="mx-auto max-h-[430px] bg-white overflow-hidden" :style="{ aspectRatio: imageAspectRatioCss(editingFlexRule.imageAspectRatio), width: 'min(100%, calc(430px * ' + imageAspectRatioNumber(editingFlexRule.imageAspectRatio) + '))' }">
+                                <img :src="editingFlexRule.payload" class="w-full h-full object-contain bg-white">
+                            </div>
                             <div v-else class="h-56 flex flex-col items-center justify-center text-slate-300 gap-3">
                                 <i class="fas fa-image text-5xl"></i>
-                                <div class="text-sm font-bold">尚未上傳圖片</div>
+                                <div class="text-sm font-bold">&#23578;&#26410;&#19978;&#20659;&#22294;&#29255;</div>
                             </div>
-                            <div class="p-4 bg-white border-t border-slate-100 flex items-center gap-3">
+                            <div class="p-4 bg-white border-t border-slate-100 flex flex-wrap items-end gap-3">
+                                <label class="block min-w-[180px]">
+                                    <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#22294;&#29255;&#27604;&#20363;</span>
+                                    <input v-model="editingFlexRule.imageAspectRatio" class="input-field font-bold !py-2" placeholder="1:1 / 400:600">
+                                </label>
                                 <label class="btn-green-main cursor-pointer inline-flex items-center gap-2">
-                                    <i class="fas fa-cloud-upload-alt"></i>上傳模組圖片
+                                    <i class="fas fa-cloud-upload-alt"></i>&#19978;&#20659;&#27169;&#32068;&#22294;&#29255;
                                     <input type="file" class="hidden" accept="image/*" @change="handleFlexRuleImageUpload">
                                 </label>
-                                <button v-if="editingFlexRule.payload" @click="editingFlexRule.payload = ''; editingFlexRule.previewImageUrl = ''" class="btn-outline text-red-500">移除圖片</button>
+                                <button v-if="editingFlexRule.payload" @click="editingFlexRule.payload = ''; editingFlexRule.previewImageUrl = ''" class="btn-outline text-red-500">&#31227;&#38500;&#22294;&#29255;</button>
                             </div>
                         </div>
                         <div v-else-if="editingFlexRule.replyType === 'FLEX'" class="h-full min-h-0 flex flex-col">
@@ -2644,6 +2650,29 @@
 
                     const moduleDisplayText = (rule) => String(rule?.altText || rule?.displayText || DEFAULT_LINE_DISPLAY_TEXT).trim();
 
+                    const normalizeImageAspectRatio = (value, fallback = '1:1') => {
+                        const raw = String(value || '').trim().replace(/\s*[xX]\s*/g, ':').replace(/\s+/g, '');
+                        const match = raw.match(/^(\d{1,5}(?:\.\d{1,4})?):(\d{1,5}(?:\.\d{1,4})?)$/);
+                        if (!match) return fallback;
+                        const width = Number(match[1]);
+                        const height = Number(match[2]);
+                        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return fallback;
+                        return match[1] + ':' + match[2];
+                    };
+
+                    const imageAspectRatioCss = (value) => normalizeImageAspectRatio(value, '1 / 1').replace(':', ' / ');
+
+                    const imageAspectRatioNumber = (value) => {
+                        const ratio = normalizeImageAspectRatio(value, '1:1').split(':').map(Number);
+                        return ratio[1] ? Math.max(0.1, ratio[0] / ratio[1]).toFixed(4) : '1';
+                    };
+
+                    const naturalImageRatio = (width, height) => {
+                        const w = Math.round(Number(width) || 0);
+                        const h = Math.round(Number(height) || 0);
+                        return w > 0 && h > 0 ? w + ':' + h : '1:1';
+                    };
+
                     const buildDisplayTextFlexMessage = (text, altText) => ({
                         type: 'flex',
                         altText: String(altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
@@ -2653,12 +2682,12 @@
                         }
                     });
 
-                    const buildDisplayImageFlexMessage = (url, altText) => ({
+                    const buildDisplayImageFlexMessage = (url, altText, imageAspectRatio = '1:1') => ({
                         type: 'flex',
                         altText: String(altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
                         contents: {
                             type: 'bubble',
-                            hero: { type: 'image', url, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' }
+                            hero: { type: 'image', url, size: 'full', aspectRatio: normalizeImageAspectRatio(imageAspectRatio), aspectMode: 'cover' }
                         }
                     });
 
@@ -2688,7 +2717,7 @@
                             const previewUrl = broadcastUri(rule.previewImageUrl || rule.payload, url);
                             if (!url) throw new Error(`模組「${rule.moduleName || rule.keyword || rule.id}」缺少圖片 URL`);
                             const displayText = moduleDisplayText(rule);
-                            return displayText ? buildDisplayImageFlexMessage(url, displayText) : { type: 'image', originalContentUrl: url, previewImageUrl: previewUrl };
+                            return displayText ? buildDisplayImageFlexMessage(url, displayText, rule.imageAspectRatio) : { type: 'image', originalContentUrl: url, previewImageUrl: previewUrl };
                         }
                         if (type === 'FLEX') return parseBroadcastFlexPayload(rule);
                         throw new Error(`不支援的模組類型：${type}`);
@@ -3638,6 +3667,14 @@
                     const handleFlexRuleImageUpload = (e) => {
                         const file = e.target.files[0];
                         if (!file || !editingFlexRule.value) return;
+                        const objectUrl = URL.createObjectURL(file);
+                        const image = new Image();
+                        image.onload = () => {
+                            if (editingFlexRule.value) editingFlexRule.value.imageAspectRatio = naturalImageRatio(image.naturalWidth, image.naturalHeight);
+                            URL.revokeObjectURL(objectUrl);
+                        };
+                        image.onerror = () => URL.revokeObjectURL(objectUrl);
+                        image.src = objectUrl;
                         uploadImageFile(file, (url) => {
                             editingFlexRule.value.payload = url;
                             editingFlexRule.value.previewImageUrl = url;
@@ -3900,6 +3937,7 @@
                         next.replyType = next.replyType || 'FLEX';
                         next.flexTemplate = next.flexTemplate || detectFlexTemplateFromPayload(next.payload || next.flexJson) || 'v1';
                         next.altText = next.altText || DEFAULT_LINE_DISPLAY_TEXT;
+                        next.imageAspectRatio = normalizeImageAspectRatio(next.imageAspectRatio, '1:1');
                         next.bodyText = next.bodyText || '';
                         next.buttonText = next.buttonText || '立即查看';
                         next.imageUrl = next.imageUrl || next.previewImageUrl || '';
@@ -3986,6 +4024,7 @@
                                 replyType: 'FLEX',
                                 payload: '',
                                 previewImageUrl: '',
+                                imageAspectRatio: '1:1',
                                 active: true
                             });
                         }
@@ -4027,6 +4066,7 @@
                             videoUrl: '',
                             actionUrl: '',
                             previewImageUrl: '',
+                            imageAspectRatio: '1:1',
                             payload: '',
                             flexJson: '',
                             active: true
