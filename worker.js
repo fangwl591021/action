@@ -1870,15 +1870,31 @@ function splitReplyRuleTriggers(rule) {
     .filter(Boolean);
 }
 
-function replyRuleMatchesEvent(rule, eventText, eventPostback) {
+function normalizeRuleDateTime(value) {
+  if (!value) return "";
+  const date = new Date(String(value).trim());
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function replyRuleInActiveWindow(rule, nowMs = Date.now()) {
   if (!rule || rule.active === false) return false;
+  const startAt = normalizeRuleDateTime(rule.startAt);
+  const endAt = normalizeRuleDateTime(rule.endAt);
+  const startMs = startAt ? new Date(startAt).getTime() : 0;
+  const endMs = endAt ? new Date(endAt).getTime() : 0;
+  if (startMs && nowMs < startMs) return false;
+  if (endMs && nowMs > endMs) return false;
+  return true;
+}
+
+function replyRuleMatchesEvent(rule, eventText, eventPostback) {
+  if (!replyRuleInActiveWindow(rule)) return false;
   const triggers = splitReplyRuleTriggers(rule);
   if (!triggers.length) return false;
   const text = String(eventText || "").trim();
   const postback = String(eventPostback || "").trim();
   return triggers.some(trigger => trigger === text || trigger === postback);
 }
-
 function replyRuleDisplayText(rule) {
   return String(rule?.altText || rule?.displayText || DEFAULT_LINE_DISPLAY_TEXT).trim();
 }
@@ -3312,6 +3328,8 @@ export default {
             payload: payloadText,
             previewImageUrl: String(payload?.previewImageUrl || "").trim(),
             imageAspectRatio: normalizeReplyImageAspectRatio(payload?.imageAspectRatio, "1:1"),
+            startAt: normalizeRuleDateTime(payload?.startAt),
+            endAt: normalizeRuleDateTime(payload?.endAt),
             flexTemplate: String(payload?.flexTemplate || "").trim().toLowerCase(),
             altText: String(payload?.altText || payload?.displayText || DEFAULT_LINE_DISPLAY_TEXT).trim(),
             displayText: String(payload?.displayText || payload?.altText || DEFAULT_LINE_DISPLAY_TEXT).trim(),

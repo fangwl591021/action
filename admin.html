@@ -730,6 +730,7 @@
                                         <th class="p-4">觸發字 / Postback</th>
                                         <th class="p-4">格式</th>
                                         <th class="p-4">狀態</th>
+                                        <th class="p-4">&#26377;&#25928;&#26399;&#38291;</th>
                                         <th class="p-4">建立時間</th>
                                         <th class="p-4 text-right">操作</th>
                                     </tr>
@@ -749,7 +750,11 @@
                                                 <span v-if="rule.replyType === 'FLEX'" class="status-badge bg-emerald-50 text-emerald-700">{{ String(rule.flexTemplate || 'v1').toUpperCase() }}</span>
                                             </div>
                                         </td>
-                                        <td class="p-4"><span class="status-badge" :class="rule.active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">{{ rule.active !== false ? '啟用' : '停用' }}</span></td>
+                                        <td class="p-4"><span class="status-badge" :class="ruleStatusClass(rule)">{{ ruleStatusText(rule) }}</span></td>
+                                        <td class="p-4 text-xs font-bold text-slate-500 leading-relaxed">
+                                            <div>{{ formatFlexRuleDate(rule.startAt) || '不限開始' }}</div>
+                                            <div>{{ formatFlexRuleDate(rule.endAt) || '不限結束' }}</div>
+                                        </td>
                                         <td class="p-4 text-sm font-mono text-slate-500">{{ formatFlexRuleDate(rule.createdAt || rule.updatedAt || rule.id) }}</td>
                                         <td class="p-4">
                                             <div class="flex justify-end gap-2">
@@ -1206,6 +1211,16 @@
                                 <option :value="true">&#21855;&#29992;</option>
                                 <option :value="false">&#20572;&#29992;</option>
                             </select>
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 min-w-[300px] max-w-[440px]">
+                        <label class="block min-w-0">
+                            <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#38283;&#22987;&#26178;&#38291;</span>
+                            <input type="datetime-local" :value="dateTimeLocalValue(editingFlexRule.startAt)" @input="editingFlexRule.startAt = dateTimeLocalToIso($event.target.value)" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]">
+                        </label>
+                        <label class="block min-w-0">
+                            <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#32080;&#26463;&#26178;&#38291;</span>
+                            <input type="datetime-local" :value="dateTimeLocalValue(editingFlexRule.endAt)" @input="editingFlexRule.endAt = dateTimeLocalToIso($event.target.value)" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]">
                         </label>
                     </div>
                     <button v-if="editingFlexRule.replyType === 'FLEX'" @click="saveFlexRule" :disabled="isLoading" class="btn-green-main !py-2 !px-5 text-[13px] shadow-sm active:scale-95 flex items-center gap-2"><i v-if="isLoading" class="fas fa-spinner fa-spin"></i>{{ isLoading ? '儲存中...' : '儲存模組' }}</button>
@@ -2673,6 +2688,39 @@
                         return w > 0 && h > 0 ? w + ':' + h : '1:1';
                     };
 
+                    const dateTimeLocalValue = (value) => {
+                        if (!value) return '';
+                        const date = new Date(value);
+                        if (Number.isNaN(date.getTime())) return '';
+                        const pad = n => String(n).padStart(2, '0');
+                        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+                    };
+
+                    const dateTimeLocalToIso = (value) => {
+                        if (!value) return '';
+                        const date = new Date(value);
+                        return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+                    };
+
+                    const ruleWindowState = (rule) => {
+                        if (!rule || rule.active === false) return 'disabled';
+                        const now = Date.now();
+                        const start = rule.startAt ? new Date(rule.startAt).getTime() : 0;
+                        const end = rule.endAt ? new Date(rule.endAt).getTime() : 0;
+                        if (start && !Number.isNaN(start) && now < start) return 'scheduled';
+                        if (end && !Number.isNaN(end) && now > end) return 'expired';
+                        return 'active';
+                    };
+
+                    const ruleStatusText = (rule) => ({ active: '啟用', scheduled: '未開始', expired: '已過期', disabled: '停用' }[ruleWindowState(rule)] || '啟用');
+
+                    const ruleStatusClass = (rule) => ({
+                        active: 'bg-green-100 text-green-700',
+                        scheduled: 'bg-amber-100 text-amber-700',
+                        expired: 'bg-slate-100 text-slate-500',
+                        disabled: 'bg-red-100 text-red-700'
+                    }[ruleWindowState(rule)] || 'bg-green-100 text-green-700');
+
                     const buildDisplayTextFlexMessage = (text, altText) => ({
                         type: 'flex',
                         altText: String(altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
@@ -3938,6 +3986,8 @@
                         next.flexTemplate = next.flexTemplate || detectFlexTemplateFromPayload(next.payload || next.flexJson) || 'v1';
                         next.altText = next.altText || DEFAULT_LINE_DISPLAY_TEXT;
                         next.imageAspectRatio = normalizeImageAspectRatio(next.imageAspectRatio, '1:1');
+                        next.startAt = next.startAt || '';
+                        next.endAt = next.endAt || '';
                         next.bodyText = next.bodyText || '';
                         next.buttonText = next.buttonText || '立即查看';
                         next.imageUrl = next.imageUrl || next.previewImageUrl || '';
@@ -4025,6 +4075,8 @@
                                 payload: '',
                                 previewImageUrl: '',
                                 imageAspectRatio: '1:1',
+                                startAt: '',
+                                endAt: '',
                                 active: true
                             });
                         }
@@ -4067,6 +4119,8 @@
                             actionUrl: '',
                             previewImageUrl: '',
                             imageAspectRatio: '1:1',
+                            startAt: '',
+                            endAt: '',
                             payload: '',
                             flexJson: '',
                             active: true
