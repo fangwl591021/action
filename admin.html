@@ -1199,11 +1199,12 @@
                         </label>
                         <label class="block min-w-0">
                             <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#27169;&#32068;&#39006;&#22411;</span>
-                            <select v-model="editingFlexRule.replyType" class="input-field bg-slate-50 font-bold text-indigo-700 !py-2 !text-[13px]">
+                            <select v-if="!editingFlexRule.createdAt" v-model="editingFlexRule.replyType" class="input-field bg-slate-50 font-bold text-indigo-700 !py-2 !text-[13px]">
                                 <option value="FLEX">FLEX &#21345;&#29255;</option>
                                 <option value="IMAGE">&#22294;&#29255;&#35338;&#24687;</option>
                                 <option value="TEXT">&#32020;&#25991;&#23383;</option>
                             </select>
+                            <div v-else class="input-field bg-slate-100 border-slate-200 font-black text-slate-600 !py-2 !text-[13px] cursor-not-allowed select-none">{{ flexRuleTypeLabel(editingFlexRule) }}</div>
                         </label>
                         <label class="block min-w-0">
                             <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#29376;&#24907;</span>
@@ -2720,6 +2721,14 @@
                         expired: 'bg-slate-100 text-slate-500',
                         disabled: 'bg-red-100 text-red-700'
                     }[ruleWindowState(rule)] || 'bg-green-100 text-green-700');
+
+                    const flexRuleTypeLabel = (rule) => {
+                        const type = String(rule?.replyType || '').toUpperCase();
+                        if (type === 'FLEX') return 'FLEX 卡片 · ' + String(rule?.flexTemplate || 'v1').toUpperCase();
+                        if (type === 'IMAGE') return '圖片訊息';
+                        if (type === 'TEXT') return '純文字';
+                        return type || '未設定';
+                    };
 
                     const buildDisplayTextFlexMessage = (text, altText) => ({
                         type: 'flex',
@@ -4553,7 +4562,7 @@
                         openTeacherReservationCourses, editReservationCourseFromTeacher,
                         generateCheckinLink, updateOrderAttendance, openOrderEditModal, saveOrderUpdate, transferOrderCourse,
                         openSysConfigModal, saveSysConfig, handleApproveTeacher, removeTeacher, getCourseName, formatPrice,
-                        downloadMemberReport, downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, syncVideosToWasabi, openNewFlexRule, openEditFlexRule, duplicateFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, openMylittlesysTemplate, syncMylittlesysFlexFrame, captureMylittlesysFlexJson, formatFlexRuleDate, imageAspectRatioCss, imageAspectRatioNumber, dateTimeLocalValue, dateTimeLocalToIso, ruleStatusText, ruleStatusClass, syncWPPointsFromCRM
+                        downloadMemberReport, downloadSalesReport, downloadCourseReport, downloadBookingReport, loadPointsLedger, loadAuditLogs, loadBroadcastData, saveAudienceTag, toggleBroadcastMemberTag, resetBroadcastAudience, sendPaidBroadcast, runWasabiCheck, exportLowRiskWasabiSnapshot, verifyLowRiskWasabiSnapshot, exportHighRiskWasabiSnapshot, verifyHighRiskWasabiSnapshot, runWasabiDailyCheck, syncVideosToWasabi, openNewFlexRule, openEditFlexRule, duplicateFlexRule, saveFlexRule, deleteFlexRule, loadMemberCardTemplate, openMylittlesysTemplate, syncMylittlesysFlexFrame, captureMylittlesysFlexJson, formatFlexRuleDate, imageAspectRatioCss, imageAspectRatioNumber, dateTimeLocalValue, dateTimeLocalToIso, ruleStatusText, ruleStatusClass, flexRuleTypeLabel, syncWPPointsFromCRM
                     };
                 }
             }).mount('#app');
