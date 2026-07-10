@@ -1181,9 +1181,9 @@
 
         <div v-if="editingFlexRule" class="modal-mask" @click.self="editingFlexRule = null" style="z-index: 1000;">
             <div class="modal-body modal-body-lg p-0 animate-fade-in !w-[calc(100vw-32px)] !max-w-[calc(100vw-32px)] !h-[calc(100vh-32px)] !rounded-xl bg-white shadow-2xl flex flex-col">
-                <div class="px-4 py-2 flex items-center gap-3 bg-white border-b border-slate-100 shadow-sm z-10 relative">
-                    <h3 class="text-[18px] font-black text-slate-800 flex items-center gap-2 shrink-0"><i class="fas fa-robot text-[#06C755]"></i> {{ editingFlexRule?.createdAt ? '編輯模組' : '新增模組' }}</h3>
-                    <div class="ml-auto grid grid-cols-[minmax(140px,1fr)_minmax(180px,1.15fr)_minmax(140px,1fr)_150px_110px] gap-2 items-start max-w-[1240px] flex-1">
+                <div class="px-5 py-4 flex flex-wrap items-start gap-3 bg-white border-b border-slate-100 shadow-sm z-10 relative">
+                    <h3 class="text-[18px] font-black text-slate-800 flex items-center gap-2 shrink-0 min-h-[44px]"><i class="fas fa-robot text-[#06C755]"></i> {{ editingFlexRule?.createdAt ? '編輯模組' : '新增模組' }}</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(260px,1.25fr)_minmax(180px,1fr)_190px_130px] gap-3 items-start flex-1 min-w-[640px]">
                         <label class="block min-w-0">
                             <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#27169;&#32068;&#21517;&#31281;</span>
                             <input type="text" v-model="editingFlexRule.moduleName" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]" placeholder="&#20363;&#65306;Flex V1 &#27169;&#32068;">
@@ -1214,7 +1214,7 @@
                             </select>
                         </label>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 min-w-[300px] max-w-[440px]">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-[360px] xl:w-[540px]">
                         <label class="block min-w-0">
                             <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#38283;&#22987;&#26178;&#38291;</span>
                             <input type="datetime-local" :value="dateTimeLocalValue(editingFlexRule.startAt)" @input="editingFlexRule.startAt = dateTimeLocalToIso($event.target.value)" class="input-field bg-slate-50 font-bold !py-2 !text-[13px]">
@@ -1229,24 +1229,37 @@
                 </div>
                 <div class="p-1 overflow-hidden flex-1 min-h-0 bg-slate-50 custom-scrollbar">
                     <div class="bg-white p-0 rounded-lg border border-slate-200 shadow-sm h-full min-h-0 flex flex-col">
-                        <div v-if="editingFlexRule.replyType === 'IMAGE'" class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-                            <div v-if="editingFlexRule.payload" class="mx-auto max-h-[430px] bg-white overflow-hidden" :style="{ aspectRatio: imageAspectRatioCss(editingFlexRule.imageAspectRatio), width: 'min(100%, calc(430px * ' + imageAspectRatioNumber(editingFlexRule.imageAspectRatio) + '))' }">
-                                <img :src="editingFlexRule.payload" class="w-full h-full object-contain bg-white">
+                        <div v-if="editingFlexRule.replyType === 'IMAGE'" class="grid grid-cols-1 xl:grid-cols-[minmax(360px,0.9fr)_minmax(360px,1fr)] gap-0 h-full min-h-0 bg-white">
+                            <div class="bg-slate-50 border-r border-slate-200 min-h-0 flex items-center justify-center p-5 overflow-auto">
+                                <div v-if="editingFlexRule.payload" class="bg-white overflow-hidden shadow-sm" :style="{ aspectRatio: imageAspectRatioCss(editingFlexRule.imageAspectRatio), width: 'min(100%, calc(620px * ' + imageAspectRatioNumber(editingFlexRule.imageAspectRatio) + '))', maxHeight: '100%' }">
+                                    <img :src="editingFlexRule.payload" class="w-full h-full object-contain bg-white">
+                                </div>
+                                <div v-else class="w-full max-w-sm h-72 rounded-xl border border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-slate-300 gap-3">
+                                    <i class="fas fa-image text-5xl"></i>
+                                    <div class="text-sm font-bold">&#23578;&#26410;&#19978;&#20659;&#22294;&#29255;</div>
+                                </div>
                             </div>
-                            <div v-else class="h-56 flex flex-col items-center justify-center text-slate-300 gap-3">
-                                <i class="fas fa-image text-5xl"></i>
-                                <div class="text-sm font-bold">&#23578;&#26410;&#19978;&#20659;&#22294;&#29255;</div>
-                            </div>
-                            <div class="p-4 bg-white border-t border-slate-100 flex flex-wrap items-end gap-3">
-                                <label class="block min-w-[180px]">
-                                    <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#22294;&#29255;&#27604;&#20363;</span>
-                                    <input v-model="editingFlexRule.imageAspectRatio" class="input-field font-bold !py-2" placeholder="1:1 / 400:600">
-                                </label>
-                                <label class="btn-green-main cursor-pointer inline-flex items-center gap-2">
-                                    <i class="fas fa-cloud-upload-alt"></i>&#19978;&#20659;&#27169;&#32068;&#22294;&#29255;
-                                    <input type="file" class="hidden" accept="image/*" @change="handleFlexRuleImageUpload">
-                                </label>
-                                <button v-if="editingFlexRule.payload" @click="editingFlexRule.payload = ''; editingFlexRule.previewImageUrl = ''" class="btn-outline text-red-500">&#31227;&#38500;&#22294;&#29255;</button>
+                            <div class="p-6 bg-white min-h-0 overflow-y-auto">
+                                <div class="max-w-2xl space-y-5">
+                                    <div>
+                                        <div class="text-[11px] font-black text-slate-500 uppercase mb-2">&#22294;&#29255;&#35373;&#23450;</div>
+                                        <label class="block">
+                                            <span class="block mb-1 text-[10px] font-black text-slate-500 uppercase">&#22294;&#29255;&#27604;&#20363;</span>
+                                            <input v-model="editingFlexRule.imageAspectRatio" class="input-field font-bold" placeholder="1:1 / 400:600">
+                                        </label>
+                                    </div>
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                        <div class="text-[10px] font-black text-slate-500 uppercase mb-3">&#27169;&#32068;&#22294;&#29255;</div>
+                                        <div class="flex flex-wrap items-center gap-3">
+                                            <label class="btn-green-main cursor-pointer inline-flex items-center gap-2">
+                                                <i class="fas fa-cloud-upload-alt"></i>&#19978;&#20659;&#27169;&#32068;&#22294;&#29255;
+                                                <input type="file" class="hidden" accept="image/*" @change="handleFlexRuleImageUpload">
+                                            </label>
+                                            <button v-if="editingFlexRule.payload" @click="editingFlexRule.payload = ''; editingFlexRule.previewImageUrl = ''" class="btn-outline text-red-500">&#31227;&#38500;&#22294;&#29255;</button>
+                                        </div>
+                                        <div v-if="editingFlexRule.payload" class="mt-3 text-[11px] font-mono text-slate-500 break-all">{{ editingFlexRule.payload }}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div v-else-if="editingFlexRule.replyType === 'FLEX'" class="h-full min-h-0 flex flex-col">
