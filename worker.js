@@ -2339,7 +2339,7 @@ async function fillMissingLineProfile(env, user) {
   };
 }
 
-async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) {
+async function resolveAccess(env, claimedUserId, payload, idToken, accessToken, adminPassword) {
   const settings = await safeGetKV(env, "SYSTEM_SETTINGS", {});
   let verifiedLineProfile = null;
   let tokenVerificationError = null;
@@ -2360,7 +2360,9 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
   const adminUidSet = new Set([...splitCsv(env.ADMIN_UIDS), ...splitCsv(settings.admin_uids)]);
   const crmLoginUidSet = new Set([...splitCsv(env.CRM_LOGIN_UIDS), ...splitCsv(settings.crm_login_uids)]);
   const teacherUidSet = new Set(splitCsv(env.TEACHER_UIDS));
-  const userId = verifiedUserId || "GUEST";
+  const configuredAdminPassword = String(env.ADMIN_PASSWORD || settings.admin_password || "@1234").trim();
+  const adminPasswordOk = !!configuredAdminPassword && String(adminPassword || "").trim() === configuredAdminPassword;
+  const userId = verifiedUserId || (adminPasswordOk ? "PASSWORD_ADMIN" : "GUEST");
   let userData = userId && userId !== "GUEST" ? await safeGetKV(env, `USER_${userId}`, null) : null;
   if (userData && verifiedLineProfile && ((!String(userData.name || userData.displayName || "").trim() && verifiedLineProfile.name) || (!String(userData.pictureUrl || userData.avatar || "").trim() && verifiedLineProfile.picture))) {
     userData = {
@@ -2375,14 +2377,14 @@ async function resolveAccess(env, claimedUserId, payload, idToken, accessToken) 
   const hasVerifiedLineUser = !!verifiedUserId;
   const crmLineLoginEnabled = String(settings.crm_line_login_enabled || "false").toLowerCase() === "true";
   const isAdminByUser = crmLineLoginEnabled && hasVerifiedLineUser && (adminUidSet.has(userId) || crmLoginUidSet.has(userId) || userData?.isAdmin === true || userData?.role === "admin" || userData?.crmRole === "admin");
-  const isAdmin = isAdminByUser;
+  const isAdmin = adminPasswordOk || isAdminByUser;
   const isHeadquarterByUser = crmLineLoginEnabled && hasVerifiedLineUser && !isAdmin && crmLoginUidSet.has(userId);
   const isSystemByUser = crmLineLoginEnabled && hasVerifiedLineUser && !isAdmin && (userData?.crmSystem === true || userData?.role === "system" || userData?.crmRole === "system");
   const isOperatorByUser = crmLineLoginEnabled && hasVerifiedLineUser && (userData?.crmOperator === true || userData?.role === "operator" || userData?.crmRole === "operator");
   const canSystemTools = isAdmin || isSystemByUser;
   const canCrmLogin = isAdmin || isHeadquarterByUser || isSystemByUser || isOperatorByUser;
   const isTeacher = hasVerifiedLineUser && (teacherUidSet.has(userId) || isTeacherRecord(userData));
-  return { settings, userData, userId, lineProfile: verifiedLineProfile || null, isAdmin, canCrmLogin, canHeadquarter: isHeadquarterByUser, canSystemTools, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk: false };
+  return { settings, userData, userId, lineProfile: verifiedLineProfile || null, isAdmin, canCrmLogin, canHeadquarter: isHeadquarterByUser, canSystemTools, isTeacher, hasVerifiedLineUser, tokenVerificationError, crmLineLoginEnabled, adminPasswordOk };
 }
 
 export default {
@@ -2431,7 +2433,7 @@ export default {
   async handleApiActions(request, env, ctx, corsHeaders) {
     try {
       const body = await request.json();
-      const { action, payload, userProfile, idToken, accessToken } = body;
+      const { action, payload, userProfile, idToken, accessToken, adminPassword } = body;
       const claimedUserId = userProfile?.userId || payload?.userId || "GUEST";
       let result = { status: "success", data: null };
 
@@ -2439,7 +2441,7 @@ export default {
           throw new Error("【Cloudflare 設定遺漏】尚未綁定 KV 空間！");
       }
 
-      const access = await resolveAccess(env, claimedUserId, payload, idToken, accessToken);
+      const access = await resolveAccess(env, claimedUserId, payload, idToken, accessToken, adminPassword);
       const userId = access.userId;
       const isSensitiveAdminAction = action?.startsWith("ADMIN_") || action === "UPLOAD_IMAGE" || action === "DEPLOY_RICH_MENU";
       const isTeacherAction = TEACHER_ALLOWED_ACTIONS.has(action);

@@ -1843,7 +1843,7 @@
                             const res = await fetch(WORKER_URL, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ action: act, payload: requestPayload, userProfile: liffProfile.value || {}, idToken: token, accessToken: lineAccessToken })
+                                body: JSON.stringify({ action: act, payload: requestPayload, userProfile: liffProfile.value || {}, idToken: token, accessToken: lineAccessToken, adminPassword: sessionStorage.getItem('act_admin_pwd') || '' })
                             });
                             const text = await res.text();
                             let json;
@@ -2013,6 +2013,7 @@
                             alert('帳號或密碼錯誤');
                             return;
                         }
+                        sessionStorage.setItem('act_admin_pwd', pwd);
                         isLoading.value = true;
                         try {
                             const data = await callApi('GET_SETTINGS', {}, false);
