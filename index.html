@@ -1150,12 +1150,25 @@
                         hasInitError.value = false;
                         
                         const urlParams = typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location.search) : { get: () => null };
-                        const refCode = urlParams.get('ref');
-                        const viewParam = urlParams.get('view');
+                        let liffStateParams = { get: () => null };
+                        try {
+                            const rawState = urlParams.get('liff.state') || '';
+                            const cleanState = rawState.startsWith('?') ? rawState.slice(1) : rawState;
+                            if (cleanState) liffStateParams = new URLSearchParams(cleanState);
+                        } catch(e) {}
+                        const refCode = urlParams.get('ref') || liffStateParams.get('ref');
+                        const viewParam = urlParams.get('view') || liffStateParams.get('view');
                         const isDiagnosticView = viewParam === 'diagnostic';
                         if (isDiagnosticView) {
                             view.value = 'diagnostic';
-                            diagnosticInfo.value = { ...diagnosticInfo.value, checkedAt: new Date().toLocaleString('zh-TW') };
+                            isGlobalLoading.value = false;
+                            diagnosticInfo.value = {
+                                ...diagnosticInfo.value,
+                                memberStatus: '檢測中',
+                                pointsStatus: '檢測中',
+                                friendStatus: '檢測中',
+                                checkedAt: new Date().toLocaleString('zh-TW')
+                            };
                         }
                         if (refCode) {
                             try { localStorage.setItem('referral_uid', refCode); } catch(e) {}
@@ -1187,8 +1200,16 @@
                             if (courses.value.length > 0) isGlobalLoading.value = false; 
                         }
 
+
+                        const diagnosticTimeout = (promise, label, ms = 10000) => {
+                            if (!isDiagnosticView) return promise;
+                            return Promise.race([
+                                promise,
+                                new Promise((_, reject) => setTimeout(() => reject(new Error(label + ' 檢測逾時')), ms))
+                            ]);
+                        };
                         try {
-                            const rawSets = await callApi('GET_SETTINGS', { _t: Date.now() }, true);
+                            const rawSets = await diagnosticTimeout(callApi('GET_SETTINGS', { _t: Date.now() }, true), '系統設定');
                             let sets = {}; Object.keys(rawSets).forEach(k => sets[k.toLowerCase()] = rawSets[k]);
                             sysSettings.value = sets;
                             try { localStorage.setItem(`sets_${CACHE_VERSION}`, JSON.stringify(sets)); } catch(e) {}
@@ -1198,10 +1219,10 @@
                             diagnosticInfo.value = { ...diagnosticInfo.value, liffId: finalLiffId };
                             if (!finalLiffId) throw new Error('管理員尚未設定系統主 LIFF ID');
                             
-                            try { await liff.init({ liffId: finalLiffId }); } catch (liffErr) { throw new Error(`LIFF 初始化失敗: ${liffErr.message}`); }
+                            try { await diagnosticTimeout(liff.init({ liffId: finalLiffId }), 'LIFF 初始化'); } catch (liffErr) { throw new Error(`LIFF 初始化失敗: ${liffErr.message}`); }
                             if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); return; }
                             
-                            liffProfile.value = await liff.getProfile();
+                            liffProfile.value = await diagnosticTimeout(liff.getProfile(), '取得 LINE 個人資料');
                             const uid = liffProfile.value.userId;
                             if (isDiagnosticView) {
                                 diagnosticInfo.value = {
@@ -1213,7 +1234,7 @@
                             }
 
                             try {
-                                const friendship = await liff.getFriendship();
+                                const friendship = await diagnosticTimeout(liff.getFriendship(), '好友狀態');
                                 const friendStatus = friendship.friendFlag ? '已加入官方帳號' : '尚未加入官方帳號';
                                 diagnosticInfo.value = { ...diagnosticInfo.value, friendStatus };
                                 if (!friendship.friendFlag && !isDiagnosticView) { isGlobalLoading.value = false; view.value = 'add_friend_prompt'; return; }
@@ -1226,7 +1247,7 @@
                             syncLocal(uid);
 
                             const initErrors = [];
-                            const safeApi = (action, payload = {}) => callApi(action, payload, true).catch(e => {
+                            const safeApi = (action, payload = {}) => diagnosticTimeout(callApi(action, payload, true), action).catch(e => {
                                 console.warn(`${action} failed during init`, e);
                                 initErrors.push(`${action}: ${e && e.message ? e.message : String(e)}`);
                                 return null;
