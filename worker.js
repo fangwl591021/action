@@ -2438,6 +2438,16 @@ export default {
       return new Response(object.body, { headers });
     }
 
+    if (["GET", "HEAD"].includes(request.method) && ["/app", "/app/", "/app/index.html"].includes(url.pathname)) {
+      const object = await env['act-image']?.get("app/index.html");
+      if (!object) return new Response("App entry not found", { status: 404, headers: corsHeaders });
+      const headers = new Headers(corsHeaders);
+      object.writeHttpMetadata(headers);
+      headers.set("Content-Type", "text/html; charset=utf-8");
+      headers.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+      return new Response(request.method === "HEAD" ? null : object.body, { headers });
+    }
+
     if (url.pathname === "/hub-status") {
         return new Response(JSON.stringify({ gas: 'success', forward: 'success', line: 'success', allGood: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
