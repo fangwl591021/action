@@ -62,6 +62,43 @@
             <button @click="retryInit" class="text-sm font-bold text-slate-400 hover:text-slate-600 transition underline decoration-slate-300 underline-offset-4">我已經加入了，繼續進入系統</button>
         </div>
 
+        <div v-if="view === 'diagnostic'" class="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#F4F5F7] z-[100] overflow-y-auto animate-fade-in">
+            <div class="bg-white px-5 py-4 border-b border-slate-100 sticky top-0 z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-[#06C755]/10 text-[#06C755] flex items-center justify-center text-lg"><i class="fas fa-stethoscope"></i></div>
+                    <div>
+                        <h1 class="text-[18px] font-black text-slate-800">登入診斷提示</h1>
+                        <p class="text-[12px] font-bold text-slate-400 mt-0.5">請截圖此頁回傳給系統管理員</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-3 mb-5">
+                        <img v-if="diagnosticInfo.pictureUrl" :src="diagnosticInfo.pictureUrl" class="w-14 h-14 rounded-2xl object-cover border border-slate-100">
+                        <div v-else class="w-14 h-14 rounded-2xl bg-slate-100 text-slate-300 flex items-center justify-center text-2xl"><i class="fas fa-user"></i></div>
+                        <div class="min-w-0">
+                            <div class="text-[15px] font-black text-slate-800 truncate">{{ diagnosticInfo.displayName || '尚未取得名稱' }}</div>
+                            <div class="text-[11px] font-bold text-slate-400 mt-1">LINE 登入資訊</div>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div v-for="row in diagnosticRows" :key="row.label" class="rounded-2xl bg-slate-50 border border-slate-100 p-3">
+                            <div class="text-[11px] font-black text-slate-400 uppercase tracking-wide mb-1">{{ row.label }}</div>
+                            <div class="text-[14px] font-black text-slate-800 break-all whitespace-pre-wrap">{{ row.value || '未取得' }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-amber-50 border border-amber-100 text-amber-800 rounded-3xl p-4 text-[13px] font-bold leading-relaxed">
+                    這個頁面只用來確認目前登入的 LINE UID、是否已加入官方帳號，以及系統是否有對應會員檔案，不會修改任何資料。
+                </div>
+                <div class="grid grid-cols-2 gap-3 pb-6">
+                    <button @click="copyDiagnosticText" class="py-4 rounded-2xl bg-white border border-slate-200 text-slate-700 font-black text-[14px] shadow-sm active:scale-95 transition"><i class="fas fa-copy mr-1"></i> 複製資訊</button>
+                    <button @click="retryInit" class="py-4 rounded-2xl bg-[#06C755] text-white font-black text-[14px] shadow-lg shadow-green-100 active:scale-95 transition"><i class="fas fa-sync-alt mr-1"></i> 重新檢測</button>
+                </div>
+            </div>
+        </div>
+
         <transition name="slide-up">
             <div v-if="view === 'register'" class="fixed inset-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white z-[60] flex flex-col overflow-hidden animate-fade-in">
                 <div class="header-fixed border-none pb-0">
@@ -100,7 +137,7 @@
             </div>
         </transition>
 
-        <div v-if="view !== 'register' && view !== 'courseDetail' && view !== 'productDetail' && view !== 'share' && view !== 'referrals' && view !== 'points' && view !== 'add_friend_prompt' && view !== 'my_courses' && view !== 'booking'" class="flex flex-col h-screen overflow-hidden">
+        <div v-if="view !== 'register' && view !== 'courseDetail' && view !== 'productDetail' && view !== 'share' && view !== 'referrals' && view !== 'points' && view !== 'add_friend_prompt' && view !== 'diagnostic' && view !== 'my_courses' && view !== 'booking'" class="flex flex-col h-screen overflow-hidden">
             <main class="flex-1 overflow-y-auto hide-scrollbar pb-[70px]">
                 
                 <div v-if="view === 'home'" class="animate-fade-in relative">
@@ -794,6 +831,19 @@
                     const userStatus = ref({ registered: false, info: null, isAdmin: false, referrals: [] }); 
                     const userPoints = ref({ balance: 0, logs: [] }); 
                     const sysSettings = ref({});
+                    const diagnosticInfo = ref({
+                        liffId: '',
+                        lineUid: '',
+                        displayName: '',
+                        pictureUrl: '',
+                        friendStatus: '尚未檢測',
+                        memberStatus: '尚未檢測',
+                        memberName: '',
+                        pointsStatus: '尚未檢測',
+                        pointsBalance: '',
+                        errors: '',
+                        checkedAt: ''
+                    });
                     const courses = ref([]); 
                     const products = ref([]);
                     const videos = ref([]);
@@ -864,6 +914,26 @@
                     };
 
                     const formatPrice = (p) => Number(String(p).replace(/[^0-9.]/g, "")).toLocaleString();
+                    const diagnosticRows = computed(() => [
+                        { label: '目前登入 UID', value: diagnosticInfo.value.lineUid },
+                        { label: '好友狀態', value: diagnosticInfo.value.friendStatus },
+                        { label: '會員比對', value: diagnosticInfo.value.memberStatus },
+                        { label: '會員姓名', value: diagnosticInfo.value.memberName },
+                        { label: '點數讀取', value: diagnosticInfo.value.pointsStatus },
+                        { label: '點數餘額', value: diagnosticInfo.value.pointsBalance === '' ? '' : `${formatPrice(diagnosticInfo.value.pointsBalance)} 點` },
+                        { label: 'LIFF ID', value: diagnosticInfo.value.liffId },
+                        { label: '錯誤訊息', value: diagnosticInfo.value.errors || '無' },
+                        { label: '檢測時間', value: diagnosticInfo.value.checkedAt }
+                    ]);
+                    const copyDiagnosticText = async () => {
+                        const text = ['登入診斷提示', ...diagnosticRows.value.map(row => `${row.label}: ${row.value || '未取得'}`)].join('\n');
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            alert('已複製診斷資訊');
+                        } catch(e) {
+                            alert(text);
+                        }
+                    };
                     const defaultCourseThumb = () => sysSettings.value.banner_image || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80';
                     const courseThumbUrl = (course) => String(
                         course?.image ||
@@ -1082,6 +1152,11 @@
                         const urlParams = typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location.search) : { get: () => null };
                         const refCode = urlParams.get('ref');
                         const viewParam = urlParams.get('view');
+                        const isDiagnosticView = viewParam === 'diagnostic';
+                        if (isDiagnosticView) {
+                            view.value = 'diagnostic';
+                            diagnosticInfo.value = { ...diagnosticInfo.value, checkedAt: new Date().toLocaleString('zh-TW') };
+                        }
                         if (refCode) {
                             try { localStorage.setItem('referral_uid', refCode); } catch(e) {}
                         }
@@ -1120,6 +1195,7 @@
                             
                             let finalLiffId = String(sysSettings.value.liff_id || '').trim();
                             if (finalLiffId.includes('liff.line.me/')) finalLiffId = finalLiffId.split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
+                            diagnosticInfo.value = { ...diagnosticInfo.value, liffId: finalLiffId };
                             if (!finalLiffId) throw new Error('管理員尚未設定系統主 LIFF ID');
                             
                             try { await liff.init({ liffId: finalLiffId }); } catch (liffErr) { throw new Error(`LIFF 初始化失敗: ${liffErr.message}`); }
@@ -1127,16 +1203,32 @@
                             
                             liffProfile.value = await liff.getProfile();
                             const uid = liffProfile.value.userId;
+                            if (isDiagnosticView) {
+                                diagnosticInfo.value = {
+                                    ...diagnosticInfo.value,
+                                    lineUid: uid || '',
+                                    displayName: liffProfile.value.displayName || '',
+                                    pictureUrl: liffProfile.value.pictureUrl || ''
+                                };
+                            }
 
                             try {
                                 const friendship = await liff.getFriendship();
-                                if (!friendship.friendFlag) { isGlobalLoading.value = false; view.value = 'add_friend_prompt'; return; }
-                            } catch(e) { console.log('好友檢查略過或權限不足:', e); }
+                                const friendStatus = friendship.friendFlag ? '已加入官方帳號' : '尚未加入官方帳號';
+                                diagnosticInfo.value = { ...diagnosticInfo.value, friendStatus };
+                                if (!friendship.friendFlag && !isDiagnosticView) { isGlobalLoading.value = false; view.value = 'add_friend_prompt'; return; }
+                            } catch(e) {
+                                const friendError = e && e.message ? e.message : String(e);
+                                diagnosticInfo.value = { ...diagnosticInfo.value, friendStatus: `好友狀態無法檢測：${friendError}` };
+                                console.log('好友檢查略過或權限不足:', e);
+                            }
 
                             syncLocal(uid);
 
+                            const initErrors = [];
                             const safeApi = (action, payload = {}) => callApi(action, payload, true).catch(e => {
                                 console.warn(`${action} failed during init`, e);
+                                initErrors.push(`${action}: ${e && e.message ? e.message : String(e)}`);
                                 return null;
                             });
                             const [checkRes, cData, oData, pData, productData, videoData] = await Promise.all([
@@ -1172,6 +1264,22 @@
                                 } catch(e) { console.warn('LocalStorage limit reached in initApp'); }
                             }
                             
+                            if (isDiagnosticView) {
+                                diagnosticInfo.value = {
+                                    ...diagnosticInfo.value,
+                                    memberStatus: checkRes ? (checkRes.registered ? '已找到會員檔案' : '沒有對應會員檔案') : '會員檢查失敗',
+                                    memberName: checkRes?.info?.name || checkRes?.name || '',
+                                    pointsStatus: pData ? '讀取成功' : '讀取失敗或無資料',
+                                    pointsBalance: pData && pData.balance !== undefined ? pData.balance : '',
+                                    errors: initErrors.length ? initErrors.join('\n') : (diagnosticInfo.value.errors || '無'),
+                                    checkedAt: new Date().toLocaleString('zh-TW')
+                                };
+                                isGlobalLoading.value = false;
+                                view.value = 'diagnostic';
+                                window.scrollTo(0, 0);
+                                return;
+                            }
+
                             // 再次確保最新的路由正確
                             if (viewParam) {
                                 if (!userStatus.value.registered && viewParam !== 'register') {
@@ -1214,6 +1322,16 @@
                         } catch (e) { 
                             console.error("Init Error", e); 
                             const errMsg = e.message || JSON.stringify(e);
+                            if (isDiagnosticView) {
+                                diagnosticInfo.value = {
+                                    ...diagnosticInfo.value,
+                                    errors: errMsg,
+                                    checkedAt: new Date().toLocaleString('zh-TW')
+                                };
+                                view.value = 'diagnostic';
+                                isGlobalLoading.value = false;
+                                return;
+                            }
                             loadingText.value = `❌ 系統異常：\n${errMsg}`; hasInitError.value = true; 
                             isGlobalLoading.value = true;
                         }
@@ -1877,7 +1995,7 @@
                     onMounted(() => { initApp(); });
 
                     return { 
-                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, courses, products, videos, selectedVideo, activeVideoTeacher, videoTeachers, filteredVideos, openVideo, setActiveVideoTeacher, myOrders, selectedCourse, selectedProduct, productQuantity, productPointsToUse, productSubtotal, productMaxDeduct, productPayable, clampProductPoints, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
+                        isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, diagnosticInfo, diagnosticRows, copyDiagnosticText, courses, products, videos, selectedVideo, activeVideoTeacher, videoTeachers, filteredVideos, openVideo, setActiveVideoTeacher, myOrders, selectedCourse, selectedProduct, productQuantity, productPointsToUse, productSubtotal, productMaxDeduct, productPayable, clampProductPoints, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
                         orderStatusText, orderStatusClass, orderAmountText,
                         isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                         isProfileInfoOpen, isImageUploading, handleAvatarUpload,
