@@ -2438,6 +2438,12 @@ export default {
       return new Response(object.body, { headers });
     }
 
+    if (["GET", "HEAD"].includes(request.method) && /^\/[A-Za-z0-9_-]+\.html$/.test(url.pathname)) {
+      const target = new URL(request.url);
+      target.pathname = `/app${url.pathname}`;
+      return Response.redirect(target.toString(), 302);
+    }
+
     if (["GET", "HEAD"].includes(request.method) && (url.pathname === "/app" || url.pathname === "/app/" || /^\/app\/[A-Za-z0-9_-]+\.html$/.test(url.pathname))) {
       const pageName = url.pathname === "/app" || url.pathname === "/app/" ? "index.html" : url.pathname.replace("/app/", "");
       const object = await env['act-image']?.get(`app/${pageName}`);
