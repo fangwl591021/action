@@ -670,6 +670,7 @@
                         loadingText.value = '驗證管理員身分...';
                         
                         let liffId = '2009130603-RYWWBxUf'; 
+                        const sdkReadyPromise = loadLiffSdk(manualClick);
                         try {
                             const settings = await callApi('GET_SETTINGS', {}, true);
                             if (settings && settings.liff_id) liffId = settings.liff_id;
@@ -678,7 +679,7 @@
                             liffId = String(liffId).split('liff.line.me/')[1].split('?')[0].replace(/\//g, '');
                         }
                         
-                        const sdkReady = await loadLiffSdk(manualClick);
+                        const sdkReady = await sdkReadyPromise;
                         if (!sdkReady) return;
                         await liff.init({ liffId });
                         
@@ -688,13 +689,13 @@
                                 userId: profile.userId || '',
                                 displayName: profile.displayName || ''
                             };
-                            const currentSettings = await callApi('GET_SETTINGS', {}, true);
                             const checkRes = await callApi('CHECK_USER', { userId: profile.userId }, true);
                             const isAuthorized = checkRes && (checkRes.isAdmin || checkRes.canCrmLogin);
 
                             if (isAuthorized) {
                                 isAuthenticated.value = true;
-                                await fetchData();
+                                isGlobalLoading.value = false;
+                                fetchData();
                             } else {
                                 alert(`⛔ 權限不足！請聯絡總管理員將以下 UID 加入授權清單。\nUID: ${profile.userId}`);
                                 liff.logout();
