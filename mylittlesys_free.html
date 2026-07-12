@@ -855,8 +855,8 @@
       var aspect = $('v0_aspect') && $('v0_aspect').value;
       var bg = $('v0_bgColor') && $('v0_bgColor').value || '#ffffff';
       var titleColor = $('v0_titleColor') && $('v0_titleColor').value || '#111827';
-      var title = $('v0_title') && $('v0_title').value || '圖片文字卡片';
-      var desc = $('v0_desc') && $('v0_desc').value || '';
+      var title = $('v0_title') ? $('v0_title').value : '';
+      var desc = $('v0_desc') ? $('v0_desc').value : '';
       var bubbleSize = ($('v0_size') && $('v0_size').value) || 'mega';
       var mockBubble = $('v0-mock-bubble');
       if (mockBubble) {
@@ -872,10 +872,13 @@
         mockHero.style.height = Math.max(1, Math.round(heroWidth * parsedAspect.height / parsedAspect.width)) + 'px';
         mockHero.style.flexShrink = '0';
       }
-      if ($('v0-mock-body')) $('v0-mock-body').style.backgroundColor = bg;
+      if ($('v0-mock-body')) {
+        $('v0-mock-body').style.backgroundColor = bg;
+        $('v0-mock-body').style.display = (title || desc) ? '' : 'none';
+      }
       if ($('v0-mock-footer')) $('v0-mock-footer').style.backgroundColor = bg;
-      if ($('v0-mock-title')) { $('v0-mock-title').textContent = title; $('v0-mock-title').style.color = titleColor; }
-      if ($('v0-mock-desc')) $('v0-mock-desc').textContent = desc;
+      if ($('v0-mock-title')) { $('v0-mock-title').textContent = title; $('v0-mock-title').style.color = titleColor; $('v0-mock-title').style.display = title ? '' : 'none'; }
+      if ($('v0-mock-desc')) { $('v0-mock-desc').textContent = desc; $('v0-mock-desc').style.display = desc ? '' : 'none'; }
       var footer = $('v0-mock-footer');
       if (footer) {
         footer.innerHTML = '';
@@ -924,19 +927,30 @@
     };
     window.generateFlexJson_v0 = function() {
       var bg = $('v0_bgColor') && $('v0_bgColor').value || '#ffffff';
+      var titleText = $('v0_title') ? $('v0_title').value.trim() : '';
+      var descText = $('v0_desc') ? $('v0_desc').value.trim() : '';
+      var bodyContents = [];
+      if (titleText) {
+        bodyContents.push({ type:'text', text:titleText, weight:'bold', size:'lg', color:($('v0_titleColor') && $('v0_titleColor').value) || '#111827', wrap:true });
+      }
+      if (descText) {
+        var descComponent = { type:'text', text:descText, size:'sm', color:'#475569', wrap:true };
+        if (titleText) descComponent.margin = 'md';
+        bodyContents.push(descComponent);
+      }
       var buttons = getButtons().filter(function(btn){ return btn.show; }).map(function(btn){
         return { type:'box', layout:'vertical', paddingAll:'md', cornerRadius:'md', backgroundColor:btn.bg, action:{ type:'uri', label:btn.label || 'Button', uri:flexUri(btn.url) }, contents:[{ type:'text', text:btn.label || 'Button', align:'center', color:btn.color, weight:'bold', size:'sm' }] };
       });
-      return {
+      var bubble = {
         type:'bubble',
         size: ($('v0_size') && $('v0_size').value) || 'mega',
         hero:{ type:'image', url: ($('v0_imageUrl') && $('v0_imageUrl').value.trim()) || fallbackImage, size:'full', aspectRatio: (($('v0_aspect') && $('v0_aspect').value) || '1:1').replace('x', ':'), aspectMode:'cover' },
-        body:{ type:'box', layout:'vertical', backgroundColor:bg, contents:[
-          { type:'text', text:($('v0_title') && $('v0_title').value) || '圖片文字卡片', weight:'bold', size:'lg', color:($('v0_titleColor') && $('v0_titleColor').value) || '#111827', wrap:true },
-          { type:'text', text:($('v0_desc') && $('v0_desc').value) || ' ', size:'sm', color:'#475569', wrap:true, margin:'md' }
-        ] },
         footer:{ type:'box', layout:'vertical', spacing:'sm', backgroundColor:bg, contents:buttons }
       };
+      if (bodyContents.length) {
+        bubble.body = { type:'box', layout:'vertical', backgroundColor:bg, contents:bodyContents };
+      }
+      return bubble;
     };
     window.loadFlexMenuV0_Data = function(name, json) {
       var bubble = json && json.contents ? json.contents : json;
