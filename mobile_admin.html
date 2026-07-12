@@ -134,6 +134,10 @@
                             <div class="text-xl font-black text-slate-700 relative z-10">{{ orders.length }}</div>
                         </div>
                     </div>
+                    <div v-if="dashboardDataLoading" class="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex items-center gap-3 text-slate-500 text-[13px] font-bold shadow-sm">
+                        <i class="fas fa-spinner fa-spin text-[#06C755]"></i>
+                        <span>營運資料載入中，其他功能可先操作。</span>
+                    </div>
 
                     <div class="grid grid-cols-2 gap-3 mb-6">
                         <button @click="view = 'broadcast'" class="native-card !mb-0 flex flex-col items-center justify-center gap-2 active:scale-95 transition">
@@ -550,6 +554,7 @@
                 const loadingText = ref('啟動系統中...');
                 const view = ref('dashboard');
                 const isLoading = ref(false);
+                const dashboardDataLoading = ref(false);
                 const loginForm = ref({ account: '', password: '' });
                 const currentAdminProfile = ref({ userId: '', displayName: '' });
 
@@ -626,6 +631,7 @@
                 };
 
                 const fetchData = async () => {
+                    dashboardDataLoading.value = true;
                     const data = await callApi('ADMIN_GET_DATA', {});
                     if (data) {
                         courses.value = data.courses || [];
@@ -633,6 +639,7 @@
                         orders.value = data.orders || [];
                         flexRules.value = data.flexRules || [];
                     }
+                    dashboardDataLoading.value = false;
                 };
 
                 // ==========================================
@@ -1028,7 +1035,7 @@
                 });
 
                 return {
-                    isAuthenticated, isGlobalLoading, loadingText, view, isLoading, loginForm,
+                    isAuthenticated, isGlobalLoading, loadingText, view, isLoading, dashboardDataLoading, loginForm,
                     users, courses, orders, flexRules, editingOrder, showOrdersModal, selectedCourseOrders,
                     orderSearchQuery, courseSearchQuery, userSearchQuery, mobileUserPage, mobileUserPageSize,
                     broadcastForm, broadcastSelectedUids, broadcastSelectedModuleIds, editingFlexRule,
