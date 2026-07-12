@@ -2438,9 +2438,10 @@ export default {
       return new Response(object.body, { headers });
     }
 
-    if (["GET", "HEAD"].includes(request.method) && ["/app", "/app/", "/app/index.html"].includes(url.pathname)) {
-      const object = await env['act-image']?.get("app/index.html");
-      if (!object) return new Response("App entry not found", { status: 404, headers: corsHeaders });
+    if (["GET", "HEAD"].includes(request.method) && (url.pathname === "/app" || url.pathname === "/app/" || /^\/app\/[A-Za-z0-9_-]+\.html$/.test(url.pathname))) {
+      const pageName = url.pathname === "/app" || url.pathname === "/app/" ? "index.html" : url.pathname.replace("/app/", "");
+      const object = await env['act-image']?.get(`app/${pageName}`);
+      if (!object) return new Response("App page not found", { status: 404, headers: corsHeaders });
       const headers = new Headers(corsHeaders);
       object.writeHttpMetadata(headers);
       headers.set("Content-Type", "text/html; charset=utf-8");
