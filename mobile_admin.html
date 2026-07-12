@@ -541,6 +541,7 @@
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const WORKER_URL = 'https://action.fangwl591021.workers.dev/';
+        const API_ENDPOINT = window.location.hostname === 'action.fangwl591021.workers.dev' ? '/' : WORKER_URL;
 
         createApp({
             setup() {
@@ -599,11 +600,20 @@
                                 requestPayload.adminPwd = pwd;
                             }
                         }
-                        const res = await fetch(WORKER_URL, {
+                        const requestBody = JSON.stringify({ action, payload: requestPayload, userProfile: { userId: currentUserId || '' }, idToken: token });
+                        const requestOptions = {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action, payload: requestPayload, userProfile: { userId: currentUserId || '' }, idToken: token })
-                        });
+                            cache: 'no-store',
+                            body: requestBody
+                        };
+                        let res;
+                        try {
+                            res = await fetch(API_ENDPOINT, requestOptions);
+                        } catch (fetchErr) {
+                            if (API_ENDPOINT === WORKER_URL) throw fetchErr;
+                            res = await fetch(WORKER_URL, requestOptions);
+                        }
                         const json = await res.json();
                         if (json.status !== 'success') throw new Error(json.message || '後台執行失敗');
                         return json.data;
