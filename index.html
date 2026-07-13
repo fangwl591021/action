@@ -1088,7 +1088,10 @@
                         const match = String(order?.orderId || '').match(/(?:ORD|BOOK|SHOP)(\d{12,})/);
                         return match ? formatOrderDateText(Number(match[1])) : '';
                     };
-                    const orderPaidAtText = (order) => isPaidOrder(order) ? formatOrderDateText(order?.paidAt || order?.paymentConfirmedAt || order?.updatedAt || '') : '';
+                    const orderPaidAtText = (order) => {
+                        if (!isPaidOrder(order)) return '';
+                        return formatOrderDateText(order?.paidAt || order?.paymentConfirmedAt || order?.updatedAt || '') || '未記錄';
+                    };
 
                     const getCourseStages = (course) => Array.isArray(course?.stageTags)
                         ? course.stageTags.map(String).filter(Boolean)
