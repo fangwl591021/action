@@ -239,8 +239,11 @@
                             <div class="flex justify-between items-start mb-3"><div class="text-[12px] font-bold text-[#111111]">{{ o.orderId }}</div><div class="px-2 py-1 rounded-md text-[10px] font-bold" :class="orderStatusClass(o)">{{ orderStatusText(o) }}</div></div>
                             <div class="native-title" :class="{'text-black line-through': o.status==='CANCELLED'}">{{ orderDisplayName(o) }}</div>
                             <div class="text-[#06C755] font-black text-[18px] mb-3" :class="{'text-black': o.status==='CANCELLED'}">{{ orderAmountText(o) }}</div>
-                            <div v-if="orderCreatedAtText(o)" class="text-[12px] text-[#111111] font-bold mb-3 flex items-center gap-1.5">
-                                <i class="fas fa-calendar-check text-[#111111]"></i><span>{{ orderCreatedAtLabel(o) }}：{{ orderCreatedAtText(o) }}</span>
+                            <div v-if="orderCreatedAtText(o)" class="text-[12px] font-bold mb-1 flex items-center gap-1.5" :class="orderDateStatusClass(o)">
+                                <i class="fas fa-calendar-check"></i><span>{{ orderCreatedAtLabel(o) }}：{{ orderCreatedAtText(o) }}</span>
+                            </div>
+                            <div v-if="orderPaidAtText(o)" class="text-[12px] text-[#111111] font-bold mb-3 flex items-center gap-1.5">
+                                <i class="fas fa-receipt"></i><span>完款時間：{{ orderPaidAtText(o) }}</span>
                             </div>
                             <div v-if="o.type === 'BOOKING'" class="text-[12px] text-slate-500 font-bold bg-indigo-50 p-3 rounded-lg mb-3 border border-indigo-100 leading-relaxed">
                                 <i class="fas fa-user-tie mr-1.5 text-indigo-500"></i>此預約由講師現場或私下收費，系統不代收款項。
@@ -1038,17 +1041,32 @@
                         if (order?.type === 'PRODUCT') return `$ ${formatPrice(order.amount || 0)}${order.pointsUsed ? ` / 折抵 ${formatPrice(order.pointsUsed)} 點` : ''}`;
                         return `$ ${formatPrice(order?.amount || 0)}`;
                     };
+                    const isProductOrder = (order) => order?.type === 'PRODUCT' || String(order?.orderId || '').startsWith('SHOP') || !!order?.productId || !!order?.productName;
+                    const isCancelledOrder = (order) => String(order?.status || '').toUpperCase() === 'CANCELLED';
                     const orderCreatedAtLabel = (order) => {
-                        const isProduct = order?.type === 'PRODUCT' || String(order?.orderId || '').startsWith('SHOP') || !!order?.productId || !!order?.productName;
-                        return isProduct ? '完成購買' : '完成報名';
+                        const noun = isProductOrder(order) ? '購買' : '報名';
+                        if (isCancelledOrder(order)) return '送出' + noun;
+                        if (!isPaidOrder(order) && order?.type !== 'BOOKING') return '送出' + noun + '待付款';
+                        return '完成' + noun;
                     };
-                    const orderCreatedAtText = (order) => {
-                        const raw = String(order?.createdAt || '').trim();
-                        if (raw) return raw.replace('T', ' ').replace(/\.\d{3}Z$/, '').slice(0, 16);
-                        const match = String(order?.orderId || '').match(/(?:ORD|BOOK|SHOP)(\d{12,})/);
-                        if (!match) return '';
-                        const date = new Date(Number(match[1]));
-                        if (Number.isNaN(date.getTime())) return '';
+                    const orderDateStatusClass = (order) => {
+                        if (isCancelledOrder(order)) return 'text-[#111111]';
+                        return (!isPaidOrder(order) && order?.type !== 'BOOKING') ? 'text-orange-600' : 'text-[#111111]';
+                    };
+                    const formatOrderDateText = (value) => {
+                        const raw = String(value || '').trim();
+                        if (!raw) return '';
+                        const normalized = raw.replace('T', ' ').replace(/\.\d{3}Z$/, '').replace(/,\s*/g, ' ');
+                        const match = normalized.match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})\s+(\d{1,2}):(\d{2})/)
+                            || normalized.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\s+(\d{1,2}):(\d{2})/);
+                        if (match) {
+                            const y = match[1].length === 4 ? match[1] : match[3];
+                            const m = match[1].length === 4 ? match[2] : match[1];
+                            const d = match[1].length === 4 ? match[3] : match[2];
+                            return y + '/' + String(m).padStart(2, '0') + '/' + String(d).padStart(2, '0') + ' ' + String(match[4]).padStart(2, '0') + ':' + match[5];
+                        }
+                        const date = new Date(raw);
+                        if (Number.isNaN(date.getTime())) return normalized.slice(0, 16).replace(/[:\s]+$/, '');
                         const parts = new Intl.DateTimeFormat('zh-TW', {
                             timeZone: 'Asia/Taipei',
                             hour12: false,
@@ -1064,6 +1082,13 @@
                         }, {});
                         return parts.year + '/' + parts.month + '/' + parts.day + ' ' + parts.hour + ':' + parts.minute;
                     };
+                    const orderCreatedAtText = (order) => {
+                        const raw = String(order?.createdAt || '').trim();
+                        if (raw) return formatOrderDateText(raw);
+                        const match = String(order?.orderId || '').match(/(?:ORD|BOOK|SHOP)(\d{12,})/);
+                        return match ? formatOrderDateText(Number(match[1])) : '';
+                    };
+                    const orderPaidAtText = (order) => isPaidOrder(order) ? formatOrderDateText(order?.paidAt || order?.paymentConfirmedAt || order?.updatedAt || '') : '';
 
                     const getCourseStages = (course) => Array.isArray(course?.stageTags)
                         ? course.stageTags.map(String).filter(Boolean)
@@ -2046,7 +2071,7 @@
 
                     return { 
                         isGlobalLoading, loadingText, hasInitError, retryInit: initApp, view, isLoading, liffProfile, userStatus, userPoints, sysSettings, diagnosticInfo, diagnosticRows, copyDiagnosticText, courses, products, videos, selectedVideo, activeVideoTeacher, videoTeachers, filteredVideos, openVideo, setActiveVideoTeacher, myOrders, selectedCourse, selectedProduct, productQuantity, productPointsToUse, productSubtotal, productMaxDeduct, productPayable, clampProductPoints, regForm, showRemittanceInfoModal, closeRemittanceInfoModal, showRemittanceModal, remittanceInput, currentOrderForRemit, paymentMethod,
-                        orderStatusText, orderStatusClass, orderAmountText, orderCreatedAtLabel, orderCreatedAtText,
+                        orderStatusText, orderStatusClass, orderAmountText, orderCreatedAtLabel, orderDateStatusClass, orderCreatedAtText, orderPaidAtText,
                         isEditingProfile, editForm, startEditingProfile, saveProfileUpdate,
                         isProfileInfoOpen, isImageUploading, handleAvatarUpload,
                         teacherCourses, editingMyCourse, isCourseImgUploading, openMyCourses, openEditMyCourse, handleCourseImgUpload, saveMyCourse, deleteMyCourse,
