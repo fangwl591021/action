@@ -2590,6 +2590,43 @@
 
                     const DEFAULT_LINE_DISPLAY_TEXT = '您有一則優惠訊息，請即閱讀';
 
+                    const URL_FIELD_RE = /(^|_)(uri|url)$|url$/i;
+                    const sanitizeUrlStrings = (value) => {
+                        if (Array.isArray(value)) return value.map(sanitizeUrlStrings);
+                        if (value && typeof value === 'object') {
+                            Object.keys(value).forEach((key) => {
+                                const item = value[key];
+                                value[key] = (typeof item === 'string' && URL_FIELD_RE.test(key)) ? item.trim() : sanitizeUrlStrings(item);
+                            });
+                        }
+                        return value;
+                    };
+                    const collectInvalidFlexUrls = (value, path = 'root', errors = []) => {
+                        if (Array.isArray(value)) {
+                            value.forEach((item, index) => collectInvalidFlexUrls(item, path + '[' + index + ']', errors));
+                            return errors;
+                        }
+                        if (!value || typeof value !== 'object') return errors;
+                        Object.entries(value).forEach(([key, item]) => {
+                            const nextPath = path + '.' + key;
+                            if (typeof item === 'string' && URL_FIELD_RE.test(key)) {
+                                const trimmed = item.trim();
+                                if (item !== trimmed) errors.push(nextPath + ' 前後有空白，已自動修正');
+                                if (trimmed && !/^https?:\/\//i.test(trimmed)) errors.push(nextPath + ' 不是合法 http/https 網址');
+                            } else {
+                                collectInvalidFlexUrls(item, nextPath, errors);
+                            }
+                        });
+                        return errors;
+                    };
+                    const validateImageModuleUrls = (form) => {
+                        form.payload = String(form.payload || '').trim();
+                        form.previewImageUrl = String(form.previewImageUrl || form.payload || '').trim();
+                        if (form.payload && !/^https?:\/\//i.test(form.payload)) throw new Error('圖片 URL 不是合法 http/https 網址');
+                        if (form.previewImageUrl && !/^https?:\/\//i.test(form.previewImageUrl)) throw new Error('預覽圖片 URL 不是合法 http/https 網址');
+                    };
+
+
                     const defaultFlexImage = 'https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_cafe.png';
 
                     const buildFlexContentsFromForm = (form) => {
@@ -4199,6 +4236,11 @@
                                         altText: String(editingFlexRule.value.altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400),
                                         contents: parsedFlex
                                     };
+                                const urlErrors = collectInvalidFlexUrls(message);
+                                sanitizeUrlStrings(message);
+                                const blockingUrlErrors = urlErrors.filter(msg => !msg.includes('已自動修正'));
+                                if (blockingUrlErrors.length) throw new Error('網址健檢失敗：\n' + blockingUrlErrors.slice(0, 8).join('\n'));
+                                if (urlErrors.length) alert('網址健檢提醒：\n' + urlErrors.slice(0, 8).join('\n'));
                                 const customAltText = String(editingFlexRule.value.altText || '').trim();
                                 message.altText = String(customAltText || message.altText || DEFAULT_LINE_DISPLAY_TEXT).slice(0, 400);
                                 editingFlexRule.value.altText = message.altText;
@@ -4209,6 +4251,10 @@
                             }
                         }
                         if (!editingFlexRule.value.moduleName) return alert('模組名稱為必填');
+                        if (String(editingFlexRule.value.replyType || '').toUpperCase() === 'IMAGE') {
+                            try { validateImageModuleUrls(editingFlexRule.value); }
+                            catch (e) { return alert('網址健檢失敗：' + e.message); }
+                        }
                         if (!editingFlexRule.value.payload) return alert('模組內容為必填');
                         const nowIso = new Date().toISOString();
                         const ruleToSave = {
