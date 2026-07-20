@@ -2863,16 +2863,47 @@
                         return selectedBroadcastModules.value.length + (broadcastForm.value.message.trim() ? 1 : 0);
                     });
 
+                    const lineBroadcastErrorHint = (message) => {
+                        const text = String(message || '');
+                        let parsed = null;
+                        const jsonStart = text.indexOf('{');
+                        if (jsonStart >= 0) {
+                            try { parsed = JSON.parse(text.slice(jsonStart)); } catch (_) {}
+                        }
+                        const detailList = Array.isArray(parsed?.details) ? parsed.details : [];
+                        const detailText = detailList.map(detail => [detail?.message, detail?.property].filter(Boolean).join(' ')).join(' ');
+                        const allText = (text + ' ' + (parsed?.message || '') + ' ' + detailText).toLowerCase();
+                        const property = detailList.map(detail => detail?.property).filter(Boolean)[0] || '';
+                        if (allText.includes('invalid uri') || allText.includes('invalid url') || allText.includes('invalid scheme')) {
+                            return [
+                                '卡片連結網址格式錯誤，LINE 拒絕發送。',
+                                '請檢查按鈕、圖片或影片連結是否有多餘空白，並確認網址是 http:// 或 https:// 開頭。',
+                                property ? '錯誤位置：' + property : ''
+                            ].filter(Boolean).join('\n');
+                        }
+                        if (allText.includes('request body is invalid')) {
+                            return [
+                                '卡片內容格式不符合 LINE 規則，因此推播被拒絕。',
+                                '請重新儲存模組，並檢查圖片網址、按鈕連結、文字長度與卡片 JSON。',
+                                property ? '錯誤位置：' + property : ''
+                            ].filter(Boolean).join('\n');
+                        }
+                        if (allText.includes('invalid reply token')) return 'LINE 回覆憑證已失效，請重新觸發訊息後再試。';
+                        if (allText.includes('not found')) return 'LINE 找不到這位收件人，可能已封鎖、解除好友或 UID 不正確。';
+                        if (allText.includes('access token')) return 'LINE OA 存取權杖異常，請檢查系統設定中的 LINE Channel Access Token。';
+                        return text ? 'LINE 回傳錯誤：' + text : 'LINE API 拒絕發送，但未提供詳細原因。';
+                    };
+
                     const broadcastCampaignErrorText = (campaign) => {
                         const details = Array.isArray(campaign?.errorDetails) ? campaign.errorDetails : [];
                         if (details.length) {
                             return details.slice(0, 3).map(item => {
                                 const who = [item.name, item.uid].filter(Boolean).join(' / ') || '未知收件人';
-                                return `${who}\nHTTP ${item.status || '-'}：${item.message || 'LINE API 拒收'}`;
+                                return who + '\n狀態：HTTP ' + (item.status || '-') + '\n原因：' + lineBroadcastErrorHint(item.message);
                             }).join('\n\n');
                         }
                         const errors = Array.isArray(campaign?.errors) ? campaign.errors : [];
-                        return errors.slice(0, 3).join('\n');
+                        return errors.slice(0, 3).map(lineBroadcastErrorHint).join('\n\n');
                     };
 
                     const sendPaidBroadcast = async () => {
